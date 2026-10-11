@@ -1,0 +1,182 @@
+{
+  "schema": "tzudong-ci-monitor-artifact-map/v1",
+  "files": [
+    {
+      "path": ".github/scripts/collect-ci-performance.py",
+      "sha256": "b53442332490b1386e936890c6ab7f21d4d6bd00602983880447a64bf0e2f2df",
+      "bytes": 34050
+    },
+    {
+      "path": ".github/scripts/collect-ci-monitor.py",
+      "sha256": "be8226fc67f349a4d0a55593f7ee89de05f6217ce0d225888dedb9d88e23be66",
+      "bytes": 18838
+    },
+    {
+      "path": ".github/scripts/monitor-ci-performance.py",
+      "sha256": "54c71a937b4a0c04df45fd7718f447d9f74a3c89b14ddbc1483f019e2efd7f9b",
+      "bytes": 37549
+    },
+    {
+      "path": ".github/scripts/run-ci-monitor.py",
+      "sha256": "a4a0a6201d6bb12a0837751b014bd7900f1c055db34148aeea4984ebda3208ee",
+      "bytes": 8044
+    },
+    {
+      "path": ".github/scripts/test_collect_ci_monitor.py",
+      "sha256": "899b59a4d8758ef6e452d03613688a8fa6ef55d1381171f31607725a68d7dae3",
+      "bytes": 10242
+    },
+    {
+      "path": ".github/scripts/test_monitor_ci_performance.py",
+      "sha256": "b750071ac0a63c04fbd7179d65b37f777f71bfce5262ecd2bd932474ce2b1411",
+      "bytes": 14129
+    },
+    {
+      "path": ".github/scripts/test_run_ci_monitor.py",
+      "sha256": "43cf9ecb888aef1530caaa8cf659019a94264771e44186e7ce9e200747e6d307",
+      "bytes": 6684
+    },
+    {
+      "path": ".github/workflows/security-audit.yml",
+      "sha256": "5db7a092f513c610f2a7f68afb0d3bcb176e9a3eaf52f7c80bb5d6110dffcb7b",
+      "bytes": 35018
+    },
+    {
+      "path": "docs/operations/github-ci-monitor-20261011.md",
+      "sha256": "e05d4e1d0f7b2e12ad360b7b4d4737a1af948f409cec2d7a5bf6f6488ae9d50d",
+      "bytes": 8858
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/automation-readback.json",
+      "sha256": "286f1b5fd12c8cb0df1fe1c071a57cafdbcf8d9bb60ebd53ce1241821b59cfe9",
+      "bytes": 417
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/baseline.json",
+      "sha256": "d8e08c6371f3dab93fdb3495d5b14266d457e6e0490876f1e2546177a0b89070",
+      "bytes": 652087
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/final-live-tick/analysis.json",
+      "sha256": "15564c365132526e97d4606897e8a08a0e2d1214b5c0d7e50f5a94806557aa89",
+      "bytes": 10948
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/final-live-tick/current.json",
+      "sha256": "ba80d35aad0e3fe1697e35957870144cfe4efa4a0cfb00ba032079be48208b79",
+      "bytes": 251
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/final-live-tick/export.json",
+      "sha256": "2173c05b5d6860d5a6c6fd3aa9d5727f38f4686a514c002aa65ce07b25beadf7",
+      "bytes": 1098889
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/final-live-tick/tick.json",
+      "sha256": "12b957db29095154b11562bd871963aeefa346bc41edf4624ebae4fdcdb539bc",
+      "bytes": 1842
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/final-monitor-config.json",
+      "sha256": "c31e35f6acfd3b3e168352cad38b182f68a38950aab2933a060b85143ac9e48f",
+      "bytes": 677
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/final-offline-replay/analysis.json",
+      "sha256": "f6088bb7ae5b0a2196cb43e0a1c0e48523459ac625fe3e182e61905ef35def0e",
+      "bytes": 11011
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/final-offline-replay/tick.json",
+      "sha256": "0505d8e26bba44cfb35889f3f2797bc372e3b0b2e016f83534c62cd5017fdb41",
+      "bytes": 1847
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/first-export.json",
+      "sha256": "e50bbc8642bf56fbe682ab632045a11afc26c0a31ed19b4a4ffd58bc27470735",
+      "bytes": 366296
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/first-tick/analysis.json",
+      "sha256": "d9e6b1a57ccb6781e93cee91f1d41b644277f34da514eddc585ee4faabc83284",
+      "bytes": 10948
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/first-tick/current.json",
+      "sha256": "48b582e65d200588270d5dbcb1f7c804c61c4081ae36249e119de6dfe71dad54",
+      "bytes": 251
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/first-tick/export.json",
+      "sha256": "5dda97c1d28229579fbcaa5106eecaa061306417b420dc531a7e81ea4d110f4a",
+      "bytes": 1098888
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/first-tick/tick.json",
+      "sha256": "b8771f09e5ce5522a5d1d72cb4e7070f7e8e936881cf4170869a8594addcc305",
+      "bytes": 1790
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/initial-analysis.json",
+      "sha256": "47a9ba4ffc7054fb6ac5ba1060dc371c322433eede73c28f58a6ab5ca469363a",
+      "bytes": 10807
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/instrumentation-snapshots/run-ci-monitor-before-mode-reporting.py",
+      "sha256": "04aaa7a185e8fb4d762840faa426e0bb52f454c79aeb15b2fa8e99ab0b6c952f",
+      "bytes": 7870
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/monitor-config.json",
+      "sha256": "3a391ef69c7146a799a34be123d159bfcbd4cf8d9ce8e9817972ccd03e130fed",
+      "bytes": 677
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/offline-replay/analysis.json",
+      "sha256": "3904f053afaf91678f0443dddff156f7b1431b73b8251e404887e98fb0f20dad",
+      "bytes": 11011
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/offline-replay/tick.json",
+      "sha256": "f4ca8309f33c8f2501628fb8cf55f906f3ce32db7a41f88e263f68a09656cac3",
+      "bytes": 1790
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/opus-review/completed-receipt.json",
+      "sha256": "08957e73c1122394481d40af310dfd02dddd237430ba68d8cd92fb285fda166e",
+      "bytes": 752
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/opus-review/review.md",
+      "sha256": "c89877559bbfcb42294e5a1128d5a00398a2aac35ef4fb309dffd1de839a37fe",
+      "bytes": 3274
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/opus-review/truncated-receipt.json",
+      "sha256": "b8875b30ce5ce144b36085dad342e189aa11f5cada35d45a8f99066a5d2bff8b",
+      "bytes": 783
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/paginated-export.json",
+      "sha256": "c93ea542cf63934155a9c71eac511358f31ec5b630ca0fad41730a8567a6831d",
+      "bytes": 1098893
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/second-export.json",
+      "sha256": "af4688570a0359152c43d3414d3aa5aecbcc2bd82ae7c920b7274dc3f81482ea",
+      "bytes": 366296
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/summary.json",
+      "sha256": "626f8121b9ea1289b6bdc4ee077863ef0e77c04f1db747fef97426d4c1630989",
+      "bytes": 2534
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/warm-complete-export.json",
+      "sha256": "a4041b2d9ff6f887727c7e16bb032bc897a3fd5742ff8f941c252c38b06ab781",
+      "bytes": 1098889
+    }
+  ],
+  "sourceBaseCommit": "9cc99c171c3ad039daf10fa01c335df5210b9b4f",
+  "formalPerformanceAdmittedSlices": 0
+}

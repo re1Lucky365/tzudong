@@ -1,0 +1,379 @@
+#!/usr/bin/env python3
+"""Bounded, read-only GitHub metadata collection with attempt-specific caching.
+
+No workflow reruns, logs, credentials, actors or request bodies are retained.
+SQLite lookups are O(log H); only changed run/attempt job sets are fetched.
+Recent-list coverage is bounded and explicitly marked when it has gaps.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.util
+import json
+import os
+import re
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import time
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from urllib.parse import quote
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+SPEC = importlib.util.spec_from_file_location("ci_collection", SCRIPT_DIR / "collect-ci-performance.py")
+COLLECTOR = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(COLLECTOR)
+SCHEMA = "tzudong-ci-incremental-export/v1"
+SAFE_SHA = re.compile(r"^[0-9a-f]{40}$")
+SAFE_REPOSITORY = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+KNOWN_JOBS = {"Admin", "Install", "Ubuntu Bun", "Ubuntu npm", "Windows Bun", "Windows npm"}
+STATUSES = {"queued", "in_progress", "completed", "waiting", "pending", "requested"}
+CONCLUSIONS = {"success", "failure", "cancelled", "skipped", "timed_out", "action_required", "neutral", "stale", "startup_failure"}
+REPRESENTATIVE_NAMES = {
+    "setup": "Initialize containers", "install": "Run npm ci",
+    "combined_install_build_browser_test": "Authoritative npm clean install",
+    "typecheck": "typecheck:parity", "benchmark_report": "typecheck:benchmark",
+    "lint": "npm run lint", "test": "test:unit", "build": "Run npm run build",
+    "upload": "Upload", "other": "Other",
+}
+
+
+class ReadError(RuntimeError):
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
+
+def canonical(value):
+    return (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
+
+
+def digest(value):
+    return hashlib.sha256(canonical(value)).hexdigest()
+
+
+def atomic_json(path: Path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(canonical(value)); handle.flush(); os.fsync(handle.fileno())
+        os.replace(name, path)
+        directory = os.open(path.parent, os.O_RDONLY)
+        try: os.fsync(directory)
+        finally: os.close(directory)
+    finally:
+        if os.path.exists(name): os.unlink(name)
+
+
+def safe_run(raw):
+    result = COLLECTOR.sanitize_run(raw, [])
+    if not isinstance(result["id"], int) or isinstance(result["id"], bool) or result["id"] < 1:
+        raise ReadError("INVALID_RUN_ID")
+    if not isinstance(result["attempt"], int) or not 1 <= result["attempt"] <= 1000:
+        raise ReadError("INVALID_ATTEMPT")
+    if not SAFE_SHA.fullmatch(str(result["headSha"])):
+        raise ReadError("INVALID_SOURCE_SHA")
+    # The source event is a fixed API enum, not a run title.
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", str(result["event"] or "")):
+        result["event"] = "unknown"
+    result.pop("jobs")
+    result["status"] = result["status"] if result["status"] in STATUSES else "missing"
+    result["conclusion"] = result["conclusion"] if result["conclusion"] in CONCLUSIONS else None
+    for key in ("createdAt", "startedAt", "updatedAt"):
+        if result[key] is not None:
+            try: COLLECTOR.parse_timestamp(result[key])
+            except (ValueError, TypeError, COLLECTOR.CollectionError):
+                raise ReadError("INVALID_RUN_TIME") from None
+    return result
+
+
+def safe_job(raw):
+    result = COLLECTOR.sanitize_job(raw)
+    result["name"] = result["name"] if result["name"] in KNOWN_JOBS else "Other job"
+    labels = " ".join(result["runnerLabels"]).lower()
+    family = "windows" if "windows" in labels else "linux" if "ubuntu" in labels or "linux" in labels else "macos" if "macos" in labels else "unknown"
+    result["runnerLabels"] = [family]
+    result["status"] = result["status"] if result["status"] in STATUSES else "missing"
+    result["conclusion"] = result["conclusion"] if result["conclusion"] in CONCLUSIONS else None
+    if len(result["steps"]) > 200:
+        raise ReadError("STEP_COUNT_BOUND")
+    for step in result["steps"]:
+        category = COLLECTOR.classify_step(step["name"])
+        step["name"] = REPRESENTATIVE_NAMES[category]
+        step["status"] = step["status"] if step["status"] in STATUSES else "missing"
+        step["conclusion"] = step["conclusion"] if step["conclusion"] in CONCLUSIONS else None
+    for item in [result] + result["steps"]:
+        for key in ("createdAt", "startedAt", "completedAt"):
+            if item.get(key) is not None:
+                try: COLLECTOR.parse_timestamp(item[key])
+                except (ValueError, TypeError, COLLECTOR.CollectionError):
+                    raise ReadError("INVALID_JOB_TIME") from None
+    return result
+
+
+class GitHubReader:
+    def __init__(self):
+        self.requests = 0
+
+    def get(self, endpoint, fields=None):
+        self.requests += 1
+        command = ["gh", "api", "--method", "GET", endpoint]
+        for key, value in sorted((fields or {}).items()): command += ["-f", f"{key}={value}"]
+        try:
+            result = subprocess.run(command, capture_output=True, timeout=30, check=False)
+        except subprocess.TimeoutExpired:
+            raise ReadError("READ_TIMEOUT") from None
+        if result.returncode:
+            # Only recognize the status; never echo provider diagnostics.
+            if b"HTTP 404" in result.stderr: raise ReadError("NOT_FOUND")
+            raise ReadError("READ_FAILED")
+        if len(result.stdout) > 8 * 1024 * 1024: raise ReadError("API_BYTE_BOUND")
+        try: return json.loads(result.stdout)
+        except (ValueError, UnicodeDecodeError): raise ReadError("INVALID_API_JSON") from None
+
+
+def database(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(path, timeout=0.2)
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("CREATE TABLE IF NOT EXISTS scope (id INTEGER PRIMARY KEY CHECK(id=1), repository TEXT, workflow TEXT)")
+    db.execute("CREATE TABLE IF NOT EXISTS runs (run_id INTEGER, attempt INTEGER, fingerprint TEXT, terminal INTEGER, record TEXT, PRIMARY KEY(run_id,attempt))")
+    db.execute("CREATE TABLE IF NOT EXISTS sources (sha TEXT PRIMARY KEY, tree_sha TEXT, workflow_revision TEXT)")
+    db.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
+    db.commit()
+    return db
+
+
+def source_metadata(db, reader, repository, sha, workflow_path):
+    cached = db.execute("SELECT tree_sha,workflow_revision FROM sources WHERE sha=?", (sha,)).fetchone()
+    if cached: return cached
+    commit = reader.get(f"repos/{repository}/git/commits/{sha}")
+    tree = (commit.get("tree") or {}).get("sha")
+    content = reader.get(f"repos/{repository}/contents/{quote(workflow_path, safe='/')}", {"ref": sha})
+    revision = content.get("sha")
+    if not SAFE_SHA.fullmatch(str(tree)) or not SAFE_SHA.fullmatch(str(revision)):
+        raise ReadError("SOURCE_METADATA_INCOMPLETE")
+    db.execute("INSERT INTO sources VALUES(?,?,?)", (sha, tree, revision))
+    return tree, revision
+
+
+def collect(
+    repository,
+    workflow,
+    cache,
+    reader,
+    limit=20,
+    max_pages=5,
+    overlap_hours=48,
+    now=None,
+):
+    if not SAFE_REPOSITORY.fullmatch(repository): raise ReadError("INVALID_REPOSITORY")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+\.yml", workflow): raise ReadError("INVALID_WORKFLOW")
+    if not 1 <= limit <= 100: raise ReadError("INVALID_RUN_BOUND")
+    if not 1 <= max_pages <= 10: raise ReadError("INVALID_PAGE_BOUND")
+    if not 1 <= overlap_hours <= 168: raise ReadError("INVALID_OVERLAP_BOUND")
+    now = now or datetime.now(timezone.utc)
+    started = time.monotonic()
+    db = database(cache)
+    alerts, export, cached_sets, refreshed_sets = [], [], 0, 0
+    workflow_path = f".github/workflows/{workflow}"
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        scope = db.execute("SELECT repository,workflow FROM scope WHERE id=1").fetchone()
+        if scope and tuple(scope) != (repository, workflow): raise ReadError("CACHE_SCOPE_MISMATCH")
+        if not scope: db.execute("INSERT INTO scope VALUES(1,?,?)", (repository, workflow))
+        watermark = db.execute("SELECT value FROM meta WHERE key='watermark'").fetchone()
+        watermark_before = watermark[0] if watermark else None
+        fields = {"per_page": limit}
+        if watermark:
+            since = COLLECTOR.parse_timestamp(watermark[0]) - timedelta(hours=overlap_hours)
+            fields["created"] = ">=" + since.isoformat().replace("+00:00", "Z")
+        source_runs = []
+        listed_run_ids = set()
+        reported_totals = []
+        duplicate_list_items = 0
+        page_bound = max_pages if watermark else 1
+        list_pages = 0
+        for page in range(1, page_bound + 1):
+            page_fields = {**fields, "page": page}
+            payload = reader.get(
+                f"repos/{repository}/actions/workflows/{workflow}/runs", page_fields
+            )
+            page_runs = payload.get("workflow_runs")
+            total_count = payload.get("total_count")
+            if (
+                not isinstance(page_runs, list)
+                or len(page_runs) > limit
+                or any(not isinstance(raw, dict) for raw in page_runs)
+                or not isinstance(total_count, int)
+                or isinstance(total_count, bool)
+                or total_count < 0
+                or total_count < len(page_runs)
+                or total_count > 100_000
+            ):
+                raise ReadError("INVALID_RUN_LIST")
+            list_pages += 1
+            reported_totals.append(total_count)
+            for raw in page_runs:
+                run_id = raw.get("id") if isinstance(raw, dict) else None
+                if run_id in listed_run_ids:
+                    duplicate_list_items += 1
+                    continue
+                listed_run_ids.add(run_id)
+                source_runs.append(raw)
+            if len(page_runs) < limit or len(listed_run_ids) >= total_count:
+                break
+
+        total_changed = len(set(reported_totals)) > 1
+        reported_total = max(reported_totals, default=0)
+        incremental_window_complete = bool(
+            watermark
+            and not total_changed
+            and duplicate_list_items == 0
+            and len(listed_run_ids) >= reported_total
+        )
+        if not watermark and reported_total > len(listed_run_ids):
+            alerts.append("BOUNDED_RECENT_WINDOW")
+        if watermark and not incremental_window_complete:
+            alerts.append("RECENT_WINDOW_TRUNCATED")
+        if total_changed or duplicate_list_items:
+            alerts.append("LIST_BOUNDARY_CHANGED")
+        listed = {raw.get("id") for raw in source_runs}
+        active = db.execute("SELECT DISTINCT run_id FROM runs WHERE terminal=0 LIMIT 101").fetchall()
+        if len(active) > 100: raise ReadError("ACTIVE_RUN_BOUND")
+        for (run_id,) in active:
+            if run_id in listed: continue
+            try: source_runs.append(reader.get(f"repos/{repository}/actions/runs/{run_id}"))
+            except ReadError as error:
+                if error.code != "NOT_FOUND": raise
+                alerts.append("RUN_TOMBSTONE")
+                db.execute("UPDATE runs SET terminal=1 WHERE run_id=?", (run_id,))
+                for (text,) in db.execute("SELECT record FROM runs WHERE run_id=?", (run_id,)).fetchall():
+                    record = json.loads(text); record.update(status="missing", conclusion="stale", tombstone=True, jobs=[])
+                    record.update(jobsTotalCount=0, jobsAttempt=record["attempt"])
+                    db.execute("UPDATE runs SET record=? WHERE run_id=? AND attempt=?", (canonical(record).decode(), run_id, record["attempt"]))
+                    export.append(record)
+        newest = watermark[0] if watermark else None
+        seen = set()
+        for raw in source_runs:
+            latest = safe_run(raw)
+            if latest["id"] in seen: continue
+            seen.add(latest["id"])
+            if latest["createdAt"] and (newest is None or COLLECTOR.parse_timestamp(latest["createdAt"]) > COLLECTOR.parse_timestamp(newest)):
+                newest = latest["createdAt"]
+            if latest["attempt"] > 10: alerts.append("ATTEMPT_HISTORY_BOUND")
+            for attempt in range(max(1, latest["attempt"] - 9), latest["attempt"] + 1):
+                cached = db.execute("SELECT fingerprint,terminal,record FROM runs WHERE run_id=? AND attempt=?", (latest["id"], attempt)).fetchone()
+                if attempt != latest["attempt"] and cached and cached[1]:
+                    export.append(json.loads(cached[2])); cached_sets += 1; continue
+                run = latest if attempt == latest["attempt"] else safe_run(reader.get(f"repos/{repository}/actions/runs/{latest['id']}/attempts/{attempt}"))
+                if run["id"] != latest["id"] or run["attempt"] != attempt:
+                    raise ReadError("ATTEMPT_BINDING_MISMATCH")
+                fingerprint = digest(run)
+                if cached and cached[1] and cached[0] == fingerprint:
+                    export.append(json.loads(cached[2])); cached_sets += 1; continue
+                jobs_payload = reader.get(f"repos/{repository}/actions/runs/{run['id']}/attempts/{attempt}/jobs", {"per_page": 100, "page": 1})
+                jobs = jobs_payload.get("jobs")
+                count = jobs_payload.get("total_count")
+                if not isinstance(jobs, list) or len(jobs) > 100: raise ReadError("INVALID_JOB_LIST")
+                complete = isinstance(count, int) and not isinstance(count, bool) and count == len(jobs)
+                if not complete: alerts.append("JOB_SET_INCOMPLETE")
+                record = dict(run)
+                record.update(jobs=[safe_job(job) for job in jobs], jobsTotalCount=count, jobsAttempt=attempt)
+                tree, revision = source_metadata(db, reader, repository, run["headSha"], workflow_path)
+                topology = sorted(job["name"] for job in record["jobs"])
+                benchmark_jobs = sum(any(COLLECTOR.classify_step(step["name"]) == "benchmark_report" and step["conclusion"] not in (None, "skipped") for step in job["steps"]) for job in record["jobs"])
+                diagnostic_jobs = sum(any(COLLECTOR.classify_step(step["name"]) == "typecheck" and step["conclusion"] not in (None, "skipped") for step in job["steps"]) for job in record["jobs"])
+                record.update(sourceTree=tree, workflowRevision=revision, jobTopology=digest(topology), executionMode="full_benchmark" if benchmark_jobs == 4 else "diagnostic" if benchmark_jobs == 0 and diagnostic_jobs == 4 else "unknown")
+                terminal = run["status"] == "completed" and complete and all(
+                    job["status"] == "completed" and job["completedAt"] and all(
+                        step["status"] == "completed" and (step["conclusion"] == "skipped" or (step["startedAt"] and step["completedAt"]))
+                        for step in job["steps"]
+                    ) for job in record["jobs"]
+                )
+                if len(canonical(record)) > 1024 * 1024: raise ReadError("RECORD_BYTE_BOUND")
+                db.execute("INSERT OR REPLACE INTO runs VALUES(?,?,?,?,?)", (run["id"], attempt, fingerprint, int(terminal), canonical(record).decode()))
+                export.append(record); refreshed_sets += 1
+        watermark_advanced = bool(
+            newest
+            and (
+                not watermark
+                or incremental_window_complete
+            )
+            and newest != watermark_before
+        )
+        if watermark_advanced:
+            db.execute("INSERT OR REPLACE INTO meta VALUES('watermark',?)", (newest,))
+        watermark_after = newest if watermark_advanced else watermark_before
+        db.commit()
+    except Exception:
+        db.rollback(); raise
+    finally:
+        db.close()
+    return {
+        "schema": SCHEMA, "repository": repository, "workflow": workflow_path,
+        "capturedAtUtc": now.isoformat().replace("+00:00", "Z"), "runs": export,
+        "coverage": {
+            "scope": "bounded_recent_window_plus_known_active_runs",
+            "alerts": sorted(set(alerts)),
+            "completeHistoryClaimed": False,
+            "incrementalWindowComplete": incremental_window_complete,
+            "bootstrapOnly": not bool(watermark_before),
+            "watermarkBefore": watermark_before,
+            "watermarkAfter": watermark_after,
+            "watermarkAdvanced": watermark_advanced,
+            "overlapHours": overlap_hours,
+            "reportedWindowRunCount": reported_total,
+            "uniqueListedRunCount": len(listed_run_ids),
+            "listPages": list_pages,
+        },
+        "collection": {
+            "apiRequests": reader.requests,
+            "refreshedJobSets": refreshed_sets,
+            "reusedJobSets": cached_sets,
+            "elapsedSeconds": round(time.monotonic() - started, 6),
+            "maximumListedRunsPerPage": limit,
+            "maximumListPages": max_pages,
+            "maximumIncrementalListedRuns": limit * max_pages,
+            "asymptoticApiReads": "O(P + A + S), bounded by configured pages, active attempts, and uncached sources",
+            "sqliteLookupCost": "O(log H) per keyed run or source lookup",
+            "llmCalls": 0,
+            "remoteMutations": 0,
+        },
+    }
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repository", default="twoimo/tzudong")
+    parser.add_argument("--workflow", default="web-admin-ci.yml")
+    parser.add_argument("--cache", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--max-pages", type=int, default=5)
+    parser.add_argument("--overlap-hours", type=int, default=48)
+    args = parser.parse_args(argv)
+    try:
+        result = collect(
+            args.repository,
+            args.workflow,
+            args.cache,
+            GitHubReader(),
+            args.limit,
+            args.max_pages,
+            args.overlap_hours,
+        )
+        atomic_json(args.output, result)
+        print(json.dumps({"status": "collected", **result["collection"], "coverage": result["coverage"]}, sort_keys=True))
+        return 0
+    except (ReadError, sqlite3.Error, OSError) as error:
+        print(json.dumps({"status": "unverified", "code": getattr(error, "code", "LOCAL_STATE_FAILED")}, sort_keys=True), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

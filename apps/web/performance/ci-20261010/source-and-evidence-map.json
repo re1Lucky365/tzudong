@@ -9,8 +9,8 @@
     },
     {
       "path": ".github/workflows/security-audit.yml",
-      "sha256": "26c39366fc5eacb62f26c4ef8a18c74ec751e72bfc2a6091383f589b885f5266",
-      "bytes": 34882
+      "sha256": "5db7a092f513c610f2a7f68afb0d3bcb176e9a3eaf52f7c80bb5d6110dffcb7b",
+      "bytes": 35018
     },
     {
       "path": ".github/scripts/classify-ci-benchmark.mjs",
@@ -29,7 +29,7 @@
     },
     {
       "path": ".kiro/specs/crawler-pipeline-operational-readiness/platform-modernization-reconciliation.v1.json",
-      "sha256": "dfdfe296409cdd251038bc2801cb7288d3ceb80118f37e4a3d2e5dfea002808a",
+      "sha256": "0459ba4ad9478147f635c5f7db90b21fb96c1d6680c2030f07767b7880d0e102",
       "bytes": 168157
     },
     {
@@ -91,6 +91,16 @@
       "path": "backend/pipeline_control/test_readiness_unittest.py",
       "sha256": "b0fe393f2758235bab5f6be6d53ca4bb6f6fe6e59e14c1076ba73da8c8779736",
       "bytes": 27004
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/artifact-map.json",
+      "sha256": "d98c5955c526efa71fe9025277c2e85fb0c10284378f70114ccb6c580d7dde43",
+      "bytes": 7011
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/artifact-map.json.sha256",
+      "sha256": "a03eb08f07dc7732bb0199f319c6c03ca892acd3f83abe7e901ec00a9bb21df0",
+      "bytes": 84
     }
   ]
 }
