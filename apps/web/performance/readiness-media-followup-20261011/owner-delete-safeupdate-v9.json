@@ -1,0 +1,38 @@
+{
+  "engine": "17.6",
+  "synthetic": true,
+  "guardLibrary": "safeupdate",
+  "operatingWrites": 0,
+  "migrationSha256": "b7061015ea07192dccfcf0774d5548a9c2a584c7daa140d77fccd7c75cb8bf88",
+  "scriptSha256": "cacd0f6186a6c5dcb613c7c484540118049b524b712362de004897de54a9db54",
+  "outcomes": [
+    {
+      "variant": "before",
+      "database": "readiness_owner_delete_before_v9_20261011",
+      "exit": 0,
+      "sqlstates": [
+        "21000"
+      ],
+      "result": [],
+      "outcome": {
+        "queuedCount": 0,
+        "reviewCount": 1,
+        "receiptCount": 0
+      }
+    },
+    {
+      "variant": "after",
+      "database": "readiness_owner_delete_after_v9_20261011",
+      "exit": 0,
+      "sqlstates": [],
+      "result": [
+        "REVIEW_COMMITTED"
+      ],
+      "outcome": {
+        "queuedCount": 2,
+        "reviewCount": 0,
+        "receiptCount": 1
+      }
+    }
+  ]
+}

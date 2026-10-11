@@ -1,0 +1,10 @@
+# 재현
+
+1. 이 evidence commit의 checkout에서 pinned Python3.12로 `backend/bin/verify_readiness_ocr_20261011.py`를 실행한다. detached map, complete file tree(모든 symlink 거부), 현재 source와 기존592 Git-source binding 및 실제 결과를 읽기만 한다.
+2. npm11.6.2/package-lock 권위, Node24.21.0/Bun1.4.0으로 설치한다. run_checks_v2.py의 focused/parity와 v1의 full unit/lint를 새 evidence root/output ID에서 실행한다. 기존 log/JSON은 덮어쓰지 않는다. 환경 변수 값은 출력하지 않는다.
+3. PostgreSQL17.6.1.038을 networknone/portnone의 격리 컨테이너로 만든다. 여기서는 `colima-tzudong-catalog-20261007` / `tzudong-ranking-clone-20261008`를 사용했다. canonical source와 기존 readiness forward를 적용한 `readiness_admin_forward_v5_20261011` zero-auth/reviews template을 사용했다. 이 전제의 source replay/FP는 `readiness-delivery-20261011` 및 `readiness-media-followup-20261011` 패킷에 연결된다. 다른 기계는 동일 canonical source와 합성 seed로 template을 재구성해야 한다. 운영 dump/credential 복제는 없다.
+4. verify_storage_fence_v7.py는 fresh DB3개에서 shared/safeupdate/expiry를 적용한 뒤 새 stage/fence/policy3개를 적용·rollback한다. 일반/비관리자/disabled 사용자 fixture를 INSERT로 만들며 계정 guard를 끄지 않는다. 기존 DB명을 소비했으면 새 owned run-ID/DB 이름을 사용하고 template 이름은 바꾸지 않는다. script preflight가 target 존재/engine/isolation/실제 사용자 데이터에 실패하면 멈춘다. fixture-only PGPASSWORD는 로컬 컨테이너 테스트 값이다.
+5. v7의 두 실제 연결은 global advisory wait를 확인한 뒤 holder를 commit한다. retirement 이후 INSERT/UPDATE rekey를 거부하며 non-review metadata의 일반 write도 유지한다. SQL metadata는 Storage HTTP bytes/cache deletion이나 실제 OCR를 모사했다고 주장하지 않는다.
+6. verify_storage_adversarial_v2.py는 v7의 before/after DB를 새 clone으로 사용해 부분 정책 inventory·broadened expression·owner read drift·disabled trigger·event drift5개를 거부하고 FP rollback을 확인한다. 이미 소비된 이름을 reset/drop하지 않는다. 실패 v1와 최종 v2는 별도로 보존한다.
+7. admin-staging-pg17-v3.json은 stage ACK 전 durability와 유실 object discoverability, shared referenced remaining1→0을 증명한다. source138의 readback strengthening/139 이후 최종 admission은 storage-fence-pg17-v7.json을 따른다.
+8. 실제 운영 확인은 보호 승격 후 기존 pending operation identity를 GET으로 확인한다. 이 패킷은 Apply·photo transfer·provider 호출·휴대폰 점유를 자동 수행하지 않는다. 기존 사용 승인과 휴대폰 hold는 별도 유지한다.

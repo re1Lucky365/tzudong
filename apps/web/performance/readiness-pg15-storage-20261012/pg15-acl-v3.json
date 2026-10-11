@@ -1,0 +1,34 @@
+{
+  "status": "passed",
+  "engine": "15.8",
+  "image": "sha256:af083ef64d0408c8f098ee6f5c364a59b26f36fbc0f3a334a62c5c1d57362e9b",
+  "architecture": "arm64",
+  "network": "none",
+  "ports": "none",
+  "synthetic": true,
+  "baseline": {
+    "exit": 3,
+    "states": [
+      "P0001"
+    ],
+    "exactRollback": true
+  },
+  "duringOwnerLease": {
+    "effectiveExec": true,
+    "directExecutorExec": false
+  },
+  "candidatePassed": true,
+  "exactMembershipAndFunctionAclRestored": true,
+  "directExecutorGrantDenied": true,
+  "directGrantNegativeActor": "postgres",
+  "indirectNoInheritMembershipPreserved": true,
+  "beforeAfterFingerprint": {
+    "members": "49c4c1e6f17bcf660cc25416fe0942cc",
+    "functions": "6b82452f9a2a2e5f15db4028820e3cbe"
+  },
+  "transformerSha256": "2ebceb0c3b3842e30ba37ab026591f7c95ee9cbabc3f0476ddf77856f86ef2e1",
+  "scriptSha256": "75ea3ef50d8fd86b1f0c67507ddb5cf0a43972812dcb82a739f5e2823224290a",
+  "canonicalFullReplayVerified": false,
+  "storageOrReferenceLifecycleVerified": false,
+  "operatingDDL": 0
+}

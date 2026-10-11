@@ -1,0 +1,21 @@
+{
+  "sourceHead": "592b1415b79b4d5f595498dfa23d85fb730099fb",
+  "sourceDirty": true,
+  "myPageSourceSha256": "0efb2b61d531dc11e51d7fa3f548aaad6949ed54496c017367686b6328e5233e",
+  "recordClientSha256": "3abd3906e66805606d7f9ff7f894c3f641f3aac14e1be2b60161e0baabee4699",
+  "ocrRouteSha256": "08030bce99103092193de0ec6f2c01a72b177abc9fec2c5a7f5cbba13bddab63",
+  "cleanupHelperSha256": "2521f0c56c1cfed8d88b55ee38220f46a7354057b7729a3a868bbd2d8413a67e",
+  "node": "v24.21.0",
+  "next": "16.3.8",
+  "distDir": ".next-media-followup-v5",
+  "buildId": "0R-5kSBdZ_C6nHqZFnDdK",
+  "buildExit": 0,
+  "cssExit": 0,
+  "elapsedBuildAndCssMs": 63057,
+  "packageLockSha256": "607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4",
+  "publicConfigurationOnly": true,
+  "credentialsPersisted": false,
+  "tsconfigPreserved": true,
+  "operatingWrites": 0,
+  "deploymentVerified": false
+}

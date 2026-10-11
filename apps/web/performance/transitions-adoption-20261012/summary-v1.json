@@ -1,0 +1,69 @@
+{
+  "sourceBefore": "10d3ac0b3575d2dcc282381a99e57c3a10ac069c",
+  "sourceAfter": "1c672acae8d2554c0eca1698d0f28e123099fe84",
+  "browser": "154.0.8037.98",
+  "node": "v24.21.0",
+  "processes": {
+    "motionBefore": 3,
+    "motionAfter": 3,
+    "timerBefore": 1,
+    "timerAfter": 3,
+    "extraSwipeAfter": 1
+  },
+  "dependentShareActionsPerViewportProcess": 6,
+  "viewports": [
+    [
+      390,
+      844
+    ],
+    [
+      820,
+      1180
+    ],
+    [
+      1440,
+      900
+    ]
+  ],
+  "pendingTimerResult": {
+    "beforeAfter6": 6,
+    "afterAfter6": 1,
+    "absoluteDecrease": 5,
+    "relativeDecreasePercent": 83.33333333333333,
+    "scope": "Pending 1000000ms timers from actual share-success flow, diagnostic count. Not heap/RSS."
+  },
+  "unit": {
+    "pass": 3435,
+    "skip": 11,
+    "fail": 0
+  },
+  "visualObservation": {
+    "attempts": 54,
+    "opacityBelowPoint9": 0,
+    "frameSamples": 777,
+    "medianFrameSampleGapMs": 16.699999999999818,
+    "limits": "Sampling starts after the toast is visible, approximately one rAF. Does not detect unobserved first frames, sub-frame flicker, SDK pixels, or black rectangles elsewhere. Repeats within process are dependent."
+  },
+  "cssTransfer": {
+    "before": 46613,
+    "after": 46990,
+    "absoluteDecrease": -377,
+    "relativeDecreasePercent": -0.8087872481925643
+  },
+  "consoleIncidentsPerPrimaryProcess": {
+    "before": [
+      10,
+      10,
+      10
+    ],
+    "after": [
+      10,
+      10,
+      10
+    ]
+  },
+  "performanceAdmission": 0,
+  "physicalDevice": false,
+  "fieldAdmission": 0,
+  "deployed": false
+}

@@ -1,0 +1,259 @@
+{
+  "schema": "readiness-ocr-artifact-map-v1",
+  "performanceAdmission": 0,
+  "physicalFieldAdmission": 0,
+  "operatingDDL": 0,
+  "earlierOperatingApplyAttempts": 1,
+  "artifacts": [
+    {
+      "path": "REPORT-v1.md",
+      "bytes": 6759,
+      "sha256": "d26c273003f7294a695e583aa124b22927291f602587e3f9b5dbc8799971f1aa"
+    },
+    {
+      "path": "REPRODUCE-v1.md",
+      "bytes": 2851,
+      "sha256": "899dcec6dfab8f36d14e1ea27011a4ddf80196a694c76c613c4b199afd96940f"
+    },
+    {
+      "path": "admin-staging-pg17-v3.json",
+      "bytes": 1958,
+      "sha256": "edd0044fba5f7ef459da2b87eb5e24b7acfe0358d2d9f96ef9f2b9ab2415b6d8"
+    },
+    {
+      "path": "build_configured_v5.mjs",
+      "bytes": 3882,
+      "sha256": "4828fa2d0c071a75ad33ad7f4ed034290e149de5bb7324f6e1d7fae058bd329c"
+    },
+    {
+      "path": "configured-build-v5.json",
+      "bytes": 881,
+      "sha256": "67a43802671040ae29ee0215db47ee5d32d33f9c5bc0b864dfd74328ef33d4f8"
+    },
+    {
+      "path": "configured-build-v5.log",
+      "bytes": 1171,
+      "sha256": "c89bd541da2c85f7d729889e10762b59bd678fbcb60e86fbdd58c333f1075dd6"
+    },
+    {
+      "path": "configured-css-v5.log",
+      "bytes": 119,
+      "sha256": "e658b588eb4e25e19eb55c986c16594f823e19550a10d88f87afee4c53c6130e"
+    },
+    {
+      "path": "focused-failure-v1.json",
+      "bytes": 220,
+      "sha256": "a9df7f36d4d3d323197e0fdb2974b6ca21e0a81abf555d9dd7fafc91597898d9"
+    },
+    {
+      "path": "focused-ocr-v2.json",
+      "bytes": 2406,
+      "sha256": "c6e213da41fc75f2e1773e4dae0cce3921b6bd177d329ad302a512d30090bf28"
+    },
+    {
+      "path": "focused-ocr-v2.log",
+      "bytes": 7858,
+      "sha256": "08804347c9edb538577b67f6bc8281dafcd5e98d4625227ad3f2351d6840810b"
+    },
+    {
+      "path": "lint-ocr-v1.json",
+      "bytes": 2526,
+      "sha256": "1de0991cd825ae4518ab5cf547dbed34efe366ff9dd4e593f6d026951ce93ca7"
+    },
+    {
+      "path": "lint-ocr-v1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "migration-trial-v1.json",
+      "bytes": 182,
+      "sha256": "0497f0fbbd99599d8e80c03219f8cadab27aeeacfca88040ba2ec66f2bc0374f"
+    },
+    {
+      "path": "migration-trial-v2.json",
+      "bytes": 140,
+      "sha256": "2e116e652714ddcd2ff831ce578b7d8733c172d2e19fa0ded6de96e0b761cf79"
+    },
+    {
+      "path": "parity-ocr-v1.json",
+      "bytes": 2298,
+      "sha256": "6bd32a20549dd713cb3c40a003359f47fed554d4af5f684842c3164539b612e9"
+    },
+    {
+      "path": "parity-ocr-v1.log",
+      "bytes": 428,
+      "sha256": "c50194a541a4ee825002c32b47f9f4a0ff0569a77ba3d8831f8a4362901c3a5b"
+    },
+    {
+      "path": "parity-ocr-v2.json",
+      "bytes": 2297,
+      "sha256": "741d4f80b7588cd61a3f108da7c8ced90d2f9c40edd093cac15003057cc2eeb4"
+    },
+    {
+      "path": "parity-ocr-v2.log",
+      "bytes": 428,
+      "sha256": "c50194a541a4ee825002c32b47f9f4a0ff0569a77ba3d8831f8a4362901c3a5b"
+    },
+    {
+      "path": "python-source-checks-v1.json",
+      "bytes": 2521,
+      "sha256": "7e79177a184efae76d3f6e5b503e89bb044eccf34ee7c18141fb134145fee88f"
+    },
+    {
+      "path": "run_checks_v1.py",
+      "bytes": 2607,
+      "sha256": "73460bfd798947036df7948d6514d1978f25473d12aa4bc9f9c4ed879464a32b"
+    },
+    {
+      "path": "run_checks_v2.py",
+      "bytes": 2758,
+      "sha256": "35974136fa767b97b57d146a716b1b0efafc52eb3540ee7b0383119a39e14cd9"
+    },
+    {
+      "path": "shared-reference-probe-v1.sql",
+      "bytes": 6258,
+      "sha256": "7cdd396a5bd4fa8b51cb35cda4d49f6e1c3924e2d0d158d39a7092aead170d19"
+    },
+    {
+      "path": "source-manifest-v1.json",
+      "bytes": 4135,
+      "sha256": "ad8776fa3d9371837b171aa9479322f2d61c0c43f9dcf23d5ffdc389a0657424"
+    },
+    {
+      "path": "staging-runtime-failed-v1.json",
+      "bytes": 266,
+      "sha256": "eca3601f139a46d13ef511da172c7d1898bdecce9ba4670e5771ccbc5b3c5a7a"
+    },
+    {
+      "path": "storage-admin-policy-trial-v1.json",
+      "bytes": 124,
+      "sha256": "5aed3f78bb55888ed33b10f06ad6c694a91deccbeb96c7aa4cb0fe5eba6064fb"
+    },
+    {
+      "path": "storage-adversarial-failed-v1.json",
+      "bytes": 260,
+      "sha256": "ec6c0d5c04d6c6820811cd42b1b68283b2e52e08c990fb22d8630e7a0a1c2ada"
+    },
+    {
+      "path": "storage-adversarial-pg17-v2.json",
+      "bytes": 1438,
+      "sha256": "67f645fe3e9ef1daba6f1ccb5fee2190fa6a3db4494fea0b3a2ffcb419ea4f82"
+    },
+    {
+      "path": "storage-fence-pg17-v7.json",
+      "bytes": 2692,
+      "sha256": "0f3804419a1ff5091e57d021a4d6ba37d53b6363a7a5fd7a956d0855a81f848e"
+    },
+    {
+      "path": "storage-fence-runtime-failed-v1.json",
+      "bytes": 317,
+      "sha256": "07336f15c7a3f25011c00042f7eaf588f1ee012274bbf8cea76082e647d9425c"
+    },
+    {
+      "path": "storage-fence-runtime-failed-v2.json",
+      "bytes": 210,
+      "sha256": "b43fc1ab9d7c6b8d1591bcd9816c5f3af09d6ae9da13986611254d8a37308ee6"
+    },
+    {
+      "path": "storage-fence-runtime-failed-v3.json",
+      "bytes": 205,
+      "sha256": "50e4d3db59bee04742d1194a5d0432cb84c3fc95d2f6d27892976bc847676261"
+    },
+    {
+      "path": "storage-fence-runtime-failed-v4.json",
+      "bytes": 223,
+      "sha256": "15dd41a41065039ca8793f30b8c38f6f7dbbabb91278ec922d2bf32a08f210b7"
+    },
+    {
+      "path": "storage-fence-runtime-failed-v5.json",
+      "bytes": 221,
+      "sha256": "615c3d7f850b792fb9d15624224188649624272a0663c4832fa11be828cc216a"
+    },
+    {
+      "path": "storage-fence-runtime-failed-v6.json",
+      "bytes": 200,
+      "sha256": "4913d44118e1ccf39555b6243a3b86ecfb3c2ea561c52a8d2566123c5212fa47"
+    },
+    {
+      "path": "storage-fence-trial-v1.json",
+      "bytes": 86,
+      "sha256": "cb68611aa5062e26cd327f99fd51ef1a6d9bfaebf6be9bbb8ad0a28443fb260a"
+    },
+    {
+      "path": "tsconfig-generated-configured-v5.json",
+      "bytes": 1354,
+      "sha256": "dbf64b1a3376a773868bbcb06b0fce867f62209fbef7608e7b597eab1f6ba72a"
+    },
+    {
+      "path": "unit-ocr-v1.json",
+      "bytes": 2313,
+      "sha256": "9c9bedc8cbb760ec6f3a0ae80f16cd1574f62a3e3089b46d25e1090f8b3d6f5c"
+    },
+    {
+      "path": "unit-ocr-v1.log",
+      "bytes": 444636,
+      "sha256": "ff61016b22bca68e1f58be002c1e2b14e76ad7f2924ddf1e625df038772ff7c7"
+    },
+    {
+      "path": "verify_admin_staging_v1.py",
+      "bytes": 6908,
+      "sha256": "c1e520e4d3bb1a0f54c409c8e289dfb97370064bdbc700ea09748ab20e66c1d7"
+    },
+    {
+      "path": "verify_admin_staging_v2.py",
+      "bytes": 7110,
+      "sha256": "a5712cf80a997297ba3dc408c6e4ff7d28d612472ffc3bc025cc5d2263bcd922"
+    },
+    {
+      "path": "verify_admin_staging_v3.py",
+      "bytes": 7378,
+      "sha256": "2f7ff6a6210dfe5e5ca4abb2fb8e3618be235698a5ee92206af744f4eb4c69f4"
+    },
+    {
+      "path": "verify_storage_adversarial_v1.py",
+      "bytes": 3005,
+      "sha256": "36b256e0a2650ade726488bef9339820f6ad057f910ba8dac021d84130f0505c"
+    },
+    {
+      "path": "verify_storage_adversarial_v2.py",
+      "bytes": 3045,
+      "sha256": "d63caf04d6ce670f2b24a377153bf3cb13d743aeae0a1e92fba7a820eb1f7b5c"
+    },
+    {
+      "path": "verify_storage_fence_v1.py",
+      "bytes": 11160,
+      "sha256": "83552bdf5546475180333fd1a36b99fe216cae26eb4602ca80f4db86161439d5"
+    },
+    {
+      "path": "verify_storage_fence_v2.py",
+      "bytes": 11234,
+      "sha256": "4f5761413084e56cfe039519902b4fde0fd7dd10d370685b264c68d7a6dba2f6"
+    },
+    {
+      "path": "verify_storage_fence_v3.py",
+      "bytes": 12016,
+      "sha256": "adfa0d755d1c043ef1d63bc9bdd636f67c05985795e595355a28b782ad2c5568"
+    },
+    {
+      "path": "verify_storage_fence_v4.py",
+      "bytes": 12016,
+      "sha256": "f40edf065fcc80927ca8acc604793628aecda6cc0bd83ae857da6da4e20aa511"
+    },
+    {
+      "path": "verify_storage_fence_v5.py",
+      "bytes": 12135,
+      "sha256": "25c92796e08c25b62b78e9e38141f2d7c985110a3a3c872e82044a6f9bc1ef2d"
+    },
+    {
+      "path": "verify_storage_fence_v6.py",
+      "bytes": 12554,
+      "sha256": "c815389b090ce932cce9427630445bae197fe7a757040873347727c7209f3cb5"
+    },
+    {
+      "path": "verify_storage_fence_v7.py",
+      "bytes": 12554,
+      "sha256": "3d69558c41d01a72d98df0970921caa47d924e489ccdcead0e2292fab66481af"
+    }
+  ]
+}

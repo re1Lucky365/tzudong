@@ -1,0 +1,22 @@
+{
+  "verify_readiness_followup_20261011.py": {
+    "exit": 0,
+    "stdout": "{\"status\": \"passed\", \"packages\": [{\"package\": \"readiness-media-followup-20261011\", \"files\": 134, \"mapSha256\": \"024668f6f6e202743df4212f56d0ede60d6cb77b3a02ffc2503e7b3e3ec32d3a\"}, {\"package\": \"tzuyang-review-minimal-20261011\", \"files\": 6, \"mapSha256\": \"694f9b2aca99ec0029f53f19bd29a995c17a94fa062534d5ad44096f93c36698\"}], \"sourceFiles\": 101, \"sourceCommit\": \"592b1415b79b4d5f595498dfa23d85fb730099fb\", \"sourceBindingsVerified\": true, \"performanceAdmission\": 0, \"operatingApplyAttempts\": 1, \"operatingContentCommitsVerified\": 0, \"browserHealthClean\": false, \"physicalFieldAdmission\": 0}\n",
+    "stderr": ""
+  },
+  "verify_readiness_ocr_20261011_v3.py": {
+    "exit": 0,
+    "stdout": "{\"status\": \"passed\", \"files\": 50, \"sourceFiles\": 21, \"sourceCommit\": \"3fdc25d1707cd2fa204a962c0870813bb2a0d937\", \"mapSha256\": \"16fd96d4ef40660789af9b04d3094d53c148127c8ac4a4a8d7744c4793347ac6\", \"historicalPackets\": [{\"package\": \"readiness-media-followup-20261011\", \"files\": 134, \"mapSha256\": \"024668f6f6e202743df4212f56d0ede60d6cb77b3a02ffc2503e7b3e3ec32d3a\"}, {\"package\": \"tzuyang-review-minimal-20261011\", \"files\": 6, \"mapSha256\": \"694f9b2aca99ec0029f53f19bd29a995c17a94fa062534d5ad44096f93c36698\"}], \"historicalSourceCommit\": \"592b1415b79b4d5f595498dfa23d85fb730099fb\", \"historicalSourceFiles\": 101, \"sourceBindingsVerified\": true, \"operatingDDL\": 0, \"performanceAdmission\": 0, \"physicalFieldAdmission\": 0}\n",
+    "stderr": ""
+  },
+  "verify_transitions_adoption_20261012.py": {
+    "exit": 0,
+    "stdout": "{\"package\": \"readiness-gemini-integration-20261011\", \"files\": 22, \"mapSha256\": \"cf093b4834752ffcc3aab0076ba21b0d4a52413edf822068eb651cf718b54201\", \"status\": \"passed\"}\n{\"package\": \"readiness-delivery-integration-20261012\", \"files\": 11, \"mapSha256\": \"3422a67a2d1d3df1cd143f449d3a8515d8d4b087d3290fe66fe037f57a3085a1\", \"status\": \"passed\"}\n{\"package\": \"transitions-adoption-20261012\", \"files\": 108, \"mapSha256\": \"c11daa3d8c503d811ca1b4e484e48354d772a1e3d913281e2e099db1e271a452\", \"status\": \"passed\"}\n{\"sourceBindings\": \"passed\", \"canonicalValidator\": \"passed\", \"performanceAdmission\": 0, \"physicalDevice\": false, \"operatingDeliveryVerified\": false}\n",
+    "stderr": ""
+  },
+  "verify_scroll_transitions_20261012.py": {
+    "exit": 0,
+    "stdout": "{\"status\": \"passed\", \"files\": 31, \"mapSha256\": \"b512c7947b41e04e3fd792509e53d2e40f35f3f045412ace53cd15d276666dab\", \"sourceBindings\": \"passed\", \"performanceAdmission\": 0, \"physicalDevice\": false, \"operatingDeliveryVerified\": false}\n",
+    "stderr": ""
+  }
+}

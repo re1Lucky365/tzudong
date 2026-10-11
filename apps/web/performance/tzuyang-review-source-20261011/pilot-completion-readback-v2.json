@@ -1,0 +1,40 @@
+{
+  "observedAtUtc": "2026-10-11T08:14:51.334Z",
+  "inputManifestSha256": "d2cdce112686331429b30dc3684e8ab950a8cde21f7486311445714d0104aa67",
+  "requestSha256": "e4cfb1cc22bc6c0060bfe3047a745edb5c9e3defe7d43c260d4a51f220d6f344",
+  "existingBatchReads": 1,
+  "newGenerations": 0,
+  "operatingWrites": 0,
+  "responses": [
+    {
+      "label": "2003",
+      "inputSha256": "a1de9e4cf0a225d24881e1027288a4034783e05261a89cffe2ed88d97ddfda88",
+      "checkpointSha256": "0f740da6a8b789eb426585677fa0e3d435cfc4c077fb5b43f1ed0b0aace81816",
+      "actualModelVersion": "gemini-3.8-flash",
+      "finishReason": "STOP",
+      "originalRowsEqualActualResponse": true,
+      "actualResponseRowsSha256": "ef4c2b63888502060e88e630cd070e907f6b1db49b976b327c584ed3d0a616fd",
+      "rows": 2
+    },
+    {
+      "label": "2000",
+      "inputSha256": "9328aba298810d8c137165ed40fb43db039dbd2485998a0fd12bfe964cdeee32",
+      "checkpointSha256": "3e3e3d17ce96c375aeae5bb547ed68c37f252891a4fd650407c81bf85d3e19b6",
+      "actualModelVersion": "gemini-3.8-flash",
+      "finishReason": "STOP",
+      "originalRowsEqualActualResponse": true,
+      "actualResponseRowsSha256": "76b9b06d4302f33b4bdd7dd9d2c76e573bab6509c3e7525e08cec6d8941fbd92",
+      "rows": 1
+    },
+    {
+      "label": "2004",
+      "inputSha256": "d86d85bda47feecc9ab82f12dd1ca8a63fe8bae3b37251a146fa5cbd3f91c147",
+      "checkpointSha256": "54942e5b683905920980a1061a38c62f072a197211e90635d5194f904c5b40e8",
+      "actualModelVersion": "gemini-3.8-flash",
+      "finishReason": "STOP",
+      "originalRowsEqualActualResponse": true,
+      "actualResponseRowsSha256": "55ec87fc51fed1968617aaf88d41cc587068e31e9bb66796528f97c4dd37831b",
+      "rows": 1
+    }
+  ]
+}

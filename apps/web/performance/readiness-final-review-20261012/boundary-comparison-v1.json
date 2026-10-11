@@ -1,0 +1,78 @@
+{
+  "historicalSource": "1893c854bc52c19633f6a772bcc3784f7fc59022",
+  "sourceHashes": {
+    "handlerBefore": "a4b1d5ff974a41f4a5de5d638607f4ad363fdc1e4b2a78d2c2b39e5d4fc826d9",
+    "pageBefore": "bc457b20476ccd5044ab11eab9b5b06ec5047ef9b7e28421aa23aa040a59cc7e",
+    "handlerAfter": "0421a96fbbd3296438ccd56298212dd7f5f23c424421c3d7703fd8759c2ea18d",
+    "queueAfter": "3d95d0081c74c87ac43aa18c45105f9b964e24e841bd040b069e10aa8d396f9b"
+  },
+  "images": [
+    {
+      "name": "database-timeout",
+      "expected": 503,
+      "before": 404,
+      "after": 503
+    },
+    {
+      "name": "credential",
+      "expected": 503,
+      "before": 404,
+      "after": 503
+    },
+    {
+      "name": "bucket",
+      "expected": 503,
+      "before": 404,
+      "after": 503
+    },
+    {
+      "name": "outage",
+      "expected": 503,
+      "before": 404,
+      "after": 503
+    },
+    {
+      "name": "timeout",
+      "expected": 503,
+      "before": 404,
+      "after": 503
+    },
+    {
+      "name": "missing-object",
+      "expected": 404,
+      "before": 404,
+      "after": 404
+    }
+  ],
+  "cleanup": [
+    {
+      "variant": "before",
+      "calls": [
+        "A"
+      ],
+      "latestOwnerPending": false,
+      "busy": [
+        true,
+        false
+      ]
+    },
+    {
+      "variant": "after",
+      "calls": [
+        "A",
+        "B"
+      ],
+      "latestOwnerPending": true,
+      "busy": [
+        true,
+        false
+      ]
+    }
+  ],
+  "performanceAdmission": 0,
+  "operatingWrites": 0,
+  "physicalFieldAdmission": 0,
+  "independentProcesses": 1,
+  "directBoundaryFixture": true,
+  "fullUIClaim": false
+}

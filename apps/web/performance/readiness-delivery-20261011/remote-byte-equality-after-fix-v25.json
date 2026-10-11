@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-11T06:47:39.815204+00:00",
+  "revision": "81374707f54e409a87e10f2128a9cb7e7434ad17",
+  "repo": "twoimo/tzudong",
+  "packages": [
+    {
+      "path": "apps/web/performance/tzuyang-review-census-20261009/checkpoint-complete-v7",
+      "mapSha256": "c441dd8e46ea10ee72dced6d617cf9948dea07647fa684c653699edd090bb0ae",
+      "files": 198,
+      "verified": 198,
+      "mapDownloadBytesEqual": true
+    },
+    {
+      "path": "apps/web/performance/readiness-develop-integration-20261010",
+      "mapSha256": "d366b70477471f892e844f21759b619cdc1b4dbd67252b1bff4cdce46086cc7d",
+      "files": 135,
+      "verified": 135,
+      "mapDownloadBytesEqual": true
+    },
+    {
+      "path": "apps/web/performance/readiness-followthrough-20261010",
+      "mapSha256": "cb17155f74b77884c37b0275e338cb59e3da47d739cd5f154d7c941df8e068af",
+      "files": 135,
+      "verified": 135,
+      "mapDownloadBytesEqual": true
+    }
+  ],
+  "status": "passed",
+  "performanceAdmission": 0,
+  "hostedWrites": 0,
+  "fieldAdmission": 0,
+  "remoteCommitVerified": true,
+  "apiTreeCalls": 5,
+  "verifiedFiles": 468
+}

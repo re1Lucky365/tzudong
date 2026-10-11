@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo, memo } from "react";
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, memo } from "react";
 import Image from "next/image";
+import { createLatestOwnerCleanup } from '@/lib/reviews/latest-owner-cleanup';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -29,6 +32,7 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
+import { ReviewMediaMutation, createReviewMediaDependencies, retryReviewMediaCleanup, reviewMutationMessage } from "@/lib/reviews/review-media-mutation";
 import { ReviewEditModal } from "@/components/reviews/ReviewEditModal";
 import { MyPageSectionSkeleton } from "@/components/mypage/MyPageSectionSkeleton";
 import {
@@ -41,6 +45,7 @@ import {
   myPageListContentClass,
   myPageResponsiveListClass,
 } from "@/components/mypage/MyPageSectionFrame";
+import { resolveReviewPhotoUrl } from "@/lib/review-photo-url";
 import { createCanonicalVisitedLookup } from "@/lib/restaurant-visit-matching";
 import type { Restaurant } from "@/types/restaurant";
 
@@ -137,6 +142,26 @@ ReviewStatusBadge.displayName = "ReviewStatusBadge";
 export default function ReviewsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const ownerRef = useRef(user?.id);
+  useLayoutEffect(() => { ownerRef.current = user?.id; }, [user?.id]);
+  const deleteMutation = useRef<ReviewMediaMutation | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteFailure, setDeleteFailure] = useState<string | null>(null);
+  const [cleanupPending, setCleanupPending] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const cleanupRunner = useRef<ReturnType<typeof createLatestOwnerCleanup> | null>(null);
+  const retryCleanup = useCallback((cancelInterrupted = false) => {
+    if (cleanupRunner.current === null) cleanupRunner.current = createLatestOwnerCleanup({
+      owner: () => ownerRef.current,
+      run: (ownerId, cancelInterrupted) => retryReviewMediaCleanup(
+        createReviewMediaDependencies(supabase, () => ownerRef.current), ownerId, cancelInterrupted,
+      ),
+      result: (_ownerId, pending) => setCleanupPending(pending),
+      busy: setIsCleaning,
+    });
+    return cleanupRunner.current.request(cancelInterrupted);
+  }, []);
   const searchParams = useSearchParams() ?? EMPTY_SEARCH_PARAMS;
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editingReview, setEditingReview] = useState<MyReview | null>(null);
@@ -148,6 +173,16 @@ export default function ReviewsPage() {
     null,
   );
   const [deleteReviewConfirmation, setDeleteReviewConfirmation] = useState("");
+
+  useEffect(() => {
+    deleteMutation.current = new ReviewMediaMutation(createReviewMediaDependencies(supabase, () => ownerRef.current));
+    setDeleteFailure(null);
+    setDeletePending(false);
+    setDeleteReviewTarget(null);
+    setDeleteReviewConfirmation("");
+    setCleanupPending(false);
+    void retryCleanup();
+  }, [user?.id, retryCleanup]);
 
   // 내 리뷰 조회 - 무한 스크롤
   const {
@@ -367,28 +402,24 @@ export default function ReviewsPage() {
       return;
     }
 
-    const { error } = await supabase
-      .from("reviews")
-      .delete()
-      .eq("id", reviewId)
-      .eq("user_id", user.id);
-
-    if (error) {
-      toast({
-        title: "삭제 실패",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "삭제 완료",
-        description: "리뷰를 삭제했습니다",
-      });
+    if (isDeleting) return;
+    const ownerId = user.id;
+    setIsDeleting(true);
+    try {
+      const outcome = await deleteMutation.current!.run({ ownerId, reviewId, kind: 'delete' });
+      if (ownerRef.current !== ownerId) return;
+      setDeletePending(deleteMutation.current!.pending);
+      setDeleteFailure(outcome.committed ? null : reviewMutationMessage(outcome.code));
+      if (!outcome.committed) return;
+      toast({ title: "삭제 완료", description: reviewMutationMessage(outcome.code) });
+      setCleanupPending(outcome.code === 'REVIEW_CLEANUP_PENDING');
       setDeleteReviewTarget(null);
       setDeleteReviewConfirmation("");
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ["user-reviews"] });
-    }
+      void refetch();
+      for (const key of ['user-reviews', 'user-stamp-reviews', 'user-stamps', 'user-stats', 'restaurant-reviews']) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    } finally { setIsDeleting(false); }
   };
 
   // 로딩 상태
@@ -436,6 +467,26 @@ export default function ReviewsPage() {
       }
       data-section="reviews"
     >
+      {cleanupPending && (
+        <div className="mb-3 space-y-2" role="status">
+          <p className="text-sm">리뷰 사진 정리가 남아 있거나 정리 상태를 확인하지 못했습니다. 다시 시도해 주세요.</p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" disabled={isCleaning}>{isCleaning ? '사진 정리 확인 중…' : '사진 정리 다시 시도'}</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>중단된 업로드와 남은 사진을 정리할까요?</AlertDialogTitle>
+                <AlertDialogDescription>다른 창에서 진행 중인 업로드도 취소될 수 있습니다. 작성 중인 창을 먼저 확인해 주세요. 저장된 리뷰에서 사용 중인 사진은 유지됩니다.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>돌아가기</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void retryCleanup(true)}>사진 정리</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
       {isError && (
         <div className="mb-3 space-y-2" role="status">
           <MyPageErrorState
@@ -534,8 +585,10 @@ export default function ReviewsPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
+                        if (deleteMutation.current?.pending || isDeleting) return;
                         setDeleteReviewTarget(review);
                         setDeleteReviewConfirmation("");
+                        setDeleteFailure(null);
                       }}
                       className="h-11 w-11 touch-manipulation text-muted-foreground hover:text-destructive"
                       aria-label={`${review.restaurantName} 리뷰 삭제 확인 열기`}
@@ -553,17 +606,15 @@ export default function ReviewsPage() {
                 {/* 음식 사진 섬네일 */}
                 {(review.foodPhotos || []).length > 0 && (
                   <div className="flex gap-2 mb-3">
-                    {(review.foodPhotos || []).slice(0, 4).map((photo, idx) => (
-                      <div
+                    {(review.foodPhotos || []).slice(0, 4).map((photo, idx) => {
+                      const photoUrl = resolveReviewPhotoUrl(photo, { ownerId: user?.id ?? '', reviewId: review.id, purpose: 'food' });
+                      if (!photoUrl) return null;
+                      return <div
                         key={idx}
                         className="relative w-16 h-16 bg-muted rounded overflow-hidden"
                       >
                         <Image
-                          src={
-                            supabase.storage
-                              .from("review-photos")
-                              .getPublicUrl(photo).data.publicUrl
-                          }
+                          src={photoUrl}
                           alt={`음식 사진 ${idx + 1}`}
                           fill
                           sizes="64px"
@@ -574,8 +625,8 @@ export default function ReviewsPage() {
                             ).style.display = "none";
                           }}
                         />
-                      </div>
-                    ))}
+                      </div>;
+                    })}
                     {(review.foodPhotos || []).length > 4 && (
                       <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
                         +{(review.foodPhotos || []).length - 4}
@@ -625,8 +676,10 @@ export default function ReviewsPage() {
                       <strong>{REVIEW_DELETE_CONFIRMATION}</strong>를
                       입력하세요.
                     </p>
+                    {deleteFailure && <p className="mt-2 text-sm text-destructive" role="alert">{deleteFailure}</p>}
                     <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
                       <Input
+                        disabled={isDeleting || deletePending}
                         value={deleteReviewConfirmation}
                         onChange={(event) =>
                           setDeleteReviewConfirmation(event.target.value)
@@ -638,6 +691,7 @@ export default function ReviewsPage() {
                       <Button
                         type="button"
                         variant="outline"
+                        disabled={isDeleting || deletePending}
                         onClick={() => {
                           setDeleteReviewTarget(null);
                           setDeleteReviewConfirmation("");
@@ -649,12 +703,12 @@ export default function ReviewsPage() {
                         type="button"
                         variant="destructive"
                         disabled={
-                          deleteReviewConfirmation !==
+                          isDeleting || deleteReviewConfirmation !==
                           REVIEW_DELETE_CONFIRMATION
                         }
                         onClick={() => handleDeleteReview(review.id)}
                       >
-                        삭제
+                        {isDeleting ? '확인 중…' : deletePending ? '같은 요청 다시 확인' : '삭제'}
                       </Button>
                     </div>
                   </div>
@@ -686,8 +740,11 @@ export default function ReviewsPage() {
         }}
         review={editingReview}
         onSuccess={() => {
+          void retryCleanup();
           refetch();
-          queryClient.invalidateQueries({ queryKey: ["user-reviews"] });
+          for (const key of ['user-reviews', 'user-stamp-reviews', 'user-stamps', 'user-stats', 'restaurant-reviews']) {
+            void queryClient.invalidateQueries({ queryKey: [key] });
+          }
         }}
       />
     </MyPageSectionFrame>

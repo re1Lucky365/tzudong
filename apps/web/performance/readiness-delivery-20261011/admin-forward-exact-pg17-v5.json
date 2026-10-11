@@ -1,0 +1,96 @@
+{
+  "engine": "17.6",
+  "actor": "nonsuper postgres",
+  "context": "colima-tzudong-catalog-20261007",
+  "container": "tzudong-ranking-clone-20261008",
+  "migrationSha256": "32626259ca77ea913f068ee804815ff439abbff1ce310da4525e4f0bb86d8338",
+  "probeSha256": "f19bccfa711f05038afe0fd9c0cb64139b1585206a37e5e0c83927ef1f80693b",
+  "rollbackExact": true,
+  "before": {
+    "data": [
+      0,
+      0,
+      0
+    ],
+    "members": "f8a54adbc187f6341ec23c8fa8f2115b",
+    "manifest": "6d1617b6499884bd7fb3f838724a1960",
+    "policies": "0e32330213a8633a43bfecb05e531fbc",
+    "functions": "83024221d8713572c29972676f5ea87f",
+    "relations": "834a109e65569dbe081b8154dbe79736",
+    "defaultACL": "b39a6aa2273f39b73602ebccebb5923e",
+    "constraints": "e04885f9f21337e355b1e490a0508c3e"
+  },
+  "after": {
+    "data": [
+      0,
+      0,
+      0
+    ],
+    "members": "f8a54adbc187f6341ec23c8fa8f2115b",
+    "manifest": "6d1617b6499884bd7fb3f838724a1960",
+    "policies": "0e32330213a8633a43bfecb05e531fbc",
+    "functions": "83024221d8713572c29972676f5ea87f",
+    "relations": "834a109e65569dbe081b8154dbe79736",
+    "defaultACL": "b39a6aa2273f39b73602ebccebb5923e",
+    "constraints": "e04885f9f21337e355b1e490a0508c3e"
+  },
+  "preservedMembersAndManifest": true,
+  "cleanupProbe": {
+    "synthetic": true,
+    "operatingWrites": 0,
+    "cleanupPermissionAndFailureCases": 10
+  },
+  "baselineLockContention": {
+    "adminObservedWait": "advisory",
+    "connections": 2,
+    "fixtureSynchronizerConnections": 1,
+    "outcomes": [
+      {
+        "role": "owner",
+        "exit": 0,
+        "sqlstates": [],
+        "ownerCommitted": true,
+        "fixedErrors": []
+      },
+      {
+        "role": "admin",
+        "exit": 3,
+        "sqlstates": [
+          "40P01"
+        ],
+        "ownerCommitted": false,
+        "fixedErrors": []
+      }
+    ],
+    "deadlock": true
+  },
+  "candidateLockContention": {
+    "adminObservedWait": "relation",
+    "connections": 2,
+    "fixtureSynchronizerConnections": 1,
+    "outcomes": [
+      {
+        "role": "owner",
+        "exit": 0,
+        "sqlstates": [],
+        "ownerCommitted": true,
+        "fixedErrors": []
+      },
+      {
+        "role": "admin",
+        "exit": 3,
+        "sqlstates": [
+          "P0001"
+        ],
+        "ownerCommitted": false,
+        "fixedErrors": [
+          "RECORD_ACTION_STALE"
+        ]
+      }
+    ],
+    "deadlock": false
+  },
+  "operatingWrites": 0,
+  "synthetic": true,
+  "noBrowserOrFieldPerformanceClaim": true
+}

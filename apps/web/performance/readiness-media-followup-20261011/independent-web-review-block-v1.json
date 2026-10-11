@@ -1,0 +1,12 @@
+{
+  "agentId": "01a12a6e-8ac9-7891-a269-38fde88c1c9e",
+  "requestedModel": "chatgpt-web/gpt-6-sol",
+  "requestedReasoning": "xhigh",
+  "sourceReadPerformed": false,
+  "status": "blocked_then_closed",
+  "fixedReason": "automatic_security_status_could_not_be_determined",
+  "deniedAction": "scoped_rg_files_lookup",
+  "retry": 0,
+  "replacementProvider": false,
+  "nativeAstraNewCalls": 0
+}

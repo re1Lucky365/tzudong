@@ -1,0 +1,43 @@
+✔ installed SDK serializes model-specific chunk config without changing content or output limits (5231.52975ms)
+✔ chunk CLI keeps sampling through thinking fallback and propagates other provider failures (6725.715417ms)
+✔ chunk CLI rejects minimal on effective 3.8 before upload or quota admission (450.203375ms)
+warning=PROVIDER_BUDGET_RELEASE_UNAVAILABLE
+✔ release debt recovers in the same live process before admitting a new provider call (1023.743625ms)
+✔ successful result releases the captured acquisition scope even if the caller changes its environment (102.312958ms)
+✔ provider error identity survives caller environment changes during cooldown and release (127.730792ms)
+✔ installed SDK default and explicit one-attempt policy each send exactly one HTTP request (29.500375ms)
+✔ shared client migrates the exact legacy model while preserving prompt and generation settings (987.988708ms)
+✔ deadline aborts but does not release a project permit while the SDK promise remains unsettled (285.462209ms)
+✔ SDK HTTP timeout aborts transport, publishes no success and leaves no lease (150.615208ms)
+✔ Retry-After from real SDK response headers applies a shared project cooldown (1138.866333ms)
+✔ already-cancelled requests never invoke SDK and invalid deadlines fail closed (0.286542ms)
+✔ usage logs include thinking counts and exclude content or provider diagnostics (0.230417ms)
+✔ empty or blocked SDK text cannot be published as a completed result (0.092834ms)
+✔ thinking fallback retains Gemini 3 default sampling and chunk output limit (102.674083ms)
+✔ evaluation entrypoints keep model and thinking settings while omitting unsupported sampling (14738.758666ms)
+▶ pipeline connectivity probe preserves request caps, funded priority and once-only uncertain receipts
+  ✔ funded key is authoritative and request/CLI/receipt caps are retained (352.555375ms)
+  ✔ SDK model provenance preserves a returned revision and rejects unknown metadata (1100.594792ms)
+  ✔ blank funded key retains the explicit generic credential fallback (223.968625ms)
+  ✔ blank generic credential retains the legacy alias fallback (221.72775ms)
+  ✔ missing credential starts no SDK request and creates no misleading receipt (82.797417ms)
+  ✔ funded authentication error does not rotate to another key or retry (227.712625ms)
+  ✔ lost response remains uncertain and the same output cannot resend (354.14875ms)
+  ✔ process interruption leaves a running once-only receipt before request dispatch (325.587417ms)
+  ✔ overlapping CLI runs sharing an output admit only one request (1076.153042ms)
+✔ pipeline connectivity probe preserves request caps, funded priority and once-only uncertain receipts (3972.037042ms)
+✔ shared sampling policy removes only unsupported fields and never mutates caller config (514.224708ms)
+✔ shared client rejects minimal thinking on effective 3.8 before quota admission (94.413375ms)
+✔ crawler and final merge entrypoints retain older explicit sampling and modern request caps (2501.29425ms)
+✔ accepts canonical Gemini model identifiers and applies the fixed fallback (0.579333ms)
+✔ legacy model compatibility preserves other families and explicit revisions across JS, Python, and shell (222.669292ms)
+✔ unsupported 3.8 thinking rejects legacy overrides while supported levels and older models remain usable (0.788875ms)
+✔ rejects shell syntax, paths, controls, flags, and non-Gemini identifiers (0.184125ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25911.061791

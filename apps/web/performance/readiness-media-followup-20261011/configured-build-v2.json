@@ -1,0 +1,16 @@
+{
+  "sourceHead": "f358ed975bcf5d4c41b88bc660c35e5dc8b1fc72",
+  "node": "v24.21.0",
+  "next": "16.3.8",
+  "distDir": ".next-media-followup-v2",
+  "buildId": "T2MSr9ptQkrbk1OrBM49E",
+  "buildExit": 0,
+  "cssExit": 0,
+  "elapsedBuildAndCssMs": 63657,
+  "packageLockSha256": "607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4",
+  "publicConfigurationOnly": true,
+  "credentialsPersisted": false,
+  "tsconfigPreserved": true,
+  "operatingWrites": 0,
+  "deploymentVerified": false
+}

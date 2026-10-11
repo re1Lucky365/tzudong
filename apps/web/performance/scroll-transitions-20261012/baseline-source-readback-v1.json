@@ -1,0 +1,9 @@
+{
+  "buildSource": "1c672acae8d2554c0eca1698d0f28e123099fe84",
+  "baselineSource": "73edf0720d9ec3a8dcdfc1a102767ad52481cce6",
+  "sourceFilesByteEqual": true,
+  "files": {
+    "apps/web/components/layout/ScrollEffects.tsx": "8ce3ecd93ed884ed513b174b6f7dbf41325bd28827eb06bab7a8b7ae19decaea",
+    "apps/web/styles/product-ui.css": "1a9617cf6b4c71880d98743469625a983a5e016a7e770558d142fbdbf961e5be"
+  }
+}

@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/performance/motion-delivery-review-20261012/verify_owner_cleanup_v1.py", line 84, in <module>
+    main()
+  File "/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/performance/motion-delivery-review-20261012/verify_owner_cleanup_v1.py", line 49, in main
+    m.run(db, f"""LOAD 'safeupdate'; SET ROLE service_role;
+  File "/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/performance/readiness-delivery-20261011/verify_admin_media_forward_v1.py", line 48, in run
+    raise RuntimeError('ISOLATED_SQL_FAILED:' + ','.join(states))
+RuntimeError: ISOLATED_SQL_FAILED:42501

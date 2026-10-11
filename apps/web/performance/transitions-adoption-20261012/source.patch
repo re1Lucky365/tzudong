@@ -1,0 +1,260 @@
+diff --git a/apps/web/app/globals.css b/apps/web/app/globals.css
+index db30f808..86b3c5dd 100644
+--- a/apps/web/app/globals.css
++++ b/apps/web/app/globals.css
+@@ -6,6 +6,7 @@
+ @layer theme, base, components, utilities;
+ 
+ @import "../styles/light-root-tokens.css";
++@import "../styles/interface-motion.css";
+ 
+ :root {
+   color-scheme: light;
+diff --git a/apps/web/components/filters/CategoryFilter.tsx b/apps/web/components/filters/CategoryFilter.tsx
+index 511055ae..726267fd 100644
+--- a/apps/web/components/filters/CategoryFilter.tsx
++++ b/apps/web/components/filters/CategoryFilter.tsx
+@@ -159,7 +159,7 @@ const CategoryFilter = ({
+             </PopoverTrigger>
+             <PopoverContent
+                 className={cn(
+-                    "z-[180] w-[min(21rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border-border bg-card p-0 shadow-2xl",
++                    "t-dropdown z-[180] w-[min(21rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border-border bg-card p-0 shadow-2xl",
+                     contentClassName
+                 )}
+                 align={contentAlign}
+diff --git a/apps/web/components/ui/toast.tsx b/apps/web/components/ui/toast.tsx
+index 85074ef0..b60261b9 100644
+--- a/apps/web/components/ui/toast.tsx
++++ b/apps/web/components/ui/toast.tsx
+@@ -23,7 +23,7 @@ const ToastViewport = React.forwardRef<
+ ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
+ 
+ const toastVariants = cva(
+-  "group pointer-events-auto relative flex w-full items-start gap-2 overflow-hidden rounded-lg border p-3 text-sm leading-5 shadow-lg break-keep transition-all sm:w-max sm:max-w-[min(42rem,calc(100vw-2rem))] data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:fade-in-0 data-[state=open]:sm:slide-in-from-bottom-full",
++  "t-toast group pointer-events-auto relative flex w-full items-start gap-2 overflow-hidden rounded-lg border p-3 text-sm leading-5 shadow-lg break-keep sm:w-max sm:max-w-[min(42rem,calc(100vw-2rem))]",
+   {
+     variants: {
+       variant: {
+diff --git a/apps/web/hooks/use-toast.ts b/apps/web/hooks/use-toast.ts
+index 2d6fc7a3..80a00af6 100644
+--- a/apps/web/hooks/use-toast.ts
++++ b/apps/web/hooks/use-toast.ts
+@@ -43,6 +43,13 @@ interface State {
+ 
+ const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+ 
++const cancelToastRemoval = (toastId: string) => {
++  const timeout = toastTimeouts.get(toastId);
++  if (timeout === undefined) return;
++  clearTimeout(timeout);
++  toastTimeouts.delete(toastId);
++};
++
+ const addToRemoveQueue = (toastId: string) => {
+   if (toastTimeouts.has(toastId)) {
+     return;
+@@ -61,11 +68,18 @@ const addToRemoveQueue = (toastId: string) => {
+ 
+ export const reducer = (state: State, action: Action): State => {
+   switch (action.type) {
+-    case "ADD_TOAST":
++    case "ADD_TOAST": {
++      const toasts = [action.toast, ...state.toasts].slice(0, TOAST_LIMIT);
++      // Retiring an evicted toast must also retire its long-lived timer.
++      // Otherwise repeated dismissals grow the queue despite TOAST_LIMIT=1.
++      state.toasts.forEach((toast) => {
++        if (!toasts.some((retained) => retained.id === toast.id)) cancelToastRemoval(toast.id);
++      });
+       return {
+         ...state,
+-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
++        toasts,
+       };
++    }
+ 
+     case "UPDATE_TOAST":
+       return {
+@@ -79,7 +93,7 @@ export const reducer = (state: State, action: Action): State => {
+       // [Side Effect] 삭제 큐에 추가
+       // 별도의 dismissToast 액션으로 분리 가능하지만 단순화를 위해 여기 유지
+       if (toastId) {
+-        addToRemoveQueue(toastId);
++        if (state.toasts.some((toast) => toast.id === toastId)) addToRemoveQueue(toastId);
+       } else {
+         state.toasts.forEach((toast) => {
+           addToRemoveQueue(toast.id);
+@@ -100,11 +114,13 @@ export const reducer = (state: State, action: Action): State => {
+     }
+     case "REMOVE_TOAST":
+       if (action.toastId === undefined) {
++        for (const id of toastTimeouts.keys()) cancelToastRemoval(id);
+         return {
+           ...state,
+           toasts: [],
+         };
+       }
++      cancelToastRemoval(action.toastId);
+       return {
+         ...state,
+         toasts: state.toasts.filter((t) => t.id !== action.toastId),
+diff --git a/apps/web/styles/interface-motion.css b/apps/web/styles/interface-motion.css
+new file mode 100644
+index 00000000..e79a89fe
+--- /dev/null
++++ b/apps/web/styles/interface-motion.css
+@@ -0,0 +1,74 @@
++/* Adapted from transitions.dev (2773886681b6), menu-dropdown and toast.
++   Product constraints: feedback stays readable on the first frame, state
++   changes and input are immediate, and SDK/map/sheet motion is not overridden. */
++:root {
++  --duration-micro: 80ms;
++  --duration-quick: 150ms;
++  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
++  --distance-base: 8px;
++  --scale-medium: 0.97;
++}
++
++/* Opt in small anchored surfaces only. Radix owns positioning, focus, and
++   lifetime; no forced reflow, competing timer, or permanent GPU layer. */
++.t-dropdown[data-state="open"] {
++  transform-origin: var(--radix-popover-content-transform-origin, center);
++  animation: tz-dropdown-enter var(--duration-quick) var(--ease-smooth-out);
++}
++
++@keyframes tz-dropdown-enter {
++  from { opacity: 0.95; transform: scale(var(--scale-medium)); }
++  to { opacity: 1; transform: scale(1); }
++}
++
++.t-toast {
++  transition: transform var(--duration-quick) var(--ease-smooth-out);
++}
++.t-toast[data-state="open"] {
++  animation: tz-toast-enter var(--duration-quick) var(--ease-smooth-out);
++}
++.t-toast[data-state="closed"] {
++  pointer-events: none;
++  animation: tz-toast-exit var(--duration-micro) var(--ease-smooth-out) both;
++}
++.t-toast[data-swipe="move"] {
++  animation: none;
++  transition: none;
++  transform: translate3d(var(--radix-toast-swipe-move-x, 0px), var(--radix-toast-swipe-move-y, 0px), 0);
++}
++.t-toast[data-swipe="cancel"] {
++  animation: none;
++  transform: translate3d(0, 0, 0);
++}
++.t-toast[data-swipe="end"] {
++  pointer-events: none;
++  animation: tz-toast-swipe-exit var(--duration-micro) var(--ease-smooth-out) both;
++}
++.t-toast[data-swipe-direction="left"] { --toast-exit-x: -100%; }
++.t-toast[data-swipe-direction="up"] { --toast-exit-x: 0%; --toast-exit-y: -100%; }
++.t-toast[data-swipe-direction="down"] { --toast-exit-x: 0%; --toast-exit-y: 100%; }
++
++@keyframes tz-toast-enter {
++  from { opacity: 0.95; transform: translate3d(0, var(--distance-base), 0); }
++  to { opacity: 1; transform: translate3d(0, 0, 0); }
++}
++@keyframes tz-toast-exit {
++  to { opacity: 0; transform: translate3d(0, var(--distance-base), 0); }
++}
++@keyframes tz-toast-swipe-exit {
++  from { transform: translate3d(var(--radix-toast-swipe-end-x, 0px), var(--radix-toast-swipe-end-y, 0px), 0); }
++  to {
++    opacity: 0;
++    transform: translate3d(
++      calc(var(--radix-toast-swipe-end-x, 0px) + var(--toast-exit-x, 100%)),
++      calc(var(--radix-toast-swipe-end-y, 0px) + var(--toast-exit-y, 0%)), 0);
++  }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .t-dropdown,
++  .t-toast {
++    animation: none !important;
++    transition: none !important;
++  }
++}
+diff --git a/apps/web/tests-unit/toast-retirement.test.ts b/apps/web/tests-unit/toast-retirement.test.ts
+new file mode 100644
+index 00000000..651f5d9f
+--- /dev/null
++++ b/apps/web/tests-unit/toast-retirement.test.ts
+@@ -0,0 +1,60 @@
++import { expect, test } from 'bun:test';
++import { reducer } from '../hooks/use-toast';
++
++function withClock(run: (clock: { pending: Map<number, () => void> }) => void) {
++  const originalSet = globalThis.setTimeout;
++  const originalClear = globalThis.clearTimeout;
++  const pending = new Map<number, () => void>();
++  let nextId = 0;
++  Object.defineProperty(globalThis, 'setTimeout', { value: (callback: () => void) => {
++    pending.set(++nextId, callback);
++    return nextId;
++  }, configurable: true, writable: true });
++  Object.defineProperty(globalThis, 'clearTimeout', { value: (id: number) => pending.delete(id), configurable: true, writable: true });
++  try { run({ pending }); } finally {
++    // Flush only this test's synthetic callbacks to clear the module's queue.
++    for (const callback of pending.values()) callback();
++    globalThis.setTimeout = originalSet;
++    globalThis.clearTimeout = originalClear;
++  }
++}
++
++test('192 show/dismiss cycles retain only the current toast retirement timer', () => withClock(({ pending }) => {
++  let state: ReturnType<typeof reducer> = { toasts: [] };
++  for (let i = 0; i < 192; i++) {
++    const id = `retirement-${i}`;
++    state = reducer(state, { type: 'ADD_TOAST', toast: { id, title: 'Fixture', open: true } });
++    state = reducer(state, { type: 'DISMISS_TOAST', toastId: id });
++  }
++  expect(state.toasts).toHaveLength(1);
++  expect(pending.size).toBe(1);
++  state = reducer(state, { type: 'REMOVE_TOAST' });
++  expect(state.toasts).toHaveLength(0);
++  expect(pending.size).toBe(0);
++}));
++
++test('stale dismiss and duplicate dismiss cannot accumulate retirement timers', () => withClock(({ pending }) => {
++  let state: ReturnType<typeof reducer> = { toasts: [] };
++  state = reducer(state, { type: 'ADD_TOAST', toast: { id: 'current', open: true } });
++  state = reducer(state, { type: 'DISMISS_TOAST', toastId: 'missing' });
++  expect(state.toasts[0].open).toBe(true);
++  expect(pending.size).toBe(0);
++  state = reducer(state, { type: 'DISMISS_TOAST', toastId: 'current' });
++  state = reducer(state, { type: 'DISMISS_TOAST', toastId: 'current' });
++  expect(pending.size).toBe(1);
++  state = reducer(state, { type: 'ADD_TOAST', toast: { id: 'new', open: true } });
++  expect(pending.size).toBe(0);
++  expect(state.toasts[0]).toMatchObject({ id: 'new', open: true });
++}));
++
++test('explicit removal cancels the matching timer while update preserves retirement', () => withClock(({ pending }) => {
++  let state: ReturnType<typeof reducer> = { toasts: [] };
++  state = reducer(state, { type: 'ADD_TOAST', toast: { id: 'update', open: true } });
++  state = reducer(state, { type: 'DISMISS_TOAST' });
++  state = reducer(state, { type: 'UPDATE_TOAST', toast: { id: 'update', title: 'Updated' } });
++  expect(pending.size).toBe(1);
++  expect(state.toasts[0].title).toBe('Updated');
++  state = reducer(state, { type: 'REMOVE_TOAST', toastId: 'update' });
++  expect(state.toasts).toHaveLength(0);
++  expect(pending.size).toBe(0);
++}));
+diff --git a/apps/web/tests-unit/web-quality-performance-source.test.ts b/apps/web/tests-unit/web-quality-performance-source.test.ts
+index d3c5c439..8ff680a3 100644
+--- a/apps/web/tests-unit/web-quality-performance-source.test.ts
++++ b/apps/web/tests-unit/web-quality-performance-source.test.ts
+@@ -4533,7 +4533,8 @@ describe("web quality performance source contracts", () => {
+     expect(toastSource).toContain("sm:whitespace-nowrap");
+     expect(toastSource).not.toContain("pr-7");
+     expect(toastSource).not.toContain("absolute right-2 top-2");
+-    expect(toastSource).toContain("data-[state=open]:fade-in-0");
++    expect(toastSource).toContain("t-toast");
++    expect(toastSource).not.toContain("transition-all");
+     expect(toastSource).not.toContain(
+       "data-[state=open]:slide-in-from-top-full",
+     );

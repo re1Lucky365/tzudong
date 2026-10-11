@@ -1,0 +1,54 @@
+{
+  "migrationSha256": "623236ddbd87059b94c84486f9e14822dba0190d2448656259991bd1345a434f",
+  "serverVersionNum": "170006",
+  "network": "none",
+  "ports": "none",
+  "fixtureHistoricalGuardSuspendedOnlyForSeed": true,
+  "runtimeGuardRestored": true,
+  "baseline": {
+    "fixtureGuardRestored": true,
+    "lastReviewReadyItems": 0,
+    "firstReferenceProtected": true,
+    "lateStorageInsertDenied": true,
+    "publicHttpDeletionVerified": false
+  },
+  "candidate": {
+    "fixtureGuardRestored": true,
+    "lastReviewReadyItems": 1,
+    "firstReferenceProtected": true,
+    "lateStorageInsertDenied": true,
+    "publicHttpDeletionVerified": false
+  },
+  "rollbackExact": true,
+  "before": {
+    "data": [
+      0,
+      0,
+      0
+    ],
+    "members": "f8a54adbc187f6341ec23c8fa8f2115b",
+    "manifest": "6d1617b6499884bd7fb3f838724a1960",
+    "policies": "0e32330213a8633a43bfecb05e531fbc",
+    "functions": "63a9fe9e8b21582565f52a8ecff712cd",
+    "relations": "834a109e65569dbe081b8154dbe79736",
+    "defaultACL": "b39a6aa2273f39b73602ebccebb5923e",
+    "constraints": "e04885f9f21337e355b1e490a0508c3e"
+  },
+  "after": {
+    "data": [
+      0,
+      0,
+      0
+    ],
+    "members": "f8a54adbc187f6341ec23c8fa8f2115b",
+    "manifest": "6d1617b6499884bd7fb3f838724a1960",
+    "policies": "0e32330213a8633a43bfecb05e531fbc",
+    "functions": "63a9fe9e8b21582565f52a8ecff712cd",
+    "relations": "834a109e65569dbe081b8154dbe79736",
+    "defaultACL": "b39a6aa2273f39b73602ebccebb5923e",
+    "constraints": "e04885f9f21337e355b1e490a0508c3e"
+  },
+  "operatingWrites": 0,
+  "actualStorageHttpOrProviderVerified": false,
+  "physicalOrFieldAdmission": 0
+}

@@ -1,0 +1,28 @@
+{
+  "results": [
+    {
+      "actor": "anon",
+      "exit": 3,
+      "states": [
+        "42501"
+      ],
+      "noClaimReturnsNull": false
+    },
+    {
+      "actor": "service_role",
+      "exit": 3,
+      "states": [
+        "42501"
+      ],
+      "noClaimReturnsNull": false
+    },
+    {
+      "actor": "authenticated",
+      "exit": 0,
+      "states": [],
+      "noClaimReturnsNull": true
+    }
+  ],
+  "operatingDDL": 0,
+  "syntheticOnly": true
+}

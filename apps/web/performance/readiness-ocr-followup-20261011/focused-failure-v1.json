@@ -1,0 +1,1 @@
+{"pass":35,"fail":1,"assertions":435,"case":"admin receipt image retrieval remains private, bounded, contained, and non-destructive","line":685,"sourceContractObsoleteAfterDurableUploadWrapper":true,"operatingWrites":0}

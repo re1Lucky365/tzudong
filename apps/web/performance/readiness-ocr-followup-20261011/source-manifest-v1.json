@@ -1,0 +1,110 @@
+{
+  "baseCommit": "592b1415b79b4d5f595498dfa23d85fb730099fb",
+  "files": [
+    {
+      "path": ".github/scripts/build-nightly-local-publication.py",
+      "bytes": 15253,
+      "sha256": "9035afb239b4e14c1d0c2dbac44c4dfc921cfd30fc2ccc7000b08a346f69aab3"
+    },
+    {
+      "path": ".github/scripts/verify-nightly-local-publication.py",
+      "bytes": 50352,
+      "sha256": "55cfd034e86040ea9feb22b0b3fe5d2910fd9d324c2732a72b7ac688710501d0"
+    },
+    {
+      "path": "apps/web/app/api/admin/ocr-receipts/process/route.ts",
+      "bytes": 30624,
+      "sha256": "08030bce99103092193de0ec6f2c01a72b177abc9fec2c5a7f5cbba13bddab63"
+    },
+    {
+      "path": "apps/web/lib/reviews/admin-verification-cleanup.ts",
+      "bytes": 6570,
+      "sha256": "2521f0c56c1cfed8d88b55ee38220f46a7354057b7729a3a868bbd2d8413a67e"
+    },
+    {
+      "path": "apps/web/scripts/run-nightly-regression.mjs",
+      "bytes": 75216,
+      "sha256": "9fe1252fe401a63679603b274327a57e8719c221fc713e63b48b1ac0eff1adc0"
+    },
+    {
+      "path": "apps/web/tests-unit/admin-verification-cleanup.test.ts",
+      "bytes": 8242,
+      "sha256": "55ada9929f1ff2c305e3567006d0583ce9bd9d806bacc1c194cb1450c4312c16"
+    },
+    {
+      "path": "apps/web/tests-unit/nightly-regression-workflow.test.ts",
+      "bytes": 82997,
+      "sha256": "927efa94500182913584f7f62ac51583665b06d5e3349d720e9cb3434603a6c5"
+    },
+    {
+      "path": "apps/web/tests-unit/zz-ocr-route-contract.test.ts",
+      "bytes": 34885,
+      "sha256": "3f026413d7d8a1d5db34f30920b9739425b7a815a59c6d3550a2b73be81836b2"
+    },
+    {
+      "path": "backend/bin/seal_readiness_ocr_20261011.py",
+      "bytes": 2225,
+      "sha256": "5601e125c37122fa1f7ecb4e7f6928c46b42cf773f12c03fde94cd51db2b7568"
+    },
+    {
+      "path": "backend/bin/verify_readiness_ocr_20261011.py",
+      "bytes": 5706,
+      "sha256": "a63a10de68373c1123d4d4870a3715722f455495030fa7016f8370dae1cc865e"
+    },
+    {
+      "path": "backend/supabase/migrations/20261011103501_admin_verification_durable_staging.sql",
+      "bytes": 12008,
+      "sha256": "081c48e91172e4e98079b03aa210c0f7481d95a21945e5a288187263089e57db"
+    },
+    {
+      "path": "backend/supabase/migrations/20261011105114_review_media_storage_retirement_fence.sql",
+      "bytes": 11418,
+      "sha256": "79375138d7e82a3be2b85b219ff52147db13db9c93070569be40a61ab97c3d53"
+    },
+    {
+      "path": "backend/supabase/migrations/20261011110108_review_storage_caller_bound_admin_policy.sql",
+      "bytes": 8463,
+      "sha256": "45b2a0db333a1e24ac1f68b7693c7cfb98e10cd0ab366b98089c3679a6b5dfbc"
+    },
+    {
+      "path": "backend/supabase/scripts/local-migrate.py",
+      "bytes": 213264,
+      "sha256": "30640bdb1c5c9bffb42a8c148ad89b7f3443bfa6df900804bd80896b29655977"
+    },
+    {
+      "path": "backend/supabase/scripts/local_catalog_readback.sql",
+      "bytes": 116920,
+      "sha256": "4a81bcd5721027f91f6ec22cf6ac1e6f7c36e89238e8cf6cc2ddad9ad3bdc2e4"
+    },
+    {
+      "path": "backend/supabase/tests/test_admin_verification_durable_staging.py",
+      "bytes": 2496,
+      "sha256": "1147425b14644123704eaba5ed5517d363e2d398eae28ad04b7565aa5530f267"
+    },
+    {
+      "path": "backend/supabase/tests/test_local_function_runtime_contract.py",
+      "bytes": 24809,
+      "sha256": "f59385812f6c46dd91bdcb4308a3b8e60bb8107a735c92980cc4722a16a0e71a"
+    },
+    {
+      "path": "backend/supabase/tests/test_local_publication_verifier.py",
+      "bytes": 72675,
+      "sha256": "2db4b5772a17c46d2496c23bda951592c4cd0a65bf618f8e431faa1fa38791aa"
+    },
+    {
+      "path": "backend/supabase/tests/test_local_seed_receipt_contract.py",
+      "bytes": 48084,
+      "sha256": "890cb3cd0acbd1b44b0877113c8532ae845a99a7e0848a80d58009259c8d4a85"
+    },
+    {
+      "path": "backend/supabase/tests/test_review_media_catalog_integration.py",
+      "bytes": 19678,
+      "sha256": "cb8761da8cd0933508b27dffdead1098e1fb4f03ce08da08b25d7ed47197da0d"
+    },
+    {
+      "path": "backend/supabase/tests/test_review_storage_retirement_contract.py",
+      "bytes": 3654,
+      "sha256": "ba48728941fe33adfdbab95f8e04d44da999e03ed0ad92cd62b49abd80224fd0"
+    }
+  ]
+}

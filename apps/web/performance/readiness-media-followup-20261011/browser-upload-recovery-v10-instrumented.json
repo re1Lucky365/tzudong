@@ -1,0 +1,229 @@
+{
+  "sourceHead": "f358ed975bcf5d4c41b88bc660c35e5dc8b1fc72",
+  "sourceScriptSha256": "6c1665d7b259f14a2f532e3b21568a06ec5a97db4c209a5c117019cdc0023146",
+  "node": "v24.21.0",
+  "startedAtUtc": "2026-10-11T09:44:57.456Z",
+  "distDir": ".next-media-followup-v2",
+  "productionBuild": true,
+  "syntheticAuthAndRest": true,
+  "serverAuthMockedInOwnedProcess": true,
+  "operatingWrites": 0,
+  "physicalDevice": false,
+  "fieldAdmission": 0,
+  "pageErrors": 3,
+  "consoleErrors": 0,
+  "unsupportedFixture": 0,
+  "cases": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "automatic revisit preserves interrupted upload",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "dismissal never queues cancellation",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "reload retains canonical identifier intent",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "explicit recovery retires then clears local intent",
+      "passed": true
+    }
+  ],
+  "passed": false,
+  "browser": "154.0.8037.98",
+  "rpcNames": [
+    "finish_review_media_cleanup",
+    "get_current_privacy_eligibility",
+    "notifications",
+    "pending_review_media_cleanup",
+    "queue_review_upload_cleanup",
+    "read_public_profile_summaries",
+    "read_review_media_commit",
+    "reviews",
+    "user_roles"
+  ],
+  "authFixtureCalls": 0,
+  "reactArgs": [
+    [
+      "HTML",
+      "OTHER"
+    ],
+    [
+      "HTML",
+      "OTHER"
+    ],
+    [
+      "HTML",
+      "OTHER"
+    ]
+  ],
+  "pageErrorKinds": {
+    "OTHER_PAGE_ERROR": 3
+  },
+  "errorShapes": [
+    {
+      "reactCode": "418",
+      "name": "Error",
+      "digest": "08470456a3c77716964e64930a0945cdbe194d1e7acb11158cc7846a1fb61979",
+      "tokens": [
+        "React"
+      ]
+    },
+    {
+      "reactCode": "418",
+      "name": "Error",
+      "digest": "08470456a3c77716964e64930a0945cdbe194d1e7acb11158cc7846a1fb61979",
+      "tokens": [
+        "React"
+      ]
+    },
+    {
+      "reactCode": "418",
+      "name": "Error",
+      "digest": "08470456a3c77716964e64930a0945cdbe194d1e7acb11158cc7846a1fb61979",
+      "tokens": [
+        "React"
+      ]
+    }
+  ],
+  "hydrationMismatch": [
+    {
+      "expected": "button",
+      "expectedClass": "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground",
+      "actualClass": null,
+      "parentTags": [
+        11,
+        "div",
+        "div",
+        "div",
+        "div",
+        "div",
+        "C",
+        "main",
+        "div",
+        "A"
+      ]
+    }
+  ],
+  "instrumentedProductionDiagnostic": true,
+  "domRemovals": [
+    {
+      "tag": "TEMPLATE",
+      "id": "",
+      "childTags": [],
+      "className": "",
+      "removedAt": 79.10000038146973
+    },
+    {
+      "tag": "DIV",
+      "id": "",
+      "childTags": [
+        "A",
+        "MAIN"
+      ],
+      "className": "min-h-[var(--full-height,100vh)] min-w-0 bg-background",
+      "removedAt": 98.2000002861023
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "childTags": [],
+      "className": "skip-link",
+      "removedAt": 103
+    },
+    {
+      "tag": "MAIN",
+      "id": "main-content",
+      "childTags": [
+        "DIV"
+      ],
+      "className": "h-full min-h-0 min-w-0 w-full",
+      "removedAt": 103
+    },
+    {
+      "tag": "SECTION",
+      "id": "",
+      "childTags": [
+        "DIV",
+        "DIV"
+      ],
+      "className": "space-y-6",
+      "removedAt": 114.40000009536743
+    },
+    {
+      "tag": "SELECT",
+      "id": "",
+      "childTags": [],
+      "className": "",
+      "removedAt": 114.40000009536743
+    },
+    {
+      "tag": "SELECT",
+      "id": "",
+      "childTags": [],
+      "className": "",
+      "removedAt": 114.40000009536743
+    },
+    {
+      "tag": "DIV",
+      "id": "",
+      "childTags": [],
+      "className": "fixed inset-0 z-[110] bg-black/80",
+      "removedAt": 229.80000019073486
+    },
+    {
+      "tag": "DIV",
+      "id": "radix-_r_a_",
+      "childTags": [
+        "DIV",
+        "DIV"
+      ],
+      "className": "fixed left-[50%] top-[50%] z-[110] grid w-[calc(100vw-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
+      "removedAt": 229.80000019073486
+    },
+    {
+      "tag": "SPAN",
+      "id": "",
+      "childTags": [],
+      "className": "",
+      "removedAt": 229.80000019073486
+    },
+    {
+      "tag": "SPAN",
+      "id": "",
+      "childTags": [],
+      "className": "",
+      "removedAt": 229.80000019073486
+    },
+    {
+      "tag": "DIV",
+      "id": "",
+      "childTags": [
+        "P",
+        "BUTTON"
+      ],
+      "className": "mb-3 space-y-2",
+      "removedAt": 247.60000038146973
+    }
+  ],
+  "failureCode": "BROWSER_ADMISSION_FAILED",
+  "assertionKind": "Error"
+}

@@ -1,0 +1,210 @@
+{
+  "baseCommit": "3fdc25d1707cd2fa204a962c0870813bb2a0d937",
+  "sourceCommit": "723754e30948a1dacc6ac6e11df7ba889b0a3754",
+  "upstreamCommit": "14ccd8775e52ab81143626515f850ee544907da9",
+  "files": [
+    {
+      "path": ".kiro/specs/crawler-pipeline-operational-readiness/platform-modernization-reconciliation.v1.json",
+      "sha256": "804c03b1e32a26380c73d32393cf824370930cd9427cf0c51cfd4a731d457efa"
+    },
+    {
+      "path": "apps/web/lib/admin/storyboard/gemini-client.ts",
+      "sha256": "6272b4f09ff0bcd760513f129d33606c3690217d8a4c1ce3384c9a8dfc47c654"
+    },
+    {
+      "path": "apps/web/lib/admin/storyboard/gemini-models.ts",
+      "sha256": "560c65361a7131ac7dc5a64a8dfb244de3030cf51aa5e4f7e9811cca0057b7fc"
+    },
+    {
+      "path": "apps/web/lib/admin/storyboard/outbound-worker.ts",
+      "sha256": "29db0793127005dc1987384d3b5cf2f9551768487c1ed82e14dab5223ed6649a"
+    },
+    {
+      "path": "apps/web/lib/admin/storyboard/production-worker-auth.ts",
+      "sha256": "39fba20c1291eefaed35542027c0c56f985b65e961217e5ddfaa8d113c9885b2"
+    },
+    {
+      "path": "apps/web/lib/ocr/gemini.ts",
+      "sha256": "b49104ad4b9ab50180877ceedec3bdc467888e42c6e9ef500b414a25adab9c1d"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/README.md",
+      "sha256": "1f9e7e4348f3e691e3b327981a597c167fb98e542a86be97ad5b114fea731c03"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/artifact-map.json",
+      "sha256": "fee71eea94a44564e6b704f6efd4de70f2176c725fd75e643825e5831b3f96b4"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/artifact-map.json.sha256",
+      "sha256": "66d21d1566c882497670c2e5e84b0841d3e3fce7f84f6e6caafba0a584331e84"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/config.json",
+      "sha256": "eef6facffc2dd2a0ebed5e65b0382371499cb1528aeb82c33662ccf14faa45eb"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/negative-verification.json",
+      "sha256": "7eb9214fd335bf020823233428bcdf0e3c5e275978d85c230f75aac7837591f4"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/raw-cli-spy.json",
+      "sha256": "44dd40c924ed864c2cabe244d805b205d7fa6da306a155552c41211cb6e6d683"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/score.mjs",
+      "sha256": "61b9ae04856025efaf743391c54d0a4008ff54337f3197b295bc48960dfe5b89"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/scorer-output.json",
+      "sha256": "cc237ee90d573e9ef546240861423c65a33ca5352ed51a6d8e1bea59e6e28843"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/summary.json",
+      "sha256": "bfb0e0cfaf94f74417d34242c3263e1f283434af55a4980f6b1cce8edeee4514"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/validate.mjs",
+      "sha256": "07152e013e581750b8afe9a4f120c9a4f19e4559d09505e2801b959eeca0e916"
+    },
+    {
+      "path": "apps/web/performance/storyboard-queue-recovery-20261011/validator-output.json",
+      "sha256": "ab4e00a7e67ffb6ca4be9bb3b87f2e1e1fb977d4bb350101d47901a0dc89f427"
+    },
+    {
+      "path": "apps/web/tests-unit/gemini-ocr.test.ts",
+      "sha256": "1a055a7ee72292a62c1299ee3defd821c9ffc56e4cde28461ecc5aa8f9de9f8a"
+    },
+    {
+      "path": "apps/web/tests-unit/storyboard-gemini-client.test.ts",
+      "sha256": "89d73aa156fde0559cfe75ffd2ae6039f954465ee1765fe48d6b60c643e3b107"
+    },
+    {
+      "path": "apps/web/tests-unit/storyboard-outbound-worker.test.ts",
+      "sha256": "5732bc4017325595e4d0f4dce2ad2b44ccf423c59ff7a30b8635c49a9bc06d09"
+    },
+    {
+      "path": "apps/web/tests-unit/storyboard-production-api.test.ts",
+      "sha256": "f721fc6201292ac5638711095b734d99848bf149d8c82112a83f59d6ed65208d"
+    },
+    {
+      "path": "backend/bin/benchmark_gemini_admission.mjs",
+      "sha256": "6b5c38601783e57c0dbe3aeb0446f63409f722065850c45cb53b196cbfb2cb37"
+    },
+    {
+      "path": "backend/bin/benchmark_media_orchestration.py",
+      "sha256": "697dfc270bc086611df36a4821b8d8fc3679256a475e6efc5d2df01252f200dc"
+    },
+    {
+      "path": "backend/bin/check_gemini_runtime.mjs",
+      "sha256": "623bec72e98a62841ce589729942a19941ddfa760a154f0ee6c7506df14191e7"
+    },
+    {
+      "path": "backend/bin/probe_gemini_pipeline.mjs",
+      "sha256": "6866e4c9a6cf5db0b7a5c7fc4440da8d51e9329527b8c7f1e7ea3c6e5150bdda"
+    },
+    {
+      "path": "backend/bin/review_recheck_gemini.mjs",
+      "sha256": "a10360ac4fc100a08fd9e8c606c1c1d820f147fe92c0523345e9619ffb1aa7dc"
+    },
+    {
+      "path": "backend/config/channels-test.yaml",
+      "sha256": "4c2ce735e89488825f02cad7650736498ac27c8c31b8d4d7cff3411fa55f8cf9"
+    },
+    {
+      "path": "backend/config/channels.yaml",
+      "sha256": "0ef9ec7ca7e3ad8ed2b33bc5d070eb1ad2a9c682c10404e925db7fbc12935c66"
+    },
+    {
+      "path": "backend/restaurant-crawling/README.md",
+      "sha256": "18ae0933dc68400cce902bae56be0dca05258986ae429d91867a94e06e9e6015"
+    },
+    {
+      "path": "backend/restaurant-crawling/scripts/07-gemini-crawling.sh",
+      "sha256": "32a81e09170f5ad6ff65528e6679c41103686da8af5396e96af1c4d848022d73"
+    },
+    {
+      "path": "backend/restaurant-crawling/scripts/08-chunk-multimodal-crawling.sh",
+      "sha256": "267a189b3c7f6b6d37711a396e9d60a1a91c523a27d7bc385211054c93a7c983"
+    },
+    {
+      "path": "backend/restaurant-crawling/scripts/final_merge_chunk.mjs",
+      "sha256": "29c0794b1c535c5de2a912e2ba01ff09e89ac68eeaf2f531054e82a3d441e3e0"
+    },
+    {
+      "path": "backend/restaurant-crawling/scripts/gemini_api_request.mjs",
+      "sha256": "52b6c51cd6bcce0dd3ff02556585b4c6fe0b8081e750e94d1ebbc2c9768782bf"
+    },
+    {
+      "path": "backend/restaurant-crawling/scripts/gemini_chunk_video_request.mjs",
+      "sha256": "f93dc1a1c7bfad467e8fd1e3d8506e3f0514d55efc70c946b80672040b49377b"
+    },
+    {
+      "path": "backend/restaurant-crawling/scripts/tests/test_gemini_chunk_generation_config.mjs",
+      "sha256": "8a10a28dfad109615daed74a0250efac8b6538098d0b97ff8c09496d921a130e"
+    },
+    {
+      "path": "backend/restaurant-evaluation/README.md",
+      "sha256": "a54596d12698ec71d6715c2628c6f0dd6873989581b818d47111f1fc75cb4f7e"
+    },
+    {
+      "path": "backend/restaurant-evaluation/scripts/10-rule-evaluation.py",
+      "sha256": "36bdf786ae560e43094a1523e602d5691e9fa4290c2b705b1f7aad389f2d9176"
+    },
+    {
+      "path": "backend/restaurant-evaluation/scripts/11-laaj-evaluation.sh",
+      "sha256": "923fa2c4809ee494430da8eee97957f6d87786a1c0aa3f0bf0b55bc8739b69ce"
+    },
+    {
+      "path": "backend/restaurant-evaluation/scripts/gemini_api_request.mjs",
+      "sha256": "15fd047f8ff593511740cf443eb456ab9da78e936c6f78436cadbbe9ab8cbf9d"
+    },
+    {
+      "path": "backend/utils/gemini-client.mjs",
+      "sha256": "6a0ffa4ee76ab600d34bb519cbdfb868af6687be0d2216d6b24454d4fbdcaba6"
+    },
+    {
+      "path": "backend/utils/gemini-model.mjs",
+      "sha256": "395c726d42cc3dd32b129bd77ba7b4a4ff78ea98cb52f69d7892a439bb0a6df2"
+    },
+    {
+      "path": "backend/utils/gemini-model.sh",
+      "sha256": "5005d236d9445bfa3edb266d33ab9883bbf14c0b5f8b8148c99d967cafa52050"
+    },
+    {
+      "path": "backend/utils/gemini_model.py",
+      "sha256": "f59f7d4703ce32f7349430cd74c16b754d166e26ef6061bc56e1411f1845b14c"
+    },
+    {
+      "path": "backend/utils/tests/gemini-client.test.mjs",
+      "sha256": "844ec6e67586de0e01acf32b1cd8e93cf38f87df96eefa6f0aae3154096d5a65"
+    },
+    {
+      "path": "backend/utils/tests/gemini-model.test.mjs",
+      "sha256": "c2e7f3b12790d6954c2212ce30291f73df8f7a0051da8a065234ea30470e2b98"
+    },
+    {
+      "path": "backend/utils/tests/test_media_review_followthrough.py",
+      "sha256": "3ac7d6101524243f4838c6292abf00fe5eed01c4affa2ebe82280e85149e1ed4"
+    },
+    {
+      "path": "backend/utils/tests/test_pipeline_restart_integration.py",
+      "sha256": "707d60b79de0611206362113e9e1085262958cfc945246938f3bf032bae0a5c0"
+    },
+    {
+      "path": "backend/utils/tests/test_run_daily_regression.py",
+      "sha256": "9d3f59aae47277d081983551078c4f3387640293f49b8b13679dc7a5258f910f"
+    },
+    {
+      "path": "backend/utils/tests/test_stage_execution.py",
+      "sha256": "8e10f6f912a0e369769a4826ce3702e5e98ecba8b149eecc0089a48b733a3ca9"
+    },
+    {
+      "path": "docs/operations/gemini-flash38-migration-20261010.md",
+      "sha256": "85e3f30b33eba814f4107d78c383f35b57c2956534b187fe1e70ace0492221a2"
+    }
+  ],
+  "operatingDDL": 0,
+  "newProviderCalls": 0,
+  "nativeAstraCalls": 0
+}

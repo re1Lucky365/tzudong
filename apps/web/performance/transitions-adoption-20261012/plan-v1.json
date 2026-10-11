@@ -1,0 +1,43 @@
+{
+  "sourceBefore": "10d3ac0b3575d2dcc282381a99e57c3a10ac069c",
+  "baselineBuild": ".next-media-followup-v7",
+  "beforeBuildId": "I6A8JzmAqeqa3N8tX9IZA",
+  "purpose": "UI motion and reduced-motion acceptance, not whole-UI performance admission",
+  "independentProcessesPerVariant": 3,
+  "dependentShareRepeatsPerViewportAndProcess": 6,
+  "viewports": [
+    [
+      390,
+      844
+    ],
+    [
+      820,
+      1180
+    ],
+    [
+      1440,
+      900
+    ]
+  ],
+  "cpuRate": 4,
+  "cache": "off; service workers blocked",
+  "network": "unthrottled actual SDK/tiles, synthetic strict REST735/Auth401",
+  "fixedCriteria": {
+    "pageErrors": 0,
+    "unexpectedMotionUnderReduce": 0,
+    "shareAndEscapeWork": true,
+    "mapAndBottomSheetMovementAdded": false,
+    "appControlledDelayAdded": false,
+    "blurAdded": false,
+    "permanentWillChangeAdded": false
+  },
+  "zeroDurationBaseline": "no improvement percentage or ratio",
+  "statistics": "process medians; three samples insufficient for useful p95 or narrow confidence interval",
+  "fieldAdmission": 0,
+  "device": "no physical device per latest user instruction",
+  "baselinePilotFailuresPreserved": [
+    "before-0.json",
+    "before-1.json"
+  ],
+  "pilotCorrection": "Mobile category button opens BottomSheet; desktop uses Popover. Selector mismatch was a harness error, not a product failure."
+}

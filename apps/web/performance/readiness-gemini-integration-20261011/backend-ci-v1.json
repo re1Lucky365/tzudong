@@ -1,0 +1,11 @@
+{
+  "exit": 0,
+  "node": "v24.21.0",
+  "npm": "11.6.2",
+  "ignoreScripts": true,
+  "lockUnchanged": true,
+  "lockSha256": "2684386251df7630702635a52b1e76dc6d6b224333227734a6aa1e4e5b712dbd",
+  "logSha256": "b2ab2e44fc8242ffb6e4d89e2470f6ba63a9b223f87a914f897f947f8bd6b323",
+  "mediaBrowserLifecycleDownloaded": false,
+  "externalProviderCalls": 0
+}

@@ -1,0 +1,119 @@
+{
+  "sourceHead": "ed8ad8abad196afa756ad846862d5869ab27966e",
+  "sourceScriptSha256": "142711e0d25bc094936be1fff34d92269d78dc4aa72bc3470ee4e2cf6c34622a",
+  "node": "v24.21.0",
+  "startedAtUtc": "2026-10-11T10:23:47.073Z",
+  "distDir": ".next-media-followup-v4",
+  "productionBuild": true,
+  "syntheticAuthAndRest": true,
+  "serverAuthMockedInOwnedProcess": true,
+  "myPageSourceSha256": "0efb2b61d531dc11e51d7fa3f548aaad6949ed54496c017367686b6328e5233e",
+  "operatingWrites": 0,
+  "physicalDevice": false,
+  "fieldAdmission": 0,
+  "pageErrors": 0,
+  "consoleErrors": 11,
+  "unsupportedFixture": 2,
+  "cases": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "uncertain preview recovery remains GET-only even after its deadline",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "server-confirmed expired unapplied operation clears matching pending identity",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "terminal operation can close without replaying Apply",
+      "passed": true,
+      "recordGets": 2,
+      "recordPosts": 0
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "case": "uncertain preview recovery remains GET-only even after its deadline",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "case": "server-confirmed expired unapplied operation clears matching pending identity",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "case": "terminal operation can close without replaying Apply",
+      "passed": true,
+      "recordGets": 2,
+      "recordPosts": 0
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "case": "uncertain preview recovery remains GET-only even after its deadline",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "case": "server-confirmed expired unapplied operation clears matching pending identity",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "case": "terminal operation can close without replaying Apply",
+      "passed": true,
+      "recordGets": 2,
+      "recordPosts": 0
+    }
+  ],
+  "passed": false,
+  "browser": "154.0.8037.98",
+  "rpcNames": [
+    "ad_banners",
+    "announcements",
+    "get_current_privacy_eligibility",
+    "notifications",
+    "read_public_profile_summaries",
+    "restaurant_popular_rank_snapshots",
+    "restaurants",
+    "reviews",
+    "user_bookmarks",
+    "user_roles"
+  ],
+  "authFixtureCalls": 0,
+  "consoleKinds": {
+    "CSP": 3,
+    "unclassified": 5,
+    "expectedExpiry409": 3
+  },
+  "failureCode": "BROWSER_ADMISSION_FAILED",
+  "assertionKind": "Error"
+}

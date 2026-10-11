@@ -1,0 +1,32 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-unit/admin-storyboard-local-bridge.test.ts:
+(pass) storyboard local bridge contract > normalizes only localhost bridge URL and token shapes [0.39ms]
+(pass) storyboard local bridge contract > builds and validates trusted local bridge image response shape [0.27ms]
+(pass) storyboard local bridge contract > keeps generated image data out of repeated local bridge request payloads [1.08ms]
+(pass) storyboard local bridge server > grants allowed CORS/PNA preflight and safe health without returning token [62.50ms]
+(pass) storyboard local bridge server > serves the helper page without requiring an Origin header [44.25ms]
+(pass) storyboard local bridge server > rejects helper query confusion and one-time session nonce replays before provider invocation [7.64ms]
+(pass) storyboard local bridge server > rejects missing token and wrong origin before provider invocation [4.39ms]
+(pass) storyboard local bridge server > emits only a fixed readiness code without the pairing token [2.44ms]
+(pass) storyboard local bridge server > does not inherit API, Supabase, or authorization secrets into provider environment or response [420.35ms]
+(pass) storyboard local bridge server > accepts loopback helper origins for status and generation routes [3.97ms]
+(pass) storyboard local bridge server > runs configured Windows cmd provider commands for storyboard and thumbnail routes [0.39ms]
+(pass) storyboard local bridge server > retired storyboard images reject malformed JSON without invoking a provider or creating artifacts [2.94ms]
+(pass) storyboard local bridge server > retired storyboard images reject valid former storyboard request without invoking a provider or creating artifacts [2.60ms]
+(pass) storyboard local bridge server > retired storyboard images reject forged provider/proof payload without invoking a provider or creating artifacts [3.14ms]
+(pass) storyboard local bridge server > retired storyboard images reject oversized former payload without invoking a provider or creating artifacts [3.33ms]
+(pass) storyboard local bridge server > serves thumbnail images through the same paired local bridge without a server relay [114.58ms]
+(pass) storyboard local bridge server > rejects non-canonical, MIME-mismatched, or oversized-dimension thumbnail references before provider invocation [5.96ms]
+(pass) storyboard local bridge server > fails closed when thumbnail provider reports an output path outside the expected run output [113.14ms]
+(pass) storyboard local bridge server > rejects wrong-format, byte-mismatched, and hash-mismatched provider files before disclosure and removes run artifacts [447.89ms]
+(pass) storyboard local bridge server > rejects provider symlink outputs on POSIX before disclosure [165.84ms]
+(pass) storyboard local bridge server > fails closed on misleading provider success output with non-zero exit [417.71ms]
+(pass) storyboard local bridge server > removes direct-child and grandchild provider trees before returning a timeout response [767.09ms]
+(pass) storyboard local bridge server > removes direct-child and grandchild thumbnail provider trees after output overflow [590.26ms]
+(pass) storyboard local bridge server > removes private run artifacts and direct-child/grandchild trees when the client aborts [682.80ms]
+
+ 24 pass
+ 0 fail
+ 113 expect() calls
+Ran 24 tests across 1 file. [4.11s]

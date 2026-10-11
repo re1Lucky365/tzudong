@@ -1,0 +1,12 @@
+{
+  "status": "failed",
+  "fixedFailure": "BOUNDARY_PRESERVATION_DRIFT",
+  "differentFields": [
+    "schemas",
+    "policies",
+    "triggers",
+    "functions"
+  ],
+  "fingerprintIncludesPostgresTemporaryNamespaceLifecycle": true,
+  "scriptSha256": "83552bdf5546475180333fd1a36b99fe216cae26eb4602ca80f4db86161439d5"
+}
