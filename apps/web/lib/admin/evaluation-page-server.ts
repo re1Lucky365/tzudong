@@ -15,7 +15,7 @@ type RelatedQuery=PromiseLike<Result>&{
   order(column:string,options:{ascending:boolean}):RelatedQuery;range(from:number,to:number):RelatedQuery;
 };
 type WarningMode='auto'|'stream'|'rpc'|'raw';
-type WarningReadPath='WARNING_STREAM'|'WARNING_RPC'|'WARNING_STREAM_RUNTIME'|'WARNING_STREAM_UNICODE'|'WARNING_STREAM_CAPACITY'|'WARNING_RAW_FLAT'|'WARNING_RAW_GROUPS'|'WARNING_STREAM_RAW_CAPACITY';
+type WarningReadPath='WARNING_STREAM'|'WARNING_RPC'|'WARNING_STREAM_RUNTIME'|'WARNING_STREAM_UNICODE'|'WARNING_STREAM_CAPACITY'|'WARNING_RAW_FLAT'|'WARNING_RAW_GROUPS'|'WARNING_STREAM_RAW_CAPACITY'|'WARNING_STREAM_RPC_UNAVAILABLE';
 const warningMode=():WarningMode=>process.env.ADMIN_EVALUATION_WARNING_READ_PATH==='stream'?'stream':process.env.ADMIN_EVALUATION_WARNING_READ_PATH==='rpc'?'rpc':process.env.ADMIN_EVALUATION_WARNING_READ_PATH==='raw'?'raw':'auto';
 export interface EvaluationPageClient {
   rpc(name:string,args?:Record<string,unknown>):PromiseLike<Result>;
@@ -38,20 +38,35 @@ function isMissingRawWarningRpc(result:Result) {
   return result.data===null&&result.error?.code==='PGRST202'
     &&result.error.message==='Could not find the function public.admin_evaluation_raw_warning_groups(after_cursor, batch_size, expected_revision, page_ids) in the schema cache';
 }
+function isMissingGroupedWarningRpc(result:Result) {
+  return result.data===null&&result.error?.code==='PGRST202'
+    &&result.error.message==='Could not find the function public.admin_evaluation_warning_groups(expected_revision, page_ids) in the schema cache';
+}
 
-async function readStreamWarnings(client:EvaluationPageClient,records:ReturnType<typeof withAdminEvaluationDisplayName>[]) {
+async function readStreamWarnings(client:EvaluationPageClient,records:ReturnType<typeof withAdminEvaluationDisplayName>[],rowLimit=50000) {
   const streams=new Map(records.map(record=>[record.id,new EvaluationWarningStream(record)]));
   const videos=[...new Set(records.map(record=>extractVideoIdFromYoutubeLink(record.youtube_link)).filter((video):video is string=>!!video))];
-  if(videos.length)for(let offset=0;offset<=50000;offset+=200){
-    const block=await client.from('admin_evaluation_related_rows').select('id,approved_name,origin_name,naver_name,google_name,phone,status,road_address,jibun_address,youtube_link,updated_by_admin_id,lat,lng,created_at,video_id,evaluation_results,name').in('video_id',videos)
-      .order('created_at',{ascending:false}).order('id',{ascending:true}).range(offset,offset+199);
-    if(block.error||!Array.isArray(block.data)||block.data.length>200||(offset===50000&&block.data.length))throw new Error('EVALUATION_RECORDS_UNAVAILABLE');
-    const rows=block.data.map(value=>{
-      const record=normalizeEvaluationRecord(value);if(!record||!UUID.test(record.id))throw new Error('EVALUATION_RECORDS_UNAVAILABLE');
-      return withAdminEvaluationDisplayName(record);
-    });
-    for(const stream of streams.values())stream.add(rows);
-    if(block.data.length<200)break;
+  if(videos.length){
+    // Only double-missing auto compatibility receives the transitional 2,000
+    // row budget. Explicit modes retain their existing 50,000-row boundary.
+    // A one-row sentinel rejects capacity without returning partial warnings.
+    const readRange=(from:number,to:number)=>client.from('admin_evaluation_related_rows').select('id,approved_name,origin_name,naver_name,google_name,phone,status,road_address,jibun_address,youtube_link,updated_by_admin_id,lat,lng,created_at,video_id,evaluation_results,name').in('video_id',videos)
+      .order('created_at',{ascending:false}).order('id',{ascending:true}).range(from,to);
+    let complete=false;
+    for(let batch=0;batch<rowLimit/200;batch++){
+      const block=await readRange(batch*200,batch*200+199);
+      if(block.error||!Array.isArray(block.data)||block.data.length>200)throw new Error('EVALUATION_RECORDS_UNAVAILABLE');
+      const rows=block.data.map(value=>{
+        const record=normalizeEvaluationRecord(value);if(!record||!UUID.test(record.id))throw new Error('EVALUATION_RECORDS_UNAVAILABLE');
+        return withAdminEvaluationDisplayName(record);
+      });
+      for(const stream of streams.values())stream.add(rows);
+      if(block.data.length<200){complete=true;break;}
+    }
+    if(!complete){
+      const sentinel=await readRange(rowLimit,rowLimit);
+      if(sentinel.error||!Array.isArray(sentinel.data)||sentinel.data.length!==0)throw new Error('EVALUATION_RECORDS_UNAVAILABLE');
+    }
   }
   return Object.fromEntries([...streams].map(([id,stream])=>[id,stream.result()]));
 }
@@ -128,10 +143,11 @@ export async function readDatabaseEvaluationPage(client:EvaluationPageClient,que
     if(grouped.error){
       // Only exact SQL admission refusals can use the existing JS algorithm.
       // Never disguise transport/DB errors, missing RPCs or malformed results.
-      if(rawWarningRpcMissing||grouped.data!==null||grouped.error.code!=='P0001')throw new Error('EVALUATION_RECORDS_UNAVAILABLE');
+      if(rawWarningRpcMissing&&isMissingGroupedWarningRpc(grouped))warningReadPath='WARNING_STREAM_RPC_UNAVAILABLE';
+      else if(rawWarningRpcMissing||grouped.data!==null||grouped.error.code!=='P0001')throw new Error('EVALUATION_RECORDS_UNAVAILABLE');
       if(grouped.error.message==='EVALUATION_WARNING_UNICODE_UNSUPPORTED')warningReadPath='WARNING_STREAM_UNICODE';
       else if(grouped.error.message==='EVALUATION_WARNING_CAPACITY_EXCEEDED')warningReadPath='WARNING_STREAM_CAPACITY';
-      else throw new Error('EVALUATION_RECORDS_UNAVAILABLE');
+      else if(warningReadPath!=='WARNING_STREAM_RPC_UNAVAILABLE')throw new Error('EVALUATION_RECORDS_UNAVAILABLE');
     }
   }
   if(full.length&&warningReadPath==='WARNING_RPC'){
@@ -165,7 +181,7 @@ export async function readDatabaseEvaluationPage(client:EvaluationPageClient,que
       warnings[group.id]={sameVideo:{count:sameVideo.count,candidates,message:formatSameVideoDuplicateWarning(candidates,sameVideo.count)},identity};
     }
   }
-  if(warningReadPath!=='WARNING_RPC'&&warningReadPath!=='WARNING_RAW_GROUPS'&&warningReadPath!=='WARNING_RAW_FLAT')Object.assign(warnings,await readStreamWarnings(client,full.map(({record})=>record)));
+  if(warningReadPath!=='WARNING_RPC'&&warningReadPath!=='WARNING_RAW_GROUPS'&&warningReadPath!=='WARNING_RAW_FLAT')Object.assign(warnings,await readStreamWarnings(client,full.map(({record})=>record),warningReadPath==='WARNING_STREAM_RPC_UNAVAILABLE'?2000:50000));
   const revision=await client.rpc('admin_evaluation_revision');
   if(revision.error||revision.data!==page.revision)throw new Error('EVALUATION_CURSOR_STALE');
   return {records:full.map(({raw,record})=>summarizeEvaluationRecord(raw,record)),stats,filteredTotal:page.filteredTotal,revision:page.revision,

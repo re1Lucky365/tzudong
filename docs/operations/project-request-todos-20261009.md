@@ -7,6 +7,17 @@
 
 상태 표기: **I 구현 / L 로컬 검증 / O 운영 반영 / R 실제 동작 확인**. `?`는 미확인이다. 검증 완료를 기록할 때 소스 SHA, 실제 실행 시각, 환경, 검증 결과와 증빙 경로를 함께 남긴다. 운영 대상이 없는 규칙·문서 항목은 이유를 적고 해당 칸을 적용 제외로 바꿀 수 있다. 과거 보고서는 탐색 근거이며 현재 운영 사실을 대신하지 않는다.
 
+## 2026-10-10 운영 배포·적용기 검증 갱신
+
+- 새 관리자 UI가 운영 `dpl_CLEMRdaLUrai3Ph9J2czNRA64pyw` / source `8257581e`에 실제 배포됐고 두 production alias를 확인했다. 실제 로그인으로 15개 메뉴 navigation을 확인했지만 사용자 RPC·Sentry·전체 업무 쓰기/공급자 흐름은 미완료다.
+- 적용기의 3개 검토 지적과 M5 predicate를 수정했다. 관련 61 tests / 344 assertions가 통과했고 PR #3160 → #3161 → #3162를 보호 순서로 병합했다. protected main은 `f55117f8`이다.
+- 운영 SQL은 1회 시도 후 클라이언트 오류로 종료됐고 변경 미반영을 재조회했다. 같은 시간대 로그에는 `MIGRATION_TERMINAL_READBACK_FAILED`가 있으며 caller·단계 상관관계는 추가 확인 중이다. 장부 80, 대상 SQL 0, schema/ledger roots와 7개 업무 테이블 1,742행의 전체 hash가 보존됐다. Forward는 실행하지 않았고 자동 재전송하지 않았다. 전체 compiled 적용기 재생으로 원인을 조사 중이다. 데이터 보존 확인 후 다른 작업의 중지는 해제했으며 관리자 저장 차단은 유지한다.
+- 기존 수정/untracked 파일, 사용 한도, 충전 범위와 중지된 큐를 보존했다. 이 갱신은 전체 Todo 완료 표시가 아니다.
+
+- 전체 compiled 경로의 첫 terminal guard가 장부 기록 전 81건을 기대하던 순서 결함을 재현·수정했다. 수정 소스 64 tests 및 PG17.6 five 정상85/강제실패80 rollback, forward 정상86/강제실패85 rollback이 통과했다. 운영 적용 완료는 아니며 수정 source 보호 승격과 새 writer-pause 확인이 남았다.
+
+현재 증빙: [운영 배포·적용 검증](operating-release-20261010.md), `apps/web/performance/operating-release-20261010/`.
+
 ## 2026-10-09 현재 실행 갱신
 
 - PR #3150은 `develop`의 `a3c30cdb379f4bfe930a355bbe13175958d98aef`로, PR #3151은 `data`의 `8087fd994bc8ac8f603797a4e2a655ef203e5af0`로 병합됐다. 기존 main의 병합 이력을 포함하도록 파일 변경 0건/tree 동일성을 확인한 PR #3154·#3155를 거쳐 현재 develop은 `671d9ca1ee88c484674087c6640732b7de6ac5b2`, data는 `ea67d5273dbe3a95754d4e390b80d43cf8707b00`다. main PR #3153에는 실제 missing-RPC fallback 검토를 수정한 소스를 추가 승격해야 한다. 운영 SQL 적용은 아직 0회다.
@@ -706,3 +717,15 @@ Five-stage 11개 private receipt와 forward prior-state receipt의 실제 canoni
 - root의 현재 영향받은 검사: auth/same-origin43, nightly30, seed21, page server19 = 고유113개 통과. TypeScript native/compat parity diagnostics0·logical inputs3,134, auth ESLint와 소유 변경의 diff check 통과. agent가 별도로 publication/runtime81, evaluation/normalization24를 확인했으며 중복 합산하지 않는다. 새 source 수정은 아직 배포되지 않았다.
 
 현재 운영 PostgreSQL170006·ledger80/latest20261008124858·맛집1,659건이다. 이번 후속의 Auth 설정 쓰기1회 외 운영 SQL·Storage 삭제·추가 충전·신규 Gemini inference는 0회다. 증빙: `continuity-recovery-20261009/web-operating-followthrough-20261009/`.
+
+## 2026-10-10 실제 Preview에서 발견한 호환성 회귀와 수정
+
+운영 metadata에서 warning RPC0개를 확인했고, develop `d847a7195b9add458a469742b6c33c38410cbcc7`의 READY Preview에서 맛집 관리가 고정 조회 오류로 닫히는 것을 실제 확인했다. 앞선 bounded aggregate-only 수정의 전환기 회귀이며 숨기지 않는다. main 승격 전에 raw·aggregate 두 RPC가 모두 첫 요청의 정확한 PGRST202로 없을 때만 제한된 stream을 허용하도록 수정한다.
+
+전환기 예산은 200행×10배치=2,000행과1행 sentinel이다. 관련 view는 restaurants와 UUID 기본키 index의1:1 조인이므로 현재1,659개는82.95%·잔여341개의 범위에 있다. 2,001행 이상이면 부분 경고를 반환하지 않고 전체 unavailable로 종료한다. 공급자 quota가 아니며 기존 explicit/정확한 Unicode·capacity admission 경로의50,000행 의미는 보존한다.
+
+같은1,659행 합성 입력의7쌍에서 cold DB 호출은13→14(+1,+7.69%)로 악화했다. 이전 source와 경고1,658건이7쌍 모두 일치했고 실제 네트워크0회다. 전환기 최악 요청 상한은255→16(-239,-93.73%)이다. Aggregate가 있는 별도 경로의5회 상한과 구분한다. 고정 호출 수와 상한이므로 모집단95%CI를 만들지 않으며 운영 지연·비용·쿼타 절감을 주장하지 않는다.
+
+root page server23개/231assertions 통과, agent의 범위 수정 전 관련27개/723assertions 통과를 별도 보존한다. 새 호환 소스의 실제 Preview 조회 복구는 아직 확인 전이며 운영 SQL·Storage·catalog reload는0회다. 증빙: `continuity-recovery-20261009/double-missing-warning-fix-20261010/`.
+
+실제 Preview 재검증: develop `bb32e07fe9ea44186e003488428ca14a0ae6a32c`, `dpl_C2L2iemi6K7UayhrGoikKbvFeNo4` READY를 확인했다. 기존 Google 관리자 세션을 유지한 실제 reload에서 맛집 전체1,659건·삭제890건·표50행·수정 버튼36개·고정 조회 오류 부재를 확인했다. 최초 heading 대기는 timeout이었고 이후 새 상태에서 헤더와 표를 확인했으며 실패 대기도 기록했다. 이 결과는 실제 인증된 조회 복구이고 승인·저장·물리 삭제를 입증하지 않는다. source는 data/main 승격 전이며 SQL·Storage·catalog reload0회다. 증빙: `continuity-recovery-20261009/double-missing-live-preview-20261010.json`.
