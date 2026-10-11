@@ -1,0 +1,1611 @@
+{
+  "variant": "before",
+  "iteration": 5,
+  "production": true,
+  "distDir": ".next-media-followup-v7",
+  "buildId": "I6A8JzmAqeqa3N8tX9IZA",
+  "node": "v24.21.0",
+  "fixtureSha256": "346c9c865201a48b590c439a4e06306bfada92f91c73f9a83293a991a51058b5",
+  "fieldAdmission": 0,
+  "physicalDevice": false,
+  "data": "Synthetic REST735 / Auth401",
+  "startedUtc": "2026-10-11T16:17:36.024Z",
+  "cases": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "normal": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "all",
+        "filter": "none",
+        "willChange": "auto"
+      },
+      "reduced": {
+        "animation": "none",
+        "transition": "all"
+      },
+      "toastReduced": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "all"
+      },
+      "samples": [
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 0.20000000000004547,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 16.799999999999955,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 33.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 50.09999999999991,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 66.79999999999995,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 83.40000000000009,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 100.09999999999991,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 116.79999999999995,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 133.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 150.0999999999999,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 166.79999999999995,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 183.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 200.0999999999999,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 216.79999999999995,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 233.4000000000001,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 8.400000095367432,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 25.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 41.70000009536761,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 58.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 75.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 91.80000009536752,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 108.50000009536734,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 125.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 141.7000000953676,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 158.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 175.00000009536734,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 191.7000000953676,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 208.50000009536734,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 225.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 2
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 2.866000095367781,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 19.60000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 36.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 52.80000009536707,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 69.5000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 86.20000009536761,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 102.90000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 119.5000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 136.2000000953676,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 152.80000009536707,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 169.5000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 186.2000000953676,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 202.80000009536707,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 219.5000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 236.2000000953676,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 3
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 8.100000190735045,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 24.800000190734863,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 41.50000019073468,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 58.100000190735045,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 74.90000019073523,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 91.50000019073468,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 108.10000019073505,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 124.80000019073486,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 141.50000019073468,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 158.2000001907345,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 174.80000019073486,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 191.40000019073523,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 208.2000001907345,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 224.80000019073486,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 4
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 3.3659998092643946,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 19.99999980926441,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 36.59999980926477,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 53.2999998092655,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 69.99999980926441,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 86.69999980926514,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 103.2999998092655,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 119.99999980926441,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 136.59999980926477,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 153.2999998092655,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 169.9999998092644,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 186.59999980926477,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 203.2999998092655,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 219.89999980926586,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 236.59999980926477,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 5
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 4.5660000953666895,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 21.300000095367068,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 37.90000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 54.500000095367795,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 71.2000000953667,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 87.90000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 104.60000009536816,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 121.2000000953667,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 137.90000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 154.5000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 171.30000009536707,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 187.90000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 204.60000009536816,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 221.2000000953667,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 6
+        }
+      ],
+      "functional": {
+        "emptyResult": false,
+        "focusRestored": false,
+        "rapidReopens": 6,
+        "shareSuccess": 7
+      }
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "normal": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "all",
+        "filter": "none",
+        "willChange": "auto"
+      },
+      "reduced": {
+        "animation": "none",
+        "transition": "all"
+      },
+      "toastReduced": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "all"
+      },
+      "samples": [
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 6.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 23.09999999999991,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 39.799999999999955,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 56.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 73.09999999999991,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 89.79999999999995,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 106.40000000000009,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 123.09999999999991,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 139.70000000000005,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 156.4000000000001,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 173.0999999999999,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 189.79999999999995,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 206.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 223.0999999999999,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": -0.40000009536743164,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 16.299999904632386,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 32.99999990463266,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 49.69999990463248,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 66.29999990463239,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 82.99999990463266,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 99.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 116.29999990463239,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 132.99999990463266,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 149.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 166.2999999046324,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 182.89999990463275,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 199.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 216.2999999046324,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 232.99999990463266,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 2
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 12.499999713897523,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 29.299999713897705,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 45.99999971389752,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 62.59999971389789,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 79.2999997138977,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 95.89999971389807,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 112.49999971389752,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 129.19999971389734,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 145.89999971389807,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 162.5999997138979,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 179.2999997138977,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 195.89999971389807,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 212.5999997138979,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 229.2999997138977,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 3
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 2.9999999046322046,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 19.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 36.29999990463239,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 52.89999990463275,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 69.69999990463293,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 86.29999990463239,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 102.89999990463275,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 119.69999990463293,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 136.2999999046324,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 152.9999999046322,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 169.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 186.2999999046324,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 202.9999999046322,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 219.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 236.2999999046324,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 4
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 12.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 29.100000000000364,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 45.79999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 62.399999999999636,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 79.10000000000036,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 95.70000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 112.39999999999964,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 129.10000000000036,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 145.79999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 162.39999999999964,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 179.10000000000036,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 195.70000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 212.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 229.10000000000036,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 5
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 5.600000000000364,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 22.200000000000728,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 38.79999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 55.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 72.20000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 88.79999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 105.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 122.20000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 138.89999999999964,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 155.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 172.20000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 188.79999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 205.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 222.20000000000073,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 6
+        }
+      ],
+      "functional": {
+        "emptyResult": false,
+        "focusRestored": false,
+        "rapidReopens": 6,
+        "shareSuccess": 7
+      }
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "normal": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "all",
+        "filter": "none",
+        "willChange": "auto"
+      },
+      "reduced": {
+        "animation": "none",
+        "transition": "all"
+      },
+      "toastReduced": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "all"
+      },
+      "samples": [
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": -0.9999997138977506,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 15.700000286102295,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 32.300000286102204,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 49.00000028610225,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 65.7000002861023,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 82.40000028610234,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 99.00000028610225,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 115.60000028610239,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 132.3000002861022,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 149.00000028610225,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 165.7000002861023,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 182.3000002861022,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 199.00000028610225,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 215.7000002861023,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 232.3000002861022,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 4.800000095367523,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 21.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 38.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 54.80000009536752,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 71.50000009536734,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 88.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 104.70000009536761,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 121.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 138.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 154.80000009536752,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 171.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 188.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 204.80000009536752,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 221.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 2
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 1.066000095367599,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 17.700000095367614,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 34.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 51.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 67.70000009536761,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 84.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 101.0000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 117.70000009536761,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 134.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 151.0000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 167.7000000953676,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 184.30000009536707,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 201.0000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 217.7000000953676,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 234.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 3
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 3.3000002861026587,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 19.900000286102113,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 36.60000028610193,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 53.30000028610266,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 69.90000028610211,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 86.60000028610193,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 103.30000028610266,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 120.00000028610248,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 136.50000028610248,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 153.30000028610266,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 169.9000002861021,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 186.50000028610248,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 203.30000028610266,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 219.90000028610302,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 236.60000028610193,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 4
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 4.799999999999272,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 21.399999999999636,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 38.100000000000364,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 54.79999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 71.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 88.10000000000036,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 104.70000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 121.39999999999964,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 138.10000000000036,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 154.79999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 171.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 188.10000000000036,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 204.70000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 221.5,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 5
+        },
+        {
+          "animationMs": 0,
+          "animationName": "none",
+          "cssAnimationMs": 0,
+          "transition": "all",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 14.600000000000364,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 31.200000000000728,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 47.79999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 64.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 81.20000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 97.89999999999964,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 114.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 131.10000000000036,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 147.79999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 164.5,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 181.20000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 197.89999999999964,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 214.60000000000036,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 231.10000000000036,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 6
+        }
+      ],
+      "functional": {
+        "emptyResult": true,
+        "focusRestored": true,
+        "rapidReopens": 6,
+        "shareSuccess": 7
+      }
+    }
+  ],
+  "pageErrors": 0,
+  "consoleErrors": {
+    "other": 4,
+    "CSP": 6
+  },
+  "passed": true,
+  "browser": "154.0.8037.98",
+  "endedUtc": "2026-10-11T16:18:27.341Z"
+}

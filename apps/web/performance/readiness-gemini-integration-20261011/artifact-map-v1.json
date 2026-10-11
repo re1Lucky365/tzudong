@@ -1,0 +1,31 @@
+{
+  "artifacts": {
+    "REPORT-v1.md": "054dcaa40ef08822315c13d4613ee1e25e0eed983fff69cca7d0876ca6647bd1",
+    "backend-ci-v1.json": "ef418fc4f440b43e4f8603fd660a7a8c135531a77c6413171e8a9576c7622d3a",
+    "backend-ci-v1.log": "b2ab2e44fc8242ffb6e4d89e2470f6ba63a9b223f87a914f897f947f8bd6b323",
+    "backend-dependency-failure-v1.json": "1ecf67e81ab7f70eae37e6ddd11417f749f0f7c62143f331591b691fc9968ce5",
+    "backend-node-tests-v2.json": "ae27125f0a09891cd7888c7e37d20d31bf1fe51930a2deda28ac83927b196e2a",
+    "backend-node-tests-v2.log": "529aeff25764f37f92ebb180f0c82fa5fdbb3e8134f6ea05c6e5e1cbddea8289",
+    "build-output-routing-correction-v1.json": "755d36f15db39b8249f0e34e72ebafd207d293563495c50941bec7fad71927ff",
+    "build_configured_v6.mjs": "aae3f212cb3f36527a616481f3df8ffb4249edb02ec5314edce0b7ee5f9b57fc",
+    "build_configured_v6_initial.mjs": "9438346509ab2375abb79fe88cdb686fb0a77eba9217d45b08cffee09130a6f2",
+    "configured-build-v6.json": "9c3d3a61eda13afb46606b0fe03c4618b159c2d1f5df28a089ab5908d2b6859c",
+    "configured-build-v6.log": "892a0602b2fdc375d3e35a18bf588ba3ef470ddf9ad9a51d8db8c3e08662fc21",
+    "configured-css-v6.log": "e658b588eb4e25e19eb55c986c16594f823e19550a10d88f87afee4c53c6130e",
+    "integration-source-v1.json": "7f10875a56a195ebd084aaf6b40ceb7639e23e8322dec711d0a83c42b00e078a",
+    "lint-integration-v1.json": "8b1351ecda4961e48ace0161a14394aa222e915dd8734ea926e976a83fa746b5",
+    "lint-integration-v1.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "parity-integration-v1.json": "ad9a0cc1ed63b716d8248db4547ead1755c538ccfa8694cf3d61e0c5dde83123",
+    "parity-integration-v1.log": "f888570487b48a4016f2f8a5158c7c706942eb50633cff5ff34d3045abfdf607",
+    "review-resolutions-v1.json": "3249c19016eaaf8bd232394f13271aea3645758f2578068ee31914d6b3f670c8",
+    "run_checks_v1.py": "5b146f7962b606c68c19835276b164e439993e544a07ff9ee2cf5a27558a8ff1",
+    "tsconfig-generated-configured-v6.json": "959f5788179802ac671da2623c8d3d9e2d0faef821a686e0057fab0129feca67",
+    "unit-integration-v1.json": "e517c18a1a01a548e137cdb53cfa9ffb2441685f84c519a7c7bdc1edfc4aa55b",
+    "unit-integration-v1.log": "4be2e93227b8438825a284f15be569160f9fc9cf1c9c8facccf480114b43de66"
+  },
+  "operatingDeliveryVerified": false,
+  "package": "readiness-gemini-integration-20261011",
+  "performanceAdmission": 0,
+  "physicalDevice": false,
+  "schemaVersion": "retained-evidence-map.v1"
+}
