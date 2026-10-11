@@ -1086,11 +1086,11 @@ complete_lifecycle_stage
             self._write_bundle(root)
             verifier.verify(root)
 
-    def test_publication_uses_the_current_132_unit_manifest(self) -> None:
-        self.assertEqual(local_migrate.verify_manifest()["source"]["migrationCount"], 134)
-        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 134)
-        self.assertEqual(verifier.EXPECTED_LEDGER_UNITS, 134)
-        self.assertEqual(builder.EXPECTED_LEDGER_UNITS, 134)
+    def test_publication_uses_the_current_135_unit_manifest(self) -> None:
+        self.assertEqual(local_migrate.verify_manifest()["source"]["migrationCount"], 135)
+        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 135)
+        self.assertEqual(verifier.EXPECTED_LEDGER_UNITS, 135)
+        self.assertEqual(builder.EXPECTED_LEDGER_UNITS, 135)
     def test_publication_rejects_review_media_catalog_counts_even_with_matching_total(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)

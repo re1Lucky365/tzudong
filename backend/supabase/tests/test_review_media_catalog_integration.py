@@ -206,7 +206,7 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
     def test_ledger_applies_integration_normally_and_retains_current_overlap_proofs(self):
         manifest = local_migrate.verify_manifest()
         files = manifest["source"]["files"]
-        self.assertEqual(len(files), 134)
+        self.assertEqual(len(files), 135)
         integration = next(row for row in files if row["path"] == MIGRATION.relative_to(ROOT).as_posix())
         self.assertEqual(local_migrate._expected_terminal_status(integration), "applied")
         sql = local_migrate._execution_body(integration)

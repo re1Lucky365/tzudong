@@ -126,7 +126,7 @@ STACK_SERVICES = {
     "supavisor",
     "vector",
 }
-EXPECTED_LEDGER_UNITS = 134
+EXPECTED_LEDGER_UNITS = 135
 SEQUENCE_MARKERS = (
     "prerequisite",
     "migration",

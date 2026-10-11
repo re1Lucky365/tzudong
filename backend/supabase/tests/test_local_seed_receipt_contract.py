@@ -484,11 +484,11 @@ class LocalSeedReceiptContractTests(unittest.TestCase):
 
     def test_manifest_contains_exactly_current_immutable_units(self) -> None:
         manifest = local_migrate.build_manifest()
-        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 134)
-        self.assertEqual(len(manifest["source"]["files"]), 134)
+        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 135)
+        self.assertEqual(len(manifest["source"]["files"]), 135)
         self.assertEqual(
             manifest["source"]["files"][-1]["path"],
-            "backend/supabase/migrations/20261011085342_review_legacy_shared_cleanup.sql",
+            "backend/supabase/migrations/20261011094346_admin_evaluation_revision_safeupdate.sql",
         )
         self.assertEqual(
             manifest["source"]["files"][-1]["transaction"]["class"],

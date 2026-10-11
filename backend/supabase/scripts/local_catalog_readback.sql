@@ -2118,3 +2118,15 @@ SELECT json_build_array('seed_realtime', publication_table.pubname, publication_
  ORDER BY publication_table.pubname, publication_table.schemaname, publication_table.tablename;
 
 COMMIT;
+
+-- ADMIN_REVISION_READBACK_BEGIN
+DO $readback$
+BEGIN
+  IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid='pipeline_control.bump_admin_evaluation_revision()'::regprocedure
+    AND proowner='postgres'::regrole AND prosecdef AND proconfig=ARRAY['search_path=""']::text[]
+    AND proacl=ARRAY['postgres=X/postgres']::aclitem[]
+    AND encode(sha256(convert_to(prosrc,'UTF8')),'hex')='4a3bf9e7cc7d91fb1a2a5195d01f40de728539daad1a0a8132a7c10404dc7936')
+    OR (SELECT count(*) FROM pipeline_control.admin_evaluation_catalog_revision WHERE singleton)<>1
+    THEN RAISE EXCEPTION 'ADMIN_REVISION_READBACK_DRIFT'; END IF;
+END $readback$;
+-- ADMIN_REVISION_READBACK_END
