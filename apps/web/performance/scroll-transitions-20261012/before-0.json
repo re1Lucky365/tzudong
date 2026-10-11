@@ -1,0 +1,1607 @@
+{
+  "variant": "before",
+  "iteration": 0,
+  "production": true,
+  "distDir": ".next-media-followup-motion-v3",
+  "buildId": "r4jQUMb4BpNXlEyfppZm_",
+  "node": "v24.21.0",
+  "fixtureSha256": "346c9c865201a48b590c439a4e06306bfada92f91c73f9a83293a991a51058b5",
+  "fieldAdmission": 0,
+  "physicalDevice": false,
+  "data": "Synthetic REST735 / Auth401",
+  "startedUtc": "2026-10-11T16:56:52.466Z",
+  "cases": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentScansDuring12MapDrags": 24,
+      "initialScans": 7,
+      "normal": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "all",
+        "filter": "none",
+        "willChange": "auto"
+      },
+      "reduced": {
+        "animation": "none",
+        "transition": "all"
+      },
+      "toastReduced": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "none"
+      },
+      "samples": [
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": -1.3000000953675226,
+              "opacity": 0.993347,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06447)"
+            },
+            {
+              "elapsedMs": 15.299999904632614,
+              "opacity": 0.997018,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.477094)"
+            },
+            {
+              "elapsedMs": 31.99999990463266,
+              "opacity": 0.998784,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.19449)"
+            },
+            {
+              "elapsedMs": 48.59999990463257,
+              "opacity": 0.999577,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.067614)"
+            },
+            {
+              "elapsedMs": 65.39999990463252,
+              "opacity": 0.999896,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0166168)"
+            },
+            {
+              "elapsedMs": 81.89999990463252,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00182045)"
+            },
+            {
+              "elapsedMs": 98.69999990463248,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 115.29999990463261,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 131.89999990463252,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 148.69999990463248,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 165.2999999046326,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 181.89999990463252,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 198.69999990463248,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 215.2999999046326,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 231.89999990463252,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 5.899999713897614,
+              "opacity": 0.985858,
+              "transform": "matrix(1, 0, 0, 1, 0, 2.26268)"
+            },
+            {
+              "elapsedMs": 22.599999713897887,
+              "opacity": 0.993334,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06655)"
+            },
+            {
+              "elapsedMs": 39.299999713897705,
+              "opacity": 0.997027,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.475698)"
+            },
+            {
+              "elapsedMs": 55.899999713897614,
+              "opacity": 0.998782,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194962)"
+            },
+            {
+              "elapsedMs": 72.59999971389789,
+              "opacity": 0.999579,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0673355)"
+            },
+            {
+              "elapsedMs": 89.1999997138978,
+              "opacity": 0.999895,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0168543)"
+            },
+            {
+              "elapsedMs": 105.89999971389761,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00180069)"
+            },
+            {
+              "elapsedMs": 122.59999971389789,
+              "opacity": 1,
+              "transform": "matrix(1, 0, 0, 1, 0, 7.37188e-14)"
+            },
+            {
+              "elapsedMs": 139.2999997138977,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 155.8999997138976,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 172.5999997138979,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 189.2999997138977,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 205.8999997138976,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 222.5999997138979,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 11.10000009536725,
+              "opacity": 0.993331,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06704)"
+            },
+            {
+              "elapsedMs": 27.800000095367068,
+              "opacity": 0.997025,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.475939)"
+            },
+            {
+              "elapsedMs": 44.40000009536743,
+              "opacity": 0.998781,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.195074)"
+            },
+            {
+              "elapsedMs": 61.10000009536725,
+              "opacity": 0.999579,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0673835)"
+            },
+            {
+              "elapsedMs": 77.80000009536707,
+              "opacity": 0.999896,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0167035)"
+            },
+            {
+              "elapsedMs": 94.5000000953678,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00177032)"
+            },
+            {
+              "elapsedMs": 111.10000009536725,
+              "opacity": 1,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.37135e-12)"
+            },
+            {
+              "elapsedMs": 127.80000009536707,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 144.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 161.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 177.80000009536707,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 194.5000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 211.10000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 227.7000000953676,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 4.300000000000182,
+              "opacity": 0.993338,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06585)"
+            },
+            {
+              "elapsedMs": 21,
+              "opacity": 0.997029,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.475362)"
+            },
+            {
+              "elapsedMs": 37.600000000000364,
+              "opacity": 0.998782,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194805)"
+            },
+            {
+              "elapsedMs": 54.29999999999927,
+              "opacity": 0.99958,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0672685)"
+            },
+            {
+              "elapsedMs": 70.89999999999964,
+              "opacity": 0.999895,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0168308)"
+            },
+            {
+              "elapsedMs": 87.60000000000036,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00179594)"
+            },
+            {
+              "elapsedMs": 104.29999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 121,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 137.70000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 154.29999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 170.89999999999964,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 187.60000000000036,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 204.29999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 220.89999999999964,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 7.499999809264409,
+              "opacity": 0.993315,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06963)"
+            },
+            {
+              "elapsedMs": 24.199999809265137,
+              "opacity": 0.997018,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.477191)"
+            },
+            {
+              "elapsedMs": 40.899999809265864,
+              "opacity": 0.998784,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194535)"
+            },
+            {
+              "elapsedMs": 57.59999980926477,
+              "opacity": 0.99958,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0671537)"
+            },
+            {
+              "elapsedMs": 74.2999998092655,
+              "opacity": 0.999896,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0166235)"
+            },
+            {
+              "elapsedMs": 90.89999980926586,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00178782)"
+            },
+            {
+              "elapsedMs": 107.59999980926477,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 124.19999980926514,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 140.89999980926586,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 157.59999980926477,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 174.19999980926514,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 190.89999980926586,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 207.59999980926477,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 224.19999980926514,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": -1.8000000953670678,
+              "opacity": 0.985875,
+              "transform": "matrix(1, 0, 0, 1, 0, 2.25992)"
+            },
+            {
+              "elapsedMs": 14.89999990463184,
+              "opacity": 0.993343,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06516)"
+            },
+            {
+              "elapsedMs": 31.59999990463257,
+              "opacity": 0.997031,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.475026)"
+            },
+            {
+              "elapsedMs": 48.19999990463293,
+              "opacity": 0.998783,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194647)"
+            },
+            {
+              "elapsedMs": 64.89999990463184,
+              "opacity": 0.99958,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0672015)"
+            },
+            {
+              "elapsedMs": 81.4999999046322,
+              "opacity": 0.999895,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0168073)"
+            },
+            {
+              "elapsedMs": 98.19999990463293,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0017912)"
+            },
+            {
+              "elapsedMs": 114.89999990463184,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 131.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 148.19999990463293,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 164.89999990463184,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 181.4999999046322,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 198.19999990463293,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 214.7999999046333,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 231.4999999046322,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        }
+      ],
+      "functional": {
+        "emptyResult": false,
+        "focusRestored": false,
+        "rapidReopens": 6,
+        "shareSuccess": 7
+      }
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "documentScansDuring12MapDrags": 17,
+      "initialScans": 7,
+      "normal": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "all",
+        "filter": "none",
+        "willChange": "auto"
+      },
+      "reduced": {
+        "animation": "none",
+        "transition": "all"
+      },
+      "toastReduced": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "none"
+      },
+      "samples": [
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 0.8999999046325229,
+              "opacity": 0.993328,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06749)"
+            },
+            {
+              "elapsedMs": 17.59999990463257,
+              "opacity": 0.997024,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.476155)"
+            },
+            {
+              "elapsedMs": 34.299999904632614,
+              "opacity": 0.998787,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194053)"
+            },
+            {
+              "elapsedMs": 50.89999990463252,
+              "opacity": 0.999579,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0674266)"
+            },
+            {
+              "elapsedMs": 67.49999990463266,
+              "opacity": 0.999894,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0168863)"
+            },
+            {
+              "elapsedMs": 84.29999990463261,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00177334)"
+            },
+            {
+              "elapsedMs": 100.89999990463252,
+              "opacity": 1,
+              "transform": "matrix(1, 0, 0, 1, 0, 5.23404e-12)"
+            },
+            {
+              "elapsedMs": 117.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 134.19999990463248,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 150.89999990463252,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 167.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 184.2999999046326,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 200.99999990463266,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 217.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 234.19999990463248,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 1.4000001907347723,
+              "opacity": 0.971937,
+              "transform": "matrix(1, 0, 0, 1, 0, 4.49001)"
+            },
+            {
+              "elapsedMs": 18.100000190735045,
+              "opacity": 0.985924,
+              "transform": "matrix(1, 0, 0, 1, 0, 2.25217)"
+            },
+            {
+              "elapsedMs": 34.700000190734954,
+              "opacity": 0.993336,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.0662)"
+            },
+            {
+              "elapsedMs": 51.30000019073486,
+              "opacity": 0.997013,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.477938)"
+            },
+            {
+              "elapsedMs": 68.00000019073468,
+              "opacity": 0.998782,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194883)"
+            },
+            {
+              "elapsedMs": 84.70000019073495,
+              "opacity": 0.999579,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.067302)"
+            },
+            {
+              "elapsedMs": 101.40000019073477,
+              "opacity": 0.999896,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0166751)"
+            },
+            {
+              "elapsedMs": 118.00000019073468,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00179831)"
+            },
+            {
+              "elapsedMs": 134.70000019073495,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 151.30000019073486,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 168.10000019073505,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 184.70000019073495,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 201.40000019073477,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 218.00000019073468,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 234.60000019073505,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 8.200000095367614,
+              "opacity": 0.993333,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.0667)"
+            },
+            {
+              "elapsedMs": 24.90000009536743,
+              "opacity": 0.997026,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.475771)"
+            },
+            {
+              "elapsedMs": 41.500000095367795,
+              "opacity": 0.998781,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194996)"
+            },
+            {
+              "elapsedMs": 58.30000009536707,
+              "opacity": 0.999582,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.066872)"
+            },
+            {
+              "elapsedMs": 74.80000009536707,
+              "opacity": 0.999895,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0168594)"
+            },
+            {
+              "elapsedMs": 91.5000000953678,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00180171)"
+            },
+            {
+              "elapsedMs": 108.20000009536761,
+              "opacity": 1,
+              "transform": "matrix(1, 0, 0, 1, 0, 2.42473e-13)"
+            },
+            {
+              "elapsedMs": 124.90000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 141.5000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 158.2000000953676,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 174.90000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 191.60000009536725,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 208.2000000953676,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 224.90000009536743,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 9.199999904632932,
+              "opacity": 0.993351,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06382)"
+            },
+            {
+              "elapsedMs": 25.799999904632386,
+              "opacity": 0.99702,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.476781)"
+            },
+            {
+              "elapsedMs": 42.499999904632205,
+              "opacity": 0.998785,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194345)"
+            },
+            {
+              "elapsedMs": 59.19999990463293,
+              "opacity": 0.999581,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0670724)"
+            },
+            {
+              "elapsedMs": 75.79999990463239,
+              "opacity": 0.999895,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0167621)"
+            },
+            {
+              "elapsedMs": 92.39999990463275,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00181601)"
+            },
+            {
+              "elapsedMs": 109.19999990463293,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 125.89999990463184,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 142.4999999046322,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 159.09999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 175.7999999046333,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 192.39999990463184,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 209.09999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 225.7999999046333,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 12.900000095367432,
+              "opacity": 0.993348,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06432)"
+            },
+            {
+              "elapsedMs": 29.500000095367795,
+              "opacity": 0.997019,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.477022)"
+            },
+            {
+              "elapsedMs": 46.200000095366704,
+              "opacity": 0.998785,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194457)"
+            },
+            {
+              "elapsedMs": 62.90000009536743,
+              "opacity": 0.999581,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0671202)"
+            },
+            {
+              "elapsedMs": 79.5000000953678,
+              "opacity": 0.999895,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0167788)"
+            },
+            {
+              "elapsedMs": 96.2000000953667,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00178546)"
+            },
+            {
+              "elapsedMs": 112.90000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 129.60000009536816,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 146.2000000953667,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 162.90000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 179.5000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 196.2000000953667,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 212.80000009536707,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 229.5000000953678,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 6.499999904632205,
+              "opacity": 0.993345,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06481)"
+            },
+            {
+              "elapsedMs": 23.199999904632932,
+              "opacity": 0.997032,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.474858)"
+            },
+            {
+              "elapsedMs": 39.799999904633296,
+              "opacity": 0.998784,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194569)"
+            },
+            {
+              "elapsedMs": 56.499999904632205,
+              "opacity": 0.99958,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.067168)"
+            },
+            {
+              "elapsedMs": 73.19999990463293,
+              "opacity": 0.999896,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0166285)"
+            },
+            {
+              "elapsedMs": 89.7999999046333,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00178883)"
+            },
+            {
+              "elapsedMs": 106.4999999046322,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 123.09999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 139.7999999046333,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 156.4999999046322,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 173.19999990463293,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 189.7999999046333,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 206.4999999046322,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 223.19999990463293,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        }
+      ],
+      "functional": {
+        "emptyResult": false,
+        "focusRestored": false,
+        "rapidReopens": 6,
+        "shareSuccess": 7
+      }
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "documentScansDuring12MapDrags": 19,
+      "initialScans": 12,
+      "normal": {
+        "animation": "tz-dropdown-enter",
+        "animationMs": 150,
+        "transition": "all",
+        "filter": "none",
+        "willChange": "auto"
+      },
+      "reduced": {
+        "animation": "none",
+        "transition": "none"
+      },
+      "toastReduced": {
+        "animation": "none",
+        "animationMs": 0,
+        "transition": "none"
+      },
+      "samples": [
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 2.7000000000000455,
+              "opacity": 0.985851,
+              "transform": "matrix(1, 0, 0, 1, 0, 2.26386)"
+            },
+            {
+              "elapsedMs": 19.40000000000009,
+              "opacity": 0.99333,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06714)"
+            },
+            {
+              "elapsedMs": 36.09999999999991,
+              "opacity": 0.997025,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.475987)"
+            },
+            {
+              "elapsedMs": 52.700000000000045,
+              "opacity": 0.998781,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.195097)"
+            },
+            {
+              "elapsedMs": 69.40000000000009,
+              "opacity": 0.999579,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.067393)"
+            },
+            {
+              "elapsedMs": 86,
+              "opacity": 0.999895,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0168745)"
+            },
+            {
+              "elapsedMs": 102.70000000000005,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00180477)"
+            },
+            {
+              "elapsedMs": 119.40000000000009,
+              "opacity": 1,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.95399e-12)"
+            },
+            {
+              "elapsedMs": 136,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 152.70000000000005,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 169.4000000000001,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 186,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 202.79999999999995,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 219.4000000000001,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 236.0999999999999,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 0.3000001907348633,
+              "opacity": 0.971908,
+              "transform": "matrix(1, 0, 0, 1, 0, 4.49468)"
+            },
+            {
+              "elapsedMs": 16.900000190734772,
+              "opacity": 0.985846,
+              "transform": "matrix(1, 0, 0, 1, 0, 2.26465)"
+            },
+            {
+              "elapsedMs": 33.600000190735045,
+              "opacity": 0.993328,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06754)"
+            },
+            {
+              "elapsedMs": 50.30000019073486,
+              "opacity": 0.997024,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.476179)"
+            },
+            {
+              "elapsedMs": 66.90000019073477,
+              "opacity": 0.99878,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.195187)"
+            },
+            {
+              "elapsedMs": 83.70000019073495,
+              "opacity": 0.999582,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0669531)"
+            },
+            {
+              "elapsedMs": 100.30000019073486,
+              "opacity": 0.999896,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0167202)"
+            },
+            {
+              "elapsedMs": 116.90000019073477,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00180749)"
+            },
+            {
+              "elapsedMs": 133.70000019073495,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 150.30000019073486,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 166.90000019073477,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 183.60000019073505,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 200.30000019073486,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 216.90000019073477,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 233.60000019073505,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 4.39999990463275,
+              "opacity": 0.985923,
+              "transform": "matrix(1, 0, 0, 1, 0, 2.25227)"
+            },
+            {
+              "elapsedMs": 20.999999904632205,
+              "opacity": 0.993336,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06625)"
+            },
+            {
+              "elapsedMs": 37.69999990463293,
+              "opacity": 0.997028,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.475554)"
+            },
+            {
+              "elapsedMs": 54.29999990463239,
+              "opacity": 0.998782,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194895)"
+            },
+            {
+              "elapsedMs": 70.9999999046322,
+              "opacity": 0.999579,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0673068)"
+            },
+            {
+              "elapsedMs": 87.69999990463293,
+              "opacity": 0.999896,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0166768)"
+            },
+            {
+              "elapsedMs": 104.39999990463275,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00176495)"
+            },
+            {
+              "elapsedMs": 120.9999999046322,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 137.59999990463257,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 154.2999999046324,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 170.9999999046322,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 187.69999990463293,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 204.2999999046324,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 220.9999999046322,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 11.700000000000728,
+              "opacity": 0.993354,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06328)"
+            },
+            {
+              "elapsedMs": 28.299999999999272,
+              "opacity": 0.997022,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.476516)"
+            },
+            {
+              "elapsedMs": 45,
+              "opacity": 0.998786,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194221)"
+            },
+            {
+              "elapsedMs": 61.600000000000364,
+              "opacity": 0.999578,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0674986)"
+            },
+            {
+              "elapsedMs": 78.29999999999927,
+              "opacity": 0.999895,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0167436)"
+            },
+            {
+              "elapsedMs": 94.89999999999964,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00181226)"
+            },
+            {
+              "elapsedMs": 111.70000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 128.29999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 145,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 161.60000000000036,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 178.29999999999927,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 195,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 211.70000000000073,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 228.29999999999927,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 6.500000095367795,
+              "opacity": 0.985914,
+              "transform": "matrix(1, 0, 0, 1, 0, 2.25384)"
+            },
+            {
+              "elapsedMs": 23.10000009536816,
+              "opacity": 0.993331,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06704)"
+            },
+            {
+              "elapsedMs": 39.80000009536707,
+              "opacity": 0.997025,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.475939)"
+            },
+            {
+              "elapsedMs": 56.500000095367795,
+              "opacity": 0.998788,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.193952)"
+            },
+            {
+              "elapsedMs": 73.10000009536816,
+              "opacity": 0.999579,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0673835)"
+            },
+            {
+              "elapsedMs": 89.80000009536707,
+              "opacity": 0.999896,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0167035)"
+            },
+            {
+              "elapsedMs": 106.5000000953678,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00177032)"
+            },
+            {
+              "elapsedMs": 123.10000009536816,
+              "opacity": 1,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.37046e-12)"
+            },
+            {
+              "elapsedMs": 139.80000009536707,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 156.40000009536743,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 173.10000009536816,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 189.80000009536707,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 206.5000000953678,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 223.10000009536816,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        },
+        {
+          "animationMs": 150,
+          "animationName": "tz-toast-enter",
+          "cssAnimationMs": 150,
+          "transition": "transform",
+          "willChange": "auto",
+          "filter": "none",
+          "frames": [
+            {
+              "elapsedMs": 6.600000190734136,
+              "opacity": 0.985888,
+              "transform": "matrix(1, 0, 0, 1, 0, 2.25796)"
+            },
+            {
+              "elapsedMs": 23.2000001907345,
+              "opacity": 0.993318,
+              "transform": "matrix(1, 0, 0, 1, 0, 1.06913)"
+            },
+            {
+              "elapsedMs": 39.90000019073523,
+              "opacity": 0.997019,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.47695)"
+            },
+            {
+              "elapsedMs": 56.600000190734136,
+              "opacity": 0.998785,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.194423)"
+            },
+            {
+              "elapsedMs": 73.2000001907345,
+              "opacity": 0.999578,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0675851)"
+            },
+            {
+              "elapsedMs": 90.00000019073559,
+              "opacity": 0.999896,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.0166069)"
+            },
+            {
+              "elapsedMs": 106.60000019073414,
+              "opacity": 0.999989,
+              "transform": "matrix(1, 0, 0, 1, 0, 0.00178445)"
+            },
+            {
+              "elapsedMs": 123.30000019073486,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 139.90000019073523,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 156.60000019073414,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 173.2000001907345,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 189.90000019073523,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 206.60000019073414,
+              "opacity": 1,
+              "transform": "none"
+            },
+            {
+              "elapsedMs": 223.30000019073486,
+              "opacity": 1,
+              "transform": "none"
+            }
+          ],
+          "pendingRetirementTimers": 1
+        }
+      ],
+      "functional": {
+        "emptyResult": true,
+        "focusRestored": true,
+        "rapidReopens": 6,
+        "shareSuccess": 7
+      }
+    }
+  ],
+  "pageErrors": 0,
+  "consoleErrors": {
+    "other": 4,
+    "CSP": 6
+  },
+  "passed": true,
+  "browser": "154.0.8037.98",
+  "endedUtc": "2026-10-11T16:57:59.610Z"
+}
