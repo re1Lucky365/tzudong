@@ -10,10 +10,12 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = ('verify_readiness_followup_20261011.py',
-           'verify_transitions_adoption_20261012.py', 'verify_scroll_transitions_20261012.py')
+           'verify_transitions_adoption_20261012.py', 'verify_scroll_transitions_20261012.py',
+           'verify_readiness_ocr_20261011_v3.py')
 PACKAGES = ('readiness-media-followup-20261011', 'tzuyang-review-minimal-20261011',
             'readiness-gemini-integration-20261011', 'readiness-delivery-integration-20261012',
-            'transitions-adoption-20261012', 'scroll-transitions-20261012')
+            'transitions-adoption-20261012', 'scroll-transitions-20261012',
+            'readiness-ocr-followup-20261011')
 
 
 class EvidenceVerifierTests(unittest.TestCase):
@@ -62,7 +64,7 @@ class EvidenceVerifierTests(unittest.TestCase):
                     self.assertIn('"performanceAdmission": 0', p.stdout)
 
     def test_corrupted_map_is_rejected_even_under_optimization(self):
-        for script, package in zip(SCRIPTS, (PACKAGES[0], PACKAGES[4], PACKAGES[5])):
+        for script, package in zip(SCRIPTS, (PACKAGES[0], PACKAGES[4], PACKAGES[5], PACKAGES[6])):
             path = self.repo / f'apps/web/performance/{package}/artifact-map-v1.json'
             original = path.read_bytes()
             try:

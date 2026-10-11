@@ -1,4 +1,4 @@
-"""Read-only complete-tree/current-source/historical-source result validation."""
+"""Read-only complete-tree and explicitly historical source result validation."""
 from pathlib import Path, PurePosixPath
 import hashlib
 import importlib.util
@@ -9,9 +9,16 @@ ROOT=Path(__file__).resolve().parents[2]
 NAME='readiness-ocr-followup-20261011'
 PACKET=ROOT/'apps/web/performance'/NAME
 BASE='592b1415b79b4d5f595498dfa23d85fb730099fb'
+SOURCE='3fdc25d1707cd2fa204a962c0870813bb2a0d937'
 
 
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def historical_sha(name):
+    path=PurePosixPath(name)
+    if path.is_absolute() or '..' in path.parts or str(path)!=name or '\\' in name:raise ValueError('OCR_SOURCE_PATH')
+    return hashlib.sha256(subprocess.check_output(['git','show',f'{SOURCE}:{name}'],cwd=ROOT)).hexdigest()
 
 
 def load(name):return json.loads((PACKET/name).read_bytes())
@@ -31,8 +38,10 @@ def verify():
     if seen!={p.relative_to(PACKET).as_posix() for p in PACKET.rglob('*') if p.is_file() and p!=mapping}:raise ValueError('OCR_COMPLETE_TREE_DRIFT')
     manifest=load('source-manifest-v1.json')
     for item in manifest['files']:
-        path=PurePosixPath(item['path']);p=ROOT.joinpath(*path.parts)
-        if path.is_absolute() or '..' in path.parts or p.is_symlink() or sha(p)!=item['sha256'] or p.stat().st_size!=item['bytes']:raise ValueError('OCR_SOURCE_DRIFT')
+        path=PurePosixPath(item['path'])
+        if path.is_absolute() or '..' in path.parts or '\\' in item['path']:raise ValueError('OCR_SOURCE_PATH')
+        body=subprocess.check_output(['git','show',f"{SOURCE}:{item['path']}"],cwd=ROOT)
+        if hashlib.sha256(body).hexdigest()!=item['sha256'] or len(body)!=item['bytes']:raise ValueError('OCR_HISTORICAL_SOURCE_DRIFT')
     spec=importlib.util.spec_from_file_location('historical_packets',ROOT/'backend/bin/verify_readiness_followup_20261011.py')
     previous=importlib.util.module_from_spec(spec);spec.loader.exec_module(previous)
     historical=[previous.verify_package(name) for name in previous.PACKAGES]
@@ -44,7 +53,7 @@ def verify():
     for payload,script in ((result,'verify_storage_fence_v7.py'),(negative,'verify_storage_adversarial_v2.py')):
         if payload['status']!='passed' or payload['engine']!='17.6' or payload['operatingDDL']!=0 or payload['scriptSha256']!=sha(PACKET/script):raise ValueError('OCR_RUNTIME_IDENTITY')
         for name,value in payload['sourceSha256'].items():
-            if sha(ROOT/name)!=value:raise ValueError('OCR_SQL_SOURCE_BINDING')
+            if historical_sha(name)!=value:raise ValueError('OCR_SQL_SOURCE_BINDING')
     if not result['rollbackExactIncludingStorageTriggers'] or result['baselineAuthenticatedUpload']!={'success':False,'sqlstate':'42501'} or result['candidateAuthenticatedUpload']!={'success':True,'nonAdminOwner':True}:raise ValueError('OCR_OWNER_PERMISSION_RESULT')
     for field in ('foreignUploadDenied','privateAnonymousReadDenied','publicFoodPreserved','nonAdminBannerDenied','disabledAdminBannerDenied','activeAdminBannerPreserved','absentLegacyPoliciesRemainAbsent','absentBranchOnlyOwnerReadChanged','storageRekeyRetiredDenied','nonReviewMetadataPreserved'):
         if result[field] is not True:raise ValueError('OCR_PERMISSION_OR_FENCE_RESULT')
@@ -53,13 +62,13 @@ def verify():
     if len(negative['cases'])!=5 or not all(c['exit']!=0 and c['exactRollback'] for c in negative['cases']):raise ValueError('OCR_ADVERSARIAL_RESULT')
     build=load('configured-build-v5.json')
     for field,name in (('ocrRouteSha256','apps/web/app/api/admin/ocr-receipts/process/route.ts'),('cleanupHelperSha256','apps/web/lib/reviews/admin-verification-cleanup.ts'),('myPageSourceSha256','apps/web/app/mypage/mypage-layout-content.tsx'),('recordClientSha256','apps/web/lib/admin/record-action-client.ts')):
-        if build[field]!=sha(ROOT/name):raise ValueError('OCR_BUILD_SOURCE_BINDING')
+        if build[field]!=historical_sha(name):raise ValueError('OCR_BUILD_SOURCE_BINDING')
     if build['buildExit'] or build['cssExit'] or build['deploymentVerified']:raise ValueError('OCR_BUILD_CLAIM')
     full=load('unit-ocr-v1.json');focused=load('focused-ocr-v2.json');parity=load('parity-ocr-v2.json')
     if full['unitTotals']!={'pass':3422,'skip':11,'fail':0} or focused['unitTotals']!={'pass':54,'skip':0,'fail':0} or any(p['exit'] for p in (full,focused,parity)):raise ValueError('OCR_TEST_RESULT')
     for value in (full,focused,parity):
         if value['logSha256']!=sha(PACKET/f"{value['check']}-ocr-{'v1' if value is full else 'v2'}.log"):raise ValueError('OCR_TEST_LOG_BINDING')
-    return {'status':'passed','files':len(seen),'sourceFiles':len(manifest['files']),'mapSha256':digest,'historicalPackets':historical,'historicalSourceCommit':BASE,'historicalSourceFiles':len(history['files']),'sourceBindingsVerified':True,'operatingDDL':0,'performanceAdmission':0,'physicalFieldAdmission':0}
+    return {'status':'passed','files':len(seen),'sourceFiles':len(manifest['files']),'sourceCommit':SOURCE,'mapSha256':digest,'historicalPackets':historical,'historicalSourceCommit':BASE,'historicalSourceFiles':len(history['files']),'sourceBindingsVerified':True,'operatingDDL':0,'performanceAdmission':0,'physicalFieldAdmission':0}
 
 
 if __name__=='__main__':print(json.dumps(verify()))
