@@ -1,24 +1,34 @@
 {
   "files": [
     {
-      "bytes": 1741,
       "path": "configuration.json",
-      "sha256": "d07f8970224636578dab01eca46bba81d76a5146df1e5a76addc2680968c6f99"
+      "sha256": "cfdb365f7f6f7328409cff26031401fa76d4b090029b7ad5f6a074541522dfc4",
+      "bytes": 1908
     },
     {
-      "bytes": 3219,
       "path": "source-groups.json",
-      "sha256": "ed9833d1d9a438e2b9d78ccaadc54bfad51675f80d4d13dfe8867adf7ea5542f"
+      "sha256": "d4611a3a436aa80bfd4f0ada90ba6a928c1c5ae3e31eb2c1e787063f3e9e3b25",
+      "bytes": 3331
     },
     {
-      "bytes": 6365,
       "path": "summary.json",
-      "sha256": "d973c3415a360b626ad1d158ed4d4be76b34843e5a124b9f0008fb7f2d8055a5"
+      "sha256": "bb8993f8c473466d07d37418c3cc847c3865e950aa29648f805ff23717c9fe97",
+      "bytes": 6466
     },
     {
-      "bytes": 2667,
       "path": "report.md",
-      "sha256": "efff7a0784649d078bf871211feea4df83742b3cf023cc5d20809a3bf237bde5"
+      "sha256": "207a43e0ca15de8acd0a30047064e9a1996fb49dde7a6c85ba4359aa36ddcf09",
+      "bytes": 3181
+    },
+    {
+      "path": "retained-head-tree-map.json",
+      "sha256": "f6a54be3d5e5958f95b793844932f5f1f7d123083145304891c6dcd977700fe8",
+      "bytes": 1246
+    },
+    {
+      "path": "objectless-verification.json",
+      "sha256": "38be8da4666346c96673a40aae7b95a5ec71f53c88f79df1d78d23d5ce8494e4",
+      "bytes": 451
     }
   ],
   "inputs": {
@@ -32,7 +42,7 @@
     },
     "collector": {
       "path": ".github/scripts/collect-ci-performance.py",
-      "sha256": "b53442332490b1386e936890c6ab7f21d4d6bd00602983880447a64bf0e2f2df"
+      "sha256": "5b5fc5bdebf4161b71db91f171d277e6f0677fcbbb459f5b5c4fb1023c037cd4"
     },
     "successfulRuns": {
       "path": "apps/web/performance/ci-20261010/successful-runs.json",
@@ -42,9 +52,14 @@
   "schema": "tzudong-ci-performance/v1/source-group-sensitivity/artifact-map",
   "sourceFiles": [
     {
-      "bytes": 21829,
       "path": "apps/web/performance/ci-20261010/source-groups/analyze-source-groups.py",
-      "sha256": "cc59ba47b70194909a5fd3919c55ddafd09e49e471f074159b57a4e3dfa426fd"
+      "sha256": "006a1f51c449b8bc232d98d0973dd31f9d2436f8cb739041bdf8ca39a2370855",
+      "bytes": 26907
+    },
+    {
+      "path": "apps/web/performance/ci-20261010/source-groups/test_analyze_source_groups.py",
+      "sha256": "d45631c1e3e96377a7b514d173e23c4a4459b3c8987628eb9d65789532c86cd4",
+      "bytes": 6910
     }
   ]
 }

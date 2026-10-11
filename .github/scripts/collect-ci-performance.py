@@ -90,6 +90,17 @@ STAGE_NAMES = (
     "upload",
     "other",
 )
+TERMINAL_CONCLUSIONS = {
+    "success",
+    "failure",
+    "cancelled",
+    "skipped",
+    "timed_out",
+    "action_required",
+    "neutral",
+    "stale",
+    "startup_failure",
+}
 
 
 class CollectionError(RuntimeError):
@@ -225,20 +236,103 @@ def sanitize_run(run: dict[str, Any], jobs: Sequence[dict[str, Any]]) -> dict[st
     }
 
 
-def exclusion_reasons(run: dict[str, Any]) -> list[str]:
+def admission_timestamp(value: Any, reasons: list[str]) -> datetime | None:
+    if value in (None, ""):
+        return None
+    try:
+        return parse_timestamp(value)
+    except (AttributeError, CollectionError, TypeError, ValueError):
+        reasons.append("malformed_timing")
+        return None
+
+
+def timing_exclusion_reasons(run: dict[str, Any]) -> list[str]:
     reasons: list[str] = []
+    if not run.get("jobs"):
+        reasons.append("no_jobs")
+
+    run_timing = [run.get(key) for key in ("createdAt", "startedAt", "updatedAt")]
+    if any(value in (None, "") for value in run_timing):
+        reasons.append("missing_run_timing")
+    run_created, run_started, run_updated = [
+        admission_timestamp(value, reasons) for value in run_timing
+    ]
+    if (
+        run_created is not None
+        and run_started is not None
+        and run_updated is not None
+        and not run_created <= run_started <= run_updated
+    ):
+        reasons.append("invalid_timing_order")
+
+    for job in run.get("jobs") or []:
+        if (
+            job.get("status") != "completed"
+            or job.get("conclusion") not in TERMINAL_CONCLUSIONS
+        ):
+            reasons.append("incomplete_job")
+        job_timing = [
+            job.get(key) for key in ("createdAt", "startedAt", "completedAt")
+        ]
+        if any(value in (None, "") for value in job_timing):
+            reasons.append("missing_job_timing")
+        job_created, job_started, job_completed = [
+            admission_timestamp(value, reasons) for value in job_timing
+        ]
+        if (
+            job_created is not None
+            and job_started is not None
+            and job_completed is not None
+            and not job_created <= job_started <= job_completed
+        ):
+            reasons.append("invalid_timing_order")
+        if run_created is not None and job_created is not None and job_created < run_created:
+            reasons.append("invalid_timing_order")
+        if run_started is not None and job_started is not None and job_started < run_started:
+            reasons.append("invalid_timing_order")
+        if run_updated is not None and job_completed is not None and job_completed > run_updated:
+            reasons.append("invalid_timing_order")
+        for step in job.get("steps") or []:
+            skipped = step.get("conclusion") == "skipped"
+            if (
+                step.get("status") != "completed"
+                or step.get("conclusion") not in TERMINAL_CONCLUSIONS
+            ):
+                reasons.append("incomplete_step")
+            step_timing = [step.get("startedAt"), step.get("completedAt")]
+            timing_count = sum(value not in (None, "") for value in step_timing)
+            if (not skipped and timing_count != 2) or (skipped and timing_count == 1):
+                reasons.append("missing_step_timing")
+            step_started, step_completed = [
+                admission_timestamp(value, reasons) for value in step_timing
+            ]
+            if (
+                step_started is not None
+                and step_completed is not None
+                and step_completed < step_started
+            ):
+                reasons.append("invalid_timing_order")
+            if (
+                job_started is not None
+                and step_started is not None
+                and step_started < job_started
+            ):
+                reasons.append("invalid_timing_order")
+            if (
+                job_completed is not None
+                and step_completed is not None
+                and step_completed > job_completed
+            ):
+                reasons.append("invalid_timing_order")
+    return sorted(set(reasons))
+
+
+def exclusion_reasons(run: dict[str, Any]) -> list[str]:
+    reasons = timing_exclusion_reasons(run)
     if run.get("status") != "completed":
         reasons.append(f"run_status_{run.get('status') or 'missing'}")
     if run.get("conclusion") != "success":
         reasons.append(f"run_conclusion_{run.get('conclusion') or 'missing'}")
-    if not run.get("jobs"):
-        reasons.append("no_jobs")
-
-    for job in run.get("jobs") or []:
-        if job.get("status") != "completed":
-            reasons.append("incomplete_job")
-        if not job.get("startedAt") or not job.get("completedAt"):
-            reasons.append("missing_job_timing")
     return sorted(set(reasons))
 
 
@@ -344,6 +438,44 @@ def validate_replay_inputs(
         raise CollectionError("replay input has fewer than seven successful runs")
     if len(runs) > MAX_RUNS:
         raise CollectionError("replay input exceeds the ten-run bound")
+    observations = excluded_payload.get("observations")
+    if not isinstance(observations, list):
+        raise CollectionError("replay excluded observations must be a list")
+    excluded_runs = []
+    for observation in observations:
+        if not isinstance(observation, dict) or not isinstance(observation.get("run"), dict):
+            raise CollectionError("replay excluded observation is malformed")
+        excluded_runs.append(observation["run"])
+
+    all_runs = list(runs) + excluded_runs
+    if len(all_runs) > MAX_RUNS:
+        raise CollectionError("replay observations exceed the ten-run bound")
+    run_ids = [run.get("id") for run in all_runs if isinstance(run, dict)]
+    if (
+        len(run_ids) != len(all_runs)
+        or any(not isinstance(run_id, int) or isinstance(run_id, bool) or run_id < 1 for run_id in run_ids)
+        or len(set(run_ids)) != len(run_ids)
+    ):
+        raise CollectionError("replay observation run IDs are invalid")
+    expected_order = [
+        run["id"]
+        for run in sorted(
+            all_runs,
+            key=lambda run: (run.get("createdAt") or "", run["id"]),
+            reverse=True,
+        )
+    ]
+    expected_counts = {
+        "fetchedRunCount": len(all_runs),
+        "successfulRunCount": len(runs),
+        "excludedRunCount": len(excluded_runs),
+    }
+    for key, expected in expected_counts.items():
+        value = collection.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value != expected:
+            raise CollectionError(f"replay collection {key} does not match observations")
+    if collection.get("orderedRunIds") != expected_order:
+        raise CollectionError("replay collection orderedRunIds do not match observations")
     for run in runs:
         reasons = exclusion_reasons(run)
         if reasons:

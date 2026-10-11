@@ -1,0 +1,31 @@
+{
+  "checks": {
+    "allAppInputsInFrozenGitTree": true,
+    "allMeasuredParityOutputsIdentical": true,
+    "benchmarkScriptHashMatches": true,
+    "declaredPathRedactionsExact": true,
+    "embeddedConfigEqualsPublicConfig": true,
+    "expectedNonAdmission": true,
+    "failedAttemptExcluded": true,
+    "listFilesManifestBindsParityPayload": true,
+    "privateRawBoundByReceipt": true,
+    "publicHashesMatchReceipt": true,
+    "reportDistinguishesEstimatorsAndAdmission": true,
+    "sampleCountsPreserved": true,
+    "scorerRegenerationEqualsSummary": true
+  },
+  "decision": {
+    "admitted": false,
+    "failedBudget": "noiseAaP95AbsoluteRelativeDifferencePercentMaximum",
+    "maximumPercent": 5,
+    "observedPercent": 28.275071878062594,
+    "officialApproval": false
+  },
+  "schema": "tzudong-ci-performance/v1/local-compiler-validation",
+  "scorer": {
+    "regeneratedSummarySha256": "9558ffce8a71a1023bc5fe0a87881b96440112dd78c996fdb2cc3878bf359f7f",
+    "retainedSummarySha256": "9558ffce8a71a1023bc5fe0a87881b96440112dd78c996fdb2cc3878bf359f7f"
+  },
+  "valid": true,
+  "validatorScriptSha256": "5de77a653beee1255a5104ec0e3a4895655310b4aef6e59ea3c9afa585417c95"
+}

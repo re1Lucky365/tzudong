@@ -19,14 +19,16 @@ def run(attempt=1, status="completed", conclusion="success", run_id=1, minute=0)
     return {"id": run_id, "run_attempt": attempt, "head_sha": SHA, "event": "pull_request", "status": status, "conclusion": conclusion, "created_at": stamp(created), "run_started_at": stamp(created + timedelta(seconds=1)), "updated_at": stamp(created + timedelta(seconds=10 + attempt))}
 
 
-def jobs():
-    return {"total_count": 1, "jobs": [{"id": 2, "name": "private owner name", "labels": ["ubuntu-latest", "private-host"], "status": "completed", "conclusion": "success", "created_at": "2026-10-11T00:00:00Z", "started_at": "2026-10-11T00:00:01Z", "completed_at": "2026-10-11T00:00:10Z", "steps": [{"number": 1, "name": "Run npm ci PRIVATE_DIAGNOSTIC_SENTINEL", "status": "completed", "conclusion": "success", "started_at": "2026-10-11T00:00:01Z", "completed_at": "2026-10-11T00:00:09Z"}]}]}
+def jobs(created_at="2026-10-11T00:00:00Z"):
+    created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    stamp = lambda value: value.isoformat().replace("+00:00", "Z")
+    return {"total_count": 1, "jobs": [{"id": 2, "name": "private owner name", "labels": ["ubuntu-latest", "private-host"], "status": "completed", "conclusion": "success", "created_at": stamp(created), "started_at": stamp(created + timedelta(seconds=1)), "completed_at": stamp(created + timedelta(seconds=10)), "steps": [{"number": 1, "name": "Run npm ci PRIVATE_DIAGNOSTIC_SENTINEL", "status": "completed", "conclusion": "success", "started_at": stamp(created + timedelta(seconds=1)), "completed_at": stamp(created + timedelta(seconds=9))}]}]}
 
 
 class Reader:
     def __init__(self, latest=None, job_payload=None):
         self.latest = latest or run()
-        self.job_payload = job_payload or jobs()
+        self.job_payload = job_payload if job_payload is not None else jobs(self.latest["created_at"])
         self.requests = 0
         self.endpoints = []
         self.calls = []
@@ -68,6 +70,10 @@ class PagingReader(Reader):
                 "total_count": len(self.runs),
                 "workflow_runs": self.runs[start : start + per_page],
             }
+        if endpoint.endswith("/jobs") and "/actions/runs/" in endpoint:
+            run_id = int(endpoint.split("/actions/runs/", 1)[1].split("/", 1)[0])
+            source = next(item for item in self.runs if item["id"] == run_id)
+            self.job_payload = jobs(source["created_at"])
         return super().get(endpoint, fields)
 
 
@@ -105,6 +111,78 @@ class CollectorTests(unittest.TestCase):
         second = self.collect(Reader(job_payload=payload))
         self.assertIn("JOB_SET_INCOMPLETE", first["coverage"]["alerts"])
         self.assertEqual(second["collection"]["refreshedJobSets"], 1)
+
+    def test_empty_completed_success_job_set_is_rechecked(self):
+        payload = {"total_count": 0, "jobs": []}
+        first = self.collect(Reader(job_payload=payload))
+        second = self.collect(Reader(job_payload=payload))
+        self.assertIn("JOB_SET_INCOMPLETE", first["coverage"]["alerts"])
+        self.assertEqual(first["collection"]["refreshedJobSets"], 1)
+        self.assertEqual(second["collection"]["refreshedJobSets"], 1)
+        self.assertEqual(second["collection"]["reusedJobSets"], 0)
+
+    def test_missing_terminal_conclusions_are_rechecked(self):
+        variants = (
+            ("run", lambda latest, payload: latest.update(conclusion=None)),
+            ("job", lambda latest, payload: payload["jobs"][0].update(conclusion=None)),
+            ("step", lambda latest, payload: payload["jobs"][0]["steps"][0].update(conclusion=None)),
+            (
+                "active_skipped_step",
+                lambda latest, payload: payload["jobs"][0]["steps"][0].update(
+                    status="in_progress", conclusion="skipped",
+                    started_at=None, completed_at=None,
+                ),
+            ),
+        )
+        for index, (name, mutate) in enumerate(variants):
+            with self.subTest(name=name):
+                latest = run()
+                payload = jobs()
+                mutate(latest, payload)
+                cache = Path(self.directory.name) / f"{index}.sqlite"
+                first = M.collect(
+                    "twoimo/tzudong", "web-admin-ci.yml", cache,
+                    Reader(latest=latest, job_payload=payload),
+                )
+                second = M.collect(
+                    "twoimo/tzudong", "web-admin-ci.yml", cache,
+                    Reader(latest=latest, job_payload=payload),
+                )
+                self.assertEqual(first["collection"]["refreshedJobSets"], 1)
+                self.assertEqual(second["collection"]["refreshedJobSets"], 1)
+                self.assertEqual(second["collection"]["reusedJobSets"], 0)
+
+    def test_completed_failure_with_complete_evidence_remains_cached(self):
+        first = self.collect(Reader(run(conclusion="failure")))
+        second = self.collect(Reader(run(conclusion="failure")))
+        self.assertEqual(first["runs"][0]["conclusion"], "failure")
+        self.assertEqual(second["collection"]["refreshedJobSets"], 0)
+        self.assertEqual(second["collection"]["reusedJobSets"], 1)
+
+    def test_completed_cancelled_without_jobs_remains_cached(self):
+        payload = {"total_count": 0, "jobs": []}
+        first = self.collect(Reader(run(conclusion="cancelled"), payload))
+        second = self.collect(Reader(run(conclusion="cancelled"), payload))
+        self.assertEqual(first["runs"][0]["conclusion"], "cancelled")
+        self.assertEqual(second["collection"]["refreshedJobSets"], 0)
+        self.assertEqual(second["collection"]["reusedJobSets"], 1)
+
+    def test_missing_active_attempt_does_not_tombstone_completed_attempt(self):
+        completed = self.collect(Reader(run(1)))
+        self.assertEqual(completed["runs"][0]["conclusion"], "success")
+
+        active = self.collect(Reader(run(2, status="in_progress", conclusion=None)))
+        self.assertEqual([item["attempt"] for item in active["runs"]], [1, 2])
+
+        reader = Reader(); reader.empty = True; reader.gone = True
+        missing = self.collect(reader)
+        attempts = {item["attempt"]: item for item in missing["runs"]}
+        self.assertEqual(attempts[1]["status"], "completed")
+        self.assertEqual(attempts[1]["conclusion"], "success")
+        self.assertNotIn("tombstone", attempts[1])
+        self.assertEqual(attempts[2]["status"], "missing")
+        self.assertEqual(attempts[2]["conclusion"], "stale")
+        self.assertTrue(attempts[2]["tombstone"])
 
     def test_old_active_run_is_queried_and_404_tombstoned(self):
         self.collect(Reader(run(status="in_progress", conclusion=None)))

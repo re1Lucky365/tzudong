@@ -27,23 +27,25 @@
       "path": "apps/web/performance/ci-20261010/summary.json",
       "sha256": "97d63069ebe0d62dae2841a44dad7db0644561bd717b064493470d8f5499ae0e"
     },
-    "collector": {
-      "path": ".github/scripts/collect-ci-performance.py",
-      "sha256": "b53442332490b1386e936890c6ab7f21d4d6bd00602983880447a64bf0e2f2df"
+    "retainedHeadTreeMap": {
+      "path": "apps/web/performance/ci-20261010/source-groups/retained-head-tree-map.json",
+      "sha256": "f6a54be3d5e5958f95b793844932f5f1f7d123083145304891c6dcd977700fe8"
     },
     "successfulRuns": {
       "path": "apps/web/performance/ci-20261010/successful-runs.json",
       "sha256": "245f7afc2345556e619fd7be23613b89ffa5561689bfc954b5ec3f43af9eb6b1"
     }
   },
+  "localObjectAbsentHeadCount": 0,
+  "locallyVerifiedHeadCount": 7,
   "runCount": 9,
   "schema": "tzudong-ci-performance/v1/source-group-sensitivity/configuration",
   "sourceGroupCount": 3,
   "treeResolution": {
     "fetchPerformedByScript": false,
-    "localCommand": "git rev-parse --verify <head>^{tree}",
-    "resolvedRule": "group by exact full tree SHA",
-    "unresolvedRule": "mark unresolved and group only by full head SHA"
-  },
-  "unresolvedHeadCount": 0
+    "localCommand": "git rev-parse --verify <head>^{tree} when object is present",
+    "localObjectAbsentRule": "replay the authenticated retained tree mapping",
+    "mismatchRule": "fail closed",
+    "retainedRule": "require the authenticated exact head-to-tree map"
+  }
 }

@@ -2,17 +2,17 @@
 """Reproduce a source-group sensitivity analysis for the retained CI baseline.
 
 The script reads the already-sanitized successful-run metadata. It makes no
-GitHub API requests and reads no workflow logs. Commit heads are resolved to
-exact Git tree objects when those objects exist locally; unresolved heads stay
-explicit and form their own ``head:<sha>`` fallback cluster.
+GitHub API requests and reads no workflow logs. Every retained head must have
+an authenticated head-to-tree entry. Local Git objects verify that entry when
+available; they are not required to reproduce the retained three groups.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import json
+import math
 import re
 import statistics
 import subprocess
@@ -34,8 +34,11 @@ EXPECTED_SUCCESSFUL_RUNS_SHA256 = (
 EXPECTED_BASELINE_SUMMARY_SHA256 = (
     "97d63069ebe0d62dae2841a44dad7db0644561bd717b064493470d8f5499ae0e"
 )
-EXPECTED_COLLECTOR_SHA256 = (
-    "b53442332490b1386e936890c6ab7f21d4d6bd00602983880447a64bf0e2f2df"
+EXPECTED_HEAD_TREE_MAP_SHA256 = (
+    "f6a54be3d5e5958f95b793844932f5f1f7d123083145304891c6dcd977700fe8"
+)
+EXPECTED_PROVENANCE_SOURCE_GROUPS_SHA256 = (
+    "ed9833d1d9a438e2b9d78ccaadc54bfad51675f80d4d13dfe8867adf7ea5542f"
 )
 HEX_SHA = re.compile(r"^[0-9a-f]{40}$")
 METRICS = {
@@ -99,18 +102,43 @@ def verify_hash(path: Path, expected: str) -> None:
         )
 
 
-def load_collector(path: Path) -> Any:
-    spec = importlib.util.spec_from_file_location("ci_performance_collector", path)
-    if spec is None or spec.loader is None:
-        raise SensitivityError(f"cannot load collector: {path}")
-    module = importlib.util.module_from_spec(spec)
-    previous_dont_write_bytecode = sys.dont_write_bytecode
-    try:
-        sys.dont_write_bytecode = True
-        spec.loader.exec_module(module)
-    finally:
-        sys.dont_write_bytecode = previous_dont_write_bytecode
-    return module
+def percentile(values: Sequence[float], fraction: float) -> float:
+    if not values:
+        raise SensitivityError("cannot calculate percentile of empty input")
+    ordered = sorted(float(value) for value in values)
+    if len(ordered) == 1:
+        return ordered[0]
+    position = (len(ordered) - 1) * fraction
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return ordered[lower]
+    weight = position - lower
+    return ordered[lower] * (1 - weight) + ordered[upper] * weight
+
+
+def stable_seed(base_seed: int, label: str) -> int:
+    digest = hashlib.sha256(f"{base_seed}:{label}".encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big")
+
+
+class SplitMix64:
+    MASK = (1 << 64) - 1
+
+    def __init__(self, seed: int) -> None:
+        self.state = seed & self.MASK
+
+    def next_u64(self) -> int:
+        self.state = (self.state + 0x9E3779B97F4A7C15) & self.MASK
+        value = self.state
+        value = ((value ^ (value >> 30)) * 0xBF58476D1CE4E5B9) & self.MASK
+        value = ((value ^ (value >> 27)) * 0x94D049BB133111EB) & self.MASK
+        return value ^ (value >> 31)
+
+    def index(self, upper_bound: int) -> int:
+        if upper_bound < 1:
+            raise SensitivityError("bootstrap index requires a positive bound")
+        return (self.next_u64() * upper_bound) >> 64
 
 
 def run_git(repository_root: Path, arguments: Sequence[str]) -> str | None:
@@ -139,29 +167,92 @@ def fetch_origin_heads(repository_root: Path) -> None:
         raise SensitivityError("read-only fetch of origin main/data failed")
 
 
-def resolve_head(repository_root: Path, head_sha: str) -> dict[str, Any]:
+def load_retained_head_tree_map(
+    path: Path,
+    expected_sha256: str,
+    expected_heads: set[str],
+) -> dict[str, str]:
+    verify_hash(path, expected_sha256)
+    payload = read_json(path)
+    if payload.get("schema") != f"{SCHEMA}/retained-head-tree-map":
+        raise SensitivityError("retained head-to-tree map schema mismatch")
+    if payload.get("successfulRunsSha256") != EXPECTED_SUCCESSFUL_RUNS_SHA256:
+        raise SensitivityError("retained head-to-tree map input hash mismatch")
+    if (
+        payload.get("provenanceSourceGroupsSha256")
+        != EXPECTED_PROVENANCE_SOURCE_GROUPS_SHA256
+    ):
+        raise SensitivityError("retained head-to-tree map provenance hash mismatch")
+    entries = payload.get("mappings")
+    if not isinstance(entries, list):
+        raise SensitivityError("retained head-to-tree mappings must be an array")
+
+    retained: dict[str, str] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise SensitivityError("retained head-to-tree entry must be an object")
+        head_sha = str(entry.get("headSha", "")).lower()
+        tree_sha = str(entry.get("treeSha", "")).lower()
+        if not HEX_SHA.fullmatch(head_sha) or not HEX_SHA.fullmatch(tree_sha):
+            raise SensitivityError("retained head-to-tree entry has an invalid SHA")
+        if head_sha in retained:
+            raise SensitivityError(f"duplicate retained head mapping: {head_sha}")
+        retained[head_sha] = tree_sha
+
+    retained_heads = set(retained)
+    if retained_heads != expected_heads:
+        missing = len(expected_heads - retained_heads)
+        extra = len(retained_heads - expected_heads)
+        raise SensitivityError(
+            "retained head-to-tree mapping count/set mismatch: "
+            f"expected {len(expected_heads)}, got {len(retained_heads)}, "
+            f"missing {missing}, extra {extra}"
+        )
+    return retained
+
+
+def resolve_head(
+    repository_root: Path,
+    head_sha: str,
+    retained_tree_sha: str,
+) -> dict[str, Any]:
     normalized = str(head_sha).lower()
     if not HEX_SHA.fullmatch(normalized):
         raise SensitivityError(f"invalid full commit SHA in retained metadata: {head_sha!r}")
+    retained_tree = str(retained_tree_sha).lower()
+    if not HEX_SHA.fullmatch(retained_tree):
+        raise SensitivityError(f"invalid retained tree SHA for head {normalized}")
 
     object_type = run_git(repository_root, ["cat-file", "-t", normalized])
-    tree_sha = run_git(
-        repository_root, ["rev-parse", "--verify", f"{normalized}^{{tree}}"]
-    )
-    if object_type != "commit" or tree_sha is None or not HEX_SHA.fullmatch(tree_sha):
+    if object_type is None:
+        retained_tree_type = run_git(repository_root, ["cat-file", "-t", retained_tree])
+        if retained_tree_type not in (None, "tree"):
+            raise SensitivityError(
+                f"retained mapping target is not a Git tree: {retained_tree}"
+            )
         return {
-            "groupKey": f"head:{normalized}",
+            "groupKey": f"tree:{retained_tree}",
             "headSha": normalized,
-            "resolutionStatus": "unresolved_fallback_head",
-            "treeSha": None,
+            "resolutionStatus": "retained_exact_tree_object_absent",
+            "treeSha": retained_tree,
         }
-    if run_git(repository_root, ["cat-file", "-t", tree_sha]) != "tree":
-        raise SensitivityError(f"resolved object is not a Git tree: {tree_sha}")
+    if object_type != "commit":
+        raise SensitivityError(f"retained head object is not a commit: {normalized}")
+    tree_sha = run_git(repository_root, ["rev-parse", "--verify", f"{normalized}^{{tree}}"])
+    if tree_sha is None or not HEX_SHA.fullmatch(tree_sha):
+        raise SensitivityError(f"cannot resolve local tree for retained head: {normalized}")
+    if tree_sha != retained_tree:
+        raise SensitivityError(
+            f"retained mapping disagrees with local Git object for head {normalized}"
+        )
+    retained_tree_type = run_git(repository_root, ["cat-file", "-t", retained_tree])
+    if retained_tree_type not in (None, "tree"):
+        raise SensitivityError(f"resolved object is not a Git tree: {retained_tree}")
     return {
-        "groupKey": f"tree:{tree_sha}",
+        "groupKey": f"tree:{retained_tree}",
         "headSha": normalized,
-        "resolutionStatus": "resolved_exact_tree",
-        "treeSha": tree_sha,
+        "resolutionStatus": "retained_exact_tree_object_verified",
+        "treeSha": retained_tree,
     }
 
 
@@ -170,11 +261,10 @@ def cluster_bootstrap_interval(
     statistic: Callable[[Sequence[float]], float],
     resamples: int,
     seed: int,
-    collector: Any,
 ) -> list[float]:
     if not clusters:
         raise SensitivityError("cluster bootstrap requires at least one source group")
-    rng = collector.SplitMix64(seed)
+    rng = SplitMix64(seed)
     cluster_count = len(clusters)
     estimates: list[float] = []
     for _ in range(resamples):
@@ -183,8 +273,8 @@ def cluster_bootstrap_interval(
             sample.extend(clusters[rng.index(cluster_count)])
         estimates.append(float(statistic(sample)))
     return [
-        collector.rounded(collector.percentile(estimates, 0.025)),
-        collector.rounded(collector.percentile(estimates, 0.975)),
+        round(float(percentile(estimates, 0.025)), 6),
+        round(float(percentile(estimates, 0.975)), 6),
     ]
 
 
@@ -193,14 +283,12 @@ def build_report(
     groups_payload: dict[str, Any],
     summary: dict[str, Any],
 ) -> str:
-    unresolved_count = configuration["unresolvedHeadCount"]
+    verified_count = configuration["locallyVerifiedHeadCount"]
+    absent_count = configuration["localObjectAbsentHeadCount"]
     resolution_sentence = (
-        "All retained heads resolved to exact trees in this artifact."
-        if unresolved_count == 0
-        else (
-            f"{unresolved_count} retained head(s) were unresolved and remain separate "
-            "fallback head groups."
-        )
+        f"The retained mapping supplied every exact tree; {verified_count} mapping(s) "
+        f"were also verified against local commit objects and {absent_count} were "
+        "replayed without requiring those objects."
     )
     lines = [
         "# CI source-group bootstrap sensitivity",
@@ -209,7 +297,7 @@ def build_report(
         "",
         "## Source groups",
         "",
-        f"The {configuration['runCount']} successful runs contain {configuration['distinctHeadCount']} distinct heads and {configuration['sourceGroupCount']} exact-tree/fallback-head source groups. {resolution_sentence}",
+        f"The {configuration['runCount']} successful runs contain {configuration['distinctHeadCount']} distinct heads and {configuration['sourceGroupCount']} exact-tree source groups. {resolution_sentence}",
         "",
         "| Source group | Runs | Distinct heads | Run IDs |",
         "| --- | ---: | ---: | --- |",
@@ -225,7 +313,7 @@ def build_report(
             "",
             "## Interval sensitivity",
             "",
-            "Each cluster-bootstrap draw samples three complete source groups with replacement, concatenates their run observations, and calculates the run-weighted statistic. Unequal group sizes make resampled run counts range from 3 to 18.",
+            f"Each cluster-bootstrap draw samples {configuration['sourceGroupCount']} complete source groups with replacement, concatenates their run observations, and calculates the run-weighted statistic. Unequal group sizes make resampled run counts range from {configuration['bootstrap']['possibleResampledRunCountRange'][0]} to {configuration['bootstrap']['possibleResampledRunCountRange'][1]}.",
             "",
             "| Metric | Observed mean | Observed median | Per-run mean 95% interval | Source-group mean 95% interval | Per-run median 95% interval | Source-group median 95% interval |",
             "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
@@ -249,8 +337,8 @@ def build_report(
             "## Interpretation limits",
             "",
             "- Three source groups are too few for stable inferential uncertainty estimates. The source-group intervals are descriptive sensitivity ranges only.",
-            "- Repeated runs from an identical Git tree are kept together. Unresolved commits would remain explicit `head:<sha>` groups and would never be labeled as a shared tree.",
-            "- This invocation used retained job/step metadata and local Git objects. It made no GitHub workflow-run query and read no workflow logs.",
+            "- Repeated runs from an identical retained Git tree are kept together. A missing, extra, duplicated, malformed, hash-tampered, or locally contradictory head-to-tree mapping fails closed.",
+            "- This invocation used retained job/step metadata and an authenticated head-to-tree map. Local Git objects were optional cross-checks. It made no GitHub workflow-run query and read no workflow logs.",
             "- This does not measure a before/after change or prove a performance improvement. A later forecast must account for retained verification/parity/platform coverage, coverage timing changes, and added full-history checkout/classifier cost; gross removed time is not actual net savings.",
             "",
         ]
@@ -273,6 +361,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--baseline-artifact-map", type=Path, default=evidence_root / "artifact-map.json"
     )
+    parser.add_argument(
+        "--head-tree-map",
+        type=Path,
+        default=script_path.parent / "retained-head-tree-map.json",
+    )
     parser.add_argument("--output-dir", type=Path, default=script_path.parent)
     parser.add_argument("--bootstrap-resamples", type=int, default=DEFAULT_RESAMPLES)
     parser.add_argument("--bootstrap-seed", type=int, default=DEFAULT_SEED)
@@ -290,8 +383,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     successful_runs_path = args.successful_runs.resolve()
     baseline_summary_path = args.baseline_summary.resolve()
     baseline_artifact_map_path = args.baseline_artifact_map.resolve()
+    head_tree_map_path = args.head_tree_map.resolve()
     output_dir = args.output_dir.resolve()
-    collector_path = repository_root / ".github/scripts/collect-ci-performance.py"
     script_path = Path(__file__).resolve()
 
     if args.bootstrap_resamples < 1_000:
@@ -303,7 +396,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         successful_runs_path: EXPECTED_SUCCESSFUL_RUNS_SHA256,
         baseline_summary_path: EXPECTED_BASELINE_SUMMARY_SHA256,
         baseline_artifact_map_path: EXPECTED_BASELINE_ARTIFACT_MAP_SHA256,
-        collector_path: EXPECTED_COLLECTOR_SHA256,
+        head_tree_map_path: EXPECTED_HEAD_TREE_MAP_SHA256,
     }
     for path, expected_hash in expected_inputs.items():
         verify_hash(path, expected_hash)
@@ -311,32 +404,47 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.fetch_origin:
         fetch_origin_heads(repository_root)
 
-    collector = load_collector(collector_path)
     successful_payload = read_json(successful_runs_path)
     baseline_summary = read_json(baseline_summary_path)
     runs = successful_payload.get("runs")
     if not isinstance(runs, list) or not runs:
         raise SensitivityError("retained successful-runs.json contains no runs")
 
-    observations = [collector.analyze_run(run) for run in runs]
+    observations = baseline_summary.get("runObservations")
+    if not isinstance(observations, list) or not observations:
+        raise SensitivityError("retained baseline summary contains no run observations")
     observations.sort(key=lambda item: int(item["runId"]))
-    baseline_by_run = {
-        int(item["runId"]): item for item in baseline_summary.get("runObservations", [])
-    }
-    if len(baseline_by_run) != len(observations):
+    retained_by_run = {int(run["id"]): run for run in runs}
+    if len(retained_by_run) != len(runs) or len(observations) != len(runs):
         raise SensitivityError("baseline and retained run counts differ")
     for observation in observations:
-        baseline = baseline_by_run.get(int(observation["runId"]))
-        if baseline is None:
+        retained_run = retained_by_run.get(int(observation["runId"]))
+        if retained_run is None:
             raise SensitivityError(f"run absent from baseline: {observation['runId']}")
-        for metric_name in METRICS:
-            if observation[metric_name] != baseline.get(metric_name):
+        for retained_key, observation_key in (
+            ("headSha", "headSha"),
+            ("event", "event"),
+            ("createdAt", "createdAt"),
+        ):
+            if retained_run.get(retained_key) != observation.get(observation_key):
                 raise SensitivityError(
-                    f"baseline metric mismatch for run {observation['runId']}: {metric_name}"
+                    f"baseline identity mismatch for run {observation['runId']}: {observation_key}"
+                )
+        for metric_name in METRICS:
+            if not isinstance(observation.get(metric_name), (int, float)):
+                raise SensitivityError(
+                    f"baseline metric is missing for run {observation['runId']}: {metric_name}"
                 )
 
     heads = sorted({str(item["headSha"]).lower() for item in observations})
-    resolutions = [resolve_head(repository_root, head) for head in heads]
+    retained_head_trees = load_retained_head_tree_map(
+        head_tree_map_path,
+        EXPECTED_HEAD_TREE_MAP_SHA256,
+        set(heads),
+    )
+    resolutions = [
+        resolve_head(repository_root, head, retained_head_trees[head]) for head in heads
+    ]
     resolution_by_head = {item["headSha"]: item for item in resolutions}
     grouped_observations: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for observation in observations:
@@ -356,11 +464,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             {
                 "groupKey": group_key,
                 "headShas": group_heads,
-                "resolutionStatus": (
-                    "resolved_exact_tree"
-                    if group_key.startswith("tree:")
-                    else "unresolved_fallback_head"
-                ),
+                "resolutionStatus": "retained_exact_tree",
                 "runCount": len(group_observations),
                 "runIds": sorted(int(item["runId"]) for item in group_observations),
                 "treeSha": next(iter(tree_values)) if len(tree_values) == 1 else None,
@@ -369,8 +473,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     group_count = len(groups)
     group_sizes = [group["runCount"] for group in groups]
-    unresolved_count = sum(
-        item["resolutionStatus"] == "unresolved_fallback_head" for item in resolutions
+    locally_verified_count = sum(
+        item["resolutionStatus"] == "retained_exact_tree_object_verified"
+        for item in resolutions
+    )
+    local_object_absent_count = sum(
+        item["resolutionStatus"] == "retained_exact_tree_object_absent"
+        for item in resolutions
     )
     configuration = {
         "schema": f"{SCHEMA}/configuration",
@@ -383,9 +492,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "path": repository_relative(baseline_summary_path, repository_root),
                 "sha256": sha256_file(baseline_summary_path),
             },
-            "collector": {
-                "path": repository_relative(collector_path, repository_root),
-                "sha256": sha256_file(collector_path),
+            "retainedHeadTreeMap": {
+                "path": repository_relative(head_tree_map_path, repository_root),
+                "sha256": sha256_file(head_tree_map_path),
             },
             "successfulRuns": {
                 "path": repository_relative(successful_runs_path, repository_root),
@@ -395,12 +504,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         "runCount": len(observations),
         "distinctHeadCount": len(heads),
         "sourceGroupCount": group_count,
-        "unresolvedHeadCount": unresolved_count,
+        "locallyVerifiedHeadCount": locally_verified_count,
+        "localObjectAbsentHeadCount": local_object_absent_count,
         "treeResolution": {
             "fetchPerformedByScript": bool(args.fetch_origin),
-            "localCommand": "git rev-parse --verify <head>^{tree}",
-            "resolvedRule": "group by exact full tree SHA",
-            "unresolvedRule": "mark unresolved and group only by full head SHA",
+            "retainedRule": "require the authenticated exact head-to-tree map",
+            "localCommand": "git rev-parse --verify <head>^{tree} when object is present",
+            "localObjectAbsentRule": "replay the authenticated retained tree mapping",
+            "mismatchRule": "fail closed",
         },
         "bootstrap": {
             "confidenceLevel": 0.95,
@@ -458,28 +569,26 @@ def main(argv: Sequence[str] | None = None) -> int:
                     metric_clusters,
                     statistics.fmean,
                     args.bootstrap_resamples,
-                    collector.stable_seed(
+                    stable_seed(
                         args.bootstrap_seed, f"source-group:{metric_name}:mean"
                     ),
-                    collector,
                 ),
                 "median": cluster_bootstrap_interval(
                     metric_clusters,
                     statistics.median,
                     args.bootstrap_resamples,
-                    collector.stable_seed(
+                    stable_seed(
                         args.bootstrap_seed, f"source-group:{metric_name}:median"
                     ),
-                    collector,
                 ),
             },
             "sourceGroupObservedMeans": {
-                group["groupKey"]: collector.rounded(
+                group["groupKey"]: round(float(
                     statistics.fmean(
                         float(item[metric_name])
                         for item in grouped_observations[group["groupKey"]]
                     )
-                )
+                ), 6)
                 for group in groups
             },
         }
@@ -500,7 +609,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "The baseline is observational and unpaired.",
             "The original per-run bootstrap remains unchanged.",
             "Identical Git trees are resampled as complete source clusters.",
-            "Unresolved commits remain explicit fallback head clusters.",
+            "Every commit requires an authenticated retained exact-tree mapping.",
+            "Local object absence does not change grouping; any local contradiction fails closed.",
             "No before/after performance improvement is measured.",
         ],
     }

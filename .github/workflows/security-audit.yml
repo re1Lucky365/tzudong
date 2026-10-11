@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/**'
+      - '.github/scripts/*ci*.py'
       - '.github/dependabot.yml'
       - '.kiro/specs/crawler-pipeline-*/**'
       - 'apps/web/package.json'
@@ -214,7 +215,8 @@ concurrency:
 jobs:
   npm-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Two 20-minute audits, bounded termination and shared setup.
+    timeout-minutes: 50
     permissions:
       contents: read
     steps:
@@ -245,7 +247,7 @@ jobs:
           for project in apps/web backend; do
             if ! (
               cd "$project" &&
-              npm audit --audit-level=moderate
+              timeout --signal=TERM --kill-after=30s 20m npm audit --audit-level=moderate
             ); then
               status=1
             fi
@@ -254,7 +256,8 @@ jobs:
 
   pip-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Five 20-minute audits, bounded termination and shared setup.
+    timeout-minutes: 110
     permissions:
       contents: read
     steps:
@@ -282,7 +285,7 @@ jobs:
             backend/restaurant-crawling/scripts/requirements.txt \
             backend/supabase/scripts/g037-hosted-closure-requirements.txt \
             backend/pipeline-control/requirements.txt; do
-            if ! python -m pip_audit -r "$requirements" --strict; then
+            if ! timeout --signal=TERM --kill-after=30s 20m python -m pip_audit -r "$requirements" --strict; then
               status=1
             fi
           done

@@ -68,6 +68,12 @@ exit 0
 
   try {
     writeFileSync(join(bin, kind), kind === 'npm' ? fakeNpm : fakePython, { mode: 0o755 });
+    writeFileSync(join(bin, 'timeout'), `#!/bin/bash
+set -u
+if [[ "$1" != '--signal=TERM' || "$2" != '--kill-after=30s' || "$3" != '20m' ]]; then exit 98; fi
+shift 3
+exec "$@"
+`, { mode: 0o755 });
     const result = spawnSync('/bin/bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', script], {
       cwd: canonicalRoot,
       encoding: 'utf8',
@@ -112,6 +118,7 @@ describe('security audit workflow source contract', () => {
   });
 
   test('keeps every security job least-privilege and time-bounded', () => {
+    expect(source).toContain("- '.github/scripts/*ci*.py'");
     for (const name of ['npm-audit', 'pip-audit', 'orchestration-readiness', 'rust-recovery', 'secret-pattern-scan', 'sbom']) {
       const block = jobBlock(name);
       expect(block).toMatch(/\n    timeout-minutes: [1-9][0-9]*\n/);
@@ -129,6 +136,8 @@ describe('security audit workflow source contract', () => {
     expect(npmAudit).toContain('for project in apps/web backend; do');
     expect(npmAudit).toContain('cd "$project" &&');
     expect(npmAudit).toContain('npm audit --audit-level=moderate');
+    expect(npmAudit).toContain('timeout-minutes: 50');
+    expect(npmAudit).toContain('timeout --signal=TERM --kill-after=30s 20m npm audit');
     for (const lockfile of ['apps/web/package-lock.json', 'backend/package-lock.json']) {
       expect(npmAudit.match(new RegExp(lockfile.replace('/', '\\/'), 'g'))).toHaveLength(1);
     }
@@ -139,7 +148,8 @@ describe('security audit workflow source contract', () => {
     const pipAudit = jobBlock('pip-audit');
     expect(pipAudit).not.toContain('matrix:');
     expect(pipAudit).toContain("'pip-audit==2.10.1'");
-    expect(pipAudit).toContain('if ! python -m pip_audit -r "$requirements" --strict; then');
+    expect(pipAudit).toContain('timeout-minutes: 110');
+    expect(pipAudit).toContain('if ! timeout --signal=TERM --kill-after=30s 20m python -m pip_audit -r "$requirements" --strict; then');
     for (const requirements of [
       'backend/test-requirements.txt',
       'backend/pipeline/requirements.txt',

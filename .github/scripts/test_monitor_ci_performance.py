@@ -119,6 +119,26 @@ class MonitorCiPerformanceTests(unittest.TestCase):
             self.assertEqual(MONITOR.main(arguments), 0)
         return json.loads(self.receipt.read_text(encoding="utf-8"))
 
+    def assert_input_rejected(
+        self, value: object, *, before: bool = False, name: str = "rejected.json"
+    ) -> None:
+        source = self.write(name, value)
+        self.receipt.write_text("unchanged", encoding="utf-8")
+        arguments = [
+            "--before-input" if before else "--after-input",
+            str(source),
+            "--checkpoint",
+            str(self.checkpoint),
+            "--receipt",
+            str(self.receipt),
+            "--bootstrap-resamples",
+            "1000",
+        ]
+        with self.assertRaises(MONITOR.MonitorError):
+            with redirect_stdout(io.StringIO()):
+                MONITOR.main(arguments)
+        self.assertEqual(self.receipt.read_text(encoding="utf-8"), "unchanged")
+
     def test_improvement_signal_requires_seven_per_phase(self) -> None:
         before = self.write(
             "before.json", payload([make_run(100 + index, 100) for index in range(7)])
@@ -185,6 +205,30 @@ class MonitorCiPerformanceTests(unittest.TestCase):
             "failure_rate_increased",
         )
 
+    def test_failure_rate_excludes_unfinished_attempts(self) -> None:
+        rate = MONITOR.failure_rate(
+            [
+                {
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "timingUsable": False,
+                },
+                {
+                    "status": "completed",
+                    "conclusion": "cancelled",
+                    "timingUsable": False,
+                },
+                {"status": "in_progress", "conclusion": "missing"},
+                {"status": "completed", "conclusion": "missing"},
+            ]
+        )
+        self.assertEqual(rate["n"], 2)
+        self.assertEqual(rate["totalAttempts"], 4)
+        self.assertEqual(rate["unfinishedAttempts"], 1)
+        self.assertEqual(rate["incompleteTerminalAttempts"], 1)
+        self.assertEqual(rate["failures"], 2)
+        self.assertEqual(rate["percent"], 100.0)
+
     def test_duplicate_run_id_and_attempt_are_checkpointed(self) -> None:
         repeated = make_run(900, 80)
         first = self.write("first.json", payload([repeated, repeated]))
@@ -224,6 +268,95 @@ class MonitorCiPerformanceTests(unittest.TestCase):
         self.assertEqual(analysis["incompleteStepCount"], 1)
         self.assertEqual(analysis["timingUsableRunCount"], 0)
 
+    def test_non_object_run_and_job_entries_fail_closed(self) -> None:
+        self.assert_input_rejected(
+            payload([make_run(1_010, 80), None]),  # type: ignore[list-item]
+            name="null-run.json",
+        )
+        malformed_job = make_run(1_011, 80)
+        malformed_job["jobs"].append(None)
+        self.assert_input_rejected(payload([malformed_job]), name="null-job.json")
+
+    def test_job_timestamps_before_run_creation_are_rejected(self) -> None:
+        base = datetime(2026, 10, 10, 12, 0, tzinfo=timezone.utc)
+        cases = {
+            "created": {
+                "createdAt": timestamp(base - timedelta(seconds=1)),
+                "startedAt": timestamp(base + timedelta(seconds=1)),
+                "completedAt": timestamp(base + timedelta(seconds=2)),
+            },
+            "started": {
+                "createdAt": timestamp(base - timedelta(seconds=2)),
+                "startedAt": timestamp(base - timedelta(seconds=1)),
+                "completedAt": timestamp(base + timedelta(seconds=1)),
+            },
+            "completed": {
+                "createdAt": timestamp(base - timedelta(seconds=3)),
+                "startedAt": timestamp(base - timedelta(seconds=2)),
+                "completedAt": timestamp(base - timedelta(seconds=1)),
+            },
+        }
+        for index, (field, job_times) in enumerate(cases.items()):
+            with self.subTest(field=field):
+                run = make_run(1_020 + index, 80)
+                run["createdAt"] = timestamp(base)
+                run["jobs"][0].update(job_times)
+                with self.assertRaises(MONITOR.MonitorError):
+                    MONITOR.analyze_record(
+                        run,
+                        "after",
+                        ".github/workflows/web-admin-ci.yml",
+                        True,
+                        "c" * 64,
+                    )
+
+    def test_identical_attempt_cannot_appear_in_both_phases(self) -> None:
+        repeated = make_run(1_024, 80)
+        before = self.write("phase-before.json", payload([repeated]))
+        after = self.write("phase-after.json", payload([repeated]))
+        self.receipt.write_text("unchanged", encoding="utf-8")
+        with self.assertRaises(MONITOR.MonitorError):
+            with redirect_stdout(io.StringIO()):
+                MONITOR.main(
+                    [
+                        "--before-input",
+                        str(before),
+                        "--after-input",
+                        str(after),
+                        "--checkpoint",
+                        str(self.checkpoint),
+                        "--receipt",
+                        str(self.receipt),
+                        "--bootstrap-resamples",
+                        "1000",
+                    ]
+                )
+        self.assertEqual(self.receipt.read_text(encoding="utf-8"), "unchanged")
+
+    def test_zero_baseline_relative_change_is_undefined_and_absolute_regression_applies(
+        self,
+    ) -> None:
+        interval = MONITOR.bootstrap_mean_change(
+            [0.0] * 7, [200.0] * 7, 1000, 20_261_011
+        )
+        self.assertIsNone(interval["relativeReductionPercent95Ci"])
+        self.assertEqual(
+            interval["relativeReductionStatus"], "undefined_zero_baseline"
+        )
+        mixed_zero_interval = MONITOR.bootstrap_mean_change(
+            [0.0, 100.0] * 4, [200.0] * 8, 1000, 20_261_011
+        )
+        self.assertIsNone(mixed_zero_interval["relativeReductionPercent95Ci"])
+        self.assertEqual(
+            MONITOR.classify_signal(
+                [0.0] * 7,
+                [200.0] * 7,
+                interval,
+                MONITOR.DEFAULT_THRESHOLDS["runnerOccupiedSeconds"],
+            ),
+            "regression_signal",
+        )
+
     def test_incomplete_completed_attempt_can_be_replaced_when_evidence_completes(self) -> None:
         incomplete = self.write(
             "incomplete-completed.json",
@@ -240,6 +373,89 @@ class MonitorCiPerformanceTests(unittest.TestCase):
         checkpoint = json.loads(self.checkpoint.read_text(encoding="utf-8"))
         self.assertTrue(checkpoint["runs"]["1025:1"]["terminalEvidenceComplete"])
         self.assertTrue(checkpoint["runs"]["1025:1"]["timingUsable"])
+
+    def test_timestamped_nonterminal_step_can_be_replaced_when_it_completes(self) -> None:
+        incomplete_run = make_run(1_027, 80)
+        incomplete_run["jobs"][0]["steps"][0].update(
+            {"status": "in_progress", "conclusion": None}
+        )
+        incomplete = self.write(
+            "timestamped-nonterminal-step.json", payload([incomplete_run])
+        )
+        first = self.invoke(after=incomplete)
+        self.assertEqual(first["analysis"]["incompleteStepCount"], 1)
+        self.assertEqual(first["analysis"]["timingUsableRunCount"], 0)
+        checkpoint = json.loads(self.checkpoint.read_text(encoding="utf-8"))
+        self.assertFalse(checkpoint["runs"]["1027:1"]["terminalEvidenceComplete"])
+
+        complete = self.write(
+            "timestamped-terminal-step.json", payload([make_run(1_027, 80)])
+        )
+        second = self.invoke(after=complete)
+        self.assertEqual(second["admittedRunCount"], 1)
+        checkpoint = json.loads(self.checkpoint.read_text(encoding="utf-8"))
+        self.assertTrue(checkpoint["runs"]["1027:1"]["terminalEvidenceComplete"])
+        self.assertTrue(checkpoint["runs"]["1027:1"]["timingUsable"])
+
+    def test_untimed_neutral_step_is_incomplete(self) -> None:
+        run = make_run(1_028, 80)
+        run["jobs"][0]["steps"][0].update(
+            {
+                "status": "completed",
+                "conclusion": "neutral",
+                "startedAt": None,
+                "completedAt": None,
+            }
+        )
+        source = self.write("untimed-neutral-step.json", payload([run]))
+        receipt = self.invoke(after=source)
+        self.assertEqual(receipt["analysis"]["incompleteStepCount"], 1)
+        self.assertEqual(receipt["analysis"]["timingUsableRunCount"], 0)
+
+    def test_step_timestamps_outside_run_or_job_bounds_are_rejected(self) -> None:
+        base = datetime(2026, 10, 10, 12, 0, tzinfo=timezone.utc)
+        cases = {
+            "before_job_start": {
+                "startedAt": timestamp(base + timedelta(seconds=1)),
+                "completedAt": timestamp(base + timedelta(seconds=3)),
+            },
+            "after_job_completion": {
+                "startedAt": timestamp(base + timedelta(seconds=3)),
+                "completedAt": timestamp(base + timedelta(seconds=83)),
+            },
+            "completion_before_start": {
+                "startedAt": timestamp(base + timedelta(seconds=4)),
+                "completedAt": timestamp(base + timedelta(seconds=3)),
+            },
+            "before_run_creation": {
+                "startedAt": timestamp(base - timedelta(seconds=1)),
+                "completedAt": timestamp(base + timedelta(seconds=1)),
+            },
+        }
+        for index, (case, step_times) in enumerate(cases.items()):
+            with self.subTest(case=case):
+                run = make_run(1_030 + index, 80)
+                run["createdAt"] = timestamp(base)
+                run["jobs"][0].update(
+                    {
+                        "createdAt": timestamp(base),
+                        "startedAt": (
+                            None
+                            if case == "before_run_creation"
+                            else timestamp(base + timedelta(seconds=2))
+                        ),
+                        "completedAt": timestamp(base + timedelta(seconds=82)),
+                    }
+                )
+                run["jobs"][0]["steps"][0].update(step_times)
+                with self.assertRaises(MONITOR.MonitorError):
+                    MONITOR.analyze_record(
+                        run,
+                        "after",
+                        ".github/workflows/web-admin-ci.yml",
+                        True,
+                        "d" * 64,
+                    )
 
     def test_completed_skipped_step_may_omit_timing(self) -> None:
         run = make_run(1_026, 80)

@@ -7,7 +7,8 @@
     "The baseline is observational and unpaired.",
     "The original per-run bootstrap remains unchanged.",
     "Identical Git trees are resampled as complete source clusters.",
-    "Unresolved commits remain explicit fallback head clusters.",
+    "Every commit requires an authenticated retained exact-tree mapping.",
+    "Local object absence does not change grouping; any local contradiction fails closed.",
     "No before/after performance improvement is measured."
   ],
   "metrics": {

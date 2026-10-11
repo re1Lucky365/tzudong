@@ -45,7 +45,7 @@
   "modelsInvokedByProgram": 0,
   "newAlertKeys": [],
   "observedAtUtc": "2026-10-11T08:00:34.734759Z",
-  "receiptPath": "/Users/twoimo/.codex/runtime-cache/tzudong-ci-monitor-20261011/ticks/20261011T080034.677838Z/analysis.json",
+  "receiptPath": "state://ticks/20261011T080034.677838Z/analysis.json",
   "remoteMutations": 0,
   "schema": "tzudong-ci-monitor-tick/v1",
   "shouldNotify": false,

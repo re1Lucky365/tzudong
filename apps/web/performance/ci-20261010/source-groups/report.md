@@ -4,7 +4,9 @@ This is a descriptive sensitivity check on the existing nine-run observational b
 
 ## Source groups
 
-The 9 successful runs contain 7 distinct heads and 3 exact-tree/fallback-head source groups. All retained heads resolved to exact trees in this artifact.
+The 9 successful runs contain 7 distinct heads and 3 exact-tree source groups. The retained mapping supplied every exact tree; 7 mapping(s) were also verified against local commit objects and 0 were replayed without requiring those objects.
+
+A separate repository with zero Git objects reproduced the same group payload, head-to-tree assignments, summary, and 827–861 second critical-path cluster intervals. Only the local cross-check status changed from `object_verified` to `object_absent`; it did not change a group or statistic. The retained receipt is `objectless-verification.json`.
 
 | Source group | Runs | Distinct heads | Run IDs |
 | --- | ---: | ---: | --- |
@@ -14,7 +16,7 @@ The 9 successful runs contain 7 distinct heads and 3 exact-tree/fallback-head so
 
 ## Interval sensitivity
 
-Each cluster-bootstrap draw samples three complete source groups with replacement, concatenates their run observations, and calculates the run-weighted statistic. Unequal group sizes make resampled run counts range from 3 to 18.
+Each cluster-bootstrap draw samples 3 complete source groups with replacement, concatenates their run observations, and calculates the run-weighted statistic. Unequal group sizes make resampled run counts range from 3 to 18.
 
 | Metric | Observed mean | Observed median | Per-run mean 95% interval | Source-group mean 95% interval | Per-run median 95% interval | Source-group median 95% interval |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -28,6 +30,6 @@ Each cluster-bootstrap draw samples three complete source groups with replacemen
 ## Interpretation limits
 
 - Three source groups are too few for stable inferential uncertainty estimates. The source-group intervals are descriptive sensitivity ranges only.
-- Repeated runs from an identical Git tree are kept together. Unresolved commits would remain explicit `head:<sha>` groups and would never be labeled as a shared tree.
-- This invocation used retained job/step metadata and local Git objects. It made no GitHub workflow-run query and read no workflow logs.
+- Repeated runs from an identical retained Git tree are kept together. A missing, extra, duplicated, malformed, hash-tampered, or locally contradictory head-to-tree mapping fails closed.
+- This invocation used retained job/step metadata and an authenticated head-to-tree map. Local Git objects were optional cross-checks. It made no GitHub workflow-run query and read no workflow logs.
 - This does not measure a before/after change or prove a performance improvement. A later forecast must account for retained verification/parity/platform coverage, coverage timing changes, and added full-history checkout/classifier cost; gross removed time is not actual net savings.

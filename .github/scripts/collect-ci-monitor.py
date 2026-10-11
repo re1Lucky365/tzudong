@@ -251,11 +251,19 @@ def collect(
             except ReadError as error:
                 if error.code != "NOT_FOUND": raise
                 alerts.append("RUN_TOMBSTONE")
-                db.execute("UPDATE runs SET terminal=1 WHERE run_id=?", (run_id,))
-                for (text,) in db.execute("SELECT record FROM runs WHERE run_id=?", (run_id,)).fetchall():
-                    record = json.loads(text); record.update(status="missing", conclusion="stale", tombstone=True, jobs=[])
-                    record.update(jobsTotalCount=0, jobsAttempt=record["attempt"])
-                    db.execute("UPDATE runs SET record=? WHERE run_id=? AND attempt=?", (canonical(record).decode(), run_id, record["attempt"]))
+                cached_attempts = db.execute(
+                    "SELECT terminal,record FROM runs WHERE run_id=? ORDER BY attempt",
+                    (run_id,),
+                ).fetchall()
+                for terminal, text in cached_attempts:
+                    record = json.loads(text)
+                    if not terminal:
+                        record.update(status="missing", conclusion="stale", tombstone=True, jobs=[])
+                        record.update(jobsTotalCount=0, jobsAttempt=record["attempt"])
+                        db.execute(
+                            "UPDATE runs SET terminal=1,record=? WHERE run_id=? AND attempt=?",
+                            (canonical(record).decode(), run_id, record["attempt"]),
+                        )
                     export.append(record)
         newest = watermark[0] if watermark else None
         seen = set()
@@ -280,7 +288,16 @@ def collect(
                 jobs = jobs_payload.get("jobs")
                 count = jobs_payload.get("total_count")
                 if not isinstance(jobs, list) or len(jobs) > 100: raise ReadError("INVALID_JOB_LIST")
-                complete = isinstance(count, int) and not isinstance(count, bool) and count == len(jobs)
+                complete = (
+                    isinstance(count, int)
+                    and not isinstance(count, bool)
+                    and count == len(jobs)
+                    and not (
+                        run["status"] == "completed"
+                        and run["conclusion"] == "success"
+                        and count == 0
+                    )
+                )
                 if not complete: alerts.append("JOB_SET_INCOMPLETE")
                 record = dict(run)
                 record.update(jobs=[safe_job(job) for job in jobs], jobsTotalCount=count, jobsAttempt=attempt)
@@ -289,11 +306,14 @@ def collect(
                 benchmark_jobs = sum(any(COLLECTOR.classify_step(step["name"]) == "benchmark_report" and step["conclusion"] not in (None, "skipped") for step in job["steps"]) for job in record["jobs"])
                 diagnostic_jobs = sum(any(COLLECTOR.classify_step(step["name"]) == "typecheck" and step["conclusion"] not in (None, "skipped") for step in job["steps"]) for job in record["jobs"])
                 record.update(sourceTree=tree, workflowRevision=revision, jobTopology=digest(topology), executionMode="full_benchmark" if benchmark_jobs == 4 else "diagnostic" if benchmark_jobs == 0 and diagnostic_jobs == 4 else "unknown")
-                terminal = run["status"] == "completed" and complete and all(
-                    job["status"] == "completed" and job["completedAt"] and all(
-                        step["status"] == "completed" and (step["conclusion"] == "skipped" or (step["startedAt"] and step["completedAt"]))
-                        for step in job["steps"]
-                    ) for job in record["jobs"]
+                timing_reasons = COLLECTOR.timing_exclusion_reasons(record)
+                if count == 0 and run["conclusion"] != "success":
+                    timing_reasons = [reason for reason in timing_reasons if reason != "no_jobs"]
+                terminal = bool(
+                    run["status"] == "completed"
+                    and run["conclusion"] in CONCLUSIONS
+                    and complete
+                    and not timing_reasons
                 )
                 if len(canonical(record)) > 1024 * 1024: raise ReadError("RECORD_BYTE_BOUND")
                 db.execute("INSERT OR REPLACE INTO runs VALUES(?,?,?,?,?)", (run["id"], attempt, fingerprint, int(terminal), canonical(record).decode()))

@@ -3,23 +3,23 @@
   "artifacts": [
     {
       "path": "benchmark.py",
-      "sha256": "7d7eeaf1cdf9e3015f169969a35dc35e1edffcb19f7648add93b2ae559a0558d",
-      "role": "valid benchmark source"
+      "sha256": "7f9df77e63482b7db9b0e41c7db3277bc8b47ba0434a7099f0bf2c0885db0719",
+      "role": "current frozen-input benchmark and reproducible scorer"
     },
     {
       "path": "raw.json",
       "sha256": "cb8249a9e1cf90641b2789098e58a5841d8d85ad5bfe78bfcdefeac69258c93e",
-      "role": "valid raw measurements"
+      "role": "not admitted historical dirty-source raw; preserved byte-for-byte"
     },
     {
       "path": "summary.json",
       "sha256": "7f419032943b1d8c654e24cedc675ad2a51f856e3b49715dbb2e761159a2b093",
-      "role": "valid statistical summary"
+      "role": "not admitted historical descriptive summary"
     },
     {
       "path": "report.md",
-      "sha256": "60d9bf66eb0804c5ca933ca63abdca8591a39541e32e3cd3608cd0820ae01e51",
-      "role": "valid human-readable report"
+      "sha256": "21c05081567ecec8fe10b16522d9f2f07ecf2e9966bd9a2e70f2908137437241",
+      "role": "historical exclusion and rerun contract"
     },
     {
       "path": "benchmark-failed-snapshot-symlink.py",
@@ -35,6 +35,19 @@
       "path": "failed-experiment.md",
       "sha256": "00d4c0326caa5d2b48b54fa283cf55917a25c1445e34350584ec8eaea0ccffdc",
       "role": "failure cause and exclusion rationale"
+    },
+    {
+      "path": "admission.json",
+      "sha256": "7bf720bf098f9b6f54493a1fe833bec2476af68163bab6750445836bfbfc5d92",
+      "bytes": 1456,
+      "role": "historical non-admission decision"
+    },
+    {
+      "path": "test_benchmark.py",
+      "sha256": "2ceb502b187293535de4b14ffa3861f0e749cc38665d05316c62e3b7ea2052d8",
+      "bytes": 6358,
+      "role": "frozen-input and budget negative tests"
     }
-  ]
+  ],
+  "admitted": false
 }

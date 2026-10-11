@@ -74,38 +74,64 @@ CodeQL은 Actions·Go·JS/TS·Python·Rust·Swift 모두 실제 소스가 있어
 
 ## 검증·재현·주장 한계
 
-### 중복 진단 제거의 로컬 전후 측정
+### 중복 진단 제거의 로컬 전후 측정 재현성 판정
 
-같은 소스 snapshot에서 기존 `verify → native → compat → parity`와 `verify → parity`를 7쌍 비교했다. 홀수 쌍은 전→후, 짝수 쌍은 후→전으로 교차 실행했다. 전체 벤치마크 생략, build, 보안 감사 변경의 효과는 이 실험에 포함되지 않는다.
+보존된 raw에는 기존 `verify → native → compat → parity`와 `verify → parity`의 7쌍 비교가 있다. 홀수 쌍은 전→후, 짝수 쌍은 후→전으로 교차 실행했다. 그러나 측정 시작 시 `apps/web`가 dirty였고, 전체 logical input의 내용 결속 snapshot 없이 선택된 파일 5개의 해시만 남았다. 따라서 당시 실행 입력을 정확히 재구성할 수 없으며 이 결과는 **성능 증빙에서 비승인(de-admitted)** 했다. raw는 관측 이력으로 변경하지 않고 보존한다.
 
-| 지표 | 변경 전 | 변경 후 | 절대 감소 | 감소율 |
+| 보존된 비승인 관측 | 변경 전 | 변경 후 | 절대 감소 | 감소율 |
 | --- | ---: | ---: | ---: | ---: |
 | 평균 | 43.76초 | 22.17초 | 21.60초 | 집계 평균 기준 49.35% |
 | p50 | 40.47초 | 21.72초 | 18.75초 | 46.32% |
 | p75 | 48.31초 | 27.19초 | 21.12초 | 43.71% |
 | p95 | 54.38초 | 28.47초 | 25.90초 | 47.64% |
 
-평균 쌍별 절감은 21.60초, bootstrap 95% 구간은 16.92–26.70초였다. 쌍별 감소율의 평균은 **49.00%, 95% 구간 40.42–56.72%**였다. 위 집계 감소율 (1-\bar t_\text{후}/\bar t_\text{전})과 쌍별 비율 평균은 다른 통계량이므로 구별한다. percentile은 선형 보간이며 기존 release benchmark의 nearest-rank 규칙을 바꾸지 않았다.
+raw가 계산한 평균 쌍별 차이는 21.60초(bootstrap 95% 구간 16.92–26.70초), 쌍별 상대 차이 평균은 49.00%(95% 구간 40.42–56.72%)다. 이는 입력을 재구성할 수 없는 **역사적 기술 통계**이며 개선율 주장, CI 예측, 비용 절감 또는 승인 수치로 사용하지 않는다. 집계 비율 (1-\bar t_\text{후}/\bar t_\text{전})과 쌍별 비율 평균도 서로 다른 통계량이다.
 
-삭제한 두 standalone 명령의 평균은 native 2.01초, compat 19.42초로, 합계 21.44초의 제거를 예상한다. 관측 절감 21.60초는 이 단순 작업량 모델과 일치한다. 14개 측정 sequence는 모두 성공했다. raw·설정·소스 해시·분석은 [local-compiler](../../apps/web/performance/ci-20261010/local-compiler/report.md)에 있다.
+삭제한 두 standalone 명령의 raw 평균 합계도 21.44초였고 14개 sequence가 성공했다. 다만 명령 성공과 선택 파일 해시는 완전한 측정 입력 보존을 대신하지 못한다. 상세 재현성 판정은 [local-compiler](../../apps/web/performance/ci-20261010/local-compiler/report.md)에 있다. 수정된 benchmark는 tracked·untracked `apps/web` 변경을 모두 거부하고, 정확한 `HEAD:apps/web` tree SHA를 기록하며, 측정 트리 내부에 결과를 쓰지 못하게 한다.
 
-최초 snapshot 복사는 내부 심볼릭 링크를 펼쳐 14개의 verify가 실패했다. 그 7쌍은 전부 제외하고 원시 기록과 당시 정확한 실행 소스를 보존했다. 심볼릭 링크를 보존하는 복사로 수정하고 사전 toolchain 검증 후 새 7쌍을 측정했다. 실패 표본을 성공한 부분만 추출해 재사용하지 않았다.
+첫 clean rerun은 소스의 top-level `node_modules` 심볼릭 링크가 앱 바깥을 가리킨 상태에서 실행되어 toolchain receipt 경로 검증이 실패했다. warmup 1개와 측정 2쌍에 기록된 6개 sequence는 모두 실패했고, 실행을 중단한 채 private raw SHA `94ba4ed6…`로 보존했다. 이 실패 표본의 성공한 하위 명령을 추출하거나 다음 실험에 재사용하지 않았다. 두 번째 rerun은 공유 의존성을 읽기 원본으로만 사용해 private copy-on-write snapshot에 물리적으로 복제했다.
 
 macOS arm64의 공유 호스트, 단일 소스 snapshot에서 얻은 비교다. CPU 부하·순서·캐시 상태의 영향을 완전히 제거하지 못했으며 미래 실행이나 Linux/Windows의 시간으로 일반화하지 않는다. 최대 RSS는 명령별 기술 통계만 보존했고 프로세스 트리 메모리 개선을 주장하지 않는다.
+
+기존 실행 전에는 absolute·relative·noise 승인 예산을 선언하지 않았다. 아래 기준은 2026-10-11 재현성 검토에서 과거 결과를 본 뒤 정한 **post hoc 미래 재측정 guardrail**이며, 기존 관측을 소급 승인하거나 G003 공식 승인을 만들지 않는다.
+
+- absolute budget: 평균 paired 감소의 bootstrap 95% 구간 하한이 2,000ms 이상
+- relative budget: 평균 paired 감소율의 bootstrap 95% 구간 하한이 5% 이상
+- noise budget: 같은 frozen tree의 별도 교차 A/A 7쌍에서 절대 상대차 p95가 5% 이하이고 평균 차이의 95% 구간이 0을 포함
+- integrity budget: 전 sequence 성공, 기존 parity 출력 계약 통과, clean exact Git tree SHA와 전체 측정 입력의 재구성 가능성
+
+두 번째 rerun은 커밋 `6098055f2d8d141625a216a99d6c8f99956de2a0`, `apps/web` tree `24e0a272dc0fab99351890337ef10fe28f3ae88c`, Node 24.21.0과 hash-pinned 의존성에서 전후 7쌍과 A/A 7쌍을 모두 완료했다.
+
+| clean prospective replay | 변경 전 | 변경 후 | 절대 차이 | 상대 차이 |
+| --- | ---: | ---: | ---: | ---: |
+| 평균 | 35.073초 | 18.688초 | 16.385초 감소 | 집계 평균 비율 46.72% 감소 |
+| p50 | 35.366초 | 18.394초 | 16.972초 감소 | 기술 통계 |
+| p75 | 37.434초 | 20.150초 | 17.284초 감소 | 기술 통계 |
+| p95 | 39.292초 | 21.636초 | 17.656초 감소 | 기술 통계 |
+
+평균 paired 절대 감소는 16.385초이고 bootstrap 95% 구간은 14.527–18.362초다. 각 pair의 상대 감소율을 먼저 계산한 평균은 46.61%(95% 구간 43.31–50.24%)다. 집계 평균 비율 `1 - 18.688/35.073 = 46.72%`와 pair별 비율 평균 46.61%는 서로 다른 추정량이다. CPU 평균은 63.92→36.45초, 명령별 최대 RSS p95는 1,962.91→1,856.37MiB였지만 둘 다 로컬 기술 통계다.
+
+A/A 절대 상대차 p95는 **28.28%**로 사전 5% 예산을 23.28%p 초과했다. A/A signed 평균차 bootstrap 95% 구간은 -0.884–4.667초로 0을 포함했으나, 두 noise 조건을 모두 만족해야 하므로 `noise-p95=False`, `admitted=False`다. 절대·상대 감소 조건과 무결성 조건이 통과했더라도 이 결과를 최적화 채택, GitHub runner 시간, 비용 또는 운영 효과의 근거로 사용하지 않는다. 승인된 로컬 성능 개선 수치는 계속 0개다.
+
+28개 measured parity 명령의 stdout SHA는 모두 `9e73c195…`로 동일했다. 사후 native·compat `--listFilesOnly`는 각각 logical input 3,129개를 반환했고 이름 SHA `ac6bc5dd…`, 비표준 라이브러리 내용 SHA `84d227f0…`가 측정 parity payload와 일치했다. 앱 입력 813개는 전부 frozen Git tree에 포함됐고, untracked/ignored 앱 입력은 0개였다. 의존성 입력 2,227개와 compiler별 표준 라이브러리 89개는 logical name·content hash manifest로 보존했다. 상세 수치와 비승인 판정은 [clean replay 보고서](../../apps/web/performance/ci-20261010/local-compiler-clean-20261011/report.md), 전체 입력은 [manifest](../../apps/web/performance/ci-20261010/local-compiler-clean-20261011/input-manifest.json)에 있다.
+
+private 원본 config/raw는 runtime evidence에 유지하고 공개본에서는 정확히 세 JSON pointer만 `<shared-node-modules-root>`로 정제했다. 원본→공개본 canonical equality, private/public SHA, 정제 필드와 report의 통계 해석 보강은 [sanitization receipt](../../apps/web/performance/ci-20261010/local-compiler-clean-20261011/sanitization-receipt.json)에 있다. raw 측정값·예산·소스·의존성 해시는 바꾸지 않았다.
 
 분류기의 실제 Git fixture로 일반 변경·rename/삭제·누락 이력·head 불일치·악성 SHA·잘못된 이벤트를 검증했다. 네 플랫폼의 YAML에서 parity 소유자, 증빙 upload/finalizer 조건, tree/report 결속, 기존 기능 검증을 확인한다. Windows에서도 테스트 실패가 후속 명령으로 덮이지 않도록 분류기 테스트와 실행을 별도 step으로 둔다.
 
 로컬 검증 환경은 macOS arm64, Node 24.21.0, Bun 1.4.0 및 동일 package-lock을 사용하는 의존성이다. TypeScript native 7.0.2/compat 6.0.2 parity는 diagnostics 0, logical inputs 3,129개로 통과했다. 워크플로 문법은 공식 릴리스·checksum을 확인한 actionlint 1.7.12로 검증했다. 로컬 검증은 Windows·GitHub 호스팅 시간의 증거가 아니다.
 
-원시 기준선을 다시 조회하지 않고 분석을 재현하려면 저장소 루트에서 실행한다.
+원시 CI 기준선을 다시 조회하지 않고 분석을 재현하려면 저장소 루트에서 실행한다.
 
 ```sh
 python3 .github/scripts/collect-ci-performance.py \
   --input-dir apps/web/performance/ci-20261010 \
   --output-dir /tmp/tzudong-ci-replay
+python3 apps/web/performance/ci-20261010/source-groups/analyze-source-groups.py \
+  --output-dir /tmp/tzudong-ci-source-groups-replay
 node --test .github/scripts/classify-ci-benchmark.test.mjs
 ```
 
-신규 관측은 `--input-dir`을 생략하고 별도 `--output-dir`을 지정한다. 기존 기준선을 덮어 비교 표본을 바꾸지 않는다. 최대 조회 실행 수는 10, 성공 기준선 최소 7, bootstrap 10,000회·고정 seed다. 파일별 해시와 분리된 artifact-map SHA를 확인한다.
+신규 관측은 `--input-dir`을 생략하고 별도 `--output-dir`을 지정한다. 기존 기준선을 덮어 비교 표본을 바꾸지 않는다. 최대 조회 실행 수는 10, 성공 기준선 최소 7, bootstrap 10,000회·고정 seed다. source-group 재생은 보존된 정확한 head→tree mapping의 hash·head 집합·개수·로컬 객체 교차검증을 통과해야 한다. historical Git object가 없는 checkout에서도 동일한 3개 group(1·6·2개 run)을 재생하며, mapping 변조·누락·추가·로컬 모순은 실패한다. 파일별 해시와 분리된 artifact-map SHA를 확인한다.
 
 호스팅 변경 후 표본이 충분하기 전에는 통계적으로 유의한 시간 감소·금액 절감·G003 공식 성능 승인을 주장하지 않는다. 기존 step 시간을 빼는 계산은 추가 checkout·분류·러너 노이즈·감사 직렬화 비용을 포함하지 않아 실제 전후 측정 대신 사용할 수 없다.

@@ -60,6 +60,7 @@ VALID_CONCLUSIONS = {
     "startup_failure",
     "missing",
 }
+TERMINAL_CONCLUSIONS = VALID_CONCLUSIONS - {"missing"}
 FAILURE_CONCLUSIONS = {
     "failure",
     "cancelled",
@@ -72,6 +73,10 @@ FAILURE_CONCLUSIONS = {
 
 class MonitorError(RuntimeError):
     """Raised when an input cannot be safely admitted."""
+
+
+class ChronologyError(MonitorError):
+    """Raised when run and job timestamps violate their required ordering."""
 
 
 def _load_collector() -> Any:
@@ -234,10 +239,18 @@ def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def require_object_list(value: Any, context: str) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        raise MonitorError(f"{context} must be a list")
+    if any(not isinstance(item, dict) for item in value):
+        raise MonitorError(f"{context} must contain only objects")
+    return value
+
+
 def extract_records(payload: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     metadata: dict[str, Any] = {}
     if isinstance(payload, list):
-        return [item for item in payload if isinstance(item, dict)], metadata
+        return require_object_list(payload, "run list"), metadata
     if not isinstance(payload, dict):
         raise MonitorError("input root must be an object or run list")
 
@@ -247,12 +260,11 @@ def extract_records(payload: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]
     elif workflow:
         metadata["workflow"] = workflow
 
-    if isinstance(payload.get("workflow_runs"), list):
+    if "workflow_runs" in payload:
+        workflow_runs = require_object_list(payload["workflow_runs"], "workflow_runs")
         jobs_by_run = payload.get("jobsByRunId") or payload.get("jobs_by_run_id") or {}
         records = []
-        for item in payload["workflow_runs"]:
-            if not isinstance(item, dict):
-                continue
+        for item in workflow_runs:
             record = dict(item)
             run_id = str(get_first(record, "id", "databaseId") or "")
             if not record.get("jobs") and isinstance(jobs_by_run, dict):
@@ -262,14 +274,17 @@ def extract_records(payload: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]
             records.append(record)
         return records, metadata
 
-    if isinstance(payload.get("observations"), list):
-        return [
-            item["run"]
-            for item in payload["observations"]
-            if isinstance(item, dict) and isinstance(item.get("run"), dict)
-        ], metadata
-    if isinstance(payload.get("runs"), list):
-        return [item for item in payload["runs"] if isinstance(item, dict)], metadata
+    if "observations" in payload:
+        observations = require_object_list(payload["observations"], "observations")
+        records = []
+        for item in observations:
+            run = item.get("run")
+            if not isinstance(run, dict):
+                raise MonitorError("observation run must be an object")
+            records.append(run)
+        return records, metadata
+    if "runs" in payload:
+        return require_object_list(payload["runs"], "runs"), metadata
     if get_first(payload, "id", "databaseId") is not None:
         return [payload], metadata
     raise MonitorError("input contains no recognizable runs")
@@ -305,15 +320,14 @@ def analyze_record(
     if execution_mode not in {"full_benchmark", "diagnostic", "unknown"}:
         execution_mode = "unknown"
     tombstone = bool(get_first(record, "tombstone"))
-    jobs_container = get_first(record, "jobs") or []
+    jobs_container = get_first(record, "jobs")
     jobs_total_count = get_first(record, "jobsTotalCount", "jobs_total_count")
     if isinstance(jobs_container, dict):
         jobs_total_count = get_first(jobs_container, "total_count", "totalCount")
-        jobs_raw = jobs_container.get("jobs") or []
+        jobs_raw = jobs_container.get("jobs")
     else:
         jobs_raw = jobs_container
-    if not isinstance(jobs_raw, list):
-        raise MonitorError("run jobs must be a list")
+    jobs_raw = require_object_list(jobs_raw, "run jobs")
     jobs_attempt = get_first(record, "jobsAttempt", "jobs_attempt")
     jobs_complete = bool(
         isinstance(jobs_total_count, int)
@@ -321,7 +335,7 @@ def analyze_record(
         and jobs_total_count == len(jobs_raw)
         and jobs_attempt == attempt
     )
-    jobs = [normalize_job(job) for job in jobs_raw if isinstance(job, dict)]
+    jobs = [normalize_job(job) for job in jobs_raw]
 
     malformed_timestamp = False
     incomplete_job_count = 0
@@ -338,9 +352,34 @@ def analyze_record(
         for job in jobs:
             if job["conclusion"] in FAILURE_CONCLUSIONS:
                 failed_job_count += 1
+            job_created_at = parse_timestamp(job["createdAt"])
+            job_started_at = parse_timestamp(job["startedAt"])
+            job_completed_at = parse_timestamp(job["completedAt"])
+            if created_at is not None:
+                for job_time in (job_created_at, job_started_at, job_completed_at):
+                    if job_time is not None and job_time < created_at:
+                        raise ChronologyError("job timestamp precedes run creation")
+            if (
+                job_created_at is not None
+                and job_started_at is not None
+                and job_started_at < job_created_at
+            ):
+                raise ChronologyError("job start precedes job creation")
+            if (
+                job_started_at is not None
+                and job_completed_at is not None
+                and job_completed_at < job_started_at
+            ):
+                raise ChronologyError("job completion precedes job start")
+            if (
+                job_created_at is not None
+                and job_completed_at is not None
+                and job_completed_at < job_created_at
+            ):
+                raise ChronologyError("job completion precedes job creation")
             job_duration = duration_seconds(job["startedAt"], job["completedAt"])
             queue_duration = duration_seconds(job["createdAt"], job["startedAt"])
-            completed_time = parse_timestamp(job["completedAt"])
+            completed_time = job_completed_at
             if job_duration is None or queue_duration is None or completed_time is None:
                 incomplete_job_count += 1
             else:
@@ -350,15 +389,58 @@ def analyze_record(
             for step in job["steps"]:
                 if step["conclusion"] in FAILURE_CONCLUSIONS:
                     failed_step_count += 1
-                step_duration = duration_seconds(step["startedAt"], step["completedAt"])
-                if step_duration is None:
-                    if not (
-                        step["status"] == "completed"
-                        and step["conclusion"] in {"skipped", "neutral"}
-                    ):
-                        incomplete_step_count += 1
-                else:
+                step_started_at = parse_timestamp(step["startedAt"])
+                step_completed_at = parse_timestamp(step["completedAt"])
+                if created_at is not None:
+                    for step_time in (step_started_at, step_completed_at):
+                        if step_time is not None and step_time < created_at:
+                            raise ChronologyError(
+                                "step timestamp precedes run creation"
+                            )
+                if job_started_at is not None:
+                    for step_time in (step_started_at, step_completed_at):
+                        if step_time is not None and step_time < job_started_at:
+                            raise ChronologyError("step timestamp precedes job start")
+                if job_completed_at is not None:
+                    for step_time in (step_started_at, step_completed_at):
+                        if step_time is not None and step_time > job_completed_at:
+                            raise ChronologyError(
+                                "step timestamp follows job completion"
+                            )
+                if (
+                    step_started_at is not None
+                    and step_completed_at is not None
+                    and step_completed_at < step_started_at
+                ):
+                    raise ChronologyError("step completion precedes step start")
+
+                step_is_skipped = step["conclusion"] == "skipped"
+                step_is_terminal = bool(
+                    step["status"] == "completed"
+                    and step["conclusion"] in TERMINAL_CONCLUSIONS
+                )
+                step_has_complete_timing = bool(
+                    step_started_at is not None and step_completed_at is not None
+                )
+                step_has_partial_timing = bool(
+                    (step_started_at is None) != (step_completed_at is None)
+                )
+                step_is_complete = bool(
+                    step_is_terminal
+                    and (
+                        (step_is_skipped and not step_has_partial_timing)
+                        or (not step_is_skipped and step_has_complete_timing)
+                    )
+                )
+                if not step_is_complete:
+                    incomplete_step_count += 1
+                elif not step_is_skipped:
+                    step_duration = (
+                        step_completed_at - step_started_at
+                    ).total_seconds()
                     stage_seconds[COLLECTOR.classify_step(step["name"])] += step_duration
+    except ChronologyError:
+        raise
     except MonitorError:
         malformed_timestamp = True
         created_at = None
@@ -384,6 +466,8 @@ def analyze_record(
         if timing_usable and created_at is not None
         else None
     )
+    if critical_path is not None and critical_path < 0:
+        raise ChronologyError("critical path cannot be negative")
     families = sorted({job["runnerFamily"] for job in jobs})
     cohort_metadata_verified = bool(
         workflow_metadata_verified
@@ -506,6 +590,10 @@ def bootstrap_mean_change(
     rng = COLLECTOR.SplitMix64(seed)
     absolute_changes: list[float] = []
     relative_changes: list[float] = []
+    # A zero cluster can produce zero-mean bootstrap draws even when the full
+    # cohort mean is positive, so relative inference is only defined when
+    # every non-negative timing baseline is strictly positive.
+    relative_defined = all(value != 0.0 for value in before)
     for _ in range(resamples):
         sampled_before = [before[rng.index(len(before))] for _ in before]
         sampled_after = [after[rng.index(len(after))] for _ in after]
@@ -513,16 +601,24 @@ def bootstrap_mean_change(
         after_mean = statistics.fmean(sampled_after)
         reduction = before_mean - after_mean
         absolute_changes.append(reduction)
-        relative_changes.append(100 * reduction / before_mean if before_mean else 0.0)
+        if relative_defined:
+            relative_changes.append(100 * reduction / before_mean)
     return {
         "absoluteReductionSeconds95Ci": [
             round(percentile(absolute_changes, 0.025), 6),
             round(percentile(absolute_changes, 0.975), 6),
         ],
-        "relativeReductionPercent95Ci": [
-            round(percentile(relative_changes, 0.025), 6),
-            round(percentile(relative_changes, 0.975), 6),
-        ],
+        "relativeReductionPercent95Ci": (
+            [
+                round(percentile(relative_changes, 0.025), 6),
+                round(percentile(relative_changes, 0.975), 6),
+            ]
+            if relative_defined
+            else None
+        ),
+        "relativeReductionStatus": (
+            "defined" if relative_defined else "undefined_zero_baseline"
+        ),
     }
 
 
@@ -534,6 +630,12 @@ def classify_signal(
 ) -> str:
     absolute_ci = interval["absoluteReductionSeconds95Ci"]
     relative_ci = interval["relativeReductionPercent95Ci"]
+    if relative_ci is None:
+        if absolute_ci[0] >= threshold["absoluteSeconds"]:
+            return "improvement_signal"
+        if absolute_ci[1] <= -threshold["absoluteSeconds"]:
+            return "regression_signal"
+        return "inconclusive"
     if (
         absolute_ci[0] >= threshold["absoluteSeconds"]
         and relative_ci[0] >= threshold["relativePercent"]
@@ -548,11 +650,31 @@ def classify_signal(
 
 
 def failure_rate(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    failures = sum(run["conclusion"] in FAILURE_CONCLUSIONS for run in runs)
+    terminal_runs = [
+        run
+        for run in runs
+        if run["status"] == "completed"
+        and run["conclusion"] in TERMINAL_CONCLUSIONS
+    ]
+    unfinished_attempts = sum(run["status"] != "completed" for run in runs)
+    incomplete_terminal_attempts = sum(
+        run["status"] == "completed"
+        and run["conclusion"] not in TERMINAL_CONCLUSIONS
+        for run in runs
+    )
+    failures = sum(
+        run["conclusion"] in FAILURE_CONCLUSIONS for run in terminal_runs
+    )
     return {
-        "n": len(runs),
+        "n": len(terminal_runs),
+        "terminalAttempts": len(terminal_runs),
+        "unfinishedAttempts": unfinished_attempts,
+        "incompleteTerminalAttempts": incomplete_terminal_attempts,
+        "totalAttempts": len(runs),
         "failures": failures,
-        "percent": round(100 * failures / len(runs), 6) if runs else None,
+        "percent": (
+            round(100 * failures / len(terminal_runs), 6) if terminal_runs else None
+        ),
     }
 
 
@@ -718,7 +840,9 @@ def build_analysis(
             not run["attemptJobSetComplete"] for run in observations
         ),
         "censoredRunCount": sum(
-            run["conclusion"] in FAILURE_CONCLUSIONS or run["status"] != "completed"
+            run["conclusion"] in FAILURE_CONCLUSIONS
+            or run["status"] != "completed"
+            or run["conclusion"] not in TERMINAL_CONCLUSIONS
             for run in observations
         ),
         "malformedTimestampRunCount": sum(run["malformedTimestamp"] for run in observations),
@@ -822,11 +946,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 key = f"{run_id}:{attempt}"
                 source_fingerprint = sha256_bytes(canonical_json(record))
                 if key in run_index:
+                    if run_index[key].get("phase") != phase:
+                        raise MonitorError("a run attempt cannot move between before and after")
                     if run_index[key].get("sourceFingerprint") == source_fingerprint:
                         duplicate_count += 1
                         continue
-                    if run_index[key].get("phase") != phase:
-                        raise MonitorError("a run attempt cannot move between before and after")
                     if run_index[key].get("terminalEvidenceComplete") is True:
                         raise MonitorError("completed run attempt changed after becoming immutable")
                 observation = analyze_record(

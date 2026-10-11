@@ -2,8 +2,11 @@
 import argparse
 import fcntl
 import importlib.util
+import io
+import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from unittest.mock import patch
 from pathlib import Path
 
@@ -65,6 +68,79 @@ class CiMonitorTickTests(unittest.TestCase):
         self.assertEqual(second["modelsInvokedByProgram"], 0)
         self.assertEqual(second["mode"], "offline_replay")
         self.assertEqual(second["apiRequestsThisTick"], 0)
+        self.assertEqual(second["referenceReadiness"]["status"], "collecting_reference")
+
+    def test_receipts_use_only_state_relative_opaque_paths(self):
+        result = TICK.tick(self.args)
+        self.assertTrue(result["receiptPath"].startswith("state://ticks/"))
+        receipt = TICK.resolve_state_receipt_ref(
+            self.args.state_dir, result["receiptPath"]
+        )
+        self.assertTrue(receipt.is_file())
+        serialized = json.dumps(result, sort_keys=True)
+        self.assertNotIn(str(self.root), serialized)
+        self.assertNotIn("/Users/", serialized)
+        for retained in (
+            self.args.state_dir / "last-tick.json",
+            self.args.state_dir / "ticks" / result["tickId"] / "tick.json",
+            TICK.resolve_state_receipt_ref(
+                self.args.state_dir,
+                result["referenceReadiness"]["readinessReceiptPath"],
+            ),
+        ):
+            contents = retained.read_text(encoding="utf-8")
+            self.assertNotIn(str(self.root), contents)
+            self.assertNotIn("/Users/", contents)
+
+    def test_ready_reference_notifies_once_without_activating_it(self):
+        self.export = FIXTURE.payload([
+            FIXTURE.make_run(100 + index, 40) for index in range(7)
+        ])
+        self.export["capturedAtUtc"] = "2026-10-11T12:00:00Z"
+        self.export["coverage"] = {
+            "alerts": [],
+            "incrementalWindowComplete": True,
+        }
+        TICK.MONITOR.atomic_write_json(self.input_path, self.export)
+        first = TICK.tick(self.args)
+        reference = first["referenceReadiness"]
+        self.assertEqual(reference["status"], "reference_candidate_ready")
+        self.assertTrue(reference["candidateBaselinePath"].startswith("state://"))
+        self.assertTrue(any(key.startswith("reference_ready:") for key in first["newAlertKeys"]))
+        self.assertTrue(first["shouldNotify"])
+
+        second = TICK.tick(self.args)
+        self.assertEqual(second["referenceReadiness"]["candidateBaselineSha256"], reference["candidateBaselineSha256"])
+        self.assertFalse(second["shouldNotify"])
+
+    def test_state_receipt_reader_rejects_escape_and_absolute_paths(self):
+        for reference in (
+            "state://../analysis.json",
+            "state:///tmp/analysis.json",
+            str(self.root / "analysis.json"),
+        ):
+            with self.assertRaises(TICK.TickError):
+                TICK.resolve_state_receipt_ref(self.args.state_dir, reference)
+
+    def test_reference_failure_is_reported_with_fixed_code_without_traceback(self):
+        arguments = [
+            "--state-dir", str(self.args.state_dir),
+            "--baseline", str(self.baseline_path),
+            "--baseline-sha256", self.args.baseline_sha256,
+            "--input", str(self.input_path),
+        ]
+        output = io.StringIO()
+        with patch.object(
+            TICK.REFERENCE,
+            "evaluate_reference",
+            side_effect=TICK.REFERENCE.ReferenceError("PRIVATE_DETAIL"),
+        ), redirect_stdout(output):
+            self.assertEqual(TICK.main(arguments), 2)
+        self.assertEqual(
+            json.loads(output.getvalue()),
+            {"status": "failed", "code": "MONITOR_TICK_FAILED", "remoteMutations": 0},
+        )
+        self.assertNotIn("PRIVATE_DETAIL", output.getvalue())
 
     def test_baseline_and_configuration_changes_fail_without_overwriting_checkpoint(self):
         TICK.tick(self.args)
@@ -81,6 +157,88 @@ class CiMonitorTickTests(unittest.TestCase):
         with self.assertRaisesRegex(TICK.TickError, "MONITOR_CONFIG_CHANGED"):
             TICK.tick(self.args)
         self.assertEqual(checkpoint.read_bytes(), previous)
+
+    def test_tick_uses_the_authenticated_baseline_snapshot_after_source_changes(self):
+        replacement = FIXTURE.payload([FIXTURE.make_run(99, 10)])
+        replacement["capturedAtUtc"] = self.baseline["capturedAtUtc"]
+        replacement_bytes = TICK.MONITOR.canonical_json(replacement)
+        original_read_bytes = Path.read_bytes
+        baseline_reads = 0
+
+        def mutate_after_read(path):
+            nonlocal baseline_reads
+            payload = original_read_bytes(path)
+            if path == self.baseline_path:
+                baseline_reads += 1
+                if baseline_reads == 1:
+                    path.write_bytes(replacement_bytes)
+            return payload
+
+        with patch.object(Path, "read_bytes", new=mutate_after_read):
+            result = TICK.tick(self.args)
+
+        self.assertEqual(baseline_reads, 1)
+        self.assertEqual(result["status"], "observed")
+        checkpoint = TICK.MONITOR.load_json(
+            self.args.state_dir / "analysis-state.json"
+        )
+        self.assertIn("1:1", checkpoint["runs"])
+        self.assertNotIn("99:1", checkpoint["runs"])
+        retained_baseline = TICK.MONITOR.load_json(
+            self.args.state_dir / "ticks" / result["tickId"] / "baseline.json"
+        )
+        self.assertEqual(retained_baseline["runs"][0]["id"], 1)
+        self.assertEqual(
+            TICK.MONITOR.load_json(self.baseline_path)["runs"][0]["id"], 99
+        )
+
+    def test_unfinished_or_incomplete_baseline_is_rejected_with_fixed_code(self):
+        for baseline_run in (
+            FIXTURE.make_run(1, 10, status="in_progress"),
+            FIXTURE.make_run(1, 10, incomplete_step=True),
+            FIXTURE.make_run(1, 10, conclusion="missing"),
+        ):
+            baseline = FIXTURE.payload([baseline_run])
+            baseline["capturedAtUtc"] = "2026-10-10T10:01:31Z"
+            TICK.MONITOR.atomic_write_json(self.baseline_path, baseline)
+            arguments = [
+                "--state-dir", str(self.args.state_dir),
+                "--baseline", str(self.baseline_path),
+                "--baseline-sha256", TICK.MONITOR.sha256_file(self.baseline_path),
+                "--input", str(self.input_path),
+            ]
+            output = io.StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(TICK.main(arguments), 2)
+            self.assertEqual(
+                json.loads(output.getvalue())["code"],
+                "BASELINE_TERMINAL_EVIDENCE_INCOMPLETE",
+            )
+            self.assertFalse((self.args.state_dir / "analysis-state.json").exists())
+
+    def test_terminal_failure_and_cancelled_baseline_attempts_are_valid(self):
+        terminal = [
+            FIXTURE.make_run(10, 10, conclusion="failure"),
+            FIXTURE.make_run(11, 10, conclusion="cancelled"),
+        ]
+        for record in terminal:
+            for job in record["jobs"]:
+                job["startedAt"] = None
+                job["completedAt"] = None
+                for step in job["steps"]:
+                    step["startedAt"] = None
+                    step["completedAt"] = None
+        baseline = FIXTURE.payload(terminal)
+        baseline["capturedAtUtc"] = "2026-10-10T10:12:00Z"
+        TICK.MONITOR.atomic_write_json(self.baseline_path, baseline)
+        self.args.baseline_sha256 = TICK.MONITOR.sha256_file(self.baseline_path)
+        result = TICK.tick(self.args)
+        self.assertEqual(result["status"], "observed")
+        analysis = TICK.MONITOR.load_json(
+            TICK.resolve_state_receipt_ref(self.args.state_dir, result["receiptPath"])
+        )["analysis"]
+        self.assertEqual(analysis["runConclusionCounts"]["failure"], 1)
+        self.assertEqual(analysis["runConclusionCounts"]["cancelled"], 1)
 
     def test_an_existing_tick_lock_blocks_duplicate_execution(self):
         self.args.state_dir.mkdir()
@@ -116,7 +274,11 @@ class CiMonitorTickTests(unittest.TestCase):
         TICK.MONITOR.atomic_write_json(self.input_path, self.export)
         observed = TICK.tick(self.args)
         self.assertIn("failure:2:1", observed["newAlertKeys"])
-        analysis = TICK.MONITOR.load_json(Path(observed["receiptPath"]))["analysis"]
+        analysis = TICK.MONITOR.load_json(
+            TICK.resolve_state_receipt_ref(
+                self.args.state_dir, observed["receiptPath"]
+            )
+        )["analysis"]
         self.assertEqual(analysis["timingUsableRunCount"], 1)  # frozen baseline only
         self.assertEqual(analysis["runConclusionCounts"]["stale"], 1)
 
