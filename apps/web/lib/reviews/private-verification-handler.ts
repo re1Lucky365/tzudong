@@ -1,4 +1,4 @@
-import { getOwnedReviewPhotoObjectPath } from '@/lib/review-photo-url';
+import { getOwnedReviewVerificationPreviewObjectPath } from '@/lib/review-photo-url';
 import { isMissingReviewVerificationObject } from './private-verification';
 
 export interface VerificationImageDependencies {
@@ -7,7 +7,7 @@ export interface VerificationImageDependencies {
     download(path: string): Promise<{ data: Blob | null; error: unknown }>;
 }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif']);
 const headers = { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
 const failure = (status: number) => Response.json({ code: 'REVIEW_IMAGE_UNAVAILABLE' }, { status, headers });
 
@@ -26,7 +26,7 @@ export async function readPrivateVerificationImage(
         if (row.error) return failure(503);
         if (!row.data) return failure(404);
         const ownership = { ownerId: row.data.user_id, reviewId, purpose: 'verification' as const };
-        const path = getOwnedReviewPhotoObjectPath(row.data.verification_photo, ownership);
+        const path = getOwnedReviewVerificationPreviewObjectPath(row.data.verification_photo, ownership);
         if (!path) return failure(404);
         const image = await deps.download(path);
         if (image.error) return failure(isMissingReviewVerificationObject(image.error) ? 404 : 503);

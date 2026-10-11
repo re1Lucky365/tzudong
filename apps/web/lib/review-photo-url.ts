@@ -15,6 +15,8 @@ const MAX_FILENAME_LENGTH = 240;
 // purpose-bound, but carry no review binding.
 const LEGACY_REVIEW_PHOTO_FILENAME_PATTERN =
     /^\d{10,16}_(food_\d{1,3}|verification)_[A-Za-z0-9][A-Za-z0-9._-]{0,200}\.(?:avif|jpe?g|png|webp)$/;
+const LEGACY_VERIFICATION_GIF_PREVIEW_PATTERN =
+    /^\d{10,16}_(verification)_[A-Za-z0-9][A-Za-z0-9._-]{0,200}\.gif$/i;
 
 export type ReviewPhotoPurpose = 'food' | 'verification';
 
@@ -123,6 +125,14 @@ export function getLegacyReviewPhotoObjectPath(
     value: string | null | undefined,
     ownership: ReviewPhotoOwnership | string | null | undefined,
 ): string | null {
+    return resolveLegacyReviewPhotoObjectPath(value, ownership, LEGACY_REVIEW_PHOTO_FILENAME_PATTERN);
+}
+
+function resolveLegacyReviewPhotoObjectPath(
+    value: string | null | undefined,
+    ownership: ReviewPhotoOwnership | string | null | undefined,
+    filenamePattern: RegExp,
+): string | null {
     if (
         typeof value !== 'string' ||
         !isSafeObjectKey(value) ||
@@ -135,7 +145,7 @@ export function getLegacyReviewPhotoObjectPath(
     if (segments.length !== 2) return null;
 
     const [ownerId, filename] = segments;
-    const match = LEGACY_REVIEW_PHOTO_FILENAME_PATTERN.exec(filename);
+    const match = filenamePattern.exec(filename);
     if (!match || ownerId !== ownership.ownerId || !isCanonicalIdentifier(ownerId)) {
         return null;
     }
@@ -248,6 +258,7 @@ function extractSameOriginPublicReviewPhotoObjectPath(
     value: string | null | undefined,
     ownership: ReviewPhotoOwnership | string | null | undefined,
     configuredOrigin: string | null,
+    legacyResolver = getLegacyReviewPhotoObjectPath,
 ): string | null {
     if (typeof value !== 'string' || !configuredOrigin) return null;
 
@@ -280,7 +291,7 @@ function extractSameOriginPublicReviewPhotoObjectPath(
 
         const objectPath = segments.join('/');
         return getCanonicalReviewPhotoObjectPath(objectPath, ownership)
-            ?? getLegacyReviewPhotoObjectPath(objectPath, ownership);
+            ?? legacyResolver(objectPath, ownership);
     } catch {
         return null;
     }
@@ -294,6 +305,26 @@ export function getOwnedReviewPhotoObjectPath(
     return getCanonicalReviewPhotoObjectPath(value, ownership)
         ?? getLegacyReviewPhotoObjectPath(value, ownership)
         ?? extractSameOriginPublicReviewPhotoObjectPath(value, ownership, configuredOrigin);
+}
+
+function getLegacyVerificationGifPreviewPath(
+    value: string | null | undefined,
+    ownership: ReviewPhotoOwnership | string | null | undefined,
+) {
+    return resolveLegacyReviewPhotoObjectPath(value, ownership, LEGACY_VERIFICATION_GIF_PREVIEW_PATTERN);
+}
+
+/** Historical GIF receipts are admitted only for verification display. Upload,
+ * mutation and compensation path validation keeps its existing format rules. */
+export function getOwnedReviewVerificationPreviewObjectPath(
+    value: string | null | undefined,
+    ownership: ReviewPhotoOwnership | string | null | undefined,
+    configuredOrigin: string | null = resolveConfiguredSupabaseOrigin(),
+): string | null {
+    if (!isCanonicalReviewPhotoOwnership(ownership) || ownership.purpose !== 'verification') return null;
+    return getOwnedReviewPhotoObjectPath(value, ownership, configuredOrigin)
+        ?? getLegacyVerificationGifPreviewPath(value, ownership)
+        ?? extractSameOriginPublicReviewPhotoObjectPath(value, ownership, configuredOrigin, getLegacyVerificationGifPreviewPath);
 }
 
 /**
@@ -323,7 +354,9 @@ export function resolveReviewPhotoUrl(
     cacheBuster?: string | null,
 ): string | null {
     const configuredOrigin = resolveConfiguredSupabaseOrigin();
-    const objectPath = getOwnedReviewPhotoObjectPath(value, ownership, configuredOrigin);
+    const objectPath = typeof ownership === 'object' && ownership?.purpose === 'verification'
+        ? getOwnedReviewVerificationPreviewObjectPath(value, ownership, configuredOrigin)
+        : getOwnedReviewPhotoObjectPath(value, ownership, configuredOrigin);
     if (!objectPath || !configuredOrigin) return null;
     // Verification images are served only through the authenticated admin
     // route. Never construct a public URL or embed a signed bearer URL.
