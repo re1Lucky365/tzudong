@@ -665,6 +665,8 @@ describe('OCR extract route privacy and normalization contract', () => {
     const conditionalUpdateIndex = replacementSource.indexOf(".eq('verification_photo', oldStoredValue)");
 
     expect(processRouteSource).toContain('canonicalStorageImage.bytes.byteLength < downloadedImage.bytes.byteLength');
+    expect(processRouteSource).toContain('receiptDownload.bucket === LEGACY_REVIEW_VERIFICATION_BUCKET');
+    expect(replacementSource.indexOf('uploadStagedAdminVerificationImage(')).toBeLessThan(uploadIndex);
     expect(processRouteSource).toContain('assertSafeReceiptObjectPath(receiptObjectPath)');
     expect(processRouteSource).not.toContain('getPublicUrl');
     expect(processRouteSource).not.toContain('publicUrl');
@@ -674,15 +676,16 @@ describe('OCR extract route privacy and normalization contract', () => {
     expect(replacementSource).not.toContain('removeOriginalReceiptObject');
     expect(replacementSource).toContain('durable retirement fence');
     for (const failureBoundary of [
-      'uploadError',
+      'if (!accepted)',
       'uploadedImage.bytes.equals(canonicalImage)',
       'updateError',
       'currentReadbackError',
-      'removeReplacementObject(storageAdmin, newObjectPath)',
+      'drainAdminVerificationCleanup(cleanup, reviewId, oldObjectPath.split',
       'replacementStateIndeterminate',
       'canDiscardReceiptReplacement(',
     ]) {
       expect(replacementSource).toContain(failureBoundary);
     }
+    expect(replacementSource).not.toContain('storage.remove(');
   });
 });

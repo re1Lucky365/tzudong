@@ -1173,7 +1173,7 @@ BEGIN
     ('public.review_media_upload_allowed(text,text)','298c6a127f3a44a193b78be8c1f2577ab58aa34c772b66ccd53f774d807cc90c',true,'v','plpgsql','boolean',ARRAY['p_bucket','p_path']::text[]),
     ('review_media_private.canonical(text,uuid,uuid,text)','87d8397c36cf4c7b986f75cbc2788979333a76be2cc26dc5522cd362f62414a9',false,'i','sql','boolean',ARRAY['p_path','p_owner','p_review','p_purpose']::text[]),
     ('review_media_private.enqueue_removed()','cbf6a87e453e8c2e14d67acd73a92e399fbba4b4f24ac27966806e13ef1fd905',true,'v','plpgsql','trigger',ARRAY[]::text[]),
-    ('review_media_private.guard_references()','846030547ffd76e17596755d7eee4279dcb9b563361435260826071d2f250d59',true,'v','plpgsql','trigger',ARRAY[]::text[]),
+    ('review_media_private.guard_references()','94113c8ae1231e8eae5a698f35a1370a38367e42c79cc87ac62db76c32e735b1',true,'v','plpgsql','trigger',ARRAY[]::text[]),
     ('review_media_private.lock_changes()','381d89aa6bbf5a59c2ee0fef2a7392ef705147252b324527201b8b6f74376250',true,'v','plpgsql','trigger',ARRAY[]::text[]),
     ('review_media_private.owned_legacy(text,uuid,text)','a2d55f09f03fcaeedd77461198511673da7342a6a4873d37227f9cf612090980',false,'i','sql','boolean',ARRAY['p_path','p_owner','p_purpose']::text[]),
     ('review_media_private.reference_key(text)','a8910cb09bfd959951045e8b0b8233b1e2a8bdc45073abeebdfc26b552b1dae7',false,'i','plpgsql','text',ARRAY['p_value']::text[]),
@@ -1328,7 +1328,7 @@ BEGIN
       ('review_photos_food_update','w',false,'authenticated','((bucket_id <> ''review-photos''::text) OR ((split_part(name, ''/''::text, 4) = ''food''::text) AND ((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS uid))))','((bucket_id <> ''review-photos''::text) OR ((split_part(name, ''/''::text, 4) = ''food''::text) AND ((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS uid))))'),
       ('review_verifications_owner_delete','d',true,'authenticated','((bucket_id = ''review-verifications''::text) AND ((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS uid)))',NULL::text),
       ('review_verifications_owner_insert','a',true,'authenticated',NULL::text,'((bucket_id = ''review-verifications''::text) AND ((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS uid)) AND (split_part(name, ''/''::text, 4) = ''verification''::text))'),
-      ('review_verifications_owner_read','r',true,'authenticated','((bucket_id = ''review-verifications''::text) AND (((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS uid)) OR has_role(( SELECT auth.uid() AS uid), ''admin''::app_role)))',NULL::text),
+      ('review_verifications_owner_read','r',true,'authenticated','((bucket_id = ''review-verifications''::text) AND ((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS uid)))',NULL::text),
       ('review_verifications_safe_delete','d',false,'authenticated','((bucket_id <> ''review-verifications''::text) OR review_media_delete_allowed(name))',NULL::text)
     ), actual AS (
       SELECT p.polname::text,p.polcmd::text,p.polpermissive,p.polroles,
@@ -1399,7 +1399,7 @@ BEGIN
     AND NOT EXISTS(SELECT 1 FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
       WHERE a.is_grantable OR a.privilege_type<>'EXECUTE'
         OR a.grantee NOT IN ('privacy_workflow_owner'::regrole,'service_role'::regrole))
-    AND encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')='f4d19bc5b41fe7808635240cae80f796d12f6cad8b13802577a88afbb1f024a7'
+    AND encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')='468c12ee6c3463876cbccb394fcba8f870459a1f6cf3d945d97307f8551f094b'
     AND NOT has_function_privilege('anon',p.oid,'EXECUTE') AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
     AND has_function_privilege('service_role',p.oid,'EXECUTE'))
     OR (SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid='public.admin_record_action(uuid,text,uuid,text,uuid[],jsonb,text)'::regprocedure)<>'50b5900a7b6ca43062d6373dbba75378d714312c9ef02c6939997389f6833ba0'
@@ -2117,7 +2117,6 @@ SELECT json_build_array('seed_realtime', publication_table.pubname, publication_
    AND publication_table.schemaname = 'public'
  ORDER BY publication_table.pubname, publication_table.schemaname, publication_table.tablename;
 
-COMMIT;
 
 -- ADMIN_REVISION_READBACK_BEGIN
 DO $readback$
@@ -2143,3 +2142,71 @@ BEGIN
     THEN RAISE EXCEPTION 'ADMIN_PREVIEW_READBACK_DRIFT'; END IF;
 END $readback$;
 -- ADMIN_PREVIEW_EXPIRY_READBACK_END
+
+-- ADMIN_STAGING_READBACK_BEGIN
+DO $readback$
+BEGIN
+  IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid='public.admin_review_verification_cleanup(uuid,text,text[])'::regprocedure
+    AND proowner='privacy_workflow_owner'::regrole AND prosecdef AND proconfig=ARRAY['search_path=""']::text[]
+    AND encode(sha256(convert_to(prosrc,'UTF8')),'hex')='468c12ee6c3463876cbccb394fcba8f870459a1f6cf3d945d97307f8551f094b')
+    OR has_function_privilege('anon','public.admin_review_verification_cleanup(uuid,text,text[])','EXECUTE')
+    OR has_function_privilege('authenticated','public.admin_review_verification_cleanup(uuid,text,text[])','EXECUTE')
+    OR NOT has_function_privilege('service_role','public.admin_review_verification_cleanup(uuid,text,text[])','EXECUTE')
+    THEN RAISE EXCEPTION 'ADMIN_STAGING_READBACK_DRIFT'; END IF;
+END $readback$;
+-- ADMIN_STAGING_READBACK_END
+
+-- STORAGE_RETIREMENT_FENCE_READBACK_BEGIN
+DO $readback$
+BEGIN
+  IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid='review_media_private.guard_references()'::regprocedure
+    AND proowner='privacy_workflow_owner'::regrole AND prosecdef AND proconfig=ARRAY['search_path=""']::text[]
+    AND encode(sha256(convert_to(prosrc,'UTF8')),'hex')='94113c8ae1231e8eae5a698f35a1370a38367e42c79cc87ac62db76c32e735b1')
+    OR has_function_privilege('anon','review_media_private.guard_references()','EXECUTE')
+    OR has_function_privilege('authenticated','review_media_private.guard_references()','EXECUTE')
+    OR has_function_privilege('service_role','review_media_private.guard_references()','EXECUTE')
+    OR has_function_privilege('postgres','review_media_private.guard_references()','EXECUTE')
+    OR NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid='review_media_private.lock_changes()'::regprocedure
+      AND proowner='privacy_workflow_owner'::regrole AND prosecdef AND proconfig=ARRAY['search_path=""']::text[]
+      AND encode(sha256(convert_to(prosrc,'UTF8')),'hex')='381d89aa6bbf5a59c2ee0fef2a7392ef705147252b324527201b8b6f74376250')
+    OR EXISTS(SELECT 1 FROM unnest(ARRAY['anon','authenticated','service_role','postgres']) r
+      WHERE has_function_privilege(r,'review_media_private.lock_changes()','EXECUTE'))
+    OR NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='storage.objects'::regclass AND tgname='a00_review_media_storage_serialize'
+      AND tgenabled='O' AND NOT tgisinternal AND tgfoid='review_media_private.lock_changes()'::regprocedure AND tgtype=22 AND pg_get_triggerdef(oid)='CREATE TRIGGER a00_review_media_storage_serialize BEFORE INSERT OR UPDATE OF bucket_id, name ON storage.objects FOR EACH STATEMENT EXECUTE FUNCTION review_media_private.lock_changes()')
+    OR NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='storage.objects'::regclass AND tgname='a00_review_media_storage_guard'
+      AND tgenabled='O' AND NOT tgisinternal AND tgfoid='review_media_private.guard_references()'::regprocedure AND tgtype=23 AND pg_get_triggerdef(oid)='CREATE TRIGGER a00_review_media_storage_guard BEFORE INSERT OR UPDATE OF bucket_id, name ON storage.objects FOR EACH ROW EXECUTE FUNCTION review_media_private.guard_references()')
+    THEN RAISE EXCEPTION 'STORAGE_RETIREMENT_FENCE_READBACK_DRIFT'; END IF;
+END $readback$;
+-- STORAGE_RETIREMENT_FENCE_READBACK_END
+
+-- STORAGE_CALLER_BOUND_ADMIN_READBACK_BEGIN
+DO $readback$
+DECLARE item record; policy_row record; expression text;
+BEGIN
+  IF EXISTS(SELECT 1 FROM pg_depend d JOIN pg_policy p ON d.classid='pg_policy'::regclass AND d.objid=p.oid
+    WHERE p.polrelid='storage.objects'::regclass AND d.refclassid='pg_proc'::regclass
+      AND d.refobjid IN ('public.is_user_admin(uuid)'::regprocedure,'public.has_role(uuid,public.app_role)'::regprocedure))
+    OR has_function_privilege('anon','public.is_user_admin(uuid)','EXECUTE')
+    OR has_function_privilege('authenticated','public.is_user_admin(uuid)','EXECUTE')
+    OR has_function_privilege('service_role','public.is_user_admin(uuid)','EXECUTE')
+    THEN RAISE EXCEPTION 'STORAGE_ADMIN_POLICY_READBACK_DRIFT'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM pg_policy WHERE polrelid='storage.objects'::regclass AND polname='review_verifications_owner_read'
+    AND polcmd='r' AND polpermissive AND polroles=ARRAY['authenticated'::regrole::oid] AND polwithcheck IS NULL
+    AND replace(pg_get_expr(polqual,polrelid),'auth.uid()','uid()')='((bucket_id = ''review-verifications''::text) AND ((storage.foldername(name))[1] = ( SELECT (uid())::text AS uid)))')
+    THEN RAISE EXCEPTION 'STORAGE_OWNER_READ_READBACK_DRIFT'; END IF;
+  FOR item IN SELECT * FROM (VALUES ('Admin upload access','a'::"char"),('Admin delete access','d'::"char")) AS expected(name,cmd) LOOP
+    SELECT p.*,pg_get_expr(polqual,polrelid) AS using_expr,pg_get_expr(polwithcheck,polrelid) AS check_expr INTO policy_row
+      FROM pg_policy p WHERE polrelid='storage.objects'::regclass AND polname=item.name;
+    IF NOT FOUND THEN CONTINUE; END IF;
+    expression:=coalesce(CASE WHEN item.cmd='a' THEN policy_row.check_expr ELSE policy_row.using_expr END,'');
+    IF NOT policy_row.polpermissive OR policy_row.polcmd<>item.cmd
+      OR policy_row.polroles<>ARRAY['authenticated'::regrole::oid]
+      OR (CASE WHEN item.cmd='a' THEN policy_row.using_expr IS NOT NULL ELSE policy_row.check_expr IS NOT NULL END)
+      OR encode(sha256(convert_to(regexp_replace(replace(expression,'auth.uid()','uid()'),'[[:space:]]+',' ','g'),'UTF8')),'hex')<>'049d579041975ddfaa0c560f56e4c57ee06099b2290f742636ba5bd9345463df'
+      OR (SELECT count(*) FROM pg_depend WHERE classid='pg_policy'::regclass AND objid=policy_row.oid
+        AND refclassid='pg_proc'::regclass AND refobjid='auth.uid()'::regprocedure)<>1
+      THEN RAISE EXCEPTION 'STORAGE_ADMIN_POLICY_READBACK_DRIFT'; END IF;
+  END LOOP;
+END $readback$;
+-- STORAGE_CALLER_BOUND_ADMIN_READBACK_END
+COMMIT;

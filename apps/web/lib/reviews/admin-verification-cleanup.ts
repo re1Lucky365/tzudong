@@ -5,10 +5,36 @@ import { getCanonicalReviewPhotoObjectPath, getLegacyReviewPhotoObjectPath } fro
 type Reply = { data: unknown; error: unknown };
 type Bucket = 'review-photos' | 'review-verifications';
 export type AdminVerificationCleanupDependencies = {
-    rpc: (args: { p_review_id: string; p_phase: 'prepare' | 'finish'; p_paths?: string[] }) => Promise<Reply>;
+    rpc: (args: { p_review_id: string; p_phase: 'prepare' | 'finish' | 'stage'; p_paths?: string[] }) => Promise<Reply>;
     remove: (paths: string[], bucket: Bucket) => Promise<unknown>;
     publicAbsent: (path: string) => Promise<boolean>;
 };
+
+/** An unknown upload response must still have an owner-bound durable key.
+ * A lost stage ACK fails before Storage; a later drain can retire the key. */
+export async function stageAdminVerificationUpload(
+    deps: AdminVerificationCleanupDependencies, reviewId: string, ownerId: string, path: string,
+): Promise<boolean> {
+    if (!getCanonicalReviewPhotoObjectPath(path, { ownerId, reviewId, purpose: 'verification' })) return false;
+    try {
+        const result = await deps.rpc({ p_review_id: reviewId, p_phase: 'stage', p_paths: [path] });
+        if (result.error || !result.data || typeof result.data !== 'object') return false;
+        const receipt = result.data as Record<string, unknown>;
+        return Object.keys(receipt).join(',') === 'status' && receipt.status === 'STAGED';
+    } catch { return false; }
+}
+
+export async function uploadStagedAdminVerificationImage(
+    deps: AdminVerificationCleanupDependencies, reviewId: string, ownerId: string, path: string,
+    upload: () => Promise<Reply>,
+): Promise<boolean> {
+    if (!await stageAdminVerificationUpload(deps, reviewId, ownerId, path)) return false;
+    try {
+        const result = await upload();
+        return !result.error && Boolean(result.data && typeof result.data === 'object'
+            && 'path' in result.data && result.data.path === path);
+    } catch { return false; } // The queue retains the key even when Storage committed before losing its reply.
+}
 
 /** Only the DB queue may supply retired keys. Unknown remove replies are
  * reconciled through exact public-object denial and both-bucket DB readback.

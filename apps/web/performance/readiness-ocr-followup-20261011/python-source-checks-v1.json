@@ -1,0 +1,37 @@
+{
+  "check": "related-python-source-contracts",
+  "runtime": "Python3.12.14",
+  "pass": 112,
+  "fail": 0,
+  "skip": 0,
+  "rawStdoutPersisted": false,
+  "observationSource": "current tool transcript (session33864)",
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "backend.supabase.tests.test_review_media_catalog_integration",
+    "backend.supabase.tests.test_admin_verification_durable_staging",
+    "backend.supabase.tests.test_review_storage_retirement_contract",
+    "backend.supabase.tests.test_local_seed_receipt_contract",
+    "backend.supabase.tests.test_local_function_runtime_contract",
+    "backend.supabase.tests.test_local_publication_verifier"
+  ],
+  "sourceSha256": {
+    ".github/scripts/build-nightly-local-publication.py": "9035afb239b4e14c1d0c2dbac44c4dfc921cfd30fc2ccc7000b08a346f69aab3",
+    ".github/scripts/verify-nightly-local-publication.py": "55cfd034e86040ea9feb22b0b3fe5d2910fd9d324c2732a72b7ac688710501d0",
+    "apps/web/app/api/admin/ocr-receipts/process/route.ts": "08030bce99103092193de0ec6f2c01a72b177abc9fec2c5a7f5cbba13bddab63",
+    "apps/web/lib/reviews/admin-verification-cleanup.ts": "2521f0c56c1cfed8d88b55ee38220f46a7354057b7729a3a868bbd2d8413a67e",
+    "apps/web/scripts/run-nightly-regression.mjs": "9fe1252fe401a63679603b274327a57e8719c221fc713e63b48b1ac0eff1adc0",
+    "apps/web/tests-unit/admin-verification-cleanup.test.ts": "55ada9929f1ff2c305e3567006d0583ce9bd9d806bacc1c194cb1450c4312c16",
+    "apps/web/tests-unit/nightly-regression-workflow.test.ts": "927efa94500182913584f7f62ac51583665b06d5e3349d720e9cb3434603a6c5",
+    "apps/web/tests-unit/zz-ocr-route-contract.test.ts": "3f026413d7d8a1d5db34f30920b9739425b7a815a59c6d3550a2b73be81836b2",
+    "backend/supabase/scripts/local-migrate.py": "30640bdb1c5c9bffb42a8c148ad89b7f3443bfa6df900804bd80896b29655977",
+    "backend/supabase/scripts/local_catalog_readback.sql": "4a81bcd5721027f91f6ec22cf6ac1e6f7c36e89238e8cf6cc2ddad9ad3bdc2e4",
+    "backend/supabase/tests/test_local_function_runtime_contract.py": "f59385812f6c46dd91bdcb4308a3b8e60bb8107a735c92980cc4722a16a0e71a",
+    "backend/supabase/tests/test_local_publication_verifier.py": "2db4b5772a17c46d2496c23bda951592c4cd0a65bf618f8e431faa1fa38791aa",
+    "backend/supabase/tests/test_local_seed_receipt_contract.py": "890cb3cd0acbd1b44b0877113c8532ae845a99a7e0848a80d58009259c8d4a85",
+    "backend/supabase/tests/test_review_media_catalog_integration.py": "cb8761da8cd0933508b27dffdead1098e1fb4f03ce08da08b25d7ed47197da0d"
+  },
+  "operatingDDL": 0
+}

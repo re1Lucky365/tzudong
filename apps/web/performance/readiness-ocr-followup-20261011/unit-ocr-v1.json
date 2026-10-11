@@ -1,0 +1,35 @@
+{
+  "check": "unit",
+  "exit": 0,
+  "node": "v24.21.0",
+  "command": [
+    "/Users/twoimo/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+    "scripts/run-unit-tests.mjs"
+  ],
+  "sourceHead": "592b1415b79b4d5f595498dfa23d85fb730099fb",
+  "dirtyTrackedInputs": {
+    ".github/scripts/build-nightly-local-publication.py": "e4497037685764dae6b6763662dd45cb9d0804cba69d707f5b285241125a879a",
+    ".github/scripts/verify-nightly-local-publication.py": "9bc2cc25879f5a41396c335571d54011caff53193cf318f6888b5f1e18c8a26b",
+    "apps/web/app/api/admin/ocr-receipts/process/route.ts": "08030bce99103092193de0ec6f2c01a72b177abc9fec2c5a7f5cbba13bddab63",
+    "apps/web/lib/reviews/admin-verification-cleanup.ts": "2521f0c56c1cfed8d88b55ee38220f46a7354057b7729a3a868bbd2d8413a67e",
+    "apps/web/scripts/run-nightly-regression.mjs": "dad23b2078817c9f79965c28ad320422979815a8babc8deb65e4fc5d529e1b21",
+    "apps/web/tests-unit/admin-verification-cleanup.test.ts": "55ada9929f1ff2c305e3567006d0583ce9bd9d806bacc1c194cb1450c4312c16",
+    "apps/web/tests-unit/nightly-regression-workflow.test.ts": "d0aa67eb03563429ae2c459b80eab41a21ce964f4ae6831544f769ce640fdbb4",
+    "apps/web/tests-unit/zz-ocr-route-contract.test.ts": "3f026413d7d8a1d5db34f30920b9739425b7a815a59c6d3550a2b73be81836b2",
+    "backend/supabase/scripts/local-migrate.py": "5c03acf8bccd43bd99453ca11bdf8712b0d36d685014b15022256ed29c508e62",
+    "backend/supabase/scripts/local_catalog_readback.sql": "5d1d5ec99282ebee7a471f11f08602da06e6c51b528a1579d5005c09cd2153f1",
+    "backend/supabase/tests/test_local_function_runtime_contract.py": "8647d6fe9cf45e438e754b618265b11dacc8ba3923656b3632d3c5acb217c874",
+    "backend/supabase/tests/test_local_publication_verifier.py": "6778b16bfe43fec86f66aab760d5571b59dcb30e5accde828095322ab95e6af7",
+    "backend/supabase/tests/test_local_seed_receipt_contract.py": "8109206c673280d453c8ab163b53205b16ba104642546c7da56331fd1e73fd7a",
+    "backend/supabase/tests/test_review_media_catalog_integration.py": "3a80e614005b2f9fec4199bc45fa70087d8d76ac5912a15432f64a1c93cbc96b"
+  },
+  "elapsedSeconds": 119.5185901671648,
+  "logSha256": "ff61016b22bca68e1f58be002c1e2b14e76ad7f2924ddf1e625df038772ff7c7",
+  "unitTotals": {
+    "pass": 3422,
+    "skip": 11,
+    "fail": 0
+  },
+  "localOnly": true,
+  "operatingWrites": 0
+}

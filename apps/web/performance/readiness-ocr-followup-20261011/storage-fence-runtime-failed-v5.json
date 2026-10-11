@@ -1,0 +1,6 @@
+{
+  "status": "failed",
+  "fixedFailure": "STORAGE_OWNER_READ_SOURCE_DRIFT",
+  "fixtureReplayedAlreadyAppliedOneShotMigration": true,
+  "scriptSha256": "25c92796e08c25b62b78e9e38141f2d7c985110a3a3c872e82044a6f9bc1ef2d"
+}

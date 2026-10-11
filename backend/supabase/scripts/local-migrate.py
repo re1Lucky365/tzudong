@@ -116,7 +116,7 @@ MIGRATION_ORDER_OVERRIDES = {
 }
 SEED_SOURCE = Path("backend/supabase/scripts/local-seed.sql")
 READBACK_SOURCE = Path("backend/supabase/scripts/local_catalog_readback.sql")
-EXPECTED_LEDGER_UNITS = 136
+EXPECTED_LEDGER_UNITS = 139
 EXPECTED_SERVICES = (
     "analytics", "auth", "db", "functions", "imgproxy", "kong", "mail",
     "meta", "realtime", "rest", "storage", "studio", "supavisor", "vector",
@@ -292,7 +292,7 @@ REVIEW_MEDIA_FUNCTIONS = [['public.admin_review_verification_cleanup(uuid,text,t
   True,
   'v',
   ['search_path=""'],
-  'f4d19bc5b41fe7808635240cae80f796d12f6cad8b13802577a88afbb1f024a7',
+  '468c12ee6c3463876cbccb394fcba8f870459a1f6cf3d945d97307f8551f094b',
   False,
   False,
   True,
@@ -402,7 +402,7 @@ REVIEW_MEDIA_FUNCTIONS = [['public.admin_review_verification_cleanup(uuid,text,t
   True,
   'v',
   ['search_path=""'],
-  '846030547ffd76e17596755d7eee4279dcb9b563361435260826071d2f250d59',
+  '94113c8ae1231e8eae5a698f35a1370a38367e42c79cc87ac62db76c32e735b1',
   False,
   False,
   False,
@@ -502,8 +502,8 @@ REVIEW_MEDIA_STORAGE_POLICIES = {'review_media_safe_delete': ('DELETE',
  'review_verifications_owner_read': ('SELECT',
                                      ['authenticated'],
                                      "((bucket_id = 'review-verifications'::text) AND "
-                                     '(((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS '
-                                     "uid)) OR has_role(( SELECT auth.uid() AS uid), 'admin'::app_role)))",
+                                     '((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS '
+                                     "uid)))",
                                      None,
                                      True),
  'review_verifications_safe_delete': ('DELETE',

@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "files": 50,
+  "sourceFiles": 21,
+  "mapSha256": "16fd96d4ef40660789af9b04d3094d53c148127c8ac4a4a8d7744c4793347ac6",
+  "historicalPackets": [
+    {
+      "package": "readiness-media-followup-20261011",
+      "files": 134,
+      "mapSha256": "024668f6f6e202743df4212f56d0ede60d6cb77b3a02ffc2503e7b3e3ec32d3a"
+    },
+    {
+      "package": "tzuyang-review-minimal-20261011",
+      "files": 6,
+      "mapSha256": "694f9b2aca99ec0029f53f19bd29a995c17a94fa062534d5ad44096f93c36698"
+    }
+  ],
+  "historicalSourceCommit": "592b1415b79b4d5f595498dfa23d85fb730099fb",
+  "historicalSourceFiles": 101,
+  "sourceBindingsVerified": true,
+  "operatingDDL": 0,
+  "performanceAdmission": 0,
+  "physicalFieldAdmission": 0,
+  "validatorPath": "backend/bin/verify_readiness_ocr_20261011_v3.py",
+  "validatorSha256": "43a533545111889796d67fd907847da3328e4077c15f424258fafc21062311d8",
+  "priorValidatorFailures": [
+    {
+      "path": "backend/bin/verify_readiness_ocr_20261011.py",
+      "sha256": "a63a10de68373c1123d4d4870a3715722f455495030fa7016f8370dae1cc865e",
+      "fixedCode": "MY_SOURCE_PATH_DOES_NOT_EXIST"
+    },
+    {
+      "path": "backend/bin/verify_readiness_ocr_20261011_v2.py",
+      "sha256": "f38e9b42207a9dcc77d81b22e351f010148663303fe305756081e5b6775a31e2",
+      "fixedCode": "MY_ENTRY_PAGE_IS_NOT_LAYOUT_CONTENT"
+    }
+  ],
+  "historicalPacketPreserved": true,
+  "canonicalCommand": "python3 backend/bin/verify_readiness_ocr_20261011_v3.py"
+}

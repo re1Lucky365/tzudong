@@ -6,9 +6,10 @@ import { NextResponse } from 'next/server';
 import {
     downloadReviewVerification,
     REVIEW_VERIFICATION_BUCKET,
+    LEGACY_REVIEW_VERIFICATION_BUCKET,
 } from '@/lib/reviews/private-verification';
 import { canDiscardReceiptReplacement } from '@/lib/ocr/receipt-replacement-reconciliation';
-import { createAdminVerificationCleanupDependencies, drainAdminVerificationCleanup } from '@/lib/reviews/admin-verification-cleanup';
+import { createAdminVerificationCleanupDependencies, drainAdminVerificationCleanup, uploadStagedAdminVerificationImage } from '@/lib/reviews/admin-verification-cleanup';
 import { buildReviewPhotoObjectPath, getOwnedReviewPhotoObjectPath } from '@/lib/review-photo-url';
 
 import {
@@ -477,23 +478,6 @@ function hasExpectedReplacementReadback(
         && value.verification_photo === expectedObjectPath;
 }
 
-async function removeReplacementObject(
-    storageAdmin: ReturnType<typeof getSupabaseStorageAdmin>,
-    objectPath: string,
-): Promise<boolean> {
-    const storage = storageAdmin.from(REVIEW_VERIFICATION_BUCKET);
-    const separator = objectPath.lastIndexOf('/');
-    const directory = objectPath.slice(0, separator);
-    const filename = objectPath.slice(separator + 1);
-    try {
-        await storage.remove([objectPath]);
-    } catch { /* exact metadata readback below */ }
-    try {
-        const { data, error } = await storage.list(directory, { search: filename, limit: 100 });
-        return !error && data !== null && data.length < 100 && !data.some(item => item.name === filename);
-    } catch { return false; }
-}
-
 async function replaceReceiptWithCompressedObject(
     supabase: ReturnType<typeof getSupabaseAdmin>,
     storageAdmin: ReturnType<typeof getSupabaseStorageAdmin>,
@@ -504,18 +488,19 @@ async function replaceReceiptWithCompressedObject(
 ): Promise<string> {
     const newObjectPath = buildReplacementReceiptObjectPath(oldObjectPath, reviewId);
     const storage = storageAdmin.from(REVIEW_VERIFICATION_BUCKET);
+    const cleanup = createAdminVerificationCleanupDependencies(supabase, storageAdmin);
     let databaseUpdated = false;
     let replacementRemoved = false;
     let replacementStateIndeterminate = false;
     let uploadConfirmed = false;
 
     try {
-        const { data: uploadData, error: uploadError } = await storage.upload(newObjectPath, canonicalImage, {
+        const accepted = await uploadStagedAdminVerificationImage(cleanup, reviewId, oldObjectPath.split('/')[0], newObjectPath, () => storage.upload(newObjectPath, canonicalImage, {
             cacheControl: '3600',
             contentType: 'image/jpeg',
             upsert: false,
-        });
-        if (uploadError || uploadData?.path !== newObjectPath) {
+        }));
+        if (!accepted) {
             replacementStateIndeterminate = true;
             throw new OcrPersistenceError();
         }
@@ -562,7 +547,7 @@ async function replaceReceiptWithCompressedObject(
             } else if (canDiscardReceiptReplacement(
                 definiteNoMatch, Boolean(currentReadbackError), currentReadback, reviewId, newObjectPath,
             )) {
-                if (!(await removeReplacementObject(storageAdmin, newObjectPath))) {
+                if (!(await drainAdminVerificationCleanup(cleanup, reviewId, oldObjectPath.split('/')[0]))) {
                     throw new OcrPersistenceError();
                 }
                 replacementRemoved = true;
@@ -582,7 +567,7 @@ async function replaceReceiptWithCompressedObject(
             && !databaseUpdated
             && !replacementRemoved
             && !replacementStateIndeterminate
-            && !(await removeReplacementObject(storageAdmin, newObjectPath))
+            && !(await drainAdminVerificationCleanup(cleanup, reviewId, oldObjectPath.split('/')[0]))
         ) {
             throw new OcrPersistenceError();
         }
@@ -677,7 +662,8 @@ export async function POST(request: Request) {
             downloadedImage.bytes,
             downloadedImage.mimeType,
         );
-        if (canonicalStorageImage.bytes.byteLength < downloadedImage.bytes.byteLength) {
+        if (receiptDownload.bucket === LEGACY_REVIEW_VERIFICATION_BUCKET
+            || canonicalStorageImage.bytes.byteLength < downloadedImage.bytes.byteLength) {
             await replaceReceiptWithCompressedObject(
                 supabase,
                 storageAdmin,

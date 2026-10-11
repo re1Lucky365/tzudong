@@ -1,0 +1,89 @@
+{
+  "status": "passed",
+  "engine": "17.6",
+  "network": "none",
+  "ports": "none",
+  "sourceSha256": {
+    "backend/supabase/migrations/20261011103501_admin_verification_durable_staging.sql": "081c48e91172e4e98079b03aa210c0f7481d95a21945e5a288187263089e57db",
+    "backend/supabase/migrations/20261011105114_review_media_storage_retirement_fence.sql": "79375138d7e82a3be2b85b219ff52147db13db9c93070569be40a61ab97c3d53",
+    "backend/supabase/migrations/20261011110108_review_storage_caller_bound_admin_policy.sql": "45b2a0db333a1e24ac1f68b7693c7cfb98e10cd0ab366b98089c3679a6b5dfbc"
+  },
+  "scriptSha256": "3d69558c41d01a72d98df0970921caa47d924e489ccdcead0e2292fab66481af",
+  "rollbackExactIncludingStorageTriggers": true,
+  "rollbackFingerprint": {
+    "data": [
+      0,
+      0,
+      0
+    ],
+    "members": "f8a54adbc187f6341ec23c8fa8f2115b",
+    "schemas": "415f024d83bceb103e81cc5768832423",
+    "manifest": "6d1617b6499884bd7fb3f838724a1960",
+    "policies": "0e32330213a8633a43bfecb05e531fbc",
+    "triggers": "3afb990975cce9bc5c6c672e310132b5",
+    "functions": "0f360932abc965fe61b99063f16c4e5e",
+    "relations": "834a109e65569dbe081b8154dbe79736",
+    "defaultACL": "b39a6aa2273f39b73602ebccebb5923e",
+    "constraints": "e04885f9f21337e355b1e490a0508c3e",
+    "storageRelations": "1a88034c8edc3d3578b8d8ff100e2ffb"
+  },
+  "baselineAuthenticatedUpload": {
+    "success": false,
+    "sqlstate": "42501"
+  },
+  "candidateAuthenticatedUpload": {
+    "success": true,
+    "nonAdminOwner": true
+  },
+  "foreignUploadDenied": true,
+  "privateAnonymousReadDenied": true,
+  "publicFoodPreserved": true,
+  "nonAdminBannerDenied": true,
+  "disabledAdminBannerDenied": true,
+  "activeAdminBannerPreserved": true,
+  "absentLegacyPoliciesRemainAbsent": true,
+  "absentBranchOnlyOwnerReadChanged": true,
+  "storageRekeyRetiredDenied": true,
+  "nonReviewMetadataPreserved": true,
+  "races": [
+    {
+      "retirementFirst": false,
+      "connections": 2,
+      "observedWait": "advisory",
+      "holder": {
+        "exit": 0,
+        "states": [],
+        "committed": true
+      },
+      "waiter": {
+        "exit": 0,
+        "states": [],
+        "committed": true
+      },
+      "objectCount": 1,
+      "deadlock": false
+    },
+    {
+      "retirementFirst": true,
+      "connections": 2,
+      "observedWait": "advisory",
+      "holder": {
+        "exit": 0,
+        "states": [],
+        "committed": true
+      },
+      "waiter": {
+        "exit": 3,
+        "states": [
+          "23514"
+        ],
+        "committed": false
+      },
+      "objectCount": 0,
+      "deadlock": false
+    }
+  ],
+  "synthetic": true,
+  "storageHTTPOrActualOCRProviderTested": false,
+  "operatingDDL": 0
+}

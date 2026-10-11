@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "engine": "17.6",
+  "synthetic": true,
+  "network": "none",
+  "ports": "none",
+  "sourceSha256": {
+    "backend/supabase/migrations/20261011103501_admin_verification_durable_staging.sql": "081c48e91172e4e98079b03aa210c0f7481d95a21945e5a288187263089e57db",
+    "backend/supabase/migrations/20261011105114_review_media_storage_retirement_fence.sql": "79375138d7e82a3be2b85b219ff52147db13db9c93070569be40a61ab97c3d53",
+    "backend/supabase/migrations/20261011110108_review_storage_caller_bound_admin_policy.sql": "45b2a0db333a1e24ac1f68b7693c7cfb98e10cd0ab366b98089c3679a6b5dfbc"
+  },
+  "scriptSha256": "d63caf04d6ce670f2b24a377153bf3cb13d743aeae0a1e92fba7a820eb1f7b5c",
+  "cases": [
+    {
+      "case": "partial",
+      "exit": 3,
+      "fixedCode": "STORAGE_ADMIN_POLICY_INVENTORY_DRIFT",
+      "exactRollback": true
+    },
+    {
+      "case": "broad",
+      "exit": 3,
+      "fixedCode": "STORAGE_ADMIN_POLICY_SOURCE_DRIFT",
+      "exactRollback": true
+    },
+    {
+      "case": "owner",
+      "exit": 3,
+      "fixedCode": "STORAGE_OWNER_READ_SOURCE_DRIFT",
+      "exactRollback": true
+    },
+    {
+      "case": "disabled",
+      "exit": 3,
+      "fixedCode": "STORAGE_RETIREMENT_FENCE_READBACK_DRIFT",
+      "exactRollback": true
+    },
+    {
+      "case": "events",
+      "exit": 3,
+      "fixedCode": "STORAGE_RETIREMENT_FENCE_READBACK_DRIFT",
+      "exactRollback": true
+    }
+  ],
+  "operatingDDL": 0
+}

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createAdminVerificationCleanupDependencies, drainAdminVerificationCleanup, type AdminVerificationCleanupDependencies } from '../lib/reviews/admin-verification-cleanup';
+import { createAdminVerificationCleanupDependencies, drainAdminVerificationCleanup, uploadStagedAdminVerificationImage, type AdminVerificationCleanupDependencies } from '../lib/reviews/admin-verification-cleanup';
 
 const owner = '11111111-1111-4111-8111-111111111111';
 const review = '22222222-2222-4222-8222-222222222222';
@@ -14,6 +14,46 @@ function fixture(items: unknown[] = [item]) {
     };
     return { deps, calls };
 }
+
+describe('durable admin verification upload transport', () => {
+    const staged = `${owner}/reviews/${review}/verification/ocr-33333333-3333-4333-8333-333333333333.jpg`;
+    test('never contacts Storage when staging is missing, lost, malformed or unauthorized', async () => {
+        for (const reply of [{ error: 'unavailable', data: null }, { error: null, data: null },
+            { error: null, data: { status: 'STAGED', extra: true } }, { error: null, data: { status: 'READY' } }]) {
+            const { deps } = fixture(); let uploads = 0;
+            deps.rpc = async () => reply;
+            expect(await uploadStagedAdminVerificationImage(deps, review, owner, staged, async () => { uploads++; return { data: { path: staged }, error: null }; })).toBe(false);
+            expect(uploads).toBe(0);
+        }
+        const { deps } = fixture(); deps.rpc = async () => { throw Error('lost stage ACK'); };
+        let uploads = 0;
+        expect(await uploadStagedAdminVerificationImage(deps, review, owner, staged, async () => { uploads++; return { data: {}, error: null }; })).toBe(false);
+        expect(uploads).toBe(0);
+    });
+    test('a committed Storage write with a lost or malformed ACK retains its durable key', async () => {
+        for (const loss of ['throw', 'error', 'wrong-path'] as const) {
+            const { deps } = fixture(), queue = new Set<string>(), objects = new Set<string>(), calls: string[] = [];
+            deps.rpc = async args => {
+                expect(args).toEqual({ p_review_id: review, p_phase: 'stage', p_paths: [staged] });
+                queue.add(staged); calls.push('stage'); return { data: { status: 'STAGED' }, error: null };
+            };
+            const accepted = await uploadStagedAdminVerificationImage(deps, review, owner, staged, async () => {
+                expect(queue.has(staged)).toBe(true); objects.add(staged); calls.push('upload');
+                if (loss === 'throw') throw Error('lost upload ACK');
+                return { data: { path: loss === 'wrong-path' ? 'unrelated' : staged }, error: loss === 'error' ? 'transport' : null };
+            });
+            expect(accepted).toBe(false); expect(calls).toEqual(['stage', 'upload']);
+            expect(queue.has(staged)).toBe(true); expect(objects.has(staged)).toBe(true);
+        }
+    });
+    test('foreign owner, review, legacy key or food key is rejected before RPC or upload', async () => {
+        for (const bad of [path, staged.replace(owner, review), staged.replace(`/reviews/${review}/`, `/reviews/${owner}/`), staged.replace('/verification/', '/food/')]) {
+            const { deps, calls } = fixture(); let uploads = 0;
+            expect(await uploadStagedAdminVerificationImage(deps, review, owner, bad, async () => { uploads++; return { data: { path: bad }, error: null }; })).toBe(false);
+            expect(calls).toEqual([]); expect(uploads).toBe(0);
+        }
+    });
+});
 
 describe('server drain of retired verification objects', () => {
     test('drains both buckets and confirms public denial before exact DB finish', async () => {

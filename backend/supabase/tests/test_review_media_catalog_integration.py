@@ -25,6 +25,9 @@ FINAL_SHARED_HASH = "cbf6a87e453e8c2e14d67acd73a92e399fbba4b4f24ac27966806e13ef1
 OWNER_SIGNATURE = "public.mutate_review_with_media(uuid,uuid,text,timestamp with time zone,text,text[],text[])"
 HISTORICAL_OWNER_HASH = "50bfad7bc4fc7ddbc9d9379e8eb13facd938a15f66553576cc69fbcf69aa98b1"
 FINAL_OWNER_HASH = "d5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7e323"
+GUARD_SIGNATURE = "review_media_private.guard_references()"
+HISTORICAL_GUARD_HASH = "846030547ffd76e17596755d7eee4279dcb9b563361435260826071d2f250d59"
+FINAL_GUARD_HASH = "94113c8ae1231e8eae5a698f35a1370a38367e42c79cc87ac62db76c32e735b1"
 
 
 class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
@@ -78,13 +81,19 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
         for row in historical_rows:
             with self.subTest(signature=row[0]):
                 historical_hash = {OWNER_SIGNATURE: HISTORICAL_OWNER_HASH,
-                                   SHARED_SIGNATURE: HISTORICAL_SHARED_HASH}.get(row[0], row[6])
+                                   SHARED_SIGNATURE: HISTORICAL_SHARED_HASH,
+                                   GUARD_SIGNATURE: HISTORICAL_GUARD_HASH}.get(row[0], row[6])
                 self.assertEqual((historical_hash, row[3], row[4], row[2]), functions[row[0]])
                 self.assertIn(f"('{row[0]}','{before_hashes[row[0]]}','{historical_hash}'", sql)
                 if row[0] == OWNER_SIGNATURE:
                     self.assertEqual(row[6], FINAL_OWNER_HASH)
                     self.assertIn(HISTORICAL_OWNER_HASH, FORWARD.read_text())
                     self.assertIn(FINAL_OWNER_HASH, FORWARD.read_text())
+                if row[0] == GUARD_SIGNATURE:
+                    fence = (ROOT / 'backend/supabase/migrations/20261011105114_review_media_storage_retirement_fence.sql').read_text()
+                    self.assertEqual(row[6], FINAL_GUARD_HASH)
+                    self.assertIn(HISTORICAL_GUARD_HASH, fence)
+                    self.assertIn(FINAL_GUARD_HASH, fence)
         self.assertEqual(sum(before_hashes[key] != value[0] for key, value in functions.items()), 7)
 
     def test_claim_transition_pins_existing_helper_without_auth_schema_grant(self):
@@ -109,12 +118,15 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
         historical = checks(MIGRATION.read_text())
         self.assertEqual(historical.count(HISTORICAL_OWNER_HASH), 1)
         self.assertEqual(historical.replace(HISTORICAL_OWNER_HASH, FINAL_OWNER_HASH)
-                         .replace(HISTORICAL_SHARED_HASH, FINAL_SHARED_HASH),
+                         .replace(HISTORICAL_SHARED_HASH, FINAL_SHARED_HASH)
+                         .replace(HISTORICAL_GUARD_HASH, FINAL_GUARD_HASH)
+                         .replace("((bucket_id = ''review-verifications''::text) AND (((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS uid)) OR has_role(( SELECT auth.uid() AS uid), ''admin''::app_role)))",
+                                  "((bucket_id = ''review-verifications''::text) AND ((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS uid)))"),
                          checks((ROOT / local_migrate.READBACK_SOURCE).read_text()))
         def forward_checks(source):
             return source.split("-- ADMIN_REVIEW_MEDIA_READBACK_BEGIN\n", 1)[1].split(
                 "-- ADMIN_REVIEW_MEDIA_READBACK_END", 1)[0]
-        self.assertEqual(forward_checks(FORWARD.read_text()).replace('2353de06b4d93f45fd603380e678f4edbcc0b16a8bd9860b5967683bea5f1157', '50b5900a7b6ca43062d6373dbba75378d714312c9ef02c6939997389f6833ba0'),
+        self.assertEqual(forward_checks(FORWARD.read_text()).replace('2353de06b4d93f45fd603380e678f4edbcc0b16a8bd9860b5967683bea5f1157', '50b5900a7b6ca43062d6373dbba75378d714312c9ef02c6939997389f6833ba0').replace('f4d19bc5b41fe7808635240cae80f796d12f6cad8b13802577a88afbb1f024a7', '468c12ee6c3463876cbccb394fcba8f870459a1f6cf3d945d97307f8551f094b'),
                          forward_checks((ROOT / local_migrate.READBACK_SOURCE).read_text()))
 
     def test_shared_legacy_queue_transition_is_bound_to_the_original_trigger(self):
@@ -141,9 +153,14 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
 
     def test_new_service_only_cleanup_body_is_exactly_bound(self):
         body = FORWARD.read_text().split("AS $cleanup$", 1)[1].split("$cleanup$;", 1)[0]
+        staging = (ROOT / 'backend/supabase/migrations/20261011103501_admin_verification_durable_staging.sql').read_text()
+        old = re.search(r'\$old\$(.*?)\$old\$', staging, re.S).group(1)
+        final = re.search(r'\$new\$(.*?)\$new\$', staging, re.S).group(1)
+        self.assertEqual(body, old)
+        self.assertIn(hashlib.sha256(body.encode()).hexdigest(), staging)
         row = next(row for row in local_migrate.REVIEW_MEDIA_FUNCTIONS
                    if row[0] == "public.admin_review_verification_cleanup(uuid,text,text[])")
-        self.assertEqual(hashlib.sha256(body.encode()).hexdigest(), row[6])
+        self.assertEqual(hashlib.sha256(final.encode()).hexdigest(), row[6])
         self.assertEqual(row[7:], [False, False, True, ["service_role"]])
         rows = copy.deepcopy(_receipt_rows())
         entry = next(entry for entry in rows if entry[0] == 'review_media_functions'
@@ -206,7 +223,7 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
     def test_ledger_applies_integration_normally_and_retains_current_overlap_proofs(self):
         manifest = local_migrate.verify_manifest()
         files = manifest["source"]["files"]
-        self.assertEqual(len(files), 136)
+        self.assertEqual(len(files), 139)
         integration = next(row for row in files if row["path"] == MIGRATION.relative_to(ROOT).as_posix())
         self.assertEqual(local_migrate._expected_terminal_status(integration), "applied")
         sql = local_migrate._execution_body(integration)
