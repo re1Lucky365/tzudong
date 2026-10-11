@@ -1,6 +1,6 @@
 /* Adapted from transitions.dev (2773886681b6), menu-dropdown and toast.
-   Product constraints: feedback stays readable on the first frame, dismissal
-   and input are never delayed, and SDK/map/sheet motion is not overridden. */
+   Product constraints: feedback stays readable on the first frame, state
+   changes and input are immediate, and SDK/map/sheet motion is not overridden. */
 :root {
   --duration-micro: 80ms;
   --duration-quick: 150ms;
