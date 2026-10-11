@@ -209,23 +209,23 @@ This diagnostic does not repair ACLs, update the migration ledger, clear ambigui
 
 ## Replay receipt version and source accounting
 
-Admission requires accounting for 132 source units: 129 source applications, two `verified-existing` overlaps, and one `legacy-contract-preserved` PG15 contract. Each non-application row contains its full pinned verification proof and an independently read-back proof digest. These statuses do not assert that hosted PG17 repair SQL ran. A conflicting terminal proof is never overwritten; uncertain outcomes still require a fresh isolated database.
+Admission requires accounting for 140 source units: 137 source applications, two `verified-existing` overlaps, and one `legacy-contract-preserved` PG15 contract. Each non-application row contains its full pinned verification proof and an independently read-back proof digest. These statuses do not assert that hosted PG17 repair SQL ran. A conflicting terminal proof is never overwritten; uncertain outcomes still require a fresh isolated database.
 
 Receipt content now uses `local-receipt-v2` with the unchanged `receipt-v1` row serializer. The historical artifact filename `local-receipt-v1.json` remains the workflow path, but readers reject v1 **content** and require the v2 `replay_proofs` field. The web, closure and publication checks validate the same exact source/proof bindings. These source changes do not establish a successful current full-stack replay.
 
-### Review media catalog integration (2026-10-09)
+### Review media catalog integration (current contract: 2026-10-12)
 
-The final three units are `20261008192455_review_media_commit_cleanup.sql`,
+The initial three review-media units are `20261008192455_review_media_commit_cleanup.sql`,
 `20261008200719_review_verification_private.sql`, and
 `20261008201635_review_media_catalog_integration.sql`. The last file was created
-with the repository's Supabase CLI 2.117.0. It pins the final bodies of six public
-RPCs and six private helpers, assigns the trusted workflow owner, and registers
+with the repository's Supabase CLI 2.117.0. It pins the initial bodies of seven public
+RPCs and seven private helpers, assigns the trusted workflow owner, and registers
 exact authenticated-only public identities. G014 denies the workflow role auth-
 schema access. Therefore the integration pins each parent body and replaces only
 its `auth.uid()` calls with the existing private
 `privacy_retention.g041_current_claim_user_id()` helper, whose body and metadata
-are independently pinned. All six final RPC bodies have separate post-transition
-hashes; the six media helper bodies are unchanged. The existing claim helper
+are independently pinned. All seven initial RPC bodies have separate post-transition
+hashes; the seven initial media helper bodies are unchanged. The existing claim helper
 rejects missing/malformed subjects and non-authenticated claims. No auth-schema
 or Auth-table privilege is restored. It preserves existing G014 assertion
 bodies, all existing immutable manifest rows, and the runner's prior role memberships.
@@ -257,11 +257,13 @@ absent. The actual policy command must succeed with existing authority or roll
 back; no role/configuration fallback is attempted. Parent-reported stage 1
 success in its exact 17.6 clone is local evidence, not hosted DDL evidence.
 
-Canonical readback now serializes the policy permissive bit and twelve exact
+The subsequent forward units add the service-only admin cleanup RPC, shared-reference/staging and retirement safeguards, compatible Storage ownership predicates, and the owner-completion count correction. The current receipt checks 15 review-media functions (eight public and seven private) and 22 Storage policies; the source ledger is 140 units. Historical receipts with smaller inventories do not admit this source.
+
+Canonical readback now serializes the policy permissive bit and fifteen exact
 `review_media_functions` rows. It rejects changed bodies, owners, grants,
 overloads, full policy predicates, a broadened legacy public-media read policy,
 and any change to the verification bucket's private flag, 5 MiB limit, or four
-MIME types. A fresh nightly receipt contains 20 Storage policies and seven
+MIME types. A fresh nightly receipt contains 22 Storage policies and seven
 buckets. The publication verifier enforces those counts independently. Old
 101-unit receipts are not current evidence.
 
@@ -470,7 +472,7 @@ set +a
 
 For ordinary development and generated schema types, do not source the file.
 The wrappers validate owner-only provenance, current service readiness, and the
-132-unit source ledger before exposing only mapped loopback values to the
+140-unit source ledger before exposing only mapped loopback values to the
 child process:
 
 ```sh

@@ -128,4 +128,38 @@ describe('private review verification image boundary', () => {
             else process.env.NEXT_PUBLIC_SUPABASE_URL = prior;
         }
     });
+    test('resolved database failures are unavailable rather than authoritative absence', async () => {
+        const { deps, counts } = fixture();
+        deps.read = async () => ({ data: null, error: { code: 'fixture-timeout' } });
+        const response = await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), deps);
+        expect(response.status).toBe(503); expect(counts.download).toBe(0);
+        expect(await response.json()).toEqual({ code: 'REVIEW_IMAGE_UNAVAILABLE' });
+        expect(response.headers.get('cache-control')).toContain('no-store');
+    });
+    test('only definitive object absence is 404; provider and credential failures are 503', async () => {
+        for (const error of [
+            new StorageApiError('fixture', 401, '401', 'storage', 'InvalidJWT'),
+            new StorageApiError('fixture', 403, '403', 'storage', 'AccessDenied'),
+            new StorageApiError('fixture', 404, '404', 'storage', 'NoSuchBucket'),
+            new StorageApiError('fixture', 503, '503', 'storage', 'NoSuchKey'),
+            new StorageApiError('fixture', 504, '504', 'storage', 'DatabaseTimeout'),
+            new Error('fixture-timeout'),
+        ]) {
+            const { deps } = fixture(); deps.download = async () => ({ data: null, error });
+            const response = await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), deps);
+            expect(response.status).toBe(503);
+            expect(await response.json()).toEqual({ code: 'REVIEW_IMAGE_UNAVAILABLE' });
+        }
+        for (const error of [new StorageApiError('Object not found', 404, '404', 'storage', 'NoSuchKey'),
+            new StorageApiError('Object not found', 400, '404')]) {
+            const { deps } = fixture(); deps.download = async () => ({ data: null, error });
+            expect((await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), deps)).status).toBe(404);
+        }
+    });
+    test('authoritative row absence stays 404 while an empty successful transport stays 503', async () => {
+        const { deps } = fixture(); deps.read = async () => ({ data: null, error: null });
+        expect((await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), deps)).status).toBe(404);
+        const other = fixture(); other.deps.download = async () => ({ data: null, error: null });
+        expect((await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), other.deps)).status).toBe(503);
+    });
 });

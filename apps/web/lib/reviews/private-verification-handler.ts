@@ -1,4 +1,5 @@
 import { getOwnedReviewPhotoObjectPath } from '@/lib/review-photo-url';
+import { isMissingReviewVerificationObject } from './private-verification';
 
 export interface VerificationImageDependencies {
     authorize(): Promise<{ ok: true } | { ok: false; response: Response }>;
@@ -22,12 +23,15 @@ export async function readPrivateVerificationImage(
         const { reviewId } = await params;
         if (!uuid.test(reviewId)) return failure(400);
         const row = await deps.read(reviewId);
-        if (row.error || !row.data) return failure(404);
+        if (row.error) return failure(503);
+        if (!row.data) return failure(404);
         const ownership = { ownerId: row.data.user_id, reviewId, purpose: 'verification' as const };
         const path = getOwnedReviewPhotoObjectPath(row.data.verification_photo, ownership);
         if (!path) return failure(404);
         const image = await deps.download(path);
-        if (image.error || !image.data || image.data.size > 5 * 1024 * 1024 || !allowedTypes.has(image.data.type)) return failure(404);
+        if (image.error) return failure(isMissingReviewVerificationObject(image.error) ? 404 : 503);
+        if (!image.data) return failure(503);
+        if (image.data.size > 5 * 1024 * 1024 || !allowedTypes.has(image.data.type)) return failure(404);
         return new Response(image.data, { headers: { ...headers, 'Content-Type': image.data.type } });
     } catch { return failure(503); }
 }

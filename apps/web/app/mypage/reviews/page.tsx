@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, memo } from "react";
 import Image from "next/image";
+import { createLatestOwnerCleanup } from '@/lib/reviews/latest-owner-cleanup';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -149,19 +150,17 @@ export default function ReviewsPage() {
   const [deleteFailure, setDeleteFailure] = useState<string | null>(null);
   const [cleanupPending, setCleanupPending] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
-  const cleanupBusy = useRef(false);
-  const retryCleanup = useCallback(async (cancelInterrupted = false) => {
-    const ownerId = ownerRef.current;
-    if (!ownerId || cleanupBusy.current) return;
-    cleanupBusy.current = true;
-    setIsCleaning(true);
-    try {
-      const complete = await retryReviewMediaCleanup(createReviewMediaDependencies(supabase, () => ownerRef.current), ownerId, cancelInterrupted);
-      if (ownerRef.current === ownerId) setCleanupPending(!complete);
-    } finally {
-      cleanupBusy.current = false;
-      setIsCleaning(false);
-    }
+  const cleanupRunner = useRef<ReturnType<typeof createLatestOwnerCleanup> | null>(null);
+  const retryCleanup = useCallback((cancelInterrupted = false) => {
+    if (cleanupRunner.current === null) cleanupRunner.current = createLatestOwnerCleanup({
+      owner: () => ownerRef.current,
+      run: (ownerId, cancelInterrupted) => retryReviewMediaCleanup(
+        createReviewMediaDependencies(supabase, () => ownerRef.current), ownerId, cancelInterrupted,
+      ),
+      result: (_ownerId, pending) => setCleanupPending(pending),
+      busy: setIsCleaning,
+    });
+    return cleanupRunner.current.request(cancelInterrupted);
   }, []);
   const searchParams = useSearchParams() ?? EMPTY_SEARCH_PARAMS;
   const [filterStatus, setFilterStatus] = useState<string>("all");
