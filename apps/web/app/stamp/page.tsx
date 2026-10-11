@@ -1378,8 +1378,9 @@ export default function StampPage() {
                     isOpen={isReviewModalOpen}
                     onClose={() => {
                         setIsReviewModalOpen(false);
-                        if (window.innerWidth > BREAKPOINTS.tabletMax && reviewContinuationHandled.current) {
-                            reviewContinuationHandled.current = null;
+                        const wasReviewContinuation = reviewContinuationHandled.current;
+                        reviewContinuationHandled.current = null;
+                        if (window.innerWidth > BREAKPOINTS.tabletMax && wasReviewContinuation) {
                             const parameters = new URLSearchParams(window.location.search);
                             parameters.delete('writeReview');
                             const redirectPath = buildDesktopStampHomeRedirectPath(parameters.toString());

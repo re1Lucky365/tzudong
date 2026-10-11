@@ -1164,7 +1164,7 @@ BEGIN
   -- Fix pg_get_expr qualification before comparing the exact parsed predicates.
   PERFORM set_config('search_path','public, pg_catalog',true);
   FOR v_expected IN SELECT * FROM (VALUES
-    ('public.finish_review_media_cleanup()','f6c4e71988ed2b789b887484af5fdf2e482bde98f1d1c5b5d4e7ad124c314bd1',true,'v','plpgsql','bigint',ARRAY[]::text[]),
+    ('public.finish_review_media_cleanup()','a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9',true,'v','plpgsql','bigint',ARRAY[]::text[]),
     ('public.mutate_review_with_media(uuid,uuid,text,timestamp with time zone,text,text[],text[])','d5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7e323',true,'v','plpgsql','text',ARRAY['p_operation_id','p_review_id','p_kind','p_expected_updated_at','p_content','p_categories','p_food_photos']::text[]),
     ('public.pending_review_media_cleanup()','5a92c8f282c895eabaa77f8cf3f452fb659bac33bd519ed8cf439dc1f2905c7b',true,'v','plpgsql','TABLE(path text, owner_id uuid, review_id uuid, purpose text)',ARRAY[]::text[]),
     ('public.queue_review_upload_cleanup(uuid,text[])','89c3b573891f598cac5df6ce9a3217639092801a7439ec0404f338f2097114a8',true,'v','plpgsql','text',ARRAY['p_review_id','p_paths']::text[]),
@@ -2210,3 +2210,16 @@ BEGIN
 END $readback$;
 -- STORAGE_CALLER_BOUND_ADMIN_READBACK_END
 COMMIT;
+
+-- OWNER_CLEANUP_READBACK_BEGIN
+DO $readback$
+BEGIN
+  IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid='public.finish_review_media_cleanup()'::regprocedure
+    AND proowner='privacy_workflow_owner'::regrole AND prosecdef AND proconfig=ARRAY['search_path=""']::text[]
+    AND encode(sha256(convert_to(prosrc,'UTF8')),'hex')='a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9')
+    OR has_function_privilege('anon','public.finish_review_media_cleanup()','EXECUTE')
+    OR has_function_privilege('service_role','public.finish_review_media_cleanup()','EXECUTE')
+    OR NOT has_function_privilege('authenticated','public.finish_review_media_cleanup()','EXECUTE')
+    THEN RAISE EXCEPTION 'OWNER_CLEANUP_READBACK_DRIFT'; END IF;
+END $readback$;
+-- OWNER_CLEANUP_READBACK_END

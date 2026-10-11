@@ -116,7 +116,7 @@ MIGRATION_ORDER_OVERRIDES = {
 }
 SEED_SOURCE = Path("backend/supabase/scripts/local-seed.sql")
 READBACK_SOURCE = Path("backend/supabase/scripts/local_catalog_readback.sql")
-EXPECTED_LEDGER_UNITS = 139
+EXPECTED_LEDGER_UNITS = 140
 EXPECTED_SERVICES = (
     "analytics", "auth", "db", "functions", "imgproxy", "kong", "mail",
     "meta", "realtime", "rest", "storage", "studio", "supavisor", "vector",
@@ -303,7 +303,7 @@ REVIEW_MEDIA_FUNCTIONS = [['public.admin_review_verification_cleanup(uuid,text,t
   True,
   'v',
   ['search_path=""'],
-  'f6c4e71988ed2b789b887484af5fdf2e482bde98f1d1c5b5d4e7ad124c314bd1',
+  'a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9',
   False,
   True,
   False,
