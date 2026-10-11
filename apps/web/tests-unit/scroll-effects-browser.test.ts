@@ -5,6 +5,13 @@ import { execFileSync } from 'node:child_process';
 import { chromium, expect as browserExpect, type Browser, type Page } from '@playwright/test';
 
 const app = join(import.meta.dir, '..');
+const chromeAvailable = [
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/opt/google/chrome/chrome',
+  join(process.env.ProgramFiles ?? process.env.PROGRAMFILES ?? '', 'Google/Chrome/Application/chrome.exe'),
+  join(process.env.LOCALAPPDATA ?? '', 'Google/Chrome/Application/chrome.exe'),
+].some(existsSync);
+const browserTest = chromeAvailable ? test : test.skip;
 const ui = browserExpect.configure({ timeout: 1500 });
 const baseline = process.env.SCROLL_REVEAL_BASELINE === '73edf0720d9ec3a8dcdfc1a102767ad52481cce6';
 let browser: Browser;
@@ -24,6 +31,7 @@ window.scrollFixture.unmount=()=>root.unmount();
 `;
 
 beforeAll(async () => {
+  if (!chromeAvailable) return;
   const bundle = await Bun.build({ entrypoints: ['scroll-fixture'], target: 'browser', format: 'iife', write: false,
     define: { 'process.env.NODE_ENV': '"production"' }, plugins: [{ name: 'scroll-fixture', setup(builder) {
       builder.onResolve({ filter: /^scroll-fixture$/ }, () => ({ path: 'fixture.tsx', namespace: 'fixture' }));
@@ -60,7 +68,7 @@ async function run(check: (page: Page) => Promise<void>, width = 390, reducedMot
 }
 
 for (const width of [390, 820, 1440]) {
-  test(`scroll reveal remains readable, completes once and respects keyboard focus at ${width}px`, async () => run(async page => {
+  browserTest(`scroll reveal remains readable, completes once and respects keyboard focus at ${width}px`, async () => run(async page => {
     await ui(page.locator('#panel-11')).toHaveAttribute('data-reveal-state', 'waiting');
     expect(await page.locator('#panel-0').getAttribute('data-reveal-state')).not.toBe('waiting');
     await page.locator('#panel-11').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished.catch(() => undefined))));
@@ -72,7 +80,7 @@ for (const width of [390, 820, 1440]) {
   }, width));
 }
 
-test('unrelated child mutations do not rescan the entire document', async () => run(async page => {
+browserTest('unrelated child mutations do not rescan the entire document', async () => run(async page => {
   await ui(page.locator('#panel-11')).toHaveAttribute('data-reveal-state', 'waiting');
   const before = await page.evaluate(() => (window as unknown as { scrollFixture: { scans: number } }).scrollFixture.scans);
   await page.locator('#noise').evaluate(el => { for (let i = 0; i < 200; i++) el.appendChild(document.createElement('span')); });
@@ -80,7 +88,7 @@ test('unrelated child mutations do not rescan the entire document', async () => 
   expect(await page.evaluate(() => (window as unknown as { scrollFixture: { scans: number } }).scrollFixture.scans)).toBe(before);
 }));
 
-test('starting with reduced motion can later enable it, and disable it without hiding content', async () => run(async page => {
+browserTest('starting with reduced motion can later enable it, and disable it without hiding content', async () => run(async page => {
   expect(await page.locator('#panel-11').getAttribute('data-reveal-state')).toBeNull();
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await ui(page.locator('#panel-11')).toHaveAttribute('data-reveal-state', 'waiting');
@@ -89,7 +97,7 @@ test('starting with reduced motion can later enable it, and disable it without h
   expect(await page.locator('#panel-11').evaluate(el => getComputedStyle(el).opacity)).toBe('1');
 }, 390, 'reduce'));
 
-test('removing waiting elements clears stale state and unmount disconnects mutation work', async () => run(async page => {
+browserTest('removing waiting elements clears stale state and unmount disconnects mutation work', async () => run(async page => {
   await ui(page.locator('#panel-11')).toHaveAttribute('data-reveal-state', 'waiting');
   await page.locator('#panel-11').evaluate(el => { el.remove(); document.getElementById('noise')!.appendChild(el); });
   await ui(page.locator('#panel-11')).not.toHaveAttribute('data-reveal-state', 'waiting');
