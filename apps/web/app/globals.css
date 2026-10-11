@@ -6,6 +6,7 @@
 @layer theme, base, components, utilities;
 
 @import "../styles/light-root-tokens.css";
+@import "../styles/interface-motion.css";
 
 :root {
   color-scheme: light;

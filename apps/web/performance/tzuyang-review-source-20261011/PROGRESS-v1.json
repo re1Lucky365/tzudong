@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-11T07:22:46.612780+00:00",
+  "originalEditorialCensus": {
+    "rows": 1659,
+    "coverageComplete": true,
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "approvedConfirmedChannel": 751,
+    "keep": 590,
+    "fixCandidates": 92,
+    "needsSource": 69
+  },
+  "sourceBoundStage": {
+    "rows": 161,
+    "videos": 137,
+    "excluded": 0,
+    "inputSha256": "d2cdce112686331429b30dc3684e8ab950a8cde21f7486311445714d0104aa67",
+    "promptSha256": "893cf98fe78336ed8b0f1b9d7ba4d760035fb422733bcdee7a4fee267ae39986",
+    "languagesByRequest": {
+      "english": 34,
+      "korean": 69,
+      "ko": 32,
+      "not_recorded": 2
+    },
+    "adminLocked": 79,
+    "unlocked": 82,
+    "pilot": {
+      "requests": 3,
+      "rows": 4,
+      "state": "JOB_STATE_SUCCEEDED",
+      "statusCounts": {
+        "propose_fix": 3,
+        "needs_visual": 1
+      },
+      "checkpoints": [
+        {
+          "label": "2000",
+          "sha256": "3e3e3d17ce96c375aeae5bb547ed68c37f252891a4fd650407c81bf85d3e19b6",
+          "rows": 1,
+          "model": "gemini-3.8-flash",
+          "thinkingLevel": "HIGH",
+          "private": true,
+          "independentSemanticReviewRequired": true
+        },
+        {
+          "label": "2003",
+          "sha256": "0f740da6a8b789eb426585677fa0e3d435cfc4c077fb5b43f1ed0b0aace81816",
+          "rows": 2,
+          "model": "gemini-3.8-flash",
+          "thinkingLevel": "HIGH",
+          "private": true,
+          "independentSemanticReviewRequired": true
+        },
+        {
+          "label": "2004",
+          "sha256": "54942e5b683905920980a1061a38c62f072a197211e90635d5194f904c5b40e8",
+          "rows": 1,
+          "model": "gemini-3.8-flash",
+          "thinkingLevel": "HIGH",
+          "private": true,
+          "independentSemanticReviewRequired": true
+        }
+      ]
+    },
+    "remainder": {
+      "requests": 134,
+      "rows": 157,
+      "state": "JOB_STATE_RUNNING",
+      "admittedRows": 0,
+      "requestSha256": "2612110eecb61ea7c3876da6aed4b8281916338b29746e5e2eeb69efaae7c139",
+      "jobNameSha256": "533dc6b974132cb7a55e0e8c803823cbf9302704b3c34d65907c12d81589db5e"
+    }
+  },
+  "operatingContentEdits": 0,
+  "billingAmountKnown": false,
+  "newCapacityPurchased": false,
+  "allFactualClaimsCertified": false,
+  "unresolvedVisualFactsRemain": true
+}

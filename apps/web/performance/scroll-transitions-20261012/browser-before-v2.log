@@ -1,0 +1,148 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-unit/scroll-effects-browser.test.ts:
+62 | for (const width of [390, 820, 1440]) {
+63 |   test(`scroll reveal remains readable, completes once and respects keyboard focus at ${width}px`, async () => run(async page => {
+64 |     await ui(page.locator('#panel-11')).toHaveAttribute('data-reveal-state', 'waiting');
+65 |     expect(await page.locator('#panel-0').getAttribute('data-reveal-state')).not.toBe('waiting');
+66 |     await page.locator('#panel-11').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished.catch(() => undefined))));
+67 |     expect(await page.locator('#panel-11').evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThanOrEqual(.9);
+                                                                                                      ^
+error: expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 0.9
+Received: 0
+
+      at <anonymous> (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:67:98)
+      at async run (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:58:11)
+(fail) scroll reveal remains readable, completes once and respects keyboard focus at 390px [488.50ms]
+62 | for (const width of [390, 820, 1440]) {
+63 |   test(`scroll reveal remains readable, completes once and respects keyboard focus at ${width}px`, async () => run(async page => {
+64 |     await ui(page.locator('#panel-11')).toHaveAttribute('data-reveal-state', 'waiting');
+65 |     expect(await page.locator('#panel-0').getAttribute('data-reveal-state')).not.toBe('waiting');
+66 |     await page.locator('#panel-11').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished.catch(() => undefined))));
+67 |     expect(await page.locator('#panel-11').evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThanOrEqual(.9);
+                                                                                                      ^
+error: expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 0.9
+Received: 0
+
+      at <anonymous> (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:67:98)
+      at async run (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:58:11)
+(fail) scroll reveal remains readable, completes once and respects keyboard focus at 820px [434.23ms]
+62 | for (const width of [390, 820, 1440]) {
+63 |   test(`scroll reveal remains readable, completes once and respects keyboard focus at ${width}px`, async () => run(async page => {
+64 |     await ui(page.locator('#panel-11')).toHaveAttribute('data-reveal-state', 'waiting');
+65 |     expect(await page.locator('#panel-0').getAttribute('data-reveal-state')).not.toBe('waiting');
+66 |     await page.locator('#panel-11').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished.catch(() => undefined))));
+67 |     expect(await page.locator('#panel-11').evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThanOrEqual(.9);
+                                                                                                      ^
+error: expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 0.9
+Received: 0
+
+      at <anonymous> (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:67:98)
+      at async run (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:58:11)
+(fail) scroll reveal remains readable, completes once and respects keyboard focus at 1440px [440.22ms]
+75 | test('unrelated child mutations do not rescan the entire document', async () => run(async page => {
+76 |   await ui(page.locator('#panel-11')).toHaveAttribute('data-reveal-state', 'waiting');
+77 |   const before = await page.evaluate(() => (window as unknown as { scrollFixture: { scans: number } }).scrollFixture.scans);
+78 |   await page.locator('#noise').evaluate(el => { for (let i = 0; i < 200; i++) el.appendChild(document.createElement('span')); });
+79 |   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+80 |   expect(await page.evaluate(() => (window as unknown as { scrollFixture: { scans: number } }).scrollFixture.scans)).toBe(before);
+                                                                                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 1
+Received: 2
+
+      at <anonymous> (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:80:118)
+      at async run (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:58:11)
+(fail) unrelated child mutations do not rescan the entire document [218.50ms]
+8583 | 
+8584 | // packages/utils/stackTrace.ts
+8585 | function captureRawStack() {
+8586 |   const stackTraceLimit = Error.stackTraceLimit;
+8587 |   Error.stackTraceLimit = 50;
+8588 |   const error = new Error();
+                           ^
+error: expect(locator).toHaveAttribute(expected) failed
+
+Locator:  locator('#panel-11')
+Expected: "waiting"
+Received: ""
+Timeout:  1500ms
+
+Call log:
+  - Expect "toHaveAttribute" locator('#panel-11') with timeout 1500ms
+  - waiting for locator('#panel-11')
+    16 × locator resolved to <section id="panel-11" data-scroll-reveal="panel">…</section>
+       - unexpected value "null"
+
+ matcherResult: {
+  name: "toHaveAttribute",
+  expected: "waiting",
+  message: "expect(locator).toHaveAttribute(expected) failed\n\nLocator:  locator('#panel-11')\nExpected: \"waiting\"\nReceived: \"\"\nTimeout:  1500ms\n\nCall log:\n  - Expect \"toHaveAttribute\" locator('#panel-11') with timeout 1500ms\n  - waiting for locator('#panel-11')\n    16 × locator resolved to <section id=\"panel-11\" data-scroll-reveal=\"panel\">…</section>\n       - unexpected value \"null\"\n",
+  pass: false,
+  actual: null,
+  log: [ "  - Expect \"toHaveAttribute\" locator('#panel-11') with timeout 1500ms", "  - waiting for locator('#panel-11')",
+    "    16 × locator resolved to <section id=\"panel-11\" data-scroll-reveal=\"panel\">…</section>",
+    "       - unexpected value \"null\""
+  ],
+  timeout: 1500,
+  ariaSnapshot: "- heading \"Section 12\" [level=2]\n- button \"Action 12\"",
+},
+
+      at captureRawStack (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/node_modules/playwright-core/lib/coreBundle.js:8588:21)
+      at callMatcherAsStep (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/node_modules/playwright/lib/matchers/expect.js:13310:57)
+      at /Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:86:39
+      at run (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:58:11)
+      at processTicksAndRejections (native:7:39)
+(fail) starting with reduced motion can later enable it, and disable it without hiding content [1713.31ms]
+8583 | 
+8584 | // packages/utils/stackTrace.ts
+8585 | function captureRawStack() {
+8586 |   const stackTraceLimit = Error.stackTraceLimit;
+8587 |   Error.stackTraceLimit = 50;
+8588 |   const error = new Error();
+                           ^
+error: expect(locator).not.toHaveAttribute(expected) failed
+
+Locator:  locator('#panel-11')
+Expected: not "waiting"
+Received: "waiting"
+Timeout:  1500ms
+
+Call log:
+  - Expect "not toHaveAttribute" locator('#panel-11') with timeout 1500ms
+  - waiting for locator('#panel-11')
+    16 × locator resolved to <section id="panel-11" data-scroll-reveal="panel" data-reveal-state="waiting">…</section>
+       - unexpected value "waiting"
+
+ matcherResult: {
+  name: "toHaveAttribute",
+  expected: "waiting",
+  message: "expect(locator).not.toHaveAttribute(expected) failed\n\nLocator:  locator('#panel-11')\nExpected: not \"waiting\"\nReceived: \"waiting\"\nTimeout:  1500ms\n\nCall log:\n  - Expect \"not toHaveAttribute\" locator('#panel-11') with timeout 1500ms\n  - waiting for locator('#panel-11')\n    16 × locator resolved to <section id=\"panel-11\" data-scroll-reveal=\"panel\" data-reveal-state=\"waiting\">…</section>\n       - unexpected value \"waiting\"\n",
+  pass: true,
+  actual: "waiting",
+  log: [ "  - Expect \"not toHaveAttribute\" locator('#panel-11') with timeout 1500ms",
+    "  - waiting for locator('#panel-11')", "    16 × locator resolved to <section id=\"panel-11\" data-scroll-reveal=\"panel\" data-reveal-state=\"waiting\">…</section>",
+    "       - unexpected value \"waiting\""
+  ],
+  timeout: 1500,
+  ariaSnapshot: "- heading \"Section 12\" [level=2]\n- button \"Action 12\"",
+},
+
+      at captureRawStack (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/node_modules/playwright-core/lib/coreBundle.js:8588:21)
+      at callMatcherAsStep (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/node_modules/playwright/lib/matchers/expect.js:13310:57)
+      at /Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:95:43
+      at run (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:58:11)
+      at processTicksAndRejections (native:7:39)
+(fail) removing waiting elements clears stale state and unmount disconnects mutation work [1697.58ms]
+
+ 0 pass
+ 6 fail
+ 8 expect() calls
+Ran 6 tests across 1 file. [7.83s]

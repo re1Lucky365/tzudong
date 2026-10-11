@@ -1,0 +1,6 @@
+{
+  "status": "failed",
+  "fixedFailure": "FixtureTemplateNameDriftBeforeDatabaseCreation",
+  "targetWrites": 0,
+  "scriptSha256": "c815389b090ce932cce9427630445bae197fe7a757040873347727c7209f3cb5"
+}

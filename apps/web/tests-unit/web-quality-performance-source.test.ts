@@ -2949,7 +2949,8 @@ describe("web quality performance source contracts", () => {
     expect(feedPageSource).toContain(
       "const target = reviewId ? `/?panel=feed&review=${encodeURIComponent(reviewId)}` : '/?panel=feed';",
     );
-    expect(stampPageSource).toContain("router.replace('/?panel=stamp')");
+    expect(stampPageSource).toContain('buildDesktopStampHomeRedirectPath(window.location.search)');
+    expect(stampPageSource).toContain('if (redirectPath) router.replace(redirectPath)');
     expect(leaderboardPageSource).toContain(
       "router.replace('/?panel=leaderboard')",
     );
@@ -4532,7 +4533,8 @@ describe("web quality performance source contracts", () => {
     expect(toastSource).toContain("sm:whitespace-nowrap");
     expect(toastSource).not.toContain("pr-7");
     expect(toastSource).not.toContain("absolute right-2 top-2");
-    expect(toastSource).toContain("data-[state=open]:fade-in-0");
+    expect(toastSource).toContain("t-toast");
+    expect(toastSource).not.toContain("transition-all");
     expect(toastSource).not.toContain(
       "data-[state=open]:slide-in-from-top-full",
     );

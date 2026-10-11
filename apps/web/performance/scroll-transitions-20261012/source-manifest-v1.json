@@ -1,0 +1,14 @@
+{
+  "candidate": "e3c710dc38cf9316a61c8d08e31a6d96c6e735ca",
+  "baseline": "73edf0720d9ec3a8dcdfc1a102767ad52481cce6",
+  "files": {
+    "apps/web/components/layout/ScrollEffects.tsx": "035fcd0d562d390590c3970f3b542d6b1e6f30e8d147701e475305d989696747",
+    "apps/web/lib/motion/scroll-reveal.ts": "9b23c1857f3c13fd8e720e2bca8bebe10dbc1b13515a7ad1aa2df51141a63647",
+    "apps/web/styles/product-ui.css": "b461e0a0afb6dd58ede4db6b83a82f87adf8b1166d7efb29813b1ef4ad309a81",
+    "apps/web/tests-unit/scroll-effects-browser.test.ts": "df7c49f89c03bedf5f8f5555fc2269068deec407380da078f4cf4cee131a02d5"
+  },
+  "fixtureDependencyFiles": {
+    "apps/web/performance/swipe-memory-diagnostic-20261011/fixture-query-v7.mjs": "346c9c865201a48b590c439a4e06306bfada92f91c73f9a83293a991a51058b5",
+    "apps/web/performance/swipe-memory-diagnostic-20261011/real-sdk-runtime-v7.mjs": "7ae9d1e598681af9b4679ec8b375572768749cc7fa1eee8dffa40d5cba498473"
+  }
+}

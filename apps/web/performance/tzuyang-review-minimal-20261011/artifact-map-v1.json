@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "performanceAdmission": 0,
+  "physicalFieldAdmission": 0,
+  "operatingDDL": 0,
+  "operatingApplyAttempts": 1,
+  "operatingContentCommitsVerified": 0,
+  "artifacts": [
+    {
+      "path": "REPORT-v1.md",
+      "bytes": 3249,
+      "sha256": "0e99666b54f6ec56b5bb82b2260b3865caa9183468ac333cd45342ab5fe2d666"
+    },
+    {
+      "path": "fresh-minimal-preflight-v1.json",
+      "bytes": 7228,
+      "sha256": "4882402d87dde7305efdd218c1407f10ab871a058539e7730ad29dd7b3bb29fd"
+    },
+    {
+      "path": "minimal-review-plan-v1.json",
+      "bytes": 20164,
+      "sha256": "9e520bba68b2e31f196da5fc505aee613c02dd8022f79fd1638e62c5aeac1469"
+    },
+    {
+      "path": "prepare_minimal_v1.py",
+      "bytes": 7237,
+      "sha256": "1bc5c9fc3e51d2884f680d0c1ab71b79dc0482f645e4a8c36bd06e174137426b"
+    },
+    {
+      "path": "read_fresh_minimal_v1.mjs",
+      "bytes": 2914,
+      "sha256": "2f3c9b2c2b276a6fc9635b4382d8b4e2a7138eb896b481c32d52cfbbce0f4905"
+    },
+    {
+      "path": "test_prepare_minimal_v1.py",
+      "bytes": 2158,
+      "sha256": "4059cbc1fbc1d72a18c6fe3a1a67a5011fb4852d5f79e260ac61d3f5db35a5e8"
+    }
+  ]
+}

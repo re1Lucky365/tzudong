@@ -1,0 +1,14 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-unit/scroll-effects-browser.test.ts:
+(pass) scroll reveal remains readable, completes once and respects keyboard focus at 390px [324.24ms]
+(pass) scroll reveal remains readable, completes once and respects keyboard focus at 820px [265.67ms]
+(pass) scroll reveal remains readable, completes once and respects keyboard focus at 1440px [238.97ms]
+(pass) unrelated child mutations do not rescan the entire document [253.38ms]
+(pass) starting with reduced motion can later enable it, and disable it without hiding content [250.29ms]
+(pass) removing waiting elements clears stale state and unmount disconnects mutation work [257.15ms]
+
+ 6 pass
+ 0 fail
+ 16 expect() calls
+Ran 6 tests across 1 file. [2.47s]

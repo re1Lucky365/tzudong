@@ -1,0 +1,22 @@
+{
+  "head": "df9160f121fcfc524cfbb3c579be3364e16838c2",
+  "checked": 468,
+  "missing": [],
+  "mismatches": [
+    {
+      "path": "apps/web/performance/readiness-develop-integration-20261010/production-build-v7.log",
+      "localBytes": 5876,
+      "gitBytes": 5873,
+      "localSha256": "91d8caa02384ffec455bcb65ce0371039ca74447bb429f4283df971000efbbfa",
+      "gitSha256": "6d8248521a706ef45171b88d3a45065dfa2014937a5d5d089d9978494ff7c727"
+    },
+    {
+      "path": "apps/web/performance/readiness-followthrough-20261010/production-build-final-v10.log",
+      "localBytes": 5872,
+      "gitBytes": 5869,
+      "localSha256": "04d7b612a7eb5071f95ef609b80ce73c2846cdfa179ae38249b2a06556509d31",
+      "gitSha256": "21241c4c1c655952cbb016f2b6f2d06b0029a8c76f4141f4ff0e0035d2ea10cb"
+    }
+  ],
+  "mapFailures": []
+}

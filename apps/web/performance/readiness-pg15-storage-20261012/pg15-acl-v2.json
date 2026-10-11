@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "engine": "15.8",
+  "image": "sha256:af083ef64d0408c8f098ee6f5c364a59b26f36fbc0f3a334a62c5c1d57362e9b",
+  "architecture": "arm64",
+  "network": "none",
+  "ports": "none",
+  "synthetic": true,
+  "baseline": {
+    "exit": 3,
+    "states": [
+      "P0001"
+    ],
+    "exactRollback": true
+  },
+  "duringOwnerLease": {
+    "effectiveExec": true,
+    "directExecutorExec": false
+  },
+  "candidatePassed": true,
+  "exactMembershipAndFunctionAclRestored": true,
+  "directExecutorGrantDenied": true,
+  "beforeAfterFingerprint": {
+    "members": "49c4c1e6f17bcf660cc25416fe0942cc",
+    "functions": "3b64a363b18d10309a25ec2f7fa7c2cd"
+  },
+  "transformerSha256": "2ebceb0c3b3842e30ba37ab026591f7c95ee9cbabc3f0476ddf77856f86ef2e1",
+  "scriptSha256": "256e5a921ca581676d5332f89321b52ab3f79c20f704fa236cecc170bdf840fc",
+  "canonicalFullReplayVerified": false,
+  "storageOrReferenceLifecycleVerified": false,
+  "operatingDDL": 0
+}

@@ -1,0 +1,11 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-unit/toast-retirement.test.ts:
+(pass) 192 show/dismiss cycles retain only the current toast retirement timer [0.53ms]
+(pass) stale dismiss and duplicate dismiss cannot accumulate retirement timers [0.05ms]
+(pass) explicit removal cancels the matching timer while update preserves retirement [0.05ms]
+
+ 3 pass
+ 0 fail
+ 13 expect() calls
+Ran 3 tests across 1 file. [91.00ms]

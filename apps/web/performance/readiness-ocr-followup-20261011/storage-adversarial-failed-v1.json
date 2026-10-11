@@ -1,0 +1,8 @@
+{
+  "status": "failed",
+  "fixedFailure": "FixtureExecutorMismatch",
+  "actualExecutor": "supabase_admin",
+  "requiredExecutor": "postgres",
+  "sourceMutationDenied": true,
+  "scriptSha256": "36b256e0a2650ade726488bef9339820f6ad057f910ba8dac021d84130f0505c"
+}

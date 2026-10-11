@@ -1,0 +1,34 @@
+bun test v1.4.0 (34cbb9a40)
+
+apps/web/tests-unit/latest-owner-cleanup.test.ts:
+(pass) latest-owner cleanup serialization > scans B after A completes and never publishes A feedback to B [0.47ms]
+(pass) latest-owner cleanup serialization > coalesces rapid A/B/C transitions to the latest owner without overlap [0.22ms]
+(pass) latest-owner cleanup serialization > does not carry an explicit cancellation across owners [0.05ms]
+(pass) latest-owner cleanup serialization > coalesces duplicate automatic scans but retains same-owner explicit retry [0.04ms]
+(pass) latest-owner cleanup serialization > sign-out drops queued work and failed scans retain bounded retry feedback [0.13ms]
+
+apps/web/tests-unit/private-review-verification.test.ts:
+(pass) private review verification image boundary > authorization fails before database or Storage access [0.26ms]
+(pass) private review verification image boundary > invalid IDs and foreign owner, purpose, or arbitrary URL are rejected [0.34ms]
+(pass) private review verification image boundary > authorized bounded image is delivered without caching or a signed URL [0.27ms]
+(pass) private review verification image boundary > oversize, unsupported format and provider diagnostics stay bounded and fixed [1.71ms]
+(pass) private review verification image boundary > canonical and legacy authoritative keys fall back to the pre-migration public bucket [0.37ms]
+(pass) private review verification image boundary > private success keeps authoritative bytes; legacy missing-object errors alone permit fallback [0.09ms]
+(pass) private review verification image boundary > authorization, missing bucket, transient and unknown failures never read stale public bytes [0.42ms]
+(pass) private review verification image boundary > thrown private transport failure propagates without a public fallback [0.15ms]
+(pass) private review verification image boundary > normalizes the authoritative same-origin historical URL before download [0.28ms]
+(pass) private review verification image boundary > resolved database failures are unavailable rather than authoritative absence [0.09ms]
+(pass) private review verification image boundary > only definitive object absence is 404; provider and credential failures are 503 [0.24ms]
+(pass) private review verification image boundary > authoritative row absence stays 404 while an empty successful transport stays 503 [0.07ms]
+
+apps/web/tests-unit/mypage-crud-contract.test.ts:
+(pass) mypage CRUD QA/QC source contracts > profile update flows guard nickname, avatar, and password mutations by the signed-in user [1.76ms]
+(pass) mypage CRUD QA/QC source contracts > bookmark and review deletion are owner-scoped and invalidate their read models [1.11ms]
+(pass) mypage CRUD QA/QC source contracts > submission create flows insert parent and child rows with rollback on child insert failure [1.16ms]
+(pass) mypage CRUD QA/QC source contracts > submission history deletion goes through an authenticated owner-checking API route [1.45ms]
+(pass) mypage CRUD QA/QC source contracts > permanent account delete uses a bearer-bound one-time proof and preserves the durable worker/readback boundary [2.03ms]
+
+ 22 pass
+ 0 fail
+ 231 expect() calls
+Ran 22 tests across 3 files. [213.00ms]

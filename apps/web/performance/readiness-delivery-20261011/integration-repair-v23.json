@@ -1,0 +1,31 @@
+{
+  "observedAtUtc": "2026-10-11T06:46:25.899407+00:00",
+  "priorHead": "df9160f121fcfc524cfbb3c579be3364e16838c2",
+  "developIntegrated": "a9ce6ba2",
+  "mergedHead": "be1cd5ee7a74d536cd62a00cd5165613ca68378b",
+  "sourceReconciliation": {
+    "entries": 207,
+    "changedEntries": 1,
+    "changedPath": "backend/DATA_CONTRACTS.md",
+    "testsPassed": 7
+  },
+  "mergeFocusedWeb": {
+    "passed": 136,
+    "failed": 0,
+    "expectations": 1064,
+    "lintPassed": true
+  },
+  "sealedEvidence": {
+    "filesChecked": 468,
+    "missing": 0,
+    "rawByteMismatchesBefore": 2,
+    "fix": "narrow -text attributes and git add --renormalize; original bytes unchanged",
+    "remoteAfterPending": true
+  },
+  "readinessHostedSQL": 0,
+  "verificationPhotoTransfers": 0,
+  "ourOperatingDeployments": 0,
+  "phoneUsed": false,
+  "performanceAdmission": 0,
+  "fieldAdmission": 0
+}

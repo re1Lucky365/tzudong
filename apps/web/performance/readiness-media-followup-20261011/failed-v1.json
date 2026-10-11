@@ -1,0 +1,12 @@
+{
+  "stage": "v1 exact-PG17 rollback before candidate apply",
+  "fixedCode": "42501",
+  "cause": "function owner lacks CREATE on private schema",
+  "candidateApplied": false,
+  "operatingWrites": 0,
+  "fixtureDiagnostic": {
+    "fixedCode": "23514",
+    "cause": "synthetic nickname exceeded existing constraint"
+  },
+  "retainedOriginalClones": true
+}

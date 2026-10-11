@@ -1,0 +1,143 @@
+{
+  "sourceHead": "7cb7f73b00ce4de7efa92dff5b102ca8910a86a2",
+  "startedAtUtc": "2026-10-11T08:11:51.434Z",
+  "distDir": ".next-admin-media-forward-v1",
+  "node": "v24.21.0",
+  "productionBuild": true,
+  "canonicalPublicOriginForEphemeralServer": "https://www.tzudong.app",
+  "data": "synthetic REST735 / anonymous Auth401",
+  "fieldAdmission": 0,
+  "actualAccountCreated": false,
+  "actualReviewWritten": false,
+  "physicalDevice": false,
+  "fixtureSha256": "346c9c865201a48b590c439a4e06306bfada92f91c73f9a83293a991a51058b5",
+  "cases": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "public restaurant detail removes legacy source wrappers and raw emphasis while preserving criticism and quantity",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "guest Stamp review opens login with selected restaurant continuation",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "OAuth callback preserves explicit review continuation",
+      "passed": true,
+      "providerNavigationIntercepted": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "password longer than 12 characters reaches the bounded onboarding path",
+      "passed": true,
+      "onboardingInterceptedAndDeclined": true
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "case": "public restaurant detail removes legacy source wrappers and raw emphasis while preserving criticism and quantity",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "case": "guest Stamp review opens login with selected restaurant continuation",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "case": "OAuth callback preserves explicit review continuation",
+      "passed": true,
+      "providerNavigationIntercepted": true
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "case": "password longer than 12 characters reaches the bounded onboarding path",
+      "passed": true,
+      "onboardingInterceptedAndDeclined": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "case": "public restaurant detail removes legacy source wrappers and raw emphasis while preserving criticism and quantity",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "case": "guest Stamp review opens login with selected restaurant continuation",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "case": "OAuth callback preserves explicit review continuation",
+      "passed": true,
+      "providerNavigationIntercepted": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "case": "password longer than 12 characters reaches the bounded onboarding path",
+      "passed": true,
+      "onboardingInterceptedAndDeclined": true
+    },
+    {
+      "case": "compiled private verification route rejects anonymous request",
+      "passed": true,
+      "status": 401
+    },
+    {
+      "case": "compiled admin OCR route rejects anonymous mutation before cleanup/provider access",
+      "passed": true,
+      "status": 401
+    }
+  ],
+  "errors": {
+    "page": 0,
+    "console": 13,
+    "unsupportedFixture": 0,
+    "fixtureShapes": [],
+    "consoleKinds": {
+      "other": 6,
+      "CSP": 7
+    }
+  },
+  "passed": true,
+  "browserVersion": "154.0.8037.98",
+  "adminPostStatus": 401,
+  "adminPostContentType": "application/json",
+  "endedAtUtc": "2026-10-11T08:12:02.805Z"
+}

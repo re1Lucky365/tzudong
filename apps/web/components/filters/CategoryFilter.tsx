@@ -159,7 +159,7 @@ const CategoryFilter = ({
             </PopoverTrigger>
             <PopoverContent
                 className={cn(
-                    "z-[180] w-[min(21rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border-border bg-card p-0 shadow-2xl",
+                    "t-dropdown z-[180] w-[min(21rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border-border bg-card p-0 shadow-2xl",
                     contentClassName
                 )}
                 align={contentAlign}

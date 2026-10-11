@@ -1,0 +1,6 @@
+{
+  "status": "failed",
+  "fixedFailure": "ISOLATED_SQL_FAILED:55000",
+  "fixtureDirectAccountTransitionUnadmitted": true,
+  "scriptSha256": "4f5761413084e56cfe039519902b4fde0fd7dd10d370685b264c68d7a6dba2f6"
+}
