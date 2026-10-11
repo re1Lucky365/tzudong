@@ -1,0 +1,4 @@
+{"package": "readiness-gemini-integration-20261011", "files": 22, "mapSha256": "cf093b4834752ffcc3aab0076ba21b0d4a52413edf822068eb651cf718b54201", "status": "passed"}
+{"package": "readiness-delivery-integration-20261012", "files": 11, "mapSha256": "3422a67a2d1d3df1cd143f449d3a8515d8d4b087d3290fe66fe037f57a3085a1", "status": "passed"}
+{"package": "transitions-adoption-20261012", "files": 108, "mapSha256": "c11daa3d8c503d811ca1b4e484e48354d772a1e3d913281e2e099db1e271a452", "status": "passed"}
+{"sourceBindings": "passed", "canonicalValidator": "passed", "performanceAdmission": 0, "physicalDevice": false, "operatingDeliveryVerified": false}
