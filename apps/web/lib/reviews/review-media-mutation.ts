@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import { buildReviewPhotoObjectPath, getCanonicalReviewPhotoObjectPath, getLegacyReviewPhotoObjectPath } from '@/lib/review-photo-url';
+import { createReviewUploadIntentStore, type ReviewUploadIntent, type ReviewUploadIntentStore } from './review-upload-intents';
 
 export type ReviewMutationCode = 'REVIEW_COMMITTED' | 'REVIEW_CLEANUP_PENDING' | 'REVIEW_NOT_CONFIRMED'
     | 'REVIEW_NOT_FOUND' | 'REVIEW_UNAUTHORIZED' | 'REVIEW_CONFLICT' | 'REVIEW_INVALID'
@@ -19,6 +20,7 @@ export type ReviewMutationInput = {
         original: { content: string; categories: string[]; foodPhotos: string[] } };
 };
 export interface ReviewMediaDependencies {
+    intents?: ReviewUploadIntentStore;
     owner(): string | undefined;
     id(): string;
     read(reviewId: string, ownerId: string): PromiseLike<{ data: ReviewMediaRow | null; error: unknown }>;
@@ -57,9 +59,33 @@ export function reviewMutationMessage(code: ReviewMutationCode): string {
  * same lock as review reference writes and verifies Storage metadata absence.
  * No client path, resolved remove response or missing review is deletion proof.
  */
-export async function retryReviewMediaCleanup(deps: ReviewMediaDependencies, ownerId: string): Promise<boolean> {
+async function reconcileUploadIntents(deps: ReviewMediaDependencies, ownerId: string, cancelInterrupted: boolean, reviewId?: string): Promise<boolean> {
+    if (!deps.intents) return true;
+    let complete = true;
+    for (const intent of deps.intents.list(ownerId, reviewId)) {
+        if (deps.owner() !== ownerId) return false;
+        const checked = await deps.rpc('read_review_media_commit', {
+            p_operation_id: intent.operationId, p_review_id: intent.reviewId, p_kind: 'edit',
+        });
+        if (checked.error || deps.owner() !== ownerId) return false;
+        if (checked.data === 'REVIEW_COMMITTED') deps.intents.forget(intent);
+        else if (checked.data === 'REVIEW_NOT_CONFIRMED' && cancelInterrupted) {
+            // Retirement serializes with delayed commits and Storage INSERT.
+            // Live references remain protected, including a commit after GET.
+            const queued = await deps.rpc('queue_review_upload_cleanup', {
+                p_review_id: intent.reviewId, p_paths: intent.paths,
+            });
+            if (queued.error || queued.data !== 'REVIEW_CLEANUP_QUEUED' || deps.owner() !== ownerId) return false;
+            deps.intents.forget(intent);
+        } else complete = false;
+    }
+    return complete && deps.intents.list(ownerId, reviewId).length === 0;
+}
+
+export async function retryReviewMediaCleanup(deps: ReviewMediaDependencies, ownerId: string, cancelInterrupted = false): Promise<boolean> {
     if (deps.owner() !== ownerId) return false;
     try {
+        const intentsComplete = await reconcileUploadIntents(deps, ownerId, cancelInterrupted);
         const pending = await deps.rpc('pending_review_media_cleanup');
         if (pending.error || !Array.isArray(pending.data) || deps.owner() !== ownerId) return false;
         const paths: string[] = [];
@@ -89,7 +115,7 @@ export async function retryReviewMediaCleanup(deps: ReviewMediaDependencies, own
         }
         if (deps.owner() !== ownerId) return false;
         const finished = await deps.rpc('finish_review_media_cleanup');
-        return !finished.error && finished.data === 0 && deps.owner() === ownerId;
+        return !finished.error && finished.data === 0 && deps.owner() === ownerId && intentsComplete;
     } catch { return false; }
 }
 
@@ -101,6 +127,10 @@ type Operation = {
     confirmedMissingUpload: boolean;
     rejection?: ReviewMutationCode;
 };
+function uploadIntent(op: Operation): ReviewUploadIntent {
+    return { operationId: String(op.args.p_operation_id), ownerId: op.input.ownerId,
+        reviewId: op.input.reviewId, paths: op.uploads.map(upload => upload.path) };
+}
 /** One frozen request per editor/delete confirmation. Retries reuse the exact
  * operation ID and payload; the atomic receipt proves this commit even if a
  * later moderation/edit changed the row. Never compensate an unanswered write.
@@ -119,7 +149,7 @@ export class ReviewMediaMutation {
     async cancelConfirmedMissingUpload(): Promise<boolean> {
         const op = this.operation;
         if (this.active || !op || op.sent || !op.confirmedMissingUpload || this.deps.owner() !== op.input.ownerId) return false;
-        const uploadedPaths = op.uploads.filter(upload => upload.available).map(upload => upload.path);
+        const uploadedPaths = op.uploads.map(upload => upload.path);
         if (uploadedPaths.length) {
             try {
                 const queued = await this.deps.rpc('queue_review_upload_cleanup', {
@@ -131,6 +161,8 @@ export class ReviewMediaMutation {
             // pre-DB operation is released. Cleanup may finish on a later visit.
             await retryReviewMediaCleanup(this.deps, op.input.ownerId);
         }
+        if (this.deps.owner() !== op.input.ownerId) return false;
+        if (op.uploads.length) this.deps.intents?.forget(uploadIntent(op));
         this.operation = null;
         return true;
     }
@@ -153,6 +185,9 @@ export class ReviewMediaMutation {
             return result('REVIEW_NOT_CONFIRMED');
         }
         if (!this.operation) {
+            // A reloaded editor must reconcile the durable old operation before
+            // allocating fresh paths. A read alone never cancels uncertain work.
+            if (!await reconcileUploadIntents(this.deps, input.ownerId, false, input.reviewId)) return result('REVIEW_NOT_CONFIRMED');
             const row = await this.deps.read(input.reviewId, input.ownerId);
             if (row.error) return result('REVIEW_NOT_CONFIRMED');
             if (!row.data || row.data.id !== input.reviewId || row.data.user_id !== input.ownerId) return result('REVIEW_NOT_FOUND');
@@ -177,12 +212,14 @@ export class ReviewMediaMutation {
                 if (!path) return result('REVIEW_INVALID');
                 uploads.push({ path, file: prepared, available: false });
             }
-            this.operation = { input, uploads, sent: false, confirmedMissingUpload: false, args: {
+            const next: Operation = { input, uploads, sent: false, confirmedMissingUpload: false, args: {
                 p_operation_id: operationId, p_review_id: input.reviewId, p_kind: input.kind,
                 p_expected_updated_at: row.data.updated_at,
                 p_content: edit?.content.trim() ?? null, p_categories: edit ? [...edit.categories] : null,
                 p_food_photos: edit ? [...edit.foodPhotos, ...uploads.map(upload => upload.path)] : null,
             } };
+            if (uploads.length) this.deps.intents?.save(uploadIntent(next));
+            this.operation = next;
         }
         const op = this.operation;
         if (op.rejection) return this.discardRejected(op);
@@ -230,6 +267,8 @@ export class ReviewMediaMutation {
             // Durable queue owns retries now; live uploads are excluded by DB.
             await retryReviewMediaCleanup(this.deps, op.input.ownerId);
         }
+        if (this.deps.owner() !== op.input.ownerId) return result('REVIEW_UNAUTHORIZED');
+        if (op.uploads.length) this.deps.intents?.forget(uploadIntent(op));
         this.operation = null;
         return result(op.rejection!);
     }
@@ -243,8 +282,13 @@ export class ReviewMediaMutation {
         } catch { return false; }
     }
     private async finish(ownerId: string): Promise<ReviewMutationResult> {
+        if (this.deps.owner() !== ownerId) return result('REVIEW_UNAUTHORIZED');
+        const op = this.operation;
+        let intentCleared = true;
+        try { if (op?.uploads.length) this.deps.intents?.forget(uploadIntent(op)); }
+        catch { intentCleared = false; }
         this.operation = null;
-        return result(await retryReviewMediaCleanup(this.deps, ownerId) ? 'REVIEW_COMMITTED' : 'REVIEW_CLEANUP_PENDING');
+        return result(await retryReviewMediaCleanup(this.deps, ownerId) && intentCleared ? 'REVIEW_COMMITTED' : 'REVIEW_CLEANUP_PENDING');
     }
 }
 
@@ -257,6 +301,7 @@ export function createReviewMediaDependencies(
     const rpc = client.rpc.bind(client) as unknown as ReviewMediaDependencies['rpc'];
     const bucket = client.storage.from('review-photos');
     return {
+        intents: createReviewUploadIntentStore(() => window.localStorage),
         owner, id: () => crypto.randomUUID(), prepare, rpc,
         read: (reviewId, ownerId) => client.from('reviews')
             .select('id,user_id,updated_at,content,categories,food_photos')

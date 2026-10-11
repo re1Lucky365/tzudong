@@ -1172,7 +1172,7 @@ BEGIN
     ('public.review_media_delete_allowed(text)','a75dbd787dd388b0761bee11c82a56d5f410688e4cfd953181bce4d613062ae7',true,'v','plpgsql','boolean',ARRAY['p_path']::text[]),
     ('public.review_media_upload_allowed(text,text)','298c6a127f3a44a193b78be8c1f2577ab58aa34c772b66ccd53f774d807cc90c',true,'v','plpgsql','boolean',ARRAY['p_bucket','p_path']::text[]),
     ('review_media_private.canonical(text,uuid,uuid,text)','87d8397c36cf4c7b986f75cbc2788979333a76be2cc26dc5522cd362f62414a9',false,'i','sql','boolean',ARRAY['p_path','p_owner','p_review','p_purpose']::text[]),
-    ('review_media_private.enqueue_removed()','7edb21d70ea3ff81ab90e13617e8c1c2749b54b1506f1ff42aaa6c5dc33f9e38',true,'v','plpgsql','trigger',ARRAY[]::text[]),
+    ('review_media_private.enqueue_removed()','cbf6a87e453e8c2e14d67acd73a92e399fbba4b4f24ac27966806e13ef1fd905',true,'v','plpgsql','trigger',ARRAY[]::text[]),
     ('review_media_private.guard_references()','846030547ffd76e17596755d7eee4279dcb9b563361435260826071d2f250d59',true,'v','plpgsql','trigger',ARRAY[]::text[]),
     ('review_media_private.lock_changes()','381d89aa6bbf5a59c2ee0fef2a7392ef705147252b324527201b8b6f74376250',true,'v','plpgsql','trigger',ARRAY[]::text[]),
     ('review_media_private.owned_legacy(text,uuid,text)','a2d55f09f03fcaeedd77461198511673da7342a6a4873d37227f9cf612090980',false,'i','sql','boolean',ARRAY['p_path','p_owner','p_purpose']::text[]),
@@ -1407,6 +1407,20 @@ BEGIN
     THEN RAISE EXCEPTION 'REVIEW_MEDIA_FORWARD_READBACK_DRIFT'; END IF;
 END $readback$;
 -- ADMIN_REVIEW_MEDIA_READBACK_END
+-- REVIEW_SHARED_MEDIA_READBACK_BEGIN
+DO $readback$
+BEGIN
+  IF NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='review_media_private.enqueue_removed()'::regprocedure
+    AND p.proowner='privacy_workflow_owner'::regrole AND p.prosecdef AND p.proconfig=ARRAY['search_path=""']::text[]
+    AND p.prorettype='trigger'::regtype AND p.provolatile='v' AND p.pronargs=0
+    AND p.prolang=(SELECT oid FROM pg_language WHERE lanname='plpgsql')
+    AND encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')='cbf6a87e453e8c2e14d67acd73a92e399fbba4b4f24ac27966806e13ef1fd905'
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND NOT has_function_privilege('service_role',p.oid,'EXECUTE'))
+    THEN RAISE EXCEPTION 'REVIEW_SHARED_READBACK_DRIFT'; END IF;
+END $readback$;
+-- REVIEW_SHARED_MEDIA_READBACK_END
 
 -- Catalog sections.  The SELECT order below is part of receipt-v1 and each
 -- section has an explicit identity ORDER BY.  Platform schemas remain visible

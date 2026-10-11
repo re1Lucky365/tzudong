@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { ReviewMediaMutation, retryReviewMediaCleanup, reviewMutationMessage,
     type ReviewMediaDependencies, type ReviewMediaRow, type ReviewMutationInput } from '@/lib/reviews/review-media-mutation';
+import { createReviewUploadIntentStore } from '@/lib/reviews/review-upload-intents';
+import { reviewIntentStorage } from './helpers/review-intent-storage';
 const owner = '11111111-1111-4111-8111-111111111111', review = '33333333-3333-4333-8333-333333333333';
 const base = `${owner}/reviews/${review}`, old = `${base}/food/old.webp`, proof = `${base}/verification/proof.webp`;
 const operationId = '55555555-5555-4555-8555-555555555555', fresh = `${base}/food/${operationId}_0.webp`;
@@ -233,5 +235,41 @@ describe('review commit and media failure boundaries', () => {
         const outcome = await new ReviewMediaMutation(deps).run(edit());
         expect(JSON.stringify(outcome)).not.toContain(privateFailure.message);
         expect(reviewMutationMessage(outcome.code)).not.toContain(privateFailure.message);
+    });
+});
+
+describe('interrupted edit-upload recovery', () => {
+    test('persisted intent precedes upload and reload blocks fresh paths until explicit reconciliation', async () => {
+        const { f, deps } = fixture(), storage = reviewIntentStorage();
+        deps.intents = createReviewUploadIntentStore(() => storage); f.mode = 'throw-before';
+        const upload = deps.upload;
+        deps.upload = async (path, file) => {
+            expect(deps.intents!.list(owner, review)[0].paths).toEqual([path]);
+            return upload(path, file);
+        };
+        expect((await new ReviewMediaMutation(deps).run(edit())).code).toBe('REVIEW_NOT_CONFIRMED');
+        expect(f.uploads).toBe(1); expect(f.objects.has(fresh)).toBe(true);
+        expect((await new ReviewMediaMutation({ ...deps, intents: createReviewUploadIntentStore(() => storage) }).run(edit())).code).toBe('REVIEW_NOT_CONFIRMED');
+        expect(f.uploads).toBe(1); expect(f.mutations).toBe(0);
+        expect(await retryReviewMediaCleanup(deps, owner)).toBe(false);
+        expect(f.objects.has(fresh)).toBe(true); expect(f.events).not.toContain('compensate');
+        expect(await retryReviewMediaCleanup(deps, owner, true)).toBe(true);
+        expect(f.objects.has(fresh)).toBe(false); expect(f.objects.has(old)).toBe(true);
+        expect(deps.intents.list(owner)).toEqual([]);
+    });
+    test('lost commit reply is reconciled after reload without deleting live uploads', async () => {
+        const { f, deps } = fixture(), storage = reviewIntentStorage();
+        deps.intents = createReviewUploadIntentStore(() => storage); f.mode = 'throw-after'; f.confirmation = false;
+        expect((await new ReviewMediaMutation(deps).run(edit())).code).toBe('REVIEW_NOT_CONFIRMED');
+        expect(deps.intents.list(owner)).toHaveLength(1); expect(f.mutations).toBe(1);
+        f.confirmation = true;
+        expect(await retryReviewMediaCleanup({ ...deps, intents: createReviewUploadIntentStore(() => storage) }, owner, true)).toBe(true);
+        expect(f.objects.has(fresh)).toBe(true); expect(f.events).not.toContain('compensate'); expect(f.mutations).toBe(1);
+    });
+    test('failed intent persistence makes no Storage or mutation request', async () => {
+        const { f, deps } = fixture(), storage = reviewIntentStorage();
+        storage.setItem = () => { throw Error('quota'); }; deps.intents = createReviewUploadIntentStore(() => storage);
+        expect((await new ReviewMediaMutation(deps).run(edit())).code).toBe('REVIEW_NOT_CONFIRMED');
+        expect(f.uploads).toBe(0); expect(f.mutations).toBe(0);
     });
 });

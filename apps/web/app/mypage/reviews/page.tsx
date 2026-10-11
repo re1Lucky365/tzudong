@@ -5,6 +5,8 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -148,13 +150,13 @@ export default function ReviewsPage() {
   const [cleanupPending, setCleanupPending] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const cleanupBusy = useRef(false);
-  const retryCleanup = useCallback(async () => {
+  const retryCleanup = useCallback(async (cancelInterrupted = false) => {
     const ownerId = ownerRef.current;
     if (!ownerId || cleanupBusy.current) return;
     cleanupBusy.current = true;
     setIsCleaning(true);
     try {
-      const complete = await retryReviewMediaCleanup(createReviewMediaDependencies(supabase, () => ownerRef.current), ownerId);
+      const complete = await retryReviewMediaCleanup(createReviewMediaDependencies(supabase, () => ownerRef.current), ownerId, cancelInterrupted);
       if (ownerRef.current === ownerId) setCleanupPending(!complete);
     } finally {
       cleanupBusy.current = false;
@@ -469,9 +471,21 @@ export default function ReviewsPage() {
       {cleanupPending && (
         <div className="mb-3 space-y-2" role="status">
           <p className="text-sm">리뷰 사진 정리가 남아 있거나 정리 상태를 확인하지 못했습니다. 다시 시도해 주세요.</p>
-          <Button variant="outline" disabled={isCleaning} onClick={() => void retryCleanup()}>
-            {isCleaning ? '사진 정리 확인 중…' : '사진 정리 다시 시도'}
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" disabled={isCleaning}>{isCleaning ? '사진 정리 확인 중…' : '사진 정리 다시 시도'}</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>중단된 업로드와 남은 사진을 정리할까요?</AlertDialogTitle>
+                <AlertDialogDescription>다른 창에서 진행 중인 업로드도 취소될 수 있습니다. 작성 중인 창을 먼저 확인해 주세요. 저장된 리뷰에서 사용 중인 사진은 유지됩니다.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>돌아가기</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void retryCleanup(true)}>사진 정리</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
       {isError && (

@@ -18,6 +18,10 @@ PARENTS = (
     ROOT / "backend/supabase/migrations/20261008200719_review_verification_private.sql",
 )
 FORWARD = ROOT / "backend/supabase/migrations/20261011072824_admin_review_media_completion.sql"
+SHARED_FORWARD = ROOT / "backend/supabase/migrations/20261011085342_review_legacy_shared_cleanup.sql"
+SHARED_SIGNATURE = "review_media_private.enqueue_removed()"
+HISTORICAL_SHARED_HASH = "7edb21d70ea3ff81ab90e13617e8c1c2749b54b1506f1ff42aaa6c5dc33f9e38"
+FINAL_SHARED_HASH = "cbf6a87e453e8c2e14d67acd73a92e399fbba4b4f24ac27966806e13ef1fd905"
 OWNER_SIGNATURE = "public.mutate_review_with_media(uuid,uuid,text,timestamp with time zone,text,text[],text[])"
 HISTORICAL_OWNER_HASH = "50bfad7bc4fc7ddbc9d9379e8eb13facd938a15f66553576cc69fbcf69aa98b1"
 FINAL_OWNER_HASH = "d5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7e323"
@@ -73,7 +77,8 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
         sql = MIGRATION.read_text()
         for row in historical_rows:
             with self.subTest(signature=row[0]):
-                historical_hash = HISTORICAL_OWNER_HASH if row[0] == OWNER_SIGNATURE else row[6]
+                historical_hash = {OWNER_SIGNATURE: HISTORICAL_OWNER_HASH,
+                                   SHARED_SIGNATURE: HISTORICAL_SHARED_HASH}.get(row[0], row[6])
                 self.assertEqual((historical_hash, row[3], row[4], row[2]), functions[row[0]])
                 self.assertIn(f"('{row[0]}','{before_hashes[row[0]]}','{historical_hash}'", sql)
                 if row[0] == OWNER_SIGNATURE:
@@ -103,13 +108,36 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
                     "-- The same independent catalog-only checks are embedded in canonical readback.\n", "")
         historical = checks(MIGRATION.read_text())
         self.assertEqual(historical.count(HISTORICAL_OWNER_HASH), 1)
-        self.assertEqual(historical.replace(HISTORICAL_OWNER_HASH, FINAL_OWNER_HASH),
+        self.assertEqual(historical.replace(HISTORICAL_OWNER_HASH, FINAL_OWNER_HASH)
+                         .replace(HISTORICAL_SHARED_HASH, FINAL_SHARED_HASH),
                          checks((ROOT / local_migrate.READBACK_SOURCE).read_text()))
         def forward_checks(source):
             return source.split("-- ADMIN_REVIEW_MEDIA_READBACK_BEGIN\n", 1)[1].split(
                 "-- ADMIN_REVIEW_MEDIA_READBACK_END", 1)[0]
         self.assertEqual(forward_checks(FORWARD.read_text()),
                          forward_checks((ROOT / local_migrate.READBACK_SOURCE).read_text()))
+
+    def test_shared_legacy_queue_transition_is_bound_to_the_original_trigger(self):
+        body = re.search(r"CREATE FUNCTION review_media_private.enqueue_removed\(\).*?AS \$\$(.*?)\$\$;",
+                         PARENTS[0].read_text(), re.S).group(1)
+        sql = SHARED_FORWARD.read_text()
+        old = re.search(r"\$old\$(.*?)\$old\$", sql, re.S).group(1)
+        new = re.search(r"\$new\$(.*?)\$new\$", sql, re.S).group(1)
+        self.assertEqual(hashlib.sha256(body.encode()).hexdigest(), HISTORICAL_SHARED_HASH)
+        self.assertEqual(body.count(old), 1)
+        self.assertEqual(hashlib.sha256(body.replace(old, new).encode()).hexdigest(), FINAL_SHARED_HASH)
+        row = next(row for row in local_migrate.REVIEW_MEDIA_FUNCTIONS if row[0] == SHARED_SIGNATURE)
+        self.assertEqual(row[6], FINAL_SHARED_HASH)
+        for clause in ("queued.owner_id = EXCLUDED.owner_id", "queued.purpose = EXCLUDED.purpose",
+                       "queued.purpose = 'verification'", "NOT queued.retired AND NOT queued.complete",
+                       "review_media_private.owned_legacy(queued.path, queued.owner_id, queued.purpose)"):
+            self.assertIn(clause, new)
+        self.assertIn("IS DISTINCT FROM before_schema", sql)
+        self.assertIn("IF schema_lease THEN REVOKE CREATE ON SCHEMA review_media_private", sql)
+        self.assertNotRegex(sql, r"(?i)(?:DISABLE TRIGGER|ALTER FUNCTION|GRANT[^;]+TO (?:anon|authenticated|service_role))")
+        block = sql.split("-- REVIEW_SHARED_MEDIA_READBACK_BEGIN\n", 1)[1].split("-- REVIEW_SHARED_MEDIA_READBACK_END", 1)[0]
+        current = (ROOT / local_migrate.READBACK_SOURCE).read_text().split("-- REVIEW_SHARED_MEDIA_READBACK_BEGIN\n", 1)[1].split("-- REVIEW_SHARED_MEDIA_READBACK_END", 1)[0]
+        self.assertEqual(block, current)
 
     def test_new_service_only_cleanup_body_is_exactly_bound(self):
         body = FORWARD.read_text().split("AS $cleanup$", 1)[1].split("$cleanup$;", 1)[0]
@@ -178,7 +206,7 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
     def test_ledger_applies_integration_normally_and_retains_current_overlap_proofs(self):
         manifest = local_migrate.verify_manifest()
         files = manifest["source"]["files"]
-        self.assertEqual(len(files), 133)
+        self.assertEqual(len(files), 134)
         integration = next(row for row in files if row["path"] == MIGRATION.relative_to(ROOT).as_posix())
         self.assertEqual(local_migrate._expected_terminal_status(integration), "applied")
         sql = local_migrate._execution_body(integration)

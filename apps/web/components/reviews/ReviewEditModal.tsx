@@ -440,7 +440,7 @@ export function ReviewEditModal({ isOpen, onClose, review, onSuccess }: ReviewEd
             setRetryKind(null);
             setCanCancelMissingUpload(false);
             setCleanupFailureMessage(null);
-            toast({ title: "실패한 업로드 취소", description: "확인된 업로드만 정리 대기열에 넣었습니다. 사진을 다시 선택해 주세요." });
+            toast({ title: "실패한 업로드 취소", description: "업로드 경로를 정리 대기열에 넣었습니다. 사진을 다시 선택해 주세요." });
         } finally {
             setIsSubmitting(false);
         }

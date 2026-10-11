@@ -1024,7 +1024,7 @@ complete_lifecycle_stage
             for ordinal, marker in enumerate(verifier.SEQUENCE_MARKERS, 1)
         ]
         section_counts = {section: 1 for section in verifier.READBACK_SECTIONS}
-        section_counts.update(review_media_functions=14, storage_policies=22, storage_buckets=7, seed_buckets=7)
+        section_counts.update(review_media_functions=15, storage_policies=22, storage_buckets=7, seed_buckets=7)
         payloads["local-migration-summary.json"].update({
             "schema": "local-migration-publication-summary-v1",
             "project_name": "tzudong-local-123456abcdef",
@@ -1087,10 +1087,10 @@ complete_lifecycle_stage
             verifier.verify(root)
 
     def test_publication_uses_the_current_132_unit_manifest(self) -> None:
-        self.assertEqual(local_migrate.verify_manifest()["source"]["migrationCount"], 133)
-        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 133)
-        self.assertEqual(verifier.EXPECTED_LEDGER_UNITS, 133)
-        self.assertEqual(builder.EXPECTED_LEDGER_UNITS, 133)
+        self.assertEqual(local_migrate.verify_manifest()["source"]["migrationCount"], 134)
+        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 134)
+        self.assertEqual(verifier.EXPECTED_LEDGER_UNITS, 134)
+        self.assertEqual(builder.EXPECTED_LEDGER_UNITS, 134)
     def test_publication_rejects_review_media_catalog_counts_even_with_matching_total(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
