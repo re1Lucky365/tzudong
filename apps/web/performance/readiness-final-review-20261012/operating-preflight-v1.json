@@ -1,0 +1,39 @@
+{
+  "verifiedProject": {
+    "id": "prj_sau35J5uUtShIQ9OKofRtOVVnTSl",
+    "name": "tzudong",
+    "teamId": "team_OUj64KeLxJI3PkEbOaFZnorA"
+  },
+  "production": {
+    "id": "dpl_EUxJnWmDDozCSMWb2sqNSPgKJLM5",
+    "url": "tzudong-dbx25vroz-twoimos-projects.vercel.app",
+    "state": "READY",
+    "target": "production",
+    "sha": "1884f87e53c4567ead7c9a0fb394b09b91a70396",
+    "aliases": [
+      "www.tzudong.app",
+      "internal.tzudong.app",
+      "tzudong.app",
+      "tzudong-twoimos-projects.vercel.app",
+      "tzudong-git-main-twoimos-projects.vercel.app"
+    ]
+  },
+  "supabase": {
+    "project": "aqlcofblfxdrjhhdmarw",
+    "engine": "17.6",
+    "manifestRows": 1963,
+    "hostedLedgerRows": 86,
+    "ownerCleanupPresent": false,
+    "adminCleanupPresent": false,
+    "verificationBucketPresent": false,
+    "actor": "postgres",
+    "sessionActor": "postgres",
+    "superuser": false,
+    "ownerMemberships": 1,
+    "claimHelperSha256": "43f3ff2ed914944802555c4ffe3ff8ecece213e82288e2c1c47ae22efdf81585",
+    "privateFunctions": 108
+  },
+  "operatingWrites": 0,
+  "candidateDeployed": false,
+  "peerOperatingHold": true
+}
