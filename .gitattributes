@@ -18,3 +18,7 @@ apps/web/performance/user-readiness-20261009/production-security-build-v3.log -t
 
 # Preserve the sealed source snapshot bytes, including its original final blank line.
 apps/web/performance/tzuyang-review-census-20261009/checkpoint-v1/census_admission_v1.py whitespace=-blank-at-eof
+
+# Preserve original bytes of sealed production build logs bound to detached maps.
+apps/web/performance/readiness-develop-integration-20261010/production-build-v7.log -text
+apps/web/performance/readiness-followthrough-20261010/production-build-final-v10.log -text
