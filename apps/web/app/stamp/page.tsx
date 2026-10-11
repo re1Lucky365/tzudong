@@ -731,10 +731,12 @@ export default function StampPage() {
     }, [handleBottomSheetRestaurantSwipe]);
 
     const handleCloseRightPanel = useCallback(() => {
+        // The composer owns Escape and focus while it overlays this detail.
+        if (isReviewModalOpen) return;
         setIsRightPanelVisible(false);
         setSelectedRestaurant(null);
         setRestaurantSheetHeightRequestKey(0);
-    }, []);
+    }, [isReviewModalOpen]);
 
     const handleOpenDirectionSheet = useCallback(() => {
         setRestaurantSheetHeightRequestKey((key) => key + 1);
@@ -1340,6 +1342,7 @@ export default function StampPage() {
                 <BottomSheet
                     key={selectedRestaurant.id}
                     isOpen={isRightPanelVisible}
+                    modal={!isReviewModalOpen}
                     onClose={handleCloseRightPanel}
                     defaultHeight={50}
                     minHeight={25}
