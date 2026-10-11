@@ -1,0 +1,7 @@
+{
+  "exit": 0,
+  "database": "readiness_admin_staging_v2_20261011",
+  "fixedErrors": [],
+  "syntheticTemplate": true,
+  "operatingDDL": 0
+}

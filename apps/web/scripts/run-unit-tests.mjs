@@ -21,9 +21,15 @@ const isolated = new Set([
   'admin-youtube-thumbnail-readiness-gate.test.ts',
   'auth-callback-session.test.ts',
   'account-deletion-reauth-validation.test.ts',
+  // This older contract replaces the whole Supabase SDK too. Linux ESM links
+  // later StorageApiError imports against that mock unless its process ends.
+  'account-deletion-contract.test.ts',
   'db-conflict-checker.test.ts',
   'require-admin-fail-closed.test.ts',
   'shorten-target-allowlist.test.ts',
+  // Replacing the complete Supabase module removes real StorageApiError exports
+  // for later image-boundary tests. Keep this route's mocks in their own process.
+  'short-url-page-runtime.test.ts',
   'local-loopback-mutation-origin.test.ts',
 ]);
 

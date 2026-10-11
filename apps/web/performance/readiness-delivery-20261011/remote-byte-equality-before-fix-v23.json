@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-11T06:45:15.064042+00:00",
+  "revision": "df9160f121fcfc524cfbb3c579be3364e16838c2",
+  "repo": "twoimo/tzudong",
+  "packages": [
+    {
+      "path": "apps/web/performance/tzuyang-review-census-20261009/checkpoint-complete-v7",
+      "mapSha256": "c441dd8e46ea10ee72dced6d617cf9948dea07647fa684c653699edd090bb0ae",
+      "files": 198,
+      "verified": 198,
+      "mapDownloadBytesEqual": true
+    },
+    {
+      "path": "apps/web/performance/readiness-develop-integration-20261010",
+      "mapSha256": "d366b70477471f892e844f21759b619cdc1b4dbd67252b1bff4cdce46086cc7d",
+      "files": 135,
+      "verified": 131
+    }
+  ],
+  "status": "failed",
+  "performanceAdmission": 0,
+  "hostedWrites": 0,
+  "fieldAdmission": 0,
+  "remoteCommitVerified": true,
+  "mismatchPath": "apps/web/performance/readiness-develop-integration-20261010/production-build-v7.log",
+  "failureCode": "REMOTE_BLOB_BYTES_DRIFT"
+}

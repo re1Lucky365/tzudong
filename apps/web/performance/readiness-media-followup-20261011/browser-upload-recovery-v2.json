@@ -1,0 +1,19 @@
+{
+  "sourceHead": "f358ed975bcf5d4c41b88bc660c35e5dc8b1fc72",
+  "sourceScriptSha256": "df0cc65645a20d942e808f4d54d11045e09922954e414ee307632714f856fdc6",
+  "node": "v24.21.0",
+  "startedAtUtc": "2026-10-11T09:13:33.444Z",
+  "distDir": ".next-media-followup-v1",
+  "productionBuild": true,
+  "syntheticAuthAndRest": true,
+  "operatingWrites": 0,
+  "physicalDevice": false,
+  "fieldAdmission": 0,
+  "pageErrors": 0,
+  "consoleErrors": 0,
+  "unsupportedFixture": 0,
+  "cases": [],
+  "passed": false,
+  "browser": "154.0.8037.98",
+  "failureCode": "BROWSER_ASSERTION_FAILED"
+}

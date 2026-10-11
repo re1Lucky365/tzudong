@@ -1,0 +1,11 @@
+{
+  "runId": 38135964611,
+  "sourceHead": "723754e30948a1dacc6ac6e11df7ba889b0a3754",
+  "failedUnit": "20261011105114_review_media_storage_retirement_fence.sql",
+  "fixedErrors": [
+    "STORAGE_FENCE_LEASE_BASELINE_DRIFT"
+  ],
+  "privateLogSha256": "9555e132aee000457a6a8d7ca7fba68e18fb052f5869a1e29b3b0c0073f3ade2",
+  "rawPrivateLogNotPublished": true,
+  "operatingDDL": 0
+}

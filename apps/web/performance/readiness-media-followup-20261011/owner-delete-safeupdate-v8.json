@@ -1,0 +1,34 @@
+{
+  "engine": "17.6",
+  "synthetic": true,
+  "guardLibrary": "safeupdate",
+  "operatingWrites": 0,
+  "outcomes": [
+    {
+      "variant": "before",
+      "exit": 0,
+      "sqlstates": [
+        "21000"
+      ],
+      "result": [],
+      "outcome": {
+        "queuedCount": 0,
+        "reviewCount": 1,
+        "receiptCount": 0
+      }
+    },
+    {
+      "variant": "after",
+      "exit": 0,
+      "sqlstates": [],
+      "result": [
+        "REVIEW_COMMITTED"
+      ],
+      "outcome": {
+        "queuedCount": 2,
+        "reviewCount": 0,
+        "receiptCount": 1
+      }
+    }
+  ]
+}

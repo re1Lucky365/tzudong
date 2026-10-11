@@ -1,0 +1,1704 @@
+{
+  "scannedSourceFiles": 393,
+  "matchedFiles": 56,
+  "files": [
+    {
+      "path": "apps/web/app/admin/banners/page.tsx",
+      "sha256": "e1135a027486da998b689f2a86dd25ea292dd6500b5491acca6158a19714d972",
+      "hits": [
+        {
+          "line": 694,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/app/app-globals.css",
+      "sha256": "16985caff841da64683c4e239cfb8200ede23e267462a477929c1ecb30c9fc31",
+      "hits": [
+        {
+          "line": 93,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 110,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 123,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 138,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 143,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 146,
+          "indicators": [
+            "will-change"
+          ]
+        },
+        {
+          "line": 334,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 338,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 343,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 345,
+          "indicators": [
+            "will-change"
+          ]
+        },
+        {
+          "line": 353,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        },
+        {
+          "line": 357,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 373,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 396,
+          "indicators": [
+            "will-change"
+          ]
+        },
+        {
+          "line": 584,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 587,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 593,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        },
+        {
+          "line": 812,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 823,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 895,
+          "indicators": [
+            "will-change"
+          ]
+        },
+        {
+          "line": 1023,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 1024,
+          "indicators": [
+            "will-change"
+          ]
+        },
+        {
+          "line": 1101,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        },
+        {
+          "line": 1104,
+          "indicators": [
+            "will-change"
+          ]
+        },
+        {
+          "line": 1310,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 1311,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 1321,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 1322,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 1431,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 1447,
+          "indicators": [
+            "@keyframes"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/app/global-map/page.tsx",
+      "sha256": "56ee531f6f1c27ebed8b2a44a9c383b88a121a589b149255b7f85c228997791a",
+      "hits": [
+        {
+          "line": 687,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 721,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 796,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/app/globals.css",
+      "sha256": "593f9588727f36865e2d0edd9f7e9f70e07cae944570a9b0b1f477d51ab99f3d",
+      "hits": [
+        {
+          "line": 216,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 268,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 270,
+          "indicators": [
+            "will-change"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/app/home-app-globals.css",
+      "sha256": "6755130f075ce73901c105491544fed256d7dea9315b3f8b9fcbfb9959c03368",
+      "hits": [
+        {
+          "line": 277,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 288,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 360,
+          "indicators": [
+            "will-change"
+          ]
+        },
+        {
+          "line": 397,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        },
+        {
+          "line": 402,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 404,
+          "indicators": [
+            "transition-duration"
+          ]
+        },
+        {
+          "line": 420,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 421,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 431,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 432,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 475,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 482,
+          "indicators": [
+            "@keyframes"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/app/home-deferred-globals.css",
+      "sha256": "e5a85c89016be09e5360c2cc80bd69baf35f4af19697be9f3008c755e6444287",
+      "hits": [
+        {
+          "line": 167,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 178,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 250,
+          "indicators": [
+            "will-change"
+          ]
+        },
+        {
+          "line": 287,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        },
+        {
+          "line": 292,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 294,
+          "indicators": [
+            "transition-duration"
+          ]
+        },
+        {
+          "line": 310,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 311,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 321,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 322,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 365,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 372,
+          "indicators": [
+            "@keyframes"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/app/home-detail-globals.css",
+      "sha256": "d36b58478454db2a416b1455d6abd324bbf9a8f3473cf992e3fb552368ba064c",
+      "hits": [
+        {
+          "line": 166,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 177,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 249,
+          "indicators": [
+            "will-change"
+          ]
+        },
+        {
+          "line": 286,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        },
+        {
+          "line": 291,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 293,
+          "indicators": [
+            "transition-duration"
+          ]
+        },
+        {
+          "line": 309,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 310,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 320,
+          "indicators": [
+            "animation-duration"
+          ]
+        },
+        {
+          "line": 321,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 364,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 371,
+          "indicators": [
+            "@keyframes"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/app/mypage/profile/page.tsx",
+      "sha256": "5c1def4852bc9307dab2626727ca3ebd24f4a8430d5a3f63b1220cbaeb912446",
+      "hits": [
+        {
+          "line": 1039,
+          "indicators": [
+            "transition-opacity"
+          ]
+        },
+        {
+          "line": 1067,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 1172,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 1178,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 1184,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 1223,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/app/stamp/page.tsx",
+      "sha256": "da460b15fa717b8862898d822f5345ad325d6237a8246eb93450e85c61177e23",
+      "hits": [
+        {
+          "line": 1308,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/AdminConsoleOverview.tsx",
+      "sha256": "7eca9f9feaf3228699fb69242924a11a6c97ecda0cbe0237a19ceb864afba883",
+      "hits": [
+        {
+          "line": 562,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        },
+        {
+          "line": 8265,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 8282,
+          "indicators": [
+            "transition-colors",
+            "transition-none"
+          ]
+        },
+        {
+          "line": 8294,
+          "indicators": [
+            "duration-100",
+            "transition-none",
+            "transition-opacity"
+          ]
+        },
+        {
+          "line": 8307,
+          "indicators": [
+            "duration-100",
+            "transition-all",
+            "transition-none"
+          ]
+        },
+        {
+          "line": 8482,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 8578,
+          "indicators": [
+            "duration-150"
+          ]
+        },
+        {
+          "line": 8665,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 8723,
+          "indicators": [
+            "duration-150",
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 8759,
+          "indicators": [
+            "duration-300",
+            "transition-none",
+            "will-change"
+          ]
+        },
+        {
+          "line": 8815,
+          "indicators": [
+            "duration-300",
+            "transition-none"
+          ]
+        },
+        {
+          "line": 8827,
+          "indicators": [
+            "duration-200",
+            "transition-none"
+          ]
+        },
+        {
+          "line": 8836,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 8853,
+          "indicators": [
+            "duration-100",
+            "transition-none",
+            "transition-opacity"
+          ]
+        },
+        {
+          "line": 8870,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 8890,
+          "indicators": [
+            "duration-150",
+            "transition-none",
+            "transition-opacity"
+          ]
+        },
+        {
+          "line": 8905,
+          "indicators": [
+            "duration-150",
+            "transition-none",
+            "transition-opacity"
+          ]
+        },
+        {
+          "line": 8943,
+          "indicators": [
+            "duration-100",
+            "transition-none",
+            "transition-opacity"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/AdminOverviewDashboard.tsx",
+      "sha256": "c8b11eec11b774415baba37b3790bf85cf65709c49de9531ee3a61bb586098d6",
+      "hits": [
+        {
+          "line": 466,
+          "indicators": [
+            "duration-200",
+            "transition-none",
+            "transition-opacity"
+          ]
+        },
+        {
+          "line": 1334,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 1356,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 1386,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/AdminRestaurantModal.tsx",
+      "sha256": "0eac51abeeb95f7f243fb2083710c41df4ad41fa47287b392e710847258476fc",
+      "hits": [
+        {
+          "line": 1197,
+          "indicators": [
+            "transition-all"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/AdminReviewPanel.tsx",
+      "sha256": "de0a73dbd6ef0152ea1a4775380afe6d899a86ecbcc006fce290fc2f8ff9d021",
+      "hits": [
+        {
+          "line": 402,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/EditRestaurantModal.tsx",
+      "sha256": "9adfd9345fa6a2e7068b0b091c32a3c2396de1aefe9076d18b8f11c78a2a5a93",
+      "hits": [
+        {
+          "line": 856,
+          "indicators": [
+            "transition-all"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/EvaluationDetailView.tsx",
+      "sha256": "d622ac4c943c533dc93370a3313929bd0f78e1da92d8ec8011796fd3f018a73d",
+      "hits": [
+        {
+          "line": 643,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 654,
+          "indicators": [
+            "duration-200",
+            "transition-none",
+            "transition-opacity"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/EvaluationTableNew.tsx",
+      "sha256": "4a2d1e338c39e9b6fd327d4e550dc7ebcad30ccace293b5f7d9beca30e676fce",
+      "hits": [
+        {
+          "line": 320,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 325,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 350,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 363,
+          "indicators": [
+            "transition-opacity"
+          ]
+        },
+        {
+          "line": 448,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 460,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/SubmissionDetailView.tsx",
+      "sha256": "5e55719b008d777ce97cd0455e8c629eb429e82b244b759dd8959a737025b951",
+      "hits": [
+        {
+          "line": 665,
+          "indicators": [
+            "transition-all"
+          ]
+        },
+        {
+          "line": 838,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 921,
+          "indicators": [
+            "transition-opacity"
+          ]
+        },
+        {
+          "line": 1004,
+          "indicators": [
+            "transition-opacity"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/SubmissionListView.tsx",
+      "sha256": "99dd4c45b92e171068acceb87fc4ed6b6477f277b2f7dc1dd6b18e15c49b2cd1",
+      "hits": [
+        {
+          "line": 197,
+          "indicators": [
+            "transition-all"
+          ]
+        },
+        {
+          "line": 215,
+          "indicators": [
+            "transition-opacity"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/TrendProposalQueue.tsx",
+      "sha256": "378bbbbb565a4eb3efddb54703d0d652e4aa2bcd81881799b55be27bea9475e0",
+      "hits": [
+        {
+          "line": 241,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/storyboard/LegacyStoryboardReference.tsx",
+      "sha256": "36f069c91e9afd985c87b7c8f794b6228a051c360c28cad24c737d24c080d040",
+      "hits": [
+        {
+          "line": 1956,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        },
+        {
+          "line": 2276,
+          "indicators": [
+            "duration-300",
+            "transition-none"
+          ]
+        },
+        {
+          "line": 8562,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 8600,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 8707,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 9233,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 9532,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 9973,
+          "indicators": [
+            "transition-none"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/storyboard/LocalStoryboardWorkspace.tsx",
+      "sha256": "15365d873b9a1814ff2572610370e2c48095ebb54381fb903aac901ebf4a01db",
+      "hits": [
+        {
+          "line": 729,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/admin/thumbnail-generator/AdminYoutubeThumbnailGenerator.tsx",
+      "sha256": "7d0240ea5b55d0055024f7d93938d2695083f94a11110a764ae07d60db1d8beb",
+      "hits": [
+        {
+          "line": 5332,
+          "indicators": [
+            "transition-transform"
+          ]
+        },
+        {
+          "line": 5348,
+          "indicators": [
+            "transition-transform"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/announcement/AnnouncementPanel.tsx",
+      "sha256": "4a0cde4af80f34df977f98caea06f31dcfca4b9cb4af7c3b4fe7dbc8b7bd07f0",
+      "hits": [
+        {
+          "line": 300,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 385,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/home/DesktopLeftPanelBookmarks.tsx",
+      "sha256": "31de1eb0914825a0585072e9ad2b34dee4bd1af7a2fc838124634f1e85fa61ab",
+      "hits": [
+        {
+          "line": 108,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/home/DesktopLeftPanelNotifications.tsx",
+      "sha256": "b2d736023c3d34f65f6dcce48d9ecf0152c4766aca079772ecade729b9f4b758",
+      "hits": [
+        {
+          "line": 153,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/home/MobileControlOverlay.tsx",
+      "sha256": "a9dcf1291296377cf84be512e87473d9d7b4bb9b1c6da964b9494bd15cebefe4",
+      "hits": [
+        {
+          "line": 1062,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 1095,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 1108,
+          "indicators": [
+            "transition-none"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/home/home-desktop-control-panel.tsx",
+      "sha256": "74cb1422222ed5a84141386e426490e048f5daab7a1b8c5fb92844c02dcd7766",
+      "hits": [
+        {
+          "line": 533,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 1534,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 1568,
+          "indicators": [
+            "transition-none"
+          ]
+        },
+        {
+          "line": 1583,
+          "indicators": [
+            "transition-none"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/home/home-map-container.tsx",
+      "sha256": "dcf8c744fb6c0adb9b16c764c2b32ade9c77c6225e10b55296385560d0df42ae",
+      "hits": [
+        {
+          "line": 1473,
+          "indicators": [
+            "transition-none"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/layout/ScrollEffects.tsx",
+      "sha256": "8ce3ecd93ed884ed513b174b6f7dbf41325bd28827eb06bab7a8b7ae19decaea",
+      "hits": [
+        {
+          "line": 8,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/leaderboard/LeaderboardList.tsx",
+      "sha256": "cdcb4457a0c4960e5413ee04fc19f786f1c11d0be49d4420c2df966e514c4f3f",
+      "hits": [
+        {
+          "line": 65,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 67,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 68,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/map/map-view-sidepanels.tsx",
+      "sha256": "6e788b785c1590e57805dcc6419f5ff5e709973479d4ce444a7e1eebbd9ee660",
+      "hits": [
+        {
+          "line": 36,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/modals/EditRestaurantModal.tsx",
+      "sha256": "6d6437a472daf2783d155932990651b45b3bc0b851bc0bdaee742817b9692bfd",
+      "hits": [
+        {
+          "line": 489,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/mypage/MyPageSectionFrame.tsx",
+      "sha256": "87f42d80d04d3ad5c1ab4f1bafcde73ee6eaaf5a55c377bfd1b21ec57e67692b",
+      "hits": [
+        {
+          "line": 9,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/mypage/MyPageTopActions.tsx",
+      "sha256": "c3124fc4191eb73a44b5589534f76cbaf040a228faf04a4d171210c483ff5d2a",
+      "hits": [
+        {
+          "line": 218,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/reviews/ReviewCard.tsx",
+      "sha256": "8570e91d34145117e0cd05649239f72b11efc39f39eea44934a08731bd08311e",
+      "hits": [
+        {
+          "line": 323,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 335,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 349,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 371,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 393,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/reviews/ReviewEditModal.tsx",
+      "sha256": "e6dbd01fda19400a11d0d5a887d1342d0ebcd4f9517e0b52e6cf0461bd061b2e",
+      "hits": [
+        {
+          "line": 716,
+          "indicators": [
+            "transition-opacity"
+          ]
+        },
+        {
+          "line": 729,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 1051,
+          "indicators": [
+            "transition-opacity"
+          ]
+        },
+        {
+          "line": 1064,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/reviews/ReviewModal.tsx",
+      "sha256": "edd4471957bcc3d946a35483c7f22649c240941c647ae726c4f5a08281491181",
+      "hits": [
+        {
+          "line": 1781,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 1858,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 1871,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 1872,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 2041,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 2095,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 2097,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 2251,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 2553,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 2607,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 2609,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 2763,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 3039,
+          "indicators": [
+            "duration-0"
+          ]
+        },
+        {
+          "line": 3146,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 3200,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 3202,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 3353,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/stamp/StampCard.tsx",
+      "sha256": "999922afbfcf7d9c27a86f33aa347688f6dbf87081a24c8710c2ebd7445d7517",
+      "hits": [
+        {
+          "line": 254,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 261,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 273,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/accordion.tsx",
+      "sha256": "9587b5ca80cf0aa68bc2a4e6baacebbe07eab14e1c66c6b6420033aeca9219d1",
+      "hits": [
+        {
+          "line": 25,
+          "indicators": [
+            "transition-all"
+          ]
+        },
+        {
+          "line": 31,
+          "indicators": [
+            "duration-200",
+            "transition-transform"
+          ]
+        },
+        {
+          "line": 43,
+          "indicators": [
+            "transition-all"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/dialog.tsx",
+      "sha256": "8379400c15bdb9eb059cfb9f6f684ac1b6cc4bb78457a4eac4d4ee730a0c7a44",
+      "hits": [
+        {
+          "line": 89,
+          "indicators": [
+            "transition-opacity"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/input-otp.tsx",
+      "sha256": "a301658db5430d30108004cf05cb9469457a882f93dc057097f777ade4ca5423",
+      "hits": [
+        {
+          "line": 35,
+          "indicators": [
+            "transition-all"
+          ]
+        },
+        {
+          "line": 44,
+          "indicators": [
+            "duration-1000"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/navigation-menu.tsx",
+      "sha256": "92736fbbe66e31d1b981d10436f9048c76f4b91d8b89e93b679ef2eb54204770",
+      "hits": [
+        {
+          "line": 38,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 52,
+          "indicators": [
+            "duration-200"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/progress.tsx",
+      "sha256": "bdc4847f05de3aea1276966e0df9b4a293297f0ca7d7b430a1cb16cf5626728f",
+      "hits": [
+        {
+          "line": 16,
+          "indicators": [
+            "transition-all"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/scroll-area.tsx",
+      "sha256": "998181a10164aa6e508210064ba61b2f772a92958d7bb2141867007f0ebd9783",
+      "hits": [
+        {
+          "line": 26,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/scrollable-tag-container.tsx",
+      "sha256": "18c58a1575882730b07cce06af37ce4113d6abb2e0bffbe9bc70d0c86264ad21",
+      "hits": [
+        {
+          "line": 85,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 113,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/sheet.tsx",
+      "sha256": "c297315020d1a2930e242ade5f96d7ed6dc458442f49a68324e895f991707c9d",
+      "hits": [
+        {
+          "line": 58,
+          "indicators": [
+            "transition-opacity"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/sidebar.tsx",
+      "sha256": "fd177570b4c65ebe06261bc1b3225ee218532d917a09321e55c8eb972b5ec7fd",
+      "hits": [
+        {
+          "line": 185,
+          "indicators": [
+            "duration-200"
+          ]
+        },
+        {
+          "line": 195,
+          "indicators": [
+            "duration-200"
+          ]
+        },
+        {
+          "line": 257,
+          "indicators": [
+            "transition-all"
+          ]
+        },
+        {
+          "line": 364,
+          "indicators": [
+            "duration-200"
+          ]
+        },
+        {
+          "line": 384,
+          "indicators": [
+            "transition-transform"
+          ]
+        },
+        {
+          "line": 491,
+          "indicators": [
+            "transition-transform"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/slider.tsx",
+      "sha256": "b81a683197551322cd8f13653bc955ad4c3bca6fe62376d33acb2bcd04361d02",
+      "hits": [
+        {
+          "line": 18,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/switch.tsx",
+      "sha256": "99cda942c2d215d8f25dd33ae06ed1278bcf912b262ed0e907b04f35881ac507",
+      "hits": [
+        {
+          "line": 12,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 20,
+          "indicators": [
+            "transition-transform"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/table.tsx",
+      "sha256": "7e14bb73af54fa5edf3459c5b818db5ec726b356707626ec8a08f9f38f04a4a1",
+      "hits": [
+        {
+          "line": 59,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/toast.tsx",
+      "sha256": "5a9e0853beb5ee5e376f5cb3cb7f5cf222de60f7de9d9e777628e952627da0e9",
+      "hits": [
+        {
+          "line": 55,
+          "indicators": [
+            "transition-colors"
+          ]
+        },
+        {
+          "line": 70,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/components/ui/toggle.tsx",
+      "sha256": "fb0f786bce638fd414f220e31ad3c902f5c6e25eee9c95ac955cacd50638d6ff",
+      "hits": [
+        {
+          "line": 8,
+          "indicators": [
+            "transition-colors"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/styles/admin-ui.css",
+      "sha256": "248a28f912a3e8a806566ceaffe9a4efc65b22bc5e31b9811c24bba066e4d9df",
+      "hits": [
+        {
+          "line": 109,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/styles/interface-motion.css",
+      "sha256": "3a3ad264bb10edc71ddc757fe226a3d2b83eca4814405be6f2adaae9b12796d0",
+      "hits": [
+        {
+          "line": 7,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 16,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 19,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 28,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 32,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 35,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 40,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 45,
+          "indicators": [
+            "animation:"
+          ]
+        },
+        {
+          "line": 51,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 55,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 58,
+          "indicators": [
+            "@keyframes"
+          ]
+        },
+        {
+          "line": 68,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        },
+        {
+          "line": 71,
+          "indicators": [
+            "animation:"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/styles/product-ui.css",
+      "sha256": "1a9617cf6b4c71880d98743469625a983a5e016a7e770558d142fbdbf961e5be",
+      "hits": [
+        {
+          "line": 13,
+          "indicators": [
+            "cubic-bezier"
+          ]
+        },
+        {
+          "line": 19,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/web/lib/motion/scroll-behavior.ts",
+      "sha256": "ad1cc8a5ba7f791000a7db7fafc7cd9a79c995bf424a60b4b34c9ffdd682c404",
+      "hits": [
+        {
+          "line": 4,
+          "indicators": [
+            "prefers-reduced-motion"
+          ]
+        }
+      ]
+    }
+  ]
+}

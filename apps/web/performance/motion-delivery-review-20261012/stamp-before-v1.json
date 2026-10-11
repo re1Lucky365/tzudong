@@ -1,0 +1,44 @@
+{
+  "variant": "before",
+  "distDir": ".next-media-followup-scroll-v1",
+  "buildId": "b8y0Z3ltPMT5TUTaffO44",
+  "data": "Synthetic REST735/Auth user",
+  "physicalDevice": false,
+  "operatingWrites": 0,
+  "fieldAdmission": 0,
+  "pageErrors": 0,
+  "consoleKinds": {},
+  "unsupportedFixture": 0,
+  "mutationAttempts": 0,
+  "cases": [
+    {
+      "width": 390,
+      "composerVisible": false,
+      "writeReviewConsumed": false,
+      "composerClosed": false,
+      "desktopRouted": false,
+      "passed": false,
+      "failureName": "TimeoutError"
+    },
+    {
+      "width": 820,
+      "composerVisible": false,
+      "writeReviewConsumed": false,
+      "composerClosed": false,
+      "desktopRouted": false,
+      "passed": false,
+      "failureName": "TimeoutError"
+    },
+    {
+      "width": 1440,
+      "composerVisible": false,
+      "writeReviewConsumed": false,
+      "composerClosed": false,
+      "desktopRouted": false,
+      "passed": false,
+      "failureName": "TimeoutError"
+    }
+  ],
+  "passed": false,
+  "browser": "154.0.8037.98"
+}

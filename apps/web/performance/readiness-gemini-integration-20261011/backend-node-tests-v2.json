@@ -1,0 +1,21 @@
+{
+  "exit": 0,
+  "node": "v24.21.0",
+  "python": "3.12.14",
+  "command": [
+    "/Users/twoimo/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+    "--test",
+    "backend/utils/tests/gemini-client.test.mjs",
+    "backend/utils/tests/gemini-model.test.mjs",
+    "backend/restaurant-crawling/scripts/tests/test_gemini_chunk_generation_config.mjs"
+  ],
+  "counts": {
+    "pass": 33,
+    "fail": 0,
+    "skipped": 0
+  },
+  "logSha256": "529aeff25764f37f92ebb180f0c82fa5fdbb3e8134f6ea05c6e5e1cbddea8289",
+  "sourceHead": "723754e30948a1dacc6ac6e11df7ba889b0a3754",
+  "externalProviderCalls": 0,
+  "loopbackOrInjectedTransport": true
+}

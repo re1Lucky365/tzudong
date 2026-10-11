@@ -9,7 +9,7 @@ function preview(body: RecordActionRequest): RecordActionReceipt {
   return { operationId: body.operationId, action: body.action, state: 'preview', previewHash: 'a'.repeat(64), targetIds: body.targetIds, auditId: null,
     expiresAt: new Date(Date.now() + 900000).toISOString(), readback: [{ id: target, kind: body.action.split('.')[0], status: 'pending', fingerprint: 'b'.repeat(64) }], mediaCleanupPending: false };
 }
-function fixture(options: { fixedCode?: string; maintenancePhase?: 'preview' | 'apply'; lostPreview?: boolean; lostApply?: boolean; conflict?: boolean; pendingGet?: boolean; failedGet?: boolean; delayPreview?: Promise<void>; delayApply?: Promise<void>; mutateReceipt?: (r: RecordActionReceipt) => unknown; media?: boolean; cleanupHold?: 'maintenance' | 'unadmitted'; cleanupComplete?: boolean; cleanupPages?: number; denied?: number; resultIds?: string[] } = {}) {
+function fixture(options: { fixedCode?: string; maintenancePhase?: 'preview' | 'apply'; lostPreview?: boolean; lostApply?: boolean; conflict?: boolean; pendingGet?: boolean; failedGet?: boolean; expiredGet?: boolean; delayGet?: Promise<void>; removeFault?: 'throw' | 'noop'; delayPreview?: Promise<void>; delayApply?: Promise<void>; mutateReceipt?: (r: RecordActionReceipt) => unknown; media?: boolean; cleanupHold?: 'maintenance' | 'unadmitted'; cleanupComplete?: boolean; cleanupPages?: number; denied?: number; resultIds?: string[] } = {}) {
   const calls: Array<{ method: string; path: string; operationId?: string; body?: RecordActionRequest }> = [];
   let receipt: RecordActionReceipt | null = null, cleanupPage = 0;
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
@@ -17,6 +17,8 @@ function fixture(options: { fixedCode?: string; maintenancePhase?: 'preview' | '
     if (options.denied) return Response.json({ error: 'provider text must stay hidden' }, { status: options.denied });
     if (request.method === 'GET') {
       calls.push({ method: 'GET', path: url.pathname, operationId: url.searchParams.get('operationId')! });
+      await options.delayGet;
+      if (options.expiredGet) return Response.json({ code: 'RECORD_ACTION_PREVIEW_EXPIRED' }, { status: 409 });
       if (options.failedGet) return Response.json({ code: 'RECORD_ACTION_UNCERTAIN' }, { status: 503 });
       const value = options.pendingGet && receipt ? { ...receipt, state: 'preview', auditId: null } : receipt;
       return Response.json({ success: true, receipt: options.mutateReceipt && value ? options.mutateReceipt(value as RecordActionReceipt) : value });
@@ -49,7 +51,7 @@ function fixture(options: { fixedCode?: string; maintenancePhase?: 'preview' | '
   const storage = new Map<string, string>();
   const transport: typeof fetch = (url, init) => fetch(new URL(String(url), server.url), init);
   const events: string[] = [];
-  const client = createRecordActionClient({ actor: 'opaque-a', onInvalidate: () => events.push('invalidated'), onApplied: () => events.push('applied'), fetch: transport, uuid: () => operation, storage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => { storage.set(key, value); }, removeItem: key => { storage.delete(key); } } });
+  const client = createRecordActionClient({ actor: 'opaque-a', onInvalidate: () => events.push('invalidated'), onApplied: () => events.push('applied'), fetch: transport, uuid: () => operation, storage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => { storage.set(key, value); }, removeItem: key => { if (options.removeFault === 'throw') throw Error('storage unavailable'); if (options.removeFault !== 'noop') storage.delete(key); } } });
   return { client, calls, storage, options, transport, events, close: () => server.stop(true) };
 }
 async function phase(client: ReturnType<typeof createRecordActionClient>, expected: string) {
@@ -57,6 +59,83 @@ async function phase(client: ReturnType<typeof createRecordActionClient>, expect
   expect(client.getSnapshot().phase).toBe(expected);
 }
 function deferred() { let resolve!: () => void; const promise = new Promise<void>(yes => { resolve = yes; }); return { resolve, promise }; }
+
+describe('server-confirmed expiry of an uncertain operation', () => {
+  test('an unapplied expired GET clears only its saved identity and permits a fresh preview after cancel', async () => {
+    const f = fixture({ fixedCode: 'RECORD_ACTION_UNCERTAIN' });
+    try {
+      const done = f.client.run(input).catch(error => error.code);
+      await phase(f.client, 'confirming'); await f.client.apply(RECORD_ACTION_CONFIRMATION);
+      expect(f.client.getSnapshot().phase).toBe('uncertain'); expect(f.storage.size).toBe(1);
+      f.options.expiredGet = true;
+      await f.client.readback();
+      expect(await done).toBe('RECORD_ACTION_PREVIEW_EXPIRED');
+      expect(f.client.getSnapshot().phase).toBe('failed'); expect(f.client.canCancel()).toBe(true);
+      expect(f.storage.size).toBe(0); expect(f.events).not.toContain('applied');
+      expect(f.calls.filter(call => call.body?.phase === 'apply')).toHaveLength(1);
+      f.client.cancel(); f.options.expiredGet = false;
+      const next = f.client.run(input).catch(error => error.code);
+      await phase(f.client, 'confirming'); f.client.cancel(); expect(await next).toBe('CANCELLED');
+      expect(f.calls.at(-1)?.body?.phase).toBe('preview');
+    } finally { f.close(); }
+  });
+  test('an applied receipt past its deadline still recovers its audit without repeating Apply', async () => {
+    const f = fixture({ lostApply: true, failedGet: true });
+    try {
+      const done = f.client.run(input); await phase(f.client, 'confirming'); await f.client.apply(RECORD_ACTION_CONFIRMATION);
+      f.options.failedGet = false;
+      f.options.mutateReceipt = receipt => ({ ...receipt, expiresAt: '2000-01-01T00:00:00Z' });
+      await f.client.readback(); expect((await done).auditId).toBe(audit);
+      expect(f.client.getSnapshot().phase).toBe('idle'); expect(f.storage.size).toBe(0);
+      expect(f.calls.filter(call => call.body?.phase === 'apply')).toHaveLength(1);
+    } finally { f.close(); }
+  });
+  test('a deadline in a preview receipt alone cannot discard an uncertain Apply', async () => {
+    const f = fixture({ fixedCode: 'RECORD_ACTION_UNCERTAIN' });
+    try {
+      void f.client.run(input).catch(() => {}); await phase(f.client, 'confirming'); await f.client.apply(RECORD_ACTION_CONFIRMATION);
+      f.options.mutateReceipt = receipt => ({ ...receipt, expiresAt: '2000-01-01T00:00:00Z' });
+      await f.client.readback(); f.client.cancel();
+      expect(f.client.getSnapshot().phase).toBe('uncertain'); expect(f.storage.size).toBe(1);
+      await expect(f.client.run(input)).rejects.toThrow(); expect(f.events).not.toContain('applied');
+      expect(f.calls.filter(call => call.body?.phase === 'apply')).toHaveLength(1);
+    } finally { f.close(); }
+  });
+  test('a changed identity or failed storage deletion remains GET-only', async () => {
+    for (const fault of ['operation', 'action', 'hash', 'targets', 'throw', 'noop'] as const) {
+      const f = fixture({ fixedCode: 'RECORD_ACTION_UNCERTAIN' });
+      try {
+        void f.client.run(input).catch(() => {}); await phase(f.client, 'confirming'); await f.client.apply(RECORD_ACTION_CONFIRMATION);
+        const [key, saved] = [...f.storage.entries()][0];
+        const pending = JSON.parse(saved);
+        if (fault === 'operation') pending.operationId = audit;
+        if (fault === 'action') pending.action = 'review.delete';
+        if (fault === 'hash') pending.previewHash = 'c'.repeat(64);
+        if (fault === 'targets') pending.targetIds = [audit];
+        f.storage.set(key, JSON.stringify(pending));
+        if (fault === 'throw' || fault === 'noop') f.options.removeFault = fault;
+        const expected = f.storage.get(key);
+        f.options.expiredGet = true; await f.client.readback(); f.client.cancel();
+        expect(f.storage.get(key)).toBe(expected); expect(f.client.getSnapshot().phase).toBe('uncertain');
+        expect(f.events).not.toContain('applied'); expect(f.calls.filter(call => call.body?.phase === 'apply')).toHaveLength(1);
+      } finally { f.close(); }
+    }
+  });
+  test('an actor change while GET is pending cannot clear the prior actor intent', async () => {
+    const f = fixture({ fixedCode: 'RECORD_ACTION_UNCERTAIN' }), waiting = deferred();
+    try {
+      const done = f.client.run(input).catch(error => error.code);
+      await phase(f.client, 'confirming'); await f.client.apply(RECORD_ACTION_CONFIRMATION);
+      const saved = [...f.storage.entries()];
+      f.options.expiredGet = true; f.options.delayGet = waiting.promise;
+      const checking = f.client.readback(); await phase(f.client, 'checking');
+      f.client.setActor('opaque-b'); waiting.resolve(); await checking;
+      expect(await done).toBe('CANCELLED'); expect([...f.storage.entries()]).toEqual(saved);
+      expect(f.client.getSnapshot().phase).toBe('idle'); expect(f.events).not.toContain('applied');
+      expect(f.calls.filter(call => call.body?.phase === 'apply')).toHaveLength(1);
+    } finally { waiting.resolve(); f.close(); }
+  });
+});
 
 describe('guarded record action client over real loopback HTTP', () => {
   test('preview, exact confirmation, single immutable apply, GET audit readback; concurrent calls cannot replace identity', async () => {

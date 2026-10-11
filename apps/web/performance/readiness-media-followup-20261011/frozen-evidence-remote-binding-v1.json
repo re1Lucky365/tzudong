@@ -1,0 +1,18 @@
+{
+  "remoteBranchVerifiedSha": "ed8ad8abad196afa756ad846862d5869ab27966e",
+  "packages": [
+    {
+      "package": "readiness-delivery-20261011",
+      "files": 44,
+      "sha256": "e0513cc06b8ad6836c51bd6393908b85c117bdd4bfb0c9cb8397144d7212c285",
+      "byteEquality": true
+    },
+    {
+      "package": "tzuyang-review-source-20261011",
+      "files": 19,
+      "sha256": "ea9ef1a91168d98c9a3eb0f9a0730ea4f618f7d2dc62c326462a20fbb4ef65d2",
+      "byteEquality": true
+    }
+  ],
+  "verifiedThroughGitObjects": true
+}

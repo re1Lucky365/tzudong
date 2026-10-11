@@ -1,0 +1,8 @@
+{
+  "status": "failed",
+  "sqlstate": "23503",
+  "fixedFailure": [
+    "violates foreign key constraint \"objects_bucketId_fkey\""
+  ],
+  "scriptSha256": "f40edf065fcc80927ca8acc604793628aecda6cc0bd83ae857da6da4e20aa511"
+}

@@ -1,0 +1,21 @@
+{
+  "python": "3.12.14",
+  "modules": [
+    "backend/supabase/tests/test_admin_record_expired_preview_readback.py",
+    "backend/supabase/tests/test_review_media_catalog_integration.py",
+    "backend/supabase/tests/test_local_function_runtime_contract.py",
+    "backend/supabase/tests/test_local_publication_verifier.py",
+    "backend/supabase/tests/test_local_seed_receipt_contract.py"
+  ],
+  "inputSha256": {
+    "backend/supabase/tests/test_admin_record_expired_preview_readback.py": "483db792b08a43ca3119ca7cd3d6ba6d20fcd9d3e75ba0a3d4efdbc576297bc4",
+    "backend/supabase/tests/test_review_media_catalog_integration.py": "ec7cc20e2010ada57e21aeee3a3636ffe9052d923198dbd299c09f14a2d81d0a",
+    "backend/supabase/tests/test_local_function_runtime_contract.py": "9a4dadc0d354a9fbf505ffbbeeb4ee5ee656c1e4d38b649e10ba47e8817a7a1f",
+    "backend/supabase/tests/test_local_publication_verifier.py": "db1e1a1991edd7b4880eeaaa817f699d9ef9f1466a84003fb8fa9d2ba99d2d2f",
+    "backend/supabase/tests/test_local_seed_receipt_contract.py": "90f1fb4c6e2b4b3b07f7368bfdadac6e971752d69df5bfcad4f8c35624bc5b8a"
+  },
+  "pass": 108,
+  "fail": 0,
+  "seconds": 97.649,
+  "localOnly": true
+}

@@ -1,0 +1,321 @@
+{
+  "schemaVersion": 1,
+  "startedAtUtc": "2026-10-11T06:59:16.009Z",
+  "receipt": {
+    "kind": "candidate",
+    "root": "/Users/twoimo/.codex/worktrees/ranking-page-headers-20261008/tzudong/apps/web",
+    "sourceCommit": "21a86dca974f9bbdeed52d19d2fde0e9cc1fcac6",
+    "distDir": ".next-swipe-cache-pooled-v2",
+    "buildId": "1od_Z_KRw43giwu_TWJAC",
+    "pageManifestSha256": "93083cf53c195694d44fc42451863848b620d05d58fa8411a5065bbbee60fdee",
+    "lockSha256": "749eab126d3157e102c8b89caf1ad798a6179c509d96511618bc2b14ea6ff694",
+    "helperSourceSha256": "8e49bd94dba92f75013f184ab58a330d087681ce0db4db4467ef3667a54a80cb",
+    "cssActualDirectoryValidated": true,
+    "npmBuildExit": 0,
+    "npmCliCssDirectory": "default .next; manual exported same validator used on actual named dist",
+    "publicBuildSettingsCopiedToEvidence": false
+  },
+  "scope": "one fresh candidate process; diagnostic observers and post-idle heap snapshot; no A/B or guard admission",
+  "sourceRuntime": "/Users/twoimo/.codex/worktrees/ranking-page-headers-20261008/tzudong/apps/web/performance/swipe-selection-cache-20261009/real-sdk-runtime-v6.mjs",
+  "runtimeSourceSha256": "4f01a7e47e412d9a500a54794a0860610e3106def43ae35f08ad3ce8865e0f62",
+  "environment": {
+    "node": "24.21.0",
+    "next": "16.3.6",
+    "cpuRate": 4,
+    "viewport": "390x844/dpr1/touch emulation",
+    "data": "REST735/Auth401 synthetic",
+    "SDK": "real remote Naver",
+    "cache": "disabled/SW bypassed",
+    "network": "unthrottled"
+  },
+  "performanceAdmission": 0,
+  "fieldAdmission": 0,
+  "physicalDevice": false,
+  "requestShapes": {
+    "{\"method\":\"GET\",\"select\":\"other-select\",\"filters\":[\"status\",\"lat\",\"lng\"],\"ordered\":true,\"limited\":false,\"offset\":false}": {
+      "requests": 1,
+      "bytes": 186410,
+      "rows": 735,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"other-select\",\"filters\":[\"status\"],\"ordered\":true,\"limited\":false,\"offset\":false}": {
+      "requests": 1,
+      "bytes": 186410,
+      "rows": 735,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"other-select\",\"filters\":[\"status\",\"weekly_search_count\"],\"ordered\":true,\"limited\":true,\"offset\":false}": {
+      "requests": 257,
+      "bytes": 2289613,
+      "rows": 5140,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"id,name:approved_name,approved_name,lat,lng,road_address,jibun_address,english_address,categories,phone,review_count,youtube_link,tzuyang_review,youtube_meta,status,created_at\",\"filters\":[\"approved_name\",\"status\"],\"ordered\":false,\"limited\":true,\"offset\":false}": {
+      "requests": 511,
+      "bytes": 206752,
+      "rows": 511,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"other-select\",\"filters\":[\"id\"],\"ordered\":false,\"limited\":true,\"offset\":false}": {
+      "requests": 256,
+      "bytes": 241272,
+      "rows": 256,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"other-select\",\"filters\":[\"approved_name\",\"status\"],\"ordered\":false,\"limited\":false,\"offset\":false}": {
+      "requests": 256,
+      "bytes": 241272,
+      "rows": 256,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"other-select\",\"filters\":[\"id\"],\"ordered\":false,\"limited\":false,\"offset\":false}": {
+      "requests": 128,
+      "bytes": 120636,
+      "rows": 128,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"id,name:approved_name,approved_name,road_address,jibun_address\",\"filters\":[\"id\"],\"ordered\":false,\"limited\":false,\"offset\":false}": {
+      "requests": 128,
+      "bytes": 23403,
+      "rows": 128,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"tzuyang_review\",\"filters\":[\"approved_name\"],\"ordered\":false,\"limited\":false,\"offset\":false}": {
+      "requests": 128,
+      "bytes": 3200,
+      "rows": 128,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"id,name:approved_name,approved_name,origin_name,naver_name,google_name,road_address,jibun_address\",\"filters\":[\"approved_name\"],\"ordered\":false,\"limited\":false,\"offset\":false}": {
+      "requests": 128,
+      "bytes": 30571,
+      "rows": 128,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"id,name:approved_name,approved_name,origin_name,naver_name,google_name,road_address,jibun_address\",\"filters\":[],\"ordered\":false,\"limited\":false,\"offset\":false}": {
+      "requests": 640,
+      "bytes": 111886720,
+      "rows": 470400,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"id,name:approved_name,approved_name,road_address,jibun_address\",\"filters\":[\"approved_name\"],\"ordered\":false,\"limited\":false,\"offset\":false}": {
+      "requests": 128,
+      "bytes": 23403,
+      "rows": 128,
+      "decodeFailures": 0
+    },
+    "{\"method\":\"GET\",\"select\":\"tzuyang_review\",\"filters\":[\"approved_name\"],\"ordered\":false,\"limited\":true,\"offset\":false}": {
+      "requests": 128,
+      "bytes": 3200,
+      "rows": 128,
+      "decodeFailures": 0
+    }
+  },
+  "stages": [
+    {
+      "label": "initial",
+      "naturalHeap": {
+        "usedSize": 13489632,
+        "totalSize": 20512768,
+        "embedderHeapUsedSize": 5391472,
+        "backingStorageSize": 2012603
+      },
+      "resources": [
+        {
+          "name": "Documents",
+          "value": 2
+        },
+        {
+          "name": "JSEventListeners",
+          "value": 673
+        },
+        {
+          "name": "Nodes",
+          "value": 503
+        }
+      ]
+    },
+    {
+      "label": "pass0-queries64",
+      "naturalHeap": {
+        "usedSize": 43504032,
+        "totalSize": 93929472,
+        "embedderHeapUsedSize": 14678528,
+        "backingStorageSize": 3782187
+      },
+      "resources": [
+        {
+          "name": "Documents",
+          "value": 2
+        },
+        {
+          "name": "JSEventListeners",
+          "value": 3101
+        },
+        {
+          "name": "Nodes",
+          "value": 2945
+        }
+      ]
+    },
+    {
+      "label": "pass0-queries128",
+      "naturalHeap": {
+        "usedSize": 55659776,
+        "totalSize": 111902720,
+        "embedderHeapUsedSize": 36152648,
+        "backingStorageSize": 3918021
+      },
+      "resources": [
+        {
+          "name": "Documents",
+          "value": 2
+        },
+        {
+          "name": "JSEventListeners",
+          "value": 9849
+        },
+        {
+          "name": "Nodes",
+          "value": 7780
+        }
+      ]
+    },
+    {
+      "label": "pass1-queries64",
+      "naturalHeap": {
+        "usedSize": 32590928,
+        "totalSize": 101154816,
+        "embedderHeapUsedSize": 26382280,
+        "backingStorageSize": 3721158
+      },
+      "resources": [
+        {
+          "name": "Documents",
+          "value": 2
+        },
+        {
+          "name": "JSEventListeners",
+          "value": 7102
+        },
+        {
+          "name": "Nodes",
+          "value": 5767
+        }
+      ]
+    },
+    {
+      "label": "pass1-queries128",
+      "naturalHeap": {
+        "usedSize": 52905808,
+        "totalSize": 104038400,
+        "embedderHeapUsedSize": 35644312,
+        "backingStorageSize": 3750902
+      },
+      "resources": [
+        {
+          "name": "Documents",
+          "value": 2
+        },
+        {
+          "name": "JSEventListeners",
+          "value": 9724
+        },
+        {
+          "name": "Nodes",
+          "value": 7694
+        }
+      ]
+    },
+    {
+      "label": "idle5s",
+      "naturalHeap": {
+        "usedSize": 29406964,
+        "totalSize": 104038400,
+        "embedderHeapUsedSize": 35676464,
+        "backingStorageSize": 3751460
+      },
+      "resources": [
+        {
+          "name": "Documents",
+          "value": 2
+        },
+        {
+          "name": "JSEventListeners",
+          "value": 9764
+        },
+        {
+          "name": "Nodes",
+          "value": 7694
+        }
+      ]
+    }
+  ],
+  "browser": "154.0.8037.98",
+  "sdkScript": {
+    "status": 200,
+    "sha256": "802f8c5bb436eeb0014e0e8c72e7f675ae88e102766d2a923cd2c24c7eca74d1"
+  },
+  "completedActions": 256,
+  "retainedStructureDiagnostic": {
+    "status": "minimized",
+    "nodeCount": 492624,
+    "edgeCount": 2439423,
+    "classes": {
+      "Array": 23389,
+      "Object": 42153,
+      "Map": 1605,
+      "WeakMap": 60,
+      "Set": 993,
+      "Promise": 10,
+      "HTMLDivElement": 590,
+      "HTMLCanvasElement": 0,
+      "other": 13353
+    },
+    "detachednessOrdinals": {
+      "zero": 491879,
+      "one": 667,
+      "two": 78,
+      "other": 0
+    },
+    "totalReferenceElements": 13883,
+    "uniqueReferencedRestaurantObjects": 735,
+    "snapshotShapeCount": 134,
+    "referenceArrays": 134,
+    "keyArrays": 134,
+    "verifiedRowKeyObjects": 735,
+    "ownedStructuralBytes": 164764,
+    "scope": "metadata matching references/keys/unique cache shape; shared restaurant data, strings and provider internals excluded",
+    "snapshotMayTriggerGC": true,
+    "rawSnapshotPersisted": false,
+    "rawStringValuesPersisted": false
+  },
+  "passed": true,
+  "errors": {
+    "page": 0,
+    "console": 2,
+    "consoleCategories": {
+      "http401": 0,
+      "blockedClient": 0,
+      "provider": 0,
+      "other": 1,
+      "csp": 1
+    },
+    "cspDirectives": {
+      "connect-src": 1
+    },
+    "cspResourceGroups": {
+      "naver-family": 1
+    }
+  },
+  "requests": {
+    "restaurant": 2690,
+    "otherFixture": 771,
+    "failedAppAsset": 0,
+    "failedRemoteProvider": 1,
+    "remoteFailureKinds": {
+      "other-network-failure": 1
+    }
+  },
+  "endedAtUtc": "2026-10-11T07:00:44.993Z"
+}

@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "engine": "17.6",
+  "sourceSha256": "9164be35fc17e67c3f1aaf98aad13139a8fd469130bd1315879bff5dac63ba26",
+  "scriptSha256": "b641daf3312756787a4b92555ff57447c7852a8d20e954a9c7adffa94ceae010",
+  "observations": [
+    {
+      "remaining": 1,
+      "liveRowRetained": true,
+      "oldRowCompleted": true,
+      "liveObjectRetained": true
+    },
+    {
+      "remaining": 0,
+      "liveRowRetained": true,
+      "oldRowCompleted": true,
+      "liveObjectRetained": true
+    }
+  ],
+  "realRetiredWorkStillPending": true,
+  "retiredMissingObjectCompletes": true,
+  "permissions": {
+    "ownerAdmitted": true,
+    "serviceDenied": true,
+    "anonymousDenied": true
+  },
+  "rollbackExact": true,
+  "operatingDDL": 0,
+  "performanceAdmission": 0
+}

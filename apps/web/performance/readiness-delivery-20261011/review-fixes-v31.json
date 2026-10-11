@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-11T07:26:52.876848+00:00",
+  "baseCommit": "81374707f54e409a87e10f2128a9cb7e7434ad17",
+  "files": [
+    {
+      "path": "apps/web/app/api/privacy/onboarding/route.ts",
+      "sha256": "c276af7eff4a701ff36f0a2ed375d0e59e08ae64480e405e77312c143496e03b"
+    },
+    {
+      "path": "apps/web/lib/reviews/private-verification.ts",
+      "sha256": "e2796640327c647a9c440612383faa8f2cc95c7f42b841e8526093520cba632d"
+    },
+    {
+      "path": "apps/web/scripts/run-nightly-regression.mjs",
+      "sha256": "5bfa7c8a3e7e0cc4b80910cb795210764080e07ed148c0d6a229cce4eebaa8f1"
+    },
+    {
+      "path": "apps/web/tests-unit/nightly-regression-workflow.test.ts",
+      "sha256": "2004e6a50c24f5d62e41a6c0942e671da3d8d1d2c56ab9fc2f216a349a7653b0"
+    },
+    {
+      "path": "apps/web/tests-unit/privacy-onboarding-route-runtime.test.ts",
+      "sha256": "33c7d0ae11760e9e7eb8019f5cbbe1557b63bb799dc3139dd5381fd95624c527"
+    },
+    {
+      "path": "apps/web/tests-unit/private-review-verification.test.ts",
+      "sha256": "4213183a68c8c8a6c3f2f66415dff22f06a3156ca0f3a0ae3e98f2705ebc7de0"
+    },
+    {
+      "path": "backend/bin/verify_census_complete_v7.py",
+      "sha256": "9e62a1199c1250d70f972246d8f71daf0db51857bc29acef2054a00d433710cb"
+    },
+    {
+      "path": "backend/bin/verify_census_field_evidence_v1.py",
+      "sha256": "2179f5e3c56f7a0bfe8f17279bccde58bb94c85fb171933f0967c9fa52837674"
+    },
+    {
+      "path": "backend/bin/verify_user_readiness_integrated_map.py",
+      "sha256": "da372a83cecce78badce163096c4048710f4ae96478d6066446d4cea32a64e6b"
+    },
+    {
+      "path": "backend/bin/tests/test_evidence_symlink_boundary.py",
+      "sha256": "da404a77a59182e5cfb285c033b766f974716db3496f2b2345a036b56f30a44d"
+    }
+  ],
+  "sourceChanges": "four review findings; not operating deployment",
+  "unitTests": 83,
+  "expectations": 1485,
+  "typescriptParity": "passed/3140 logical inputs/0diagnostics",
+  "build": ".next-readiness-review-fixes-v29",
+  "css": "passed",
+  "browser": {
+    "cases": 13,
+    "passed": true,
+    "errors": {
+      "page": 0,
+      "console": 14,
+      "unsupportedFixture": 0,
+      "fixtureShapes": [],
+      "consoleKinds": {
+        "other": 6,
+        "CSP": 7,
+        "httpFixture": 1
+      }
+    },
+    "physicalDevice": false,
+    "fieldAdmission": 0
+  },
+  "unresolvedNewReviewFindings": [
+    "admin OCR legacy drain/readback",
+    "global-before-object media lock order"
+  ],
+  "phoneUse": 0,
+  "operatingWrites": 0
+}

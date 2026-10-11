@@ -1,0 +1,23 @@
+{
+  "variant": "before",
+  "iteration": 0,
+  "production": true,
+  "distDir": ".next-media-followup-v7",
+  "buildId": "I6A8JzmAqeqa3N8tX9IZA",
+  "node": "v24.21.0",
+  "fixtureSha256": "346c9c865201a48b590c439a4e06306bfada92f91c73f9a83293a991a51058b5",
+  "fieldAdmission": 0,
+  "physicalDevice": false,
+  "data": "Synthetic REST735 / Auth401",
+  "startedUtc": "2026-10-11T16:03:05.956Z",
+  "cases": [],
+  "pageErrors": 0,
+  "consoleErrors": {
+    "other": 1,
+    "CSP": 1
+  },
+  "passed": false,
+  "browser": "154.0.8037.98",
+  "failure": "expect(locator).toBeVisible() failed\n\nLocator: getByRole('combobox', { name: '카테고리 필터', exact: true }).first()\nExpected: visible\nTimeout: 30000ms\nError: element",
+  "endedUtc": "2026-10-11T16:03:39.083Z"
+}

@@ -1,0 +1,20 @@
+{
+  "artifacts": {
+    "REPORT-v1.md": "5cbd81216b501999f71337f87a8f839e82ed17c2f2ffe89617bc9cded8e38cf7",
+    "build_configured_v7.mjs": "23cdf2c5918557f0c5fb6bf9ef79cfb27882a91ac411e978786e60b594c42a66",
+    "configured-build-v7.json": "1153e76984187d984056a4aa46d1db06952b87c9b5b44aec76319f2dff996a72",
+    "configured-build-v7.log": "7dce1813133832d0ea22b6c0c90ec7fc32734efada9206b04114ca89f5642896",
+    "configured-css-v7.log": "e658b588eb4e25e19eb55c986c16594f823e19550a10d88f87afee4c53c6130e",
+    "focused-integration-v2.json": "f2487bc01b39ba5aada6eb1f915178eff8bac86c59e91bf4009335c74b98c983",
+    "focused-integration-v2.log": "1057f8506b871d20da069ef24e04dca88b2356f9a4434e85ce267a4b8265a643",
+    "parity-integration-v2.json": "b73fd52e8a4b3d7bac9ba4965787adf5b52135fb3d7ad9663dfb517890bacf6a",
+    "parity-integration-v2.log": "1ce91576670bc36ab19c95d862ca12d1ee91b4916ac52c8b91e1a0305e654b59",
+    "run_checks_v2.py": "d738d2a72cfcc80356915c23d3f5c716b38d0b0261e805933c1a7de80274e76e",
+    "tsconfig-generated-configured-v7.json": "0f2a9526e3595ea4ae6e8e6dd274f7ac1f7ed9cac7ccf720181cb165ceec0b04"
+  },
+  "operatingDeliveryVerified": false,
+  "package": "readiness-delivery-integration-20261012",
+  "performanceAdmission": 0,
+  "physicalDevice": false,
+  "schemaVersion": "retained-evidence-map.v1"
+}

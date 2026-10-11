@@ -1,0 +1,800 @@
+diff --git a/.github/scripts/build-nightly-local-publication.py b/.github/scripts/build-nightly-local-publication.py
+index f0efb33a..7ff69eed 100644
+--- a/.github/scripts/build-nightly-local-publication.py
++++ b/.github/scripts/build-nightly-local-publication.py
+@@ -17,7 +17,7 @@ import sys
+ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+ LOCAL_MIGRATE_PATH = REPOSITORY_ROOT / "backend" / "supabase" / "scripts" / "local-migrate.py"
+ PUBLICATION_VERIFIER_PATH = REPOSITORY_ROOT / ".github" / "scripts" / "verify-nightly-local-publication.py"
+-EXPECTED_LEDGER_UNITS = 139
++EXPECTED_LEDGER_UNITS = 140
+ HEX64 = re.compile(r"[a-f0-9]{64}")
+ LOCAL_PROJECT = re.compile(r"tzudong-local-[a-f0-9]{12}")
+ SUMMARY_FIELDS = {
+diff --git a/.github/scripts/verify-nightly-local-publication.py b/.github/scripts/verify-nightly-local-publication.py
+index 174f5d15..6ea460e1 100644
+--- a/.github/scripts/verify-nightly-local-publication.py
++++ b/.github/scripts/verify-nightly-local-publication.py
+@@ -126,7 +126,7 @@ STACK_SERVICES = {
+     "supavisor",
+     "vector",
+ }
+-EXPECTED_LEDGER_UNITS = 139
++EXPECTED_LEDGER_UNITS = 140
+ SEQUENCE_MARKERS = (
+     "prerequisite",
+     "migration",
+diff --git a/apps/web/app/stamp/page.tsx b/apps/web/app/stamp/page.tsx
+index 0ef0cc7a..7b20aed1 100644
+--- a/apps/web/app/stamp/page.tsx
++++ b/apps/web/app/stamp/page.tsx
+@@ -731,10 +731,12 @@ export default function StampPage() {
+     }, [handleBottomSheetRestaurantSwipe]);
+ 
+     const handleCloseRightPanel = useCallback(() => {
++        // The composer owns Escape and focus while it overlays this detail.
++        if (isReviewModalOpen) return;
+         setIsRightPanelVisible(false);
+         setSelectedRestaurant(null);
+         setRestaurantSheetHeightRequestKey(0);
+-    }, []);
++    }, [isReviewModalOpen]);
+ 
+     const handleOpenDirectionSheet = useCallback(() => {
+         setRestaurantSheetHeightRequestKey((key) => key + 1);
+@@ -1340,6 +1342,7 @@ export default function StampPage() {
+                 <BottomSheet
+                     key={selectedRestaurant.id}
+                     isOpen={isRightPanelVisible}
++                    modal={!isReviewModalOpen}
+                     onClose={handleCloseRightPanel}
+                     defaultHeight={50}
+                     minHeight={25}
+@@ -1378,8 +1381,9 @@ export default function StampPage() {
+                     isOpen={isReviewModalOpen}
+                     onClose={() => {
+                         setIsReviewModalOpen(false);
+-                        if (window.innerWidth > BREAKPOINTS.tabletMax && reviewContinuationHandled.current) {
+-                            reviewContinuationHandled.current = null;
++                        const wasReviewContinuation = reviewContinuationHandled.current;
++                        reviewContinuationHandled.current = null;
++                        if (window.innerWidth > BREAKPOINTS.tabletMax && wasReviewContinuation) {
+                             const parameters = new URLSearchParams(window.location.search);
+                             parameters.delete('writeReview');
+                             const redirectPath = buildDesktopStampHomeRedirectPath(parameters.toString());
+diff --git a/apps/web/scripts/run-nightly-regression.mjs b/apps/web/scripts/run-nightly-regression.mjs
+index 2838d732..1ce885a2 100644
+--- a/apps/web/scripts/run-nightly-regression.mjs
++++ b/apps/web/scripts/run-nightly-regression.mjs
+@@ -1323,7 +1323,7 @@ function assertLocalMigrationReceiptEnvelope(receipt, stackReceipt) {
+     || receipt.serializer !== 'receipt-v1'
+     || receipt.project_name !== localProjectName
+     || !Array.isArray(receipt.ledger)
+-    || receipt.ledger.length !== 139
++    || receipt.ledger.length !== 140
+     || !receipt.replay_proofs
+     || typeof receipt.replay_proofs !== 'object'
+     || Array.isArray(receipt.replay_proofs)
+diff --git a/apps/web/tests-unit/auth-user-continuation.test.ts b/apps/web/tests-unit/auth-user-continuation.test.ts
+index 03a16ca4..900c8554 100644
+--- a/apps/web/tests-unit/auth-user-continuation.test.ts
++++ b/apps/web/tests-unit/auth-user-continuation.test.ts
+@@ -70,6 +70,30 @@ describe('requested user login continuation', () => {
+         );
+     });
+ 
++    test('closing a resumed composer releases the resize guard at every breakpoint', () => {
++        const source = readFileSync(path.join(webRoot, 'app/stamp/page.tsx'), 'utf8');
++        const body = source.split('{/* 리뷰 모달 (Review Modal) */}')[1]
++            .split('onClose={() => {')[1].split('}}\n                    restaurant=')[0];
++        const close = new Function('window', 'BREAKPOINTS', 'reviewContinuationHandled',
++            'setIsReviewModalOpen', 'router', 'buildDesktopStampHomeRedirectPath', body);
++        const id = '11111111-1111-4111-8111-111111111111';
++        for (const width of [390, 820, 1440]) {
++            const guard = { current: id as string | null };
++            const redirects: string[] = [];
++            let open = true;
++            const search = `?restaurant=${id}`; // continuation already consumed writeReview
++            close({ innerWidth: width, location: { search } }, { tabletMax: 1023 }, guard,
++                (value: boolean) => { open = value; }, { replace: (value: string) => redirects.push(value) },
++                buildDesktopStampHomeRedirectPath);
++            expect(open).toBe(false);
++            expect(guard.current).toBeNull();
++            expect(redirects).toEqual(width > 1023 ? [`/?restaurant=${id}&panel=stamp`] : []);
++            // The page's resize listener can now route mobile/tablet back to the desktop panel.
++            if (!guard.current) redirects.push(buildDesktopStampHomeRedirectPath(search)!);
++            expect(redirects.at(-1)).toBe(`/?restaurant=${id}&panel=stamp`);
++        }
++    });
++
+     test('keeps the new-password UI aligned with the server 72-character bound', () => {
+         const modal = readFileSync(path.join(webRoot, 'components/auth/AuthModal.tsx'), 'utf8');
+         const onboardingRoute = readFileSync(path.join(webRoot, 'app/api/privacy/onboarding/route.ts'), 'utf8');
+diff --git a/apps/web/tests-unit/nightly-regression-workflow.test.ts b/apps/web/tests-unit/nightly-regression-workflow.test.ts
+index 6562bee3..49a547ce 100644
+--- a/apps/web/tests-unit/nightly-regression-workflow.test.ts
++++ b/apps/web/tests-unit/nightly-regression-workflow.test.ts
+@@ -622,7 +622,7 @@ describe("nightly regression package and source contracts", () => {
+       "async function assertLocalMigrationReceipt(stateRoot, stackReceipt)",
+       "receipt.schema !== 'local-receipt-v2'",
+       "receipt.serializer !== 'receipt-v1'",
+-      "receipt.ledger.length !== 139",
++      "receipt.ledger.length !== 140",
+       "localReceiptSequenceMarkers = ['prerequisite', 'migration', 'closure', 'platform-bootstrap', 'seed']",
+       "  'platform_bootstrap_evidence_sha256',",
+       "  'platform_bootstrap_sha256',",
+@@ -639,7 +639,7 @@ describe("nightly regression package and source contracts", () => {
+     expect(createHash("sha256").update(localThumbnailRpcAllowlistMigrationSource).digest("hex")).toBe(
+       "33735c6661ff8b555424bc2ccc28467baee182dd455f8283bfced356c0793ff7",
+     );
+-    expect(nightlyRunnerSource).toContain("receipt.ledger.length !== 139");
++    expect(nightlyRunnerSource).toContain("receipt.ledger.length !== 140");
+   });
+ 
+   test("keeps nightly web log custody owner-only and symlink-safe", () => {
+@@ -1147,7 +1147,7 @@ describe("nightly regression package and source contracts", () => {
+       "files != allowed",
+       "publication artifact exceeds size bound",
+       "CREDENTIAL_VALUE = re.compile(",
+-      "EXPECTED_LEDGER_UNITS = 139",
++      "EXPECTED_LEDGER_UNITS = 140",
+       "def verify_manifest(",
+       "def verify_migration_summary(",
+       "def verify_runtime_receipt(",
+@@ -1158,7 +1158,7 @@ describe("nightly regression package and source contracts", () => {
+     ]) {
+       expect(publicationVerifierSource).toContain(token);
+     }
+-    expect(publicationBuilderSource).toContain("EXPECTED_LEDGER_UNITS = 139");
++    expect(publicationBuilderSource).toContain("EXPECTED_LEDGER_UNITS = 140");
+     expect(localWorkflowSource.match(/verify-nightly-local-publication\.py/g)).toHaveLength(3);
+     expect(localWorkflowSource.indexOf("Verify publication bundle before artifact persistence"))
+       .toBeLessThan(localWorkflowSource.indexOf("Upload allowlisted publication bundle"));
+@@ -1665,7 +1665,7 @@ describe('local migration v2 receipt envelope', () => {
+   const receipt = (): Record<string, unknown> => ({
+     ...Object.fromEntries(keys.map((key: string) => [key, 'fixture'])),
+     schema: 'local-receipt-v2', serializer: 'receipt-v1', project_name: 'fixture-project',
+-    ledger: Array(139).fill(null), sequence: Array(5).fill(null), replay_proofs: {},
++    ledger: Array(140).fill(null), sequence: Array(5).fill(null), replay_proofs: {},
+   });
+   const stack = { config_sha256: 'fixture', input_provenance_sha256: 'fixture', env_provenance_sha256: 'fixture' };
+ 
+diff --git a/backend/bin/tests/test_motion_evidence_verifiers.py b/backend/bin/tests/test_motion_evidence_verifiers.py
+new file mode 100644
+index 00000000..2e621b28
+--- /dev/null
++++ b/backend/bin/tests/test_motion_evidence_verifiers.py
+@@ -0,0 +1,92 @@
++"""Relocated-checkout and optimized-Python adversarial evidence verification."""
++from pathlib import Path
++import json
++import os
++import shutil
++import subprocess
++import sys
++import tempfile
++import unittest
++
++ROOT = Path(__file__).resolve().parents[3]
++SCRIPTS = ('verify_readiness_followup_20261011.py',
++           'verify_transitions_adoption_20261012.py', 'verify_scroll_transitions_20261012.py',
++           'verify_readiness_ocr_20261011_v3.py')
++PACKAGES = ('readiness-media-followup-20261011', 'tzuyang-review-minimal-20261011',
++            'readiness-gemini-integration-20261011', 'readiness-delivery-integration-20261012',
++            'transitions-adoption-20261012', 'scroll-transitions-20261012',
++            'readiness-ocr-followup-20261011')
++
++
++class EvidenceVerifierTests(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        if not shutil.which('node'):
++            raise unittest.SkipTest('Node 24 required for the independent canonical validator')
++        if not subprocess.check_output(['node', '--version'], text=True).startswith('v24.'):
++            raise unittest.SkipTest('Node 24 required for the independent canonical validator')
++        cls.tmp = tempfile.TemporaryDirectory(prefix='motion verifier ')
++        cls.repo = Path(cls.tmp.name).resolve() / 'relocated checkout'
++        subprocess.run(['git', 'clone', '--quiet', '--shared', '--no-checkout', str(ROOT), str(cls.repo)], check=True)
++        paths = [f'apps/web/performance/{name}/' for name in PACKAGES]
++        paths += [f'docs/evidence/{name}-map-v1.sha256' for name in PACKAGES]
++        dependencies = set()
++        for name in ('transitions-adoption-20261012', 'scroll-transitions-20261012'):
++            source = json.loads((ROOT / f'apps/web/performance/{name}/source-manifest-v1.json').read_bytes())
++            dependencies.update(source.get('dependencyFiles', {}))
++            dependencies.update(source.get('fixtureDependencyFiles', {}))
++        paths += sorted(dependencies)
++        paths += ['apps/web/scripts/validate-performance-backlog.mjs']
++        subprocess.run(['git', 'sparse-checkout', 'set', '--no-cone', '--stdin'], cwd=cls.repo,
++                       input='\n'.join(paths) + '\n', text=True, capture_output=True, check=True)
++        subprocess.run(['git', 'checkout', '--quiet', '--detach', 'HEAD'], cwd=cls.repo, check=True)
++        for name in SCRIPTS:
++            dest = cls.repo / 'backend/bin' / name
++            dest.parent.mkdir(parents=True, exist_ok=True)
++            shutil.copyfile(ROOT / 'backend/bin' / name, dest)
++
++    @classmethod
++    def tearDownClass(cls):
++        cls.tmp.cleanup()
++
++    def run_verifier(self, name, optimized=False):
++        env = dict(os.environ)
++        env.pop('PYTHONOPTIMIZE', None)
++        return subprocess.run([sys.executable, *(['-O'] if optimized else []), str(self.repo / 'backend/bin' / name)],
++                              cwd=self.repo, env=env, capture_output=True, text=True, timeout=45)
++
++    def test_relocated_checkout_validates_both_python_modes(self):
++        for script in SCRIPTS:
++            for optimized in (False, True):
++                with self.subTest(script=script, optimized=optimized):
++                    p = self.run_verifier(script, optimized)
++                    self.assertEqual(p.returncode, 0, p.stderr[-1500:])
++                    self.assertIn('"performanceAdmission": 0', p.stdout)
++
++    def test_corrupted_map_is_rejected_even_under_optimization(self):
++        for script, package in zip(SCRIPTS, (PACKAGES[0], PACKAGES[4], PACKAGES[5], PACKAGES[6])):
++            path = self.repo / f'apps/web/performance/{package}/artifact-map-v1.json'
++            original = path.read_bytes()
++            try:
++                path.write_bytes(original + b'\n')
++                for optimized in (False, True):
++                    with self.subTest(script=script, optimized=optimized):
++                        p = self.run_verifier(script, optimized)
++                        self.assertNotEqual(p.returncode, 0)
++            finally:
++                path.write_bytes(original)
++
++    def test_validator_executes_checkout_local_script(self):
++        path = self.repo / 'apps/web/scripts/validate-performance-backlog.mjs'
++        original = path.read_bytes()
++        try:
++            path.write_text("throw Error('RELOCATED_VALIDATOR_PROBE');\n")
++            p = self.run_verifier(SCRIPTS[1], True)
++            self.assertNotEqual(p.returncode, 0)
++            self.assertIn('RELOCATED_VALIDATOR_PROBE', p.stderr)
++        finally:
++            path.write_bytes(original)
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/backend/bin/verify_readiness_followup_20261011.py b/backend/bin/verify_readiness_followup_20261011.py
+index 0def4b4e..70a851a3 100644
+--- a/backend/bin/verify_readiness_followup_20261011.py
++++ b/backend/bin/verify_readiness_followup_20261011.py
+@@ -5,15 +5,28 @@ Read-only. No provider/browser/DB calls; this does not replace their execution.
+ from pathlib import Path, PurePosixPath
+ import hashlib
+ import json
++import subprocess
+ 
+ REPO = Path(__file__).resolve().parents[2]
+ PACKAGES = ('readiness-media-followup-20261011', 'tzuyang-review-minimal-20261011')
++SOURCE_COMMIT = '592b1415b79b4d5f595498dfa23d85fb730099fb'
+ 
+ 
+ def sha(path):
+     return hashlib.sha256(path.read_bytes()).hexdigest()
+ 
+ 
++def source_bytes(relative):
++    path = PurePosixPath(relative)
++    if path.is_absolute() or '..' in path.parts or str(path) != relative or '\\' in relative:
++        raise ValueError('FOLLOWUP_SOURCE_PATH')
++    return subprocess.check_output(['git', 'show', f'{SOURCE_COMMIT}:{relative}'], cwd=REPO)
++
++
++def source_sha(relative):
++    return hashlib.sha256(source_bytes(relative)).hexdigest()
++
++
+ def load(root, name):
+     return json.loads((root / name).read_bytes())
+ 
+@@ -54,12 +67,12 @@ def verify():
+     root = REPO / 'apps/web/performance' / PACKAGES[0]
+     manifest = load(root, 'source-manifest-v1.json')
+     for row in manifest['files']:
+-        path = REPO / row['path']
+-        if path.is_symlink() or path.stat().st_size != row['bytes'] or sha(path) != row['sha256']:
++        body = source_bytes(row['path'])
++        if len(body) != row['bytes'] or hashlib.sha256(body).hexdigest() != row['sha256']:
+             raise ValueError('FOLLOWUP_SOURCE_DRIFT')
+     migration = REPO / 'backend/supabase/migrations/20261011100730_admin_record_expired_preview_readback.sql'
+     expiry = load(root, 'expired-readback-pg17-v1.json')
+-    if expiry['sourceSha256'] != sha(migration) or expiry['scriptSha256'] != sha(root / 'verify_expired_readback_v1.py') or not expiry['rollbackExact']:
++    if expiry['sourceSha256'] != source_sha(migration.relative_to(REPO).as_posix()) or expiry['scriptSha256'] != sha(root / 'verify_expired_readback_v1.py') or not expiry['rollbackExact']:
+         raise ValueError('EXPIRY_PROOF_BINDING_DRIFT')
+     if expiry['baseline'] != {'exit': 0, 'codes': [], 'returnedState': 'preview', 'auditCount': 0} or expiry['candidate'] != {'exit': 3, 'codes': ['RECORD_ACTION_PREVIEW_EXPIRED'], 'returnedState': None, 'auditCount': 0}:
+         raise ValueError('EXPIRY_PROOF_RESULT_DRIFT')
+@@ -67,16 +80,16 @@ def verify():
+         raise ValueError('EXPIRY_LOCK_BOUNDARY_DRIFT')
+     revision = REPO / 'backend/supabase/migrations/20261011094346_admin_evaluation_revision_safeupdate.sql'
+     deletion = load(root, 'owner-delete-safeupdate-v9.json')
+-    if deletion['migrationSha256'] != sha(revision) or deletion['scriptSha256'] != sha(root / 'owner-delete-safeupdate-v9.py'):
++    if deletion['migrationSha256'] != source_sha(revision.relative_to(REPO).as_posix()) or deletion['scriptSha256'] != sha(root / 'owner-delete-safeupdate-v9.py'):
+         raise ValueError('REVISION_PROOF_BINDING_DRIFT')
+     before, after = deletion['outcomes']
+     if before['sqlstates'] != ['21000'] or after['result'] != ['REVIEW_COMMITTED'] or after['sqlstates'] or before['outcome'] != {'queuedCount': 0, 'reviewCount': 1, 'receiptCount': 0} or after['outcome'] != {'queuedCount': 2, 'reviewCount': 0, 'receiptCount': 1}:
+         raise ValueError('REVISION_DELETE_RESULT_DRIFT')
+     shared = load(root, 'shared-cleanup-exact-pg17-v2.json')
+-    if shared['migrationSha256'] != sha(REPO / 'backend/supabase/migrations/20261011085342_review_legacy_shared_cleanup.sql') or shared['before'] != shared['after'] or not shared['rollbackExact'] or shared['baseline']['lastReviewReadyItems'] != 0 or shared['candidate']['lastReviewReadyItems'] != 1:
++    if shared['migrationSha256'] != source_sha('backend/supabase/migrations/20261011085342_review_legacy_shared_cleanup.sql') or shared['before'] != shared['after'] or not shared['rollbackExact'] or shared['baseline']['lastReviewReadyItems'] != 0 or shared['candidate']['lastReviewReadyItems'] != 1:
+         raise ValueError('SHARED_PROOF_DRIFT')
+     build = load(root, 'configured-build-v4.json')
+-    if build['recordClientSha256'] != sha(REPO / 'apps/web/lib/admin/record-action-client.ts') or build['myPageSourceSha256'] != sha(REPO / 'apps/web/app/mypage/mypage-layout-content.tsx') or build['buildExit'] or build['cssExit'] or not build['tsconfigPreserved']:
++    if build['recordClientSha256'] != source_sha('apps/web/lib/admin/record-action-client.ts') or build['myPageSourceSha256'] != source_sha('apps/web/app/mypage/mypage-layout-content.tsx') or build['buildExit'] or build['cssExit'] or not build['tsconfigPreserved']:
+         raise ValueError('BUILD_SOURCE_BINDING_DRIFT')
+     for name in ('unit', 'lint', 'parity'):
+         checked = load(root, f'{name}-expiry-v1.json')
+@@ -100,7 +113,7 @@ def verify():
+     plan, preflight = load(minimal, 'minimal-review-plan-v1.json'), load(minimal, 'fresh-minimal-preflight-v1.json')
+     if (plan['minimalDrafts'], plan['editorialDrafts'], plan['sourceCorrectionDrafts'], plan['preservedAdminEdits'], plan['needsContext']) != (23, 15, 8, 47, 8) or preflight['unchanged'] != 23 or preflight['changed'] or plan['privatePlanSha256'] != preflight['privatePlanSha256']:
+         raise ValueError('MINIMAL_COVERAGE_DRIFT')
+-    return {'status': 'passed', 'packages': packages, 'sourceFiles': len(manifest['files']), 'sourceBindingsVerified': True,
++    return {'status': 'passed', 'packages': packages, 'sourceFiles': len(manifest['files']), 'sourceCommit': SOURCE_COMMIT, 'sourceBindingsVerified': True,
+             'performanceAdmission': 0, 'operatingApplyAttempts': 1, 'operatingContentCommitsVerified': 0,
+             'browserHealthClean': False, 'physicalFieldAdmission': 0}
+ 
+diff --git a/backend/bin/verify_readiness_ocr_20261011_v3.py b/backend/bin/verify_readiness_ocr_20261011_v3.py
+index 43a1d075..c7e3357c 100644
+--- a/backend/bin/verify_readiness_ocr_20261011_v3.py
++++ b/backend/bin/verify_readiness_ocr_20261011_v3.py
+@@ -1,4 +1,4 @@
+-"""Read-only complete-tree/current-source/historical-source result validation."""
++"""Read-only complete-tree and explicitly historical source result validation."""
+ from pathlib import Path, PurePosixPath
+ import hashlib
+ import importlib.util
+@@ -9,11 +9,18 @@ ROOT=Path(__file__).resolve().parents[2]
+ NAME='readiness-ocr-followup-20261011'
+ PACKET=ROOT/'apps/web/performance'/NAME
+ BASE='592b1415b79b4d5f595498dfa23d85fb730099fb'
++SOURCE='3fdc25d1707cd2fa204a962c0870813bb2a0d937'
+ 
+ 
+ def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+ 
+ 
++def historical_sha(name):
++    path=PurePosixPath(name)
++    if path.is_absolute() or '..' in path.parts or str(path)!=name or '\\' in name:raise ValueError('OCR_SOURCE_PATH')
++    return hashlib.sha256(subprocess.check_output(['git','show',f'{SOURCE}:{name}'],cwd=ROOT)).hexdigest()
++
++
+ def load(name):return json.loads((PACKET/name).read_bytes())
+ 
+ 
+@@ -31,8 +38,10 @@ def verify():
+     if seen!={p.relative_to(PACKET).as_posix() for p in PACKET.rglob('*') if p.is_file() and p!=mapping}:raise ValueError('OCR_COMPLETE_TREE_DRIFT')
+     manifest=load('source-manifest-v1.json')
+     for item in manifest['files']:
+-        path=PurePosixPath(item['path']);p=ROOT.joinpath(*path.parts)
+-        if path.is_absolute() or '..' in path.parts or p.is_symlink() or sha(p)!=item['sha256'] or p.stat().st_size!=item['bytes']:raise ValueError('OCR_SOURCE_DRIFT')
++        path=PurePosixPath(item['path'])
++        if path.is_absolute() or '..' in path.parts or '\\' in item['path']:raise ValueError('OCR_SOURCE_PATH')
++        body=subprocess.check_output(['git','show',f"{SOURCE}:{item['path']}"],cwd=ROOT)
++        if hashlib.sha256(body).hexdigest()!=item['sha256'] or len(body)!=item['bytes']:raise ValueError('OCR_HISTORICAL_SOURCE_DRIFT')
+     spec=importlib.util.spec_from_file_location('historical_packets',ROOT/'backend/bin/verify_readiness_followup_20261011.py')
+     previous=importlib.util.module_from_spec(spec);spec.loader.exec_module(previous)
+     historical=[previous.verify_package(name) for name in previous.PACKAGES]
+@@ -44,7 +53,7 @@ def verify():
+     for payload,script in ((result,'verify_storage_fence_v7.py'),(negative,'verify_storage_adversarial_v2.py')):
+         if payload['status']!='passed' or payload['engine']!='17.6' or payload['operatingDDL']!=0 or payload['scriptSha256']!=sha(PACKET/script):raise ValueError('OCR_RUNTIME_IDENTITY')
+         for name,value in payload['sourceSha256'].items():
+-            if sha(ROOT/name)!=value:raise ValueError('OCR_SQL_SOURCE_BINDING')
++            if historical_sha(name)!=value:raise ValueError('OCR_SQL_SOURCE_BINDING')
+     if not result['rollbackExactIncludingStorageTriggers'] or result['baselineAuthenticatedUpload']!={'success':False,'sqlstate':'42501'} or result['candidateAuthenticatedUpload']!={'success':True,'nonAdminOwner':True}:raise ValueError('OCR_OWNER_PERMISSION_RESULT')
+     for field in ('foreignUploadDenied','privateAnonymousReadDenied','publicFoodPreserved','nonAdminBannerDenied','disabledAdminBannerDenied','activeAdminBannerPreserved','absentLegacyPoliciesRemainAbsent','absentBranchOnlyOwnerReadChanged','storageRekeyRetiredDenied','nonReviewMetadataPreserved'):
+         if result[field] is not True:raise ValueError('OCR_PERMISSION_OR_FENCE_RESULT')
+@@ -53,13 +62,13 @@ def verify():
+     if len(negative['cases'])!=5 or not all(c['exit']!=0 and c['exactRollback'] for c in negative['cases']):raise ValueError('OCR_ADVERSARIAL_RESULT')
+     build=load('configured-build-v5.json')
+     for field,name in (('ocrRouteSha256','apps/web/app/api/admin/ocr-receipts/process/route.ts'),('cleanupHelperSha256','apps/web/lib/reviews/admin-verification-cleanup.ts'),('myPageSourceSha256','apps/web/app/mypage/mypage-layout-content.tsx'),('recordClientSha256','apps/web/lib/admin/record-action-client.ts')):
+-        if build[field]!=sha(ROOT/name):raise ValueError('OCR_BUILD_SOURCE_BINDING')
++        if build[field]!=historical_sha(name):raise ValueError('OCR_BUILD_SOURCE_BINDING')
+     if build['buildExit'] or build['cssExit'] or build['deploymentVerified']:raise ValueError('OCR_BUILD_CLAIM')
+     full=load('unit-ocr-v1.json');focused=load('focused-ocr-v2.json');parity=load('parity-ocr-v2.json')
+     if full['unitTotals']!={'pass':3422,'skip':11,'fail':0} or focused['unitTotals']!={'pass':54,'skip':0,'fail':0} or any(p['exit'] for p in (full,focused,parity)):raise ValueError('OCR_TEST_RESULT')
+     for value in (full,focused,parity):
+         if value['logSha256']!=sha(PACKET/f"{value['check']}-ocr-{'v1' if value is full else 'v2'}.log"):raise ValueError('OCR_TEST_LOG_BINDING')
+-    return {'status':'passed','files':len(seen),'sourceFiles':len(manifest['files']),'mapSha256':digest,'historicalPackets':historical,'historicalSourceCommit':BASE,'historicalSourceFiles':len(history['files']),'sourceBindingsVerified':True,'operatingDDL':0,'performanceAdmission':0,'physicalFieldAdmission':0}
++    return {'status':'passed','files':len(seen),'sourceFiles':len(manifest['files']),'sourceCommit':SOURCE,'mapSha256':digest,'historicalPackets':historical,'historicalSourceCommit':BASE,'historicalSourceFiles':len(history['files']),'sourceBindingsVerified':True,'operatingDDL':0,'performanceAdmission':0,'physicalFieldAdmission':0}
+ 
+ 
+ if __name__=='__main__':print(json.dumps(verify()))
+diff --git a/backend/bin/verify_scroll_transitions_20261012.py b/backend/bin/verify_scroll_transitions_20261012.py
+index 7676e597..6a72af46 100644
+--- a/backend/bin/verify_scroll_transitions_20261012.py
++++ b/backend/bin/verify_scroll_transitions_20261012.py
+@@ -4,32 +4,38 @@ import json
+ import pathlib
+ import subprocess
+ 
++
++def require(condition, message='SCROLL_EVIDENCE_INVALID'):
++    if not condition:
++        raise ValueError(message)
++
++
+ repo = pathlib.Path(__file__).resolve().parents[2]
+ root = repo / 'apps/web/performance/scroll-transitions-20261012'
+ digest = lambda body: hashlib.sha256(body).hexdigest()
+ map_path = root / 'artifact-map-v1.json'
+ pin = (repo / 'docs/evidence/scroll-transitions-20261012-map-v1.sha256').read_text().strip()
+-assert digest(map_path.read_bytes()) == pin
++require(digest(map_path.read_bytes()) == pin, 'EVIDENCE_INVALID')
+ manifest = json.loads(map_path.read_text())
+-assert {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()} == set(manifest['artifacts']) | {'artifact-map-v1.json'}
++require({str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()} == set(manifest['artifacts']) | {'artifact-map-v1.json'}, 'EVIDENCE_INVALID')
+ for name, expected in manifest['artifacts'].items():
+     path = root / name
+-    assert path.resolve().is_relative_to(root) and not path.is_symlink()
+-    assert digest(path.read_bytes()) == expected
++    require(path.resolve().is_relative_to(root) and not path.is_symlink(), 'EVIDENCE_INVALID')
++    require(digest(path.read_bytes()) == expected, 'EVIDENCE_INVALID')
+ source = json.loads((root / 'source-manifest-v1.json').read_text())
+ for name, expected in source['files'].items():
+-    assert digest(subprocess.check_output(['git', 'show', source['candidate'] + ':' + name], cwd=repo)) == expected
++    require(digest(subprocess.check_output(['git', 'show', source['candidate'] + ':' + name], cwd=repo)) == expected, 'EVIDENCE_INVALID')
+ for name, expected in source['fixtureDependencyFiles'].items():
+-    assert digest((repo / name).read_bytes()) == expected
++    require(digest((repo / name).read_bytes()) == expected, 'EVIDENCE_INVALID')
+ before = json.loads((root / 'before-0.json').read_text())
+ after = json.loads((root / 'after-0.json').read_text())
+-assert before['passed'] and after['passed'] and after['pageErrors'] == 0
+-assert [x['documentScansDuring12MapDrags'] for x in before['cases']] == [24, 17, 19]
+-assert [x['documentScansDuring12MapDrags'] for x in after['cases']] == [0, 0, 0]
++require(before['passed'] and after['passed'] and after['pageErrors'] == 0, 'EVIDENCE_INVALID')
++require([x['documentScansDuring12MapDrags'] for x in before['cases']] == [24, 17, 19], 'EVIDENCE_INVALID')
++require([x['documentScansDuring12MapDrags'] for x in after['cases']] == [0, 0, 0], 'EVIDENCE_INVALID')
+ final = json.loads((root / 'FINAL-v1.json').read_text())
+-assert final['unitFinal'] == {'pass': 3441, 'skip': 11, 'fail': 0}
+-assert final['performanceAdmission'] == 0 and not final['deployed']
+-assert final['firstFullRunFailed']
++require(final['unitFinal'] == {'pass': 3441, 'skip': 11, 'fail': 0}, 'EVIDENCE_INVALID')
++require(final['performanceAdmission'] == 0 and not final['deployed'], 'EVIDENCE_INVALID')
++require(final['firstFullRunFailed'], 'EVIDENCE_INVALID')
+ print(json.dumps({'status': 'passed', 'files': len(manifest['artifacts']), 'mapSha256': pin,
+                   'sourceBindings': 'passed', 'performanceAdmission': 0,
+                   'physicalDevice': False, 'operatingDeliveryVerified': False}))
+diff --git a/backend/bin/verify_transitions_adoption_20261012.py b/backend/bin/verify_transitions_adoption_20261012.py
+index 7468b426..08e425f0 100644
+--- a/backend/bin/verify_transitions_adoption_20261012.py
++++ b/backend/bin/verify_transitions_adoption_20261012.py
+@@ -2,11 +2,29 @@
+ import hashlib
+ import json
+ import pathlib
++import shutil
+ import subprocess
+ 
+ REPO = pathlib.Path(__file__).resolve().parents[2]
+ 
+ 
++def require(condition, message='TRANSITIONS_EVIDENCE_INVALID'):
++    if not condition:
++        raise ValueError(message)
++
++
++def validator_command(recorded, artifact_root):
++    # The frozen command records the original host; only the validator's data
++    # arguments are reused. Executable and repository paths belong to this host.
++    require(len(recorded) == 24 and pathlib.PurePosixPath(recorded[1]).name == 'validate-performance-backlog.mjs', 'VALIDATOR_COMMAND_INVALID')
++    require(recorded[2] == '--artifact-root', 'VALIDATOR_ROOT_INVALID')
++    require(recorded[4::2] == ['--release-id', '--candidate-sha', '--candidate-tree', '--config-sha256', '--data-profile-sha256', '--frozen-as-of', '--input', '--artifact-map', '--artifact-map-sha256', '--scored'], 'VALIDATOR_ARGUMENTS_INVALID')
++    node = shutil.which('node')
++    require(node is not None, 'NODE24_REQUIRED')
++    require(subprocess.check_output([node, '--version'], text=True).strip().startswith('v24.'), 'NODE24_REQUIRED')
++    return [node, str(REPO / 'apps/web/scripts/validate-performance-backlog.mjs'), '--artifact-root', str(artifact_root), *recorded[4:]]
++
++
+ def digest(data):
+     return hashlib.sha256(data).hexdigest()
+ 
+@@ -17,14 +35,14 @@ for name in ['readiness-gemini-integration-20261011',
+     root = REPO / 'apps/web/performance' / name
+     map_path = root / 'artifact-map-v1.json'
+     pin = (REPO / 'docs/evidence' / (name + '-map-v1.sha256')).read_text().strip()
+-    assert digest(map_path.read_bytes()) == pin, 'map pin mismatch'
++    require(digest(map_path.read_bytes()) == pin, 'map pin mismatch')
+     manifest = json.loads(map_path.read_text())
+     actual = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()}
+-    assert actual == set(manifest['artifacts']) | {'artifact-map-v1.json'}, 'file inventory mismatch'
++    require(actual == set(manifest['artifacts']) | {'artifact-map-v1.json'}, 'file inventory mismatch')
+     for relative, expected in manifest['artifacts'].items():
+         path = root / relative
+-        assert not path.is_symlink() and path.resolve().is_relative_to(root), 'unsafe path'
+-        assert digest(path.read_bytes()) == expected, 'artifact mismatch'
++        require(not path.is_symlink() and path.resolve().is_relative_to(root), 'unsafe path')
++        require(digest(path.read_bytes()) == expected, 'artifact mismatch')
+     print(json.dumps({'package': name, 'files': len(manifest['artifacts']),
+                       'mapSha256': pin, 'status': 'passed'}))
+ 
+@@ -32,19 +50,19 @@ root = REPO / 'apps/web/performance/transitions-adoption-20261012'
+ source = json.loads((root / 'source-manifest-v1.json').read_text())
+ for path, expected in source['files'].items():
+     body = subprocess.check_output(['git', 'show', source['candidate'] + ':' + path], cwd=REPO)
+-    assert digest(body) == expected, 'historical source mismatch'
++    require(digest(body) == expected, 'historical source mismatch')
+ for path, expected in source['dependencyFiles'].items():
+-    assert digest((REPO / path).read_bytes()) == expected, 'fixture/runtime mismatch'
++    require(digest((REPO / path).read_bytes()) == expected, 'fixture/runtime mismatch')
+ summary = json.loads((root / 'summary-v1.json').read_text())
+-assert summary['pendingTimerResult']['beforeAfter6'] == 6
+-assert summary['pendingTimerResult']['afterAfter6'] == 1
+-assert summary['unit'] == {'pass': 3435, 'skip': 11, 'fail': 0}
+-assert summary['performanceAdmission'] == 0 and not summary['deployed']
++require(summary['pendingTimerResult']['beforeAfter6'] == 6, 'EVIDENCE_INVALID')
++require(summary['pendingTimerResult']['afterAfter6'] == 1, 'EVIDENCE_INVALID')
++require(summary['unit'] == {'pass': 3435, 'skip': 11, 'fail': 0}, 'EVIDENCE_INVALID')
++require(summary['performanceAdmission'] == 0 and not summary['deployed'], 'EVIDENCE_INVALID')
+ basis = json.loads((root / 'canonical-zero-v3/basis.json').read_text())
+ scored = json.loads((root / 'canonical-zero-v3/backlog.scored.json').read_text())
+-assert basis['items'] == 0 and basis['consoleIncidents'] == 40
+-assert scored['items'] == []
+-subprocess.run(basis['commands'][1], cwd=REPO / 'apps/web', check=True)
++require(basis['items'] == 0 and basis['consoleIncidents'] == 40, 'EVIDENCE_INVALID')
++require(scored['items'] == [], 'EVIDENCE_INVALID')
++subprocess.run(validator_command(basis['commands'][1], root / 'canonical-zero-v3'), cwd=REPO / 'apps/web', check=True)
+ print(json.dumps({'sourceBindings': 'passed', 'canonicalValidator': 'passed',
+                   'performanceAdmission': 0, 'physicalDevice': False,
+                   'operatingDeliveryVerified': False}))
+diff --git a/backend/supabase/migrations/20261011175912_review_owner_cleanup_completion.sql b/backend/supabase/migrations/20261011175912_review_owner_cleanup_completion.sql
+new file mode 100644
+index 00000000..8ad30472
+--- /dev/null
++++ b/backend/supabase/migrations/20261011175912_review_owner_cleanup_completion.sql
+@@ -0,0 +1,89 @@
++-- Count only retired, unreferenced owner cleanup, excluding live OCR staging.
++-- Forward correction preserves applied SQL, RPC metadata, ACLs and G014 rows.
++BEGIN;
++SET LOCAL lock_timeout='2s';
++SELECT pg_advisory_xact_lock(hashtextextended('tzudong:review-media-catalog:v2',0));
++DO $forward$
++DECLARE target oid:='public.finish_review_media_cleanup()'::regprocedure;
++  definition text; source text; patched text; metadata jsonb; defaults text;
++  before_members jsonb; before_assertions jsonb; before_manifest jsonb; self_membership jsonb;
++  before_schema jsonb; schema_lease boolean;
++  workflow_owner oid:='privacy_workflow_owner'::regrole; runner oid:='postgres'::regrole;
++  major integer:=current_setting('server_version_num')::integer/10000; pg15_lease boolean:=false;
++BEGIN
++  IF current_user<>'postgres' OR session_user<>'postgres' OR major NOT IN (15,17)
++    OR current_setting('transaction_read_only')<>'off' OR NOT EXISTS(SELECT 1 FROM pg_roles
++      WHERE oid=workflow_owner AND NOT rolsuper AND NOT rolbypassrls AND NOT rolcanlogin AND NOT rolinherit)
++    THEN RAISE EXCEPTION 'REVIEW_SHARED_EXECUTOR_DENIED'; END IF;
++  SELECT coalesce(jsonb_agg(to_jsonb(m) ORDER BY roleid,member,grantor),'[]') INTO before_members FROM pg_auth_members m;
++  SELECT jsonb_agg(to_jsonb(p) ORDER BY oid) INTO before_assertions FROM pg_proc p WHERE pronamespace='privacy_retention'::regnamespace;
++  SELECT pg_get_functiondef(p.oid),p.prosrc,to_jsonb(p)-ARRAY['prosrc','proargdefaults'],pg_get_expr(p.proargdefaults,0) INTO definition,source,metadata,defaults FROM pg_proc p WHERE p.oid=target;
++  IF metadata->>'proowner'<>workflow_owner::text OR encode(sha256(convert_to(source,'UTF8')),'hex')<>'f6c4e71988ed2b789b887484af5fdf2e482bde98f1d1c5b5d4e7ad124c314bd1'
++    THEN RAISE EXCEPTION 'REVIEW_SHARED_SOURCE_DRIFT'; END IF;
++  SELECT to_jsonb(n) INTO before_schema FROM pg_namespace n WHERE n.oid='public'::regnamespace;
++  IF before_schema->>'nspowner' NOT IN (runner::text,'pg_database_owner'::regrole::oid::text)
++    THEN RAISE EXCEPTION 'REVIEW_SHARED_SCHEMA_OWNER_DRIFT'; END IF;
++  schema_lease:=NOT has_schema_privilege(workflow_owner,'public','CREATE');
++  IF schema_lease THEN GRANT CREATE ON SCHEMA public TO privacy_workflow_owner; END IF;
++  SELECT to_jsonb(m) INTO self_membership FROM pg_auth_members m WHERE roleid=workflow_owner AND member=runner AND grantor=runner;
++  IF self_membership IS NOT NULL AND (self_membership->>'admin_option')::boolean THEN RAISE EXCEPTION 'REVIEW_MEDIA_FORWARD_MEMBERSHIP_DENIED'; END IF;
++  IF major=17 THEN
++    IF NOT EXISTS(SELECT 1 FROM pg_auth_members WHERE roleid=workflow_owner AND member=runner AND admin_option AND grantor<>runner)
++      THEN RAISE EXCEPTION 'REVIEW_MEDIA_FORWARD_OWNER_AUTHORITY_MISSING'; END IF;
++    EXECUTE 'GRANT privacy_workflow_owner TO postgres WITH ADMIN FALSE,INHERIT FALSE,SET TRUE GRANTED BY postgres';
++  ELSE
++    pg15_lease:=NOT pg_has_role(runner,workflow_owner,'MEMBER');
++    IF pg15_lease THEN GRANT privacy_workflow_owner TO postgres; END IF;
++  END IF;
++  SET LOCAL ROLE privacy_workflow_owner;
++  SELECT jsonb_agg(to_jsonb(m) ORDER BY manifest_kind,manifest_key) INTO before_manifest FROM privacy_retention.g014_catalog_contract_manifest m;
++
++  IF (length(source)-length(replace(source,$old$AND NOT c.complete);$old$,'')))/length($old$AND NOT c.complete);$old$)<>1
++    THEN RAISE EXCEPTION 'OWNER_CLEANUP_ANCHOR_DRIFT'; END IF;
++  patched:=replace(source,$old$AND NOT c.complete);$old$,$new$AND c.retired AND NOT c.complete AND NOT review_media_private.referenced(c.path));$new$);
++  EXECUTE replace(definition,source,patched);
++  IF (SELECT to_jsonb(p)-ARRAY['prosrc','proargdefaults'] FROM pg_proc p WHERE p.oid=target) IS DISTINCT FROM metadata
++    OR (SELECT pg_get_expr(p.proargdefaults,0) FROM pg_proc p WHERE p.oid=target) IS DISTINCT FROM defaults
++    OR (SELECT encode(sha256(convert_to(p.prosrc,'UTF8')),'hex') FROM pg_proc p WHERE p.oid=target)<>'a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9'
++    THEN RAISE EXCEPTION 'OWNER_CLEANUP_POST_DRIFT'; END IF;
++  CREATE FUNCTION pg_temp.review_shared_assert() RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $bridge$
++  BEGIN
++    PERFORM privacy_retention.assert_g014_public_rpc_allowlist();
++    PERFORM privacy_retention.assert_g014_definer_contract();
++    PERFORM privacy_retention.assert_g014_catalog_contract();
++    DROP FUNCTION pg_temp.review_shared_assert();
++  END $bridge$;
++  REVOKE ALL ON FUNCTION pg_temp.review_shared_assert() FROM PUBLIC,anon,authenticated,service_role;
++  GRANT EXECUTE ON FUNCTION pg_temp.review_shared_assert() TO postgres;
++  IF (SELECT jsonb_agg(to_jsonb(m) ORDER BY manifest_kind,manifest_key) FROM privacy_retention.g014_catalog_contract_manifest m) IS DISTINCT FROM before_manifest
++    THEN RAISE EXCEPTION 'REVIEW_SHARED_MANIFEST_DRIFT'; END IF;
++  RESET ROLE;
++  IF schema_lease THEN REVOKE CREATE ON SCHEMA public FROM privacy_workflow_owner; END IF;
++  IF major=15 THEN
++    IF pg15_lease THEN REVOKE privacy_workflow_owner FROM postgres; END IF;
++  ELSIF self_membership IS NULL THEN
++    REVOKE privacy_workflow_owner FROM postgres GRANTED BY postgres;
++  ELSE
++    EXECUTE format('GRANT privacy_workflow_owner TO postgres WITH ADMIN FALSE,INHERIT %s,SET %s GRANTED BY postgres',
++      upper(self_membership->>'inherit_option'),upper(self_membership->>'set_option'));
++  END IF;
++
++  IF (SELECT coalesce(jsonb_agg(to_jsonb(m) ORDER BY roleid,member,grantor),'[]') FROM pg_auth_members m) IS DISTINCT FROM before_members
++    OR (SELECT jsonb_agg(to_jsonb(p) ORDER BY oid) FROM pg_proc p WHERE pronamespace='privacy_retention'::regnamespace) IS DISTINCT FROM before_assertions
++    OR (SELECT to_jsonb(n) FROM pg_namespace n WHERE n.oid='public'::regnamespace) IS DISTINCT FROM before_schema
++    THEN RAISE EXCEPTION 'REVIEW_SHARED_PRESERVATION_DRIFT'; END IF;
++  PERFORM pg_temp.review_shared_assert();
++END $forward$;
++-- OWNER_CLEANUP_READBACK_BEGIN
++DO $readback$
++BEGIN
++  IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid='public.finish_review_media_cleanup()'::regprocedure
++    AND proowner='privacy_workflow_owner'::regrole AND prosecdef AND proconfig=ARRAY['search_path=""']::text[]
++    AND encode(sha256(convert_to(prosrc,'UTF8')),'hex')='a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9')
++    OR has_function_privilege('anon','public.finish_review_media_cleanup()','EXECUTE')
++    OR has_function_privilege('service_role','public.finish_review_media_cleanup()','EXECUTE')
++    OR NOT has_function_privilege('authenticated','public.finish_review_media_cleanup()','EXECUTE')
++    THEN RAISE EXCEPTION 'OWNER_CLEANUP_READBACK_DRIFT'; END IF;
++END $readback$;
++-- OWNER_CLEANUP_READBACK_END
++COMMIT;
+diff --git a/backend/supabase/scripts/local-migrate.py b/backend/supabase/scripts/local-migrate.py
+index 23d483d6..7e6ea876 100644
+--- a/backend/supabase/scripts/local-migrate.py
++++ b/backend/supabase/scripts/local-migrate.py
+@@ -116,7 +116,7 @@ MIGRATION_ORDER_OVERRIDES = {
+ }
+ SEED_SOURCE = Path("backend/supabase/scripts/local-seed.sql")
+ READBACK_SOURCE = Path("backend/supabase/scripts/local_catalog_readback.sql")
+-EXPECTED_LEDGER_UNITS = 139
++EXPECTED_LEDGER_UNITS = 140
+ EXPECTED_SERVICES = (
+     "analytics", "auth", "db", "functions", "imgproxy", "kong", "mail",
+     "meta", "realtime", "rest", "storage", "studio", "supavisor", "vector",
+@@ -303,7 +303,7 @@ REVIEW_MEDIA_FUNCTIONS = [['public.admin_review_verification_cleanup(uuid,text,t
+   True,
+   'v',
+   ['search_path=""'],
+-  'f6c4e71988ed2b789b887484af5fdf2e482bde98f1d1c5b5d4e7ad124c314bd1',
++  'a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9',
+   False,
+   True,
+   False,
+diff --git a/backend/supabase/scripts/local_catalog_readback.sql b/backend/supabase/scripts/local_catalog_readback.sql
+index bde58e24..085682c5 100644
+--- a/backend/supabase/scripts/local_catalog_readback.sql
++++ b/backend/supabase/scripts/local_catalog_readback.sql
+@@ -1164,7 +1164,7 @@ BEGIN
+   -- Fix pg_get_expr qualification before comparing the exact parsed predicates.
+   PERFORM set_config('search_path','public, pg_catalog',true);
+   FOR v_expected IN SELECT * FROM (VALUES
+-    ('public.finish_review_media_cleanup()','f6c4e71988ed2b789b887484af5fdf2e482bde98f1d1c5b5d4e7ad124c314bd1',true,'v','plpgsql','bigint',ARRAY[]::text[]),
++    ('public.finish_review_media_cleanup()','a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9',true,'v','plpgsql','bigint',ARRAY[]::text[]),
+     ('public.mutate_review_with_media(uuid,uuid,text,timestamp with time zone,text,text[],text[])','d5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7e323',true,'v','plpgsql','text',ARRAY['p_operation_id','p_review_id','p_kind','p_expected_updated_at','p_content','p_categories','p_food_photos']::text[]),
+     ('public.pending_review_media_cleanup()','5a92c8f282c895eabaa77f8cf3f452fb659bac33bd519ed8cf439dc1f2905c7b',true,'v','plpgsql','TABLE(path text, owner_id uuid, review_id uuid, purpose text)',ARRAY[]::text[]),
+     ('public.queue_review_upload_cleanup(uuid,text[])','89c3b573891f598cac5df6ce9a3217639092801a7439ec0404f338f2097114a8',true,'v','plpgsql','text',ARRAY['p_review_id','p_paths']::text[]),
+@@ -2210,3 +2210,16 @@ BEGIN
+ END $readback$;
+ -- STORAGE_CALLER_BOUND_ADMIN_READBACK_END
+ COMMIT;
++
++-- OWNER_CLEANUP_READBACK_BEGIN
++DO $readback$
++BEGIN
++  IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid='public.finish_review_media_cleanup()'::regprocedure
++    AND proowner='privacy_workflow_owner'::regrole AND prosecdef AND proconfig=ARRAY['search_path=""']::text[]
++    AND encode(sha256(convert_to(prosrc,'UTF8')),'hex')='a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9')
++    OR has_function_privilege('anon','public.finish_review_media_cleanup()','EXECUTE')
++    OR has_function_privilege('service_role','public.finish_review_media_cleanup()','EXECUTE')
++    OR NOT has_function_privilege('authenticated','public.finish_review_media_cleanup()','EXECUTE')
++    THEN RAISE EXCEPTION 'OWNER_CLEANUP_READBACK_DRIFT'; END IF;
++END $readback$;
++-- OWNER_CLEANUP_READBACK_END
+diff --git a/backend/supabase/tests/test_local_function_runtime_contract.py b/backend/supabase/tests/test_local_function_runtime_contract.py
+index f0fdf76e..c765ebb5 100644
+--- a/backend/supabase/tests/test_local_function_runtime_contract.py
++++ b/backend/supabase/tests/test_local_function_runtime_contract.py
+@@ -82,7 +82,7 @@ class LocalFunctionRuntimeContractTests(unittest.TestCase):
+ 
+     def test_admission_accepts_exact_current_source_replay_dispositions(self):
+         snapshot, bindings = self._migration_admission_fixture()
+-        self.assertEqual(len(snapshot["ledger"]), 139)
++        self.assertEqual(len(snapshot["ledger"]), 140)
+         self.assertEqual([row["status"] for row in snapshot["ledger"] if row["replayProof"]],
+                          ["verified-existing", "verified-existing", "legacy-contract-preserved",
+                           "verified-existing"])
+diff --git a/backend/supabase/tests/test_local_publication_verifier.py b/backend/supabase/tests/test_local_publication_verifier.py
+index 71fe2fc1..519e73c5 100644
+--- a/backend/supabase/tests/test_local_publication_verifier.py
++++ b/backend/supabase/tests/test_local_publication_verifier.py
+@@ -1086,11 +1086,11 @@ complete_lifecycle_stage
+             self._write_bundle(root)
+             verifier.verify(root)
+ 
+-    def test_publication_uses_the_current_139_unit_manifest(self) -> None:
+-        self.assertEqual(local_migrate.verify_manifest()["source"]["migrationCount"], 139)
+-        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 139)
+-        self.assertEqual(verifier.EXPECTED_LEDGER_UNITS, 139)
+-        self.assertEqual(builder.EXPECTED_LEDGER_UNITS, 139)
++    def test_publication_uses_the_current_140_unit_manifest(self) -> None:
++        self.assertEqual(local_migrate.verify_manifest()["source"]["migrationCount"], 140)
++        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 140)
++        self.assertEqual(verifier.EXPECTED_LEDGER_UNITS, 140)
++        self.assertEqual(builder.EXPECTED_LEDGER_UNITS, 140)
+     def test_publication_rejects_review_media_catalog_counts_even_with_matching_total(self) -> None:
+         with tempfile.TemporaryDirectory() as raw:
+             root = Path(raw)
+diff --git a/backend/supabase/tests/test_local_seed_receipt_contract.py b/backend/supabase/tests/test_local_seed_receipt_contract.py
+index a47c1387..0f1b7e8f 100644
+--- a/backend/supabase/tests/test_local_seed_receipt_contract.py
++++ b/backend/supabase/tests/test_local_seed_receipt_contract.py
+@@ -484,11 +484,11 @@ class LocalSeedReceiptContractTests(unittest.TestCase):
+ 
+     def test_manifest_contains_exactly_current_immutable_units(self) -> None:
+         manifest = local_migrate.build_manifest()
+-        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 139)
+-        self.assertEqual(len(manifest["source"]["files"]), 139)
++        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 140)
++        self.assertEqual(len(manifest["source"]["files"]), 140)
+         self.assertEqual(
+             manifest["source"]["files"][-1]["path"],
+-            "backend/supabase/migrations/20261011110108_review_storage_caller_bound_admin_policy.sql",
++            "backend/supabase/migrations/20261011175912_review_owner_cleanup_completion.sql",
+         )
+         self.assertEqual(
+             manifest["source"]["files"][-1]["transaction"]["class"],
+diff --git a/backend/supabase/tests/test_review_media_catalog_integration.py b/backend/supabase/tests/test_review_media_catalog_integration.py
+index fe07c337..4a0beffd 100644
+--- a/backend/supabase/tests/test_review_media_catalog_integration.py
++++ b/backend/supabase/tests/test_review_media_catalog_integration.py
+@@ -28,6 +28,9 @@ FINAL_OWNER_HASH = "d5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7
+ GUARD_SIGNATURE = "review_media_private.guard_references()"
+ HISTORICAL_GUARD_HASH = "846030547ffd76e17596755d7eee4279dcb9b563361435260826071d2f250d59"
+ FINAL_GUARD_HASH = "94113c8ae1231e8eae5a698f35a1370a38367e42c79cc87ac62db76c32e735b1"
++FINISH_SIGNATURE = "public.finish_review_media_cleanup()"
++HISTORICAL_FINISH_HASH = "f6c4e71988ed2b789b887484af5fdf2e482bde98f1d1c5b5d4e7ad124c314bd1"
++FINAL_FINISH_HASH = "a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9"
+ 
+ 
+ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
+@@ -82,6 +85,7 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
+             with self.subTest(signature=row[0]):
+                 historical_hash = {OWNER_SIGNATURE: HISTORICAL_OWNER_HASH,
+                                    SHARED_SIGNATURE: HISTORICAL_SHARED_HASH,
++                                   FINISH_SIGNATURE: HISTORICAL_FINISH_HASH,
+                                    GUARD_SIGNATURE: HISTORICAL_GUARD_HASH}.get(row[0], row[6])
+                 self.assertEqual((historical_hash, row[3], row[4], row[2]), functions[row[0]])
+                 self.assertIn(f"('{row[0]}','{before_hashes[row[0]]}','{historical_hash}'", sql)
+@@ -120,6 +124,7 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
+         self.assertEqual(historical.replace(HISTORICAL_OWNER_HASH, FINAL_OWNER_HASH)
+                          .replace(HISTORICAL_SHARED_HASH, FINAL_SHARED_HASH)
+                          .replace(HISTORICAL_GUARD_HASH, FINAL_GUARD_HASH)
++                         .replace(HISTORICAL_FINISH_HASH, FINAL_FINISH_HASH)
+                          .replace("((bucket_id = ''review-verifications''::text) AND (((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS uid)) OR has_role(( SELECT auth.uid() AS uid), ''admin''::app_role)))",
+                                   "((bucket_id = ''review-verifications''::text) AND ((storage.foldername(name))[1] = ( SELECT (auth.uid())::text AS uid)))"),
+                          checks((ROOT / local_migrate.READBACK_SOURCE).read_text()))
+@@ -129,6 +134,19 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
+         self.assertEqual(forward_checks(FORWARD.read_text()).replace('2353de06b4d93f45fd603380e678f4edbcc0b16a8bd9860b5967683bea5f1157', '50b5900a7b6ca43062d6373dbba75378d714312c9ef02c6939997389f6833ba0').replace('f4d19bc5b41fe7808635240cae80f796d12f6cad8b13802577a88afbb1f024a7', '468c12ee6c3463876cbccb394fcba8f870459a1f6cf3d945d97307f8551f094b'),
+                          forward_checks((ROOT / local_migrate.READBACK_SOURCE).read_text()))
+ 
++    def test_owner_completion_transition_retains_hash_and_readback_binding(self):
++        sql = (ROOT / 'backend/supabase/migrations/20261011175912_review_owner_cleanup_completion.sql').read_text()
++        body = re.search(r'CREATE OR REPLACE FUNCTION public.finish_review_media_cleanup\(\).*?AS \$\$(.*?)\$\$;', PARENTS[1].read_text(), re.S).group(1)
++        body = body.replace('auth.uid()', 'privacy_retention.g041_current_claim_user_id()')
++        old = re.search(r'\$old\$(.*?)\$old\$', sql, re.S).group(1)
++        new = re.search(r'\$new\$(.*?)\$new\$', sql, re.S).group(1)
++        self.assertEqual(body.count(old), 1)
++        self.assertEqual(hashlib.sha256(body.encode()).hexdigest(), HISTORICAL_FINISH_HASH)
++        self.assertEqual(hashlib.sha256(body.replace(old, new).encode()).hexdigest(), FINAL_FINISH_HASH)
++        def readback(text):
++            return text.split('-- OWNER_CLEANUP_READBACK_BEGIN\n')[1].split('-- OWNER_CLEANUP_READBACK_END')[0]
++        self.assertEqual(readback(sql), readback((ROOT / local_migrate.READBACK_SOURCE).read_text()))
++
+     def test_shared_legacy_queue_transition_is_bound_to_the_original_trigger(self):
+         body = re.search(r"CREATE FUNCTION review_media_private.enqueue_removed\(\).*?AS \$\$(.*?)\$\$;",
+                          PARENTS[0].read_text(), re.S).group(1)
+@@ -223,7 +241,7 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
+     def test_ledger_applies_integration_normally_and_retains_current_overlap_proofs(self):
+         manifest = local_migrate.verify_manifest()
+         files = manifest["source"]["files"]
+-        self.assertEqual(len(files), 139)
++        self.assertEqual(len(files), 140)
+         integration = next(row for row in files if row["path"] == MIGRATION.relative_to(ROOT).as_posix())
+         self.assertEqual(local_migrate._expected_terminal_status(integration), "applied")
+         sql = local_migrate._execution_body(integration)

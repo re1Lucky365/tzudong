@@ -1,0 +1,15 @@
+file:///Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/scripts/verify-route-css-boundaries.mjs:24
+function fail(message) { throw new Error(`Route CSS boundary verification failed: ${message}`); }
+                               ^
+
+Error: Route CSS boundary verification failed: manifest for /admin/page references CSS asset more than once: static/css/8baff3c6816ec3aa.css
+    at fail (file:///Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/scripts/verify-route-css-boundaries.mjs:24:32)
+    at collectRouteCssAssetPaths (file:///Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/scripts/verify-route-css-boundaries.mjs:178:39)
+    at readRouteCss (file:///Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/scripts/verify-route-css-boundaries.mjs:198:22)
+    at verifyBuildRouteCssBoundaries (file:///Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/scripts/verify-route-css-boundaries.mjs:266:5)
+    at file:///Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/scripts/verify-route-css-boundaries.mjs:270:102
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.21.0

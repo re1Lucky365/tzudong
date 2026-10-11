@@ -1,0 +1,24 @@
+{
+  "variant": "before",
+  "iteration": 1,
+  "production": true,
+  "distDir": ".next-media-followup-v7",
+  "buildId": "I6A8JzmAqeqa3N8tX9IZA",
+  "node": "v24.21.0",
+  "fixtureSha256": "346c9c865201a48b590c439a4e06306bfada92f91c73f9a83293a991a51058b5",
+  "fieldAdmission": 0,
+  "physicalDevice": false,
+  "data": "Synthetic REST735 / Auth401",
+  "startedUtc": "2026-10-11T16:04:33.974Z",
+  "cases": [],
+  "pageErrors": 0,
+  "consoleErrors": {
+    "other": 1,
+    "CSP": 1
+  },
+  "passed": false,
+  "browser": "154.0.8037.98",
+  "dom": "본문 바로가기\n735\n© NAVER Corp.\n /OpenStreetMap\n쯔동여지도 검색하기\n조회수 폭발\n댓글 폭주\n최근 영상\n재등장 맛집\n반응 찐함\n국내\n해외\n전체\n카테고리\n홈\n리뷰\n도장\n랭킹\nMY",
+  "failure": "expect(locator).toBeVisible() failed\n\nLocator: getByRole('combobox', { name: '카테고리 필터', exact: true }).first()\nExpected: visible\nTimeout: 30000ms\nError: element",
+  "endedUtc": "2026-10-11T16:05:06.403Z"
+}

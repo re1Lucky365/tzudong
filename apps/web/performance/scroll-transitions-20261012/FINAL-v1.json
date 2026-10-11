@@ -1,0 +1,63 @@
+{
+  "sourceAfter": "e3c710dc38cf9316a61c8d08e31a6d96c6e735ca",
+  "unitFinal": {
+    "pass": 3441,
+    "skip": 11,
+    "fail": 0
+  },
+  "firstFullRunFailed": true,
+  "bridgeRetry": {
+    "pass": 24,
+    "fail": 0
+  },
+  "performanceAdmission": 0,
+  "physicalDevice": false,
+  "deployed": false,
+  "fieldAdmission": 0,
+  "sampleSize": {
+    "beforeProcesses": 1,
+    "afterProcesses": 1,
+    "dependentDragsPerViewport": 12
+  },
+  "documentScanChanges": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "before": 24,
+      "after": 0,
+      "absoluteDecrease": 24,
+      "relativeDecreasePercent": 100
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "before": 17,
+      "after": 0,
+      "absoluteDecrease": 17,
+      "relativeDecreasePercent": 100
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "before": 19,
+      "after": 0,
+      "absoluteDecrease": 19,
+      "relativeDecreasePercent": 100
+    }
+  ],
+  "browser": "154.0.8037.98",
+  "consoleIncidentsBefore": {
+    "other": 4,
+    "CSP": 6
+  },
+  "consoleIncidentsAfter": {
+    "other": 4,
+    "CSP": 6
+  }
+}

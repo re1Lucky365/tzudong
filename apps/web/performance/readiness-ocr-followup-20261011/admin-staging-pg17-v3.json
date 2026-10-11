@@ -1,0 +1,58 @@
+{
+  "engine": "17.6",
+  "network": "none",
+  "ports": "none",
+  "sourceSha256": "081c48e91172e4e98079b03aa210c0f7481d95a21945e5a288187263089e57db",
+  "probeSha256": "7cdd396a5bd4fa8b51cb35cda4d49f6e1c3924e2d0d158d39a7092aead170d19",
+  "scriptSha256": "2f7ff6a6210dfe5e5ca4abb2fb8e3618be235698a5ee92206af744f4eb4c69f4",
+  "rollbackExact": true,
+  "storageFenceSha256": "90221f1991c60515a7542c0d97f9f1f7866d86e8cf6d824a3f55bb9350772b18",
+  "rollbackFingerprint": {
+    "data": [
+      0,
+      0,
+      0
+    ],
+    "members": "f8a54adbc187f6341ec23c8fa8f2115b",
+    "manifest": "6d1617b6499884bd7fb3f838724a1960",
+    "policies": "0e32330213a8633a43bfecb05e531fbc",
+    "functions": "0f360932abc965fe61b99063f16c4e5e",
+    "relations": "834a109e65569dbe081b8154dbe79736",
+    "defaultACL": "b39a6aa2273f39b73602ebccebb5923e",
+    "constraints": "e04885f9f21337e355b1e490a0508c3e"
+  },
+  "sharedBaseline": {
+    "referencedRemaining": 1,
+    "fixtureGuardRestored": true,
+    "lastReviewReadyItems": 1,
+    "firstReferenceProtected": true,
+    "lateStorageInsertDenied": true,
+    "publicHttpDeletionVerified": false
+  },
+  "sharedCandidate": {
+    "referencedRemaining": 0,
+    "fixtureGuardRestored": true,
+    "lastReviewReadyItems": 1,
+    "firstReferenceProtected": true,
+    "lateStorageInsertDenied": true,
+    "publicHttpDeletionVerified": false
+  },
+  "runtime": {
+    "anonDenied": true,
+    "idempotentStage": true,
+    "lateUploadDenied": true,
+    "authenticatedDenied": true,
+    "absentObjectFinished": true,
+    "retiredKeyCannotRestage": true,
+    "durableStageBeforeTransport": true,
+    "unreferencedLostUploadDiscovered": true,
+    "survivingPrivateObjectKeptPending": true
+  },
+  "safeupdateEnabled": true,
+  "fixtureGuardSuspendedOnlyForHistoricalSeed": true,
+  "operatingDDL": 0,
+  "synthetic": true,
+  "storageHTTPOrActualOCRProviderTested": false,
+  "metadataActor": "supabase_admin",
+  "authenticatedStorageRlsSuccessTested": false
+}

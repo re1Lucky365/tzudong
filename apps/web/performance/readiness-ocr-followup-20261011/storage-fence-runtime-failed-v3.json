@@ -1,0 +1,8 @@
+{
+  "status": "failed",
+  "sqlstate": "42501",
+  "fixedFailure": [
+    "permission denied for function has_role"
+  ],
+  "scriptSha256": "adfa0d755d1c043ef1d63bc9bdd636f67c05985795e595355a28b782ad2c5568"
+}
