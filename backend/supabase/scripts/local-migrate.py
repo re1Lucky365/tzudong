@@ -116,7 +116,7 @@ MIGRATION_ORDER_OVERRIDES = {
 }
 SEED_SOURCE = Path("backend/supabase/scripts/local-seed.sql")
 READBACK_SOURCE = Path("backend/supabase/scripts/local_catalog_readback.sql")
-EXPECTED_LEDGER_UNITS = 132
+EXPECTED_LEDGER_UNITS = 133
 EXPECTED_SERVICES = (
     "analytics", "auth", "db", "functions", "imgproxy", "kong", "mail",
     "meta", "realtime", "rest", "storage", "studio", "supavisor", "vector",
@@ -286,7 +286,18 @@ READBACK_SECTIONS = (
 )
 CATALOG_SECTIONS = READBACK_SECTIONS[:23]
 SEED_SECTIONS = READBACK_SECTIONS[23:]
-REVIEW_MEDIA_FUNCTIONS = [['public.finish_review_media_cleanup()',
+REVIEW_MEDIA_FUNCTIONS = [['public.admin_review_verification_cleanup(uuid,text,text[])',
+  'privacy_workflow_owner',
+  'jsonb',
+  True,
+  'v',
+  ['search_path=""'],
+  'f4d19bc5b41fe7808635240cae80f796d12f6cad8b13802577a88afbb1f024a7',
+  False,
+  False,
+  True,
+  ['service_role']],
+ ['public.finish_review_media_cleanup()',
   'privacy_workflow_owner',
   'bigint',
   True,
@@ -303,7 +314,7 @@ REVIEW_MEDIA_FUNCTIONS = [['public.finish_review_media_cleanup()',
   True,
   'v',
   ['search_path=""'],
-  '50bfad7bc4fc7ddbc9d9379e8eb13facd938a15f66553576cc69fbcf69aa98b1',
+  'd5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7e323',
   False,
   True,
   False,

@@ -17,6 +17,10 @@ PARENTS = (
     ROOT / "backend/supabase/migrations/20261008192455_review_media_commit_cleanup.sql",
     ROOT / "backend/supabase/migrations/20261008200719_review_verification_private.sql",
 )
+FORWARD = ROOT / "backend/supabase/migrations/20261011072824_admin_review_media_completion.sql"
+OWNER_SIGNATURE = "public.mutate_review_with_media(uuid,uuid,text,timestamp with time zone,text,text[],text[])"
+HISTORICAL_OWNER_HASH = "50bfad7bc4fc7ddbc9d9379e8eb13facd938a15f66553576cc69fbcf69aa98b1"
+FINAL_OWNER_HASH = "d5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7e323"
 
 
 class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
@@ -63,12 +67,19 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
                 )
         self.assertEqual(len(functions), 14)
         self.assertEqual(sum(key.startswith("public.") for key in functions), 7)
-        self.assertEqual(set(functions), {row[0] for row in local_migrate.REVIEW_MEDIA_FUNCTIONS})
+        historical_rows = [row for row in local_migrate.REVIEW_MEDIA_FUNCTIONS
+                           if row[0] != "public.admin_review_verification_cleanup(uuid,text,text[])"]
+        self.assertEqual(set(functions), {row[0] for row in historical_rows})
         sql = MIGRATION.read_text()
-        for row in local_migrate.REVIEW_MEDIA_FUNCTIONS:
+        for row in historical_rows:
             with self.subTest(signature=row[0]):
-                self.assertEqual((row[6], row[3], row[4], row[2]), functions[row[0]])
-                self.assertIn(f"('{row[0]}','{before_hashes[row[0]]}','{row[6]}'", sql)
+                historical_hash = HISTORICAL_OWNER_HASH if row[0] == OWNER_SIGNATURE else row[6]
+                self.assertEqual((historical_hash, row[3], row[4], row[2]), functions[row[0]])
+                self.assertIn(f"('{row[0]}','{before_hashes[row[0]]}','{historical_hash}'", sql)
+                if row[0] == OWNER_SIGNATURE:
+                    self.assertEqual(row[6], FINAL_OWNER_HASH)
+                    self.assertIn(HISTORICAL_OWNER_HASH, FORWARD.read_text())
+                    self.assertIn(FINAL_OWNER_HASH, FORWARD.read_text())
         self.assertEqual(sum(before_hashes[key] != value[0] for key, value in functions.items()), 7)
 
     def test_claim_transition_pins_existing_helper_without_auth_schema_grant(self):
@@ -90,7 +101,28 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
             return source.split("-- REVIEW_MEDIA_READBACK_BEGIN\n", 1)[1].split(
                 "-- REVIEW_MEDIA_READBACK_END", 1)[0].replace(
                     "-- The same independent catalog-only checks are embedded in canonical readback.\n", "")
-        self.assertEqual(checks(MIGRATION.read_text()), checks((ROOT / local_migrate.READBACK_SOURCE).read_text()))
+        historical = checks(MIGRATION.read_text())
+        self.assertEqual(historical.count(HISTORICAL_OWNER_HASH), 1)
+        self.assertEqual(historical.replace(HISTORICAL_OWNER_HASH, FINAL_OWNER_HASH),
+                         checks((ROOT / local_migrate.READBACK_SOURCE).read_text()))
+        def forward_checks(source):
+            return source.split("-- ADMIN_REVIEW_MEDIA_READBACK_BEGIN\n", 1)[1].split(
+                "-- ADMIN_REVIEW_MEDIA_READBACK_END", 1)[0]
+        self.assertEqual(forward_checks(FORWARD.read_text()),
+                         forward_checks((ROOT / local_migrate.READBACK_SOURCE).read_text()))
+
+    def test_new_service_only_cleanup_body_is_exactly_bound(self):
+        body = FORWARD.read_text().split("AS $cleanup$", 1)[1].split("$cleanup$;", 1)[0]
+        row = next(row for row in local_migrate.REVIEW_MEDIA_FUNCTIONS
+                   if row[0] == "public.admin_review_verification_cleanup(uuid,text,text[])")
+        self.assertEqual(hashlib.sha256(body.encode()).hexdigest(), row[6])
+        self.assertEqual(row[7:], [False, False, True, ["service_role"]])
+        rows = copy.deepcopy(_receipt_rows())
+        entry = next(entry for entry in rows if entry[0] == 'review_media_functions'
+                     and entry[1] == row[0])
+        rows.remove(entry)
+        with self.assertRaises(local_migrate.LocalMigrationError):
+            local_migrate.parse_readback(rows)
 
     def test_protected_identity_transition_reconstructs_from_immutable_source(self):
         original = (ROOT / "backend/supabase/migrations/20260713002500_g014_catalog_contract.sql").read_text()
@@ -146,7 +178,7 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
     def test_ledger_applies_integration_normally_and_retains_current_overlap_proofs(self):
         manifest = local_migrate.verify_manifest()
         files = manifest["source"]["files"]
-        self.assertEqual(len(files), 132)
+        self.assertEqual(len(files), 133)
         integration = next(row for row in files if row["path"] == MIGRATION.relative_to(ROOT).as_posix())
         self.assertEqual(local_migrate._expected_terminal_status(integration), "applied")
         sql = local_migrate._execution_body(integration)

@@ -1165,7 +1165,7 @@ BEGIN
   PERFORM set_config('search_path','public, pg_catalog',true);
   FOR v_expected IN SELECT * FROM (VALUES
     ('public.finish_review_media_cleanup()','f6c4e71988ed2b789b887484af5fdf2e482bde98f1d1c5b5d4e7ad124c314bd1',true,'v','plpgsql','bigint',ARRAY[]::text[]),
-    ('public.mutate_review_with_media(uuid,uuid,text,timestamp with time zone,text,text[],text[])','50bfad7bc4fc7ddbc9d9379e8eb13facd938a15f66553576cc69fbcf69aa98b1',true,'v','plpgsql','text',ARRAY['p_operation_id','p_review_id','p_kind','p_expected_updated_at','p_content','p_categories','p_food_photos']::text[]),
+    ('public.mutate_review_with_media(uuid,uuid,text,timestamp with time zone,text,text[],text[])','d5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7e323',true,'v','plpgsql','text',ARRAY['p_operation_id','p_review_id','p_kind','p_expected_updated_at','p_content','p_categories','p_food_photos']::text[]),
     ('public.pending_review_media_cleanup()','5a92c8f282c895eabaa77f8cf3f452fb659bac33bd519ed8cf439dc1f2905c7b',true,'v','plpgsql','TABLE(path text, owner_id uuid, review_id uuid, purpose text)',ARRAY[]::text[]),
     ('public.queue_review_upload_cleanup(uuid,text[])','89c3b573891f598cac5df6ce9a3217639092801a7439ec0404f338f2097114a8',true,'v','plpgsql','text',ARRAY['p_review_id','p_paths']::text[]),
     ('public.read_review_media_commit(uuid,uuid,text)','2f14abfc04864f369467f5ac5f0603defa149b8023d7e6b04e2bb8535f8a268e',true,'v','sql','text',ARRAY['p_operation_id','p_review_id','p_kind']::text[]),
@@ -1385,6 +1385,28 @@ BEGIN
   PERFORM set_config('search_path',v_path,true);
 END $review_media_catalog_readback$;
 -- REVIEW_MEDIA_READBACK_END
+
+-- ADMIN_REVIEW_MEDIA_READBACK_BEGIN
+DO $readback$
+BEGIN
+  IF NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.admin_review_verification_cleanup(uuid,text,text[])'::regprocedure
+    AND p.proowner='privacy_workflow_owner'::regrole AND p.prosecdef AND p.proconfig=ARRAY['search_path=""']::text[]
+    AND p.pronargs=3 AND p.pronargdefaults=1 AND p.prorettype='jsonb'::regtype AND NOT p.proretset
+    AND p.provolatile='v' AND p.prokind='f' AND NOT p.proisstrict
+    AND p.proargnames=ARRAY['p_review_id','p_phase','p_paths']::text[]
+    AND pg_get_expr(p.proargdefaults,0)='NULL::text[]'
+    AND p.prolang=(SELECT oid FROM pg_language WHERE lanname='plpgsql')
+    AND NOT EXISTS(SELECT 1 FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+      WHERE a.is_grantable OR a.privilege_type<>'EXECUTE'
+        OR a.grantee NOT IN ('privacy_workflow_owner'::regrole,'service_role'::regrole))
+    AND encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')='f4d19bc5b41fe7808635240cae80f796d12f6cad8b13802577a88afbb1f024a7'
+    AND NOT has_function_privilege('anon',p.oid,'EXECUTE') AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+    AND has_function_privilege('service_role',p.oid,'EXECUTE'))
+    OR (SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid='public.admin_record_action(uuid,text,uuid,text,uuid[],jsonb,text)'::regprocedure)<>'2353de06b4d93f45fd603380e678f4edbcc0b16a8bd9860b5967683bea5f1157'
+    OR (SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid='public.mutate_review_with_media(uuid,uuid,text,timestamp with time zone,text,text[],text[])'::regprocedure)<>'d5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7e323'
+    THEN RAISE EXCEPTION 'REVIEW_MEDIA_FORWARD_READBACK_DRIFT'; END IF;
+END $readback$;
+-- ADMIN_REVIEW_MEDIA_READBACK_END
 
 -- Catalog sections.  The SELECT order below is part of receipt-v1 and each
 -- section has an explicit identity ORDER BY.  Platform schemas remain visible
@@ -1934,6 +1956,7 @@ SELECT json_build_array(
  ORDER BY relation_row.relname, policy_row.polname;
 
 WITH expected(signature) AS (VALUES
+  ('public.admin_review_verification_cleanup(uuid,text,text[])'),
   ('public.finish_review_media_cleanup()'),
   ('public.mutate_review_with_media(uuid,uuid,text,timestamp with time zone,text,text[],text[])'),
   ('public.pending_review_media_cleanup()'),

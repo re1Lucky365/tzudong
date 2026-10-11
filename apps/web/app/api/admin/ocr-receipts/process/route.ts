@@ -8,6 +8,7 @@ import {
     REVIEW_VERIFICATION_BUCKET,
 } from '@/lib/reviews/private-verification';
 import { canDiscardReceiptReplacement } from '@/lib/ocr/receipt-replacement-reconciliation';
+import { createAdminVerificationCleanupDependencies, drainAdminVerificationCleanup } from '@/lib/reviews/admin-verification-cleanup';
 import { buildReviewPhotoObjectPath, getOwnedReviewPhotoObjectPath } from '@/lib/review-photo-url';
 
 import {
@@ -665,6 +666,11 @@ export async function POST(request: Request) {
         if (!receiptObjectPath) return errorResponse('RECEIPT_NOT_FOUND', 400);
         assertSafeReceiptObjectPath(receiptObjectPath);
 
+        const cleanup = createAdminVerificationCleanupDependencies(supabase, storageAdmin);
+        // Reconcile prior committed replacements before another download/provider
+        // call. An absent migration or pending public object fails closed.
+        if (!await drainAdminVerificationCleanup(cleanup, body.reviewId, review.user_id)) throw new OcrPersistenceError();
+
         const receiptDownload = await downloadReviewVerification(storageAdmin, receiptObjectPath);
         const downloadedImage = await downloadPrivateReceiptObject(() => Promise.resolve(receiptDownload));
         const canonicalStorageImage = await canonicalizeReceiptImage(
@@ -680,6 +686,7 @@ export async function POST(request: Request) {
                 receiptObjectPath,
                 canonicalStorageImage.bytes,
             );
+            if (!await drainAdminVerificationCleanup(cleanup, body.reviewId, review.user_id)) throw new OcrPersistenceError();
         }
 
         tempRun = createAdminReceiptTempRun();
