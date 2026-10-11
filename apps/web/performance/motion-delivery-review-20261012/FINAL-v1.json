@@ -1,0 +1,64 @@
+{
+  "source": "cc14014db5d8199260aabc9b1e30f63c3fc1e134",
+  "checks": {
+    "webFull": {
+      "pass": 3442,
+      "skip": 11,
+      "fail": 0,
+      "exit": 0,
+      "log": "full-unit-v2.log",
+      "logSha256": "0ba87b018740420da5624739c56dd5ee3ba43158c313a36dfdf13680eccc7779"
+    },
+    "backendRelated": {
+      "pass": 109,
+      "fail": 0,
+      "exit": 0,
+      "log": "source-tests-v3.log",
+      "source": "baefb214",
+      "logSha256": "1f2f298ae041bd6c77a1636407697b898ff83bc1e33f38d8792dc1ba17a67086"
+    },
+    "verifierRelated": {
+      "pass": 3,
+      "fail": 0,
+      "exit": 0,
+      "log": "verifier-tests-v4.log",
+      "source": "54b66931",
+      "logSha256": "9bc75d63d7ddbd830ec0a5b6a0f0804503c3e3ed3f92c51eaa4d392e332dbf66"
+    },
+    "lint": {
+      "exit": 0,
+      "log": "lint-v2.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "parity": {
+      "exit": 0,
+      "log": "parity-v2.log",
+      "logSha256": "9dd2437df26ada0b484a37db9be7c7ef37fb8d271ae3892c8115a2f774143ce6"
+    }
+  },
+  "productionBuild": "configured-build-review-v2.json",
+  "ownerCleanup": "owner-cleanup-pg17-v2.json",
+  "permissionProbes": "owner-permissions-v1.json",
+  "browser": {
+    "beforeFailures": 3,
+    "afterFailures": 0,
+    "attemptsPerVariant": 9,
+    "independentBrowserProcessesPerVariant": 1,
+    "cacheAndBackgroundLoadUncontrolled": true,
+    "beforeConsole": {
+      "other": 12
+    },
+    "afterConsole": {
+      "other": 9
+    },
+    "beforePageErrors": 0,
+    "afterPageErrors": 0,
+    "serverAuthenticationVerified": false
+  },
+  "performanceAdmission": 0,
+  "physicalDevice": false,
+  "fieldAdmission": 0,
+  "operatingDDL": 0,
+  "deployed": false,
+  "earlierFailuresPreserved": true
+}
