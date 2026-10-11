@@ -4,6 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import "@/styles/interface-motion.css";
 
 const ToastProvider = ToastPrimitives.Provider;
 
@@ -23,7 +24,7 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-start gap-2 overflow-hidden rounded-lg border p-3 text-sm leading-5 shadow-lg break-keep transition-all sm:w-max sm:max-w-[min(42rem,calc(100vw-2rem))] data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:fade-in-0 data-[state=open]:sm:slide-in-from-bottom-full",
+  "t-toast group pointer-events-auto relative flex w-full items-start gap-2 overflow-hidden rounded-lg border p-3 text-sm leading-5 shadow-lg break-keep sm:w-max sm:max-w-[min(42rem,calc(100vw-2rem))]",
   {
     variants: {
       variant: {
