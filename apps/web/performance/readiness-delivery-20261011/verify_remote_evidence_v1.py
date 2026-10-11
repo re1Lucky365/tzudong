@@ -16,6 +16,10 @@ PACKAGES = {
 
 
 def verify(root, revision, repo, receipt):
+    for package in PACKAGES:
+        base = root / package
+        if base.is_symlink() or any(p.is_symlink() for p in base.parents) or any(p.is_symlink() for p in base.rglob("*")):
+            raise ValueError("ARTIFACT_SYMLINK_DENIED")
     cache = {}
 
     def api(endpoint):
@@ -95,7 +99,7 @@ def main():
                "revision": args.revision, "repo": args.repo, "packages": [], "status": "failed",
                "performanceAdmission": 0, "hostedWrites": 0, "fieldAdmission": 0}
     try:
-        verify(args.root.resolve(), args.revision, args.repo, receipt)
+        verify(args.root.absolute(), args.revision, args.repo, receipt)
         receipt["status"] = "passed"
     except (ValueError, KeyError, OSError, subprocess.TimeoutExpired) as error:
         receipt["failureCode"] = str(error) if isinstance(error, ValueError) and re.fullmatch(r"[A-Z_]+", str(error)) else "VERIFICATION_FAILED"

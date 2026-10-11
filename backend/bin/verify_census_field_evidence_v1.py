@@ -15,6 +15,8 @@ packages = [
 results = []
 for relative, pin_path, map_name in packages:
     root = repo / relative
+    if root.is_symlink() or any(p.is_symlink() for p in root.parents) or any(p.is_symlink() for p in root.rglob('*')):
+        raise SystemExit('EVIDENCE_SYMLINK_DENIED')
     mapping = root / map_name
     digest = hashlib.sha256(mapping.read_bytes()).hexdigest()
     if digest != (repo / pin_path).read_text().strip():

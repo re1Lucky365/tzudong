@@ -1,0 +1,29 @@
+✔ compact SELECT projection and alias (12.00275ms)
+✔ quoted name IN including comma (0.736083ms)
+✔ search and viewport subsets (0.418791ms)
+✔ array overlap versus contains (0.203042ms)
+✔ pagination and total (0.157541ms)
+✔ unsupported predicate is explicit (0.283416ms)
+✔ nullable coordinate predicates match SQL null semantics (0.135458ms)
+✔ popular weekly counts sort numerically (0.085042ms)
+✔ positive weekly-count eligibility excludes null and zero (0.0905ms)
+✔ alias and address lookups honor every predicate instead of returning a full catalog (1.557833ms)
+✔ SQL NULL cannot equal the string null or match IN and ILIKE (0.517042ms)
+✔ unknown filters, projection columns and duplicate controls fail closed (0.8515ms)
+✔ combined name and address filters preserve an empty result and row identity (0.28775ms)
+✔ actual published-date order preserves direction and explicit SQL null placement (0.334834ms)
+✔ admits bounded ordered results with exact source quotation, without certifying meaning (3.931625ms)
+✔ rejects wrong model and nonterminal finish (1.750459ms)
+✔ rejects missing, reordered or duplicate input keys (2.308042ms)
+✔ rejects paraphrased evidence and guessed segment indices (0.230667ms)
+✔ rejects a generated review for empty source and prose for unresolved evidence (0.1465ms)
+✔ rejects extra provider text fields rather than persisting them (0.085792ms)
+✔ factual replacements require a citation while formatting-only proposals can omit one (0.146ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107.697041

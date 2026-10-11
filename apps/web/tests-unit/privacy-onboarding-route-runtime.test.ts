@@ -373,6 +373,40 @@ describe('privacy onboarding full route runtime contracts', () => {
     );
   });
 
+  for (const host of ['tzudong-fi9s0ycyh-twoimos-projects.vercel.app', 'tzudong-git-fix-preview-twoimos-projects.vercel.app']) {
+    test(`preview email signup retains the PKCE verifier origin: ${host}`, async () => {
+      const f = fixture({ emailConfirmation: true, origin: `https://${host}`,
+        vercelUrl: 'tzudong-fi9s0ycyh-twoimos-projects.vercel.app',
+        vercelBranchUrl: 'tzudong-git-fix-preview-twoimos-projects.vercel.app' });
+      const { response: issued, cookie } = await f.start('password');
+      assert('trusted preview issued a challenge', issued.status === 201 && Boolean(cookie));
+      const destination = '/mypage/reviews';
+      const created = await f.route.POST(f.post(f.signup(destination), [cookie]));
+      assert('single email-confirmed signup', created.status === 201 && f.state.signupCalls === 1);
+      const callbackUrl = new URL(f.state.signupEmailRedirectTo);
+      const verifier = created.cookies.get('sb-fixture-auth-token-code-verifier');
+      assert('host-only PKCE cookie and confirmation link share origin', callbackUrl.origin === f.origin
+        && callbackUrl.pathname === '/auth/callback' && callbackUrl.searchParams.get('next') === destination
+        && Boolean(verifier?.value) && verifier.domain === undefined);
+      callbackUrl.searchParams.set('code', 'fixture');
+      const completed = await f.callback.GET(new Request(callbackUrl, { headers: { cookie: `${verifier.name}=${verifier.value}` } }));
+      const location = new URL(completed.headers.get('location'));
+      assert('confirmed preview session resumes its destination', completed.status === 307
+        && location.origin === f.origin && location.pathname === destination);
+      assert('no external account or email request', f.state.blockedExternalCalls === 0);
+    });
+  }
+
+  test('untrusted preview origin cannot issue a password signup callback', async () => {
+    const f = fixture({ emailConfirmation: true, origin: 'https://attacker.example',
+      vercelUrl: 'tzudong-fi9s0ycyh-twoimos-projects.vercel.app' });
+    const issued = await f.start('password');
+    assert('untrusted preview denied before challenge', issued.response.status === 403);
+    const created = await f.route.POST(f.post(f.signup('/mypage/reviews')));
+    assert('no account creation or verifier redirect', created.status === 403
+      && f.state.signupCalls === 0 && f.state.signupEmailRedirectTo === null);
+  });
+
   for (const control of ['tamper', 'expiry', 'origin', 'nonce', 'secret']) test(`OAuth rejects ${control} before exchanging provider code`, async () => {
     const f = fixture();
     const { cookie } = await f.start('oauth');

@@ -12,6 +12,8 @@ PROMPT = "7a279af1b9586e9b2f482f1e2b23cdb93bcc013d0daf2e4dbc9277c64a277ae7"
 
 
 def verify():
+    if PACKAGE.is_symlink() or any(p.is_symlink() for p in PACKAGE.parents) or any(p.is_symlink() for p in PACKAGE.rglob("*")):
+        raise ValueError("CENSUS_SYMLINK_DENIED")
     raw = (PACKAGE / "artifact-map.json").read_bytes()
     if hashlib.sha256(raw).hexdigest() != PIN.read_text().split()[0]:
         raise ValueError("CENSUS_DETACHED_MAP_DRIFT")

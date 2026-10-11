@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { getTrustedAuthCallbackOrigin } from '@/lib/auth/callback-origin';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CookieOptions } from '@supabase/ssr';
 import type { Database } from '@/integrations/supabase/types';
@@ -45,7 +46,6 @@ import { getSafeAuthNextPath } from '@/lib/auth/auth-redirect';
 export const runtime = 'nodejs';
 
 const MAX_REQUEST_BYTES = 16 * 1024;
-const DEFAULT_PRODUCTION_REDIRECT_ORIGIN = 'https://www.tzudong.app';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HEX_TOKEN_PATTERN = /^[a-f0-9]{64}$/;
 const PASSWORD_SIGNUP_LEGACY_KEYS = ['action', 'email', 'password', 'nickname'];
@@ -208,23 +208,8 @@ function requestOrigin(request: NextRequest) {
   return new URL(request.url).origin;
 }
 
-function trustedAuthRedirectOrigin(request: NextRequest) {
-  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (configuredSiteUrl) {
-    try {
-      return new URL(configuredSiteUrl).origin;
-    } catch {
-      return DEFAULT_PRODUCTION_REDIRECT_ORIGIN;
-    }
-  }
-
-  return process.env.NODE_ENV === 'production'
-    ? DEFAULT_PRODUCTION_REDIRECT_ORIGIN
-    : requestOrigin(request);
-}
-
 function passwordSignupEmailRedirectTo(request: NextRequest, next: string) {
-  const callbackUrl = new URL('/auth/callback', trustedAuthRedirectOrigin(request));
+  const callbackUrl = new URL('/auth/callback', getTrustedAuthCallbackOrigin(requestOrigin(request)));
   if (next !== '/') callbackUrl.searchParams.set('next', next);
   return callbackUrl.toString();
 }

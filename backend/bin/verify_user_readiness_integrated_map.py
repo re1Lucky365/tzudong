@@ -5,6 +5,7 @@ REPO=Path(__file__).resolve().parents[2]
 ROOT=REPO/'apps/web/performance/user-readiness-20261009'
 MAP=ROOT/'artifact-map-readiness-integrated-v2.json'
 PIN=REPO/'docs/evidence/user-readiness-integrated-20261009-map-v2.sha256'
+if ROOT.is_symlink() or any(p.is_symlink() for p in ROOT.parents) or any(p.is_symlink() for p in ROOT.rglob('*')):raise SystemExit('READINESS_SYMLINK_DENIED')
 sha=hashlib.sha256(MAP.read_bytes()).hexdigest()
 if sha!=PIN.read_text().strip():raise SystemExit('READINESS_MAP_PIN_MISMATCH')
 j=json.loads(MAP.read_text());seen=set()
