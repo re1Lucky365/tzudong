@@ -94,12 +94,12 @@
     },
     {
       "path": "apps/web/performance/ci-monitor-20261011/artifact-map.json",
-      "sha256": "d98c5955c526efa71fe9025277c2e85fb0c10284378f70114ccb6c580d7dde43",
-      "bytes": 7011
+      "sha256": "7bc43fa035f17346586f12332111878d492eab935e82cd368bca7c21d9f4f32f",
+      "bytes": 7210
     },
     {
       "path": "apps/web/performance/ci-monitor-20261011/artifact-map.json.sha256",
-      "sha256": "a03eb08f07dc7732bb0199f319c6c03ca892acd3f83abe7e901ec00a9bb21df0",
+      "sha256": "3601f2f3613cd666e6fc411653e40b10f2b19ba8d51ca867e571da05cba798e8",
       "bytes": 84
     }
   ]

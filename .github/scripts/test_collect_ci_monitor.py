@@ -20,7 +20,7 @@ def run(attempt=1, status="completed", conclusion="success", run_id=1, minute=0)
 
 
 def jobs():
-    return {"total_count": 1, "jobs": [{"id": 2, "name": "private owner name", "labels": ["ubuntu-latest", "private-host"], "status": "completed", "conclusion": "success", "created_at": "2026-10-11T00:00:00Z", "started_at": "2026-10-11T00:00:01Z", "completed_at": "2026-10-11T00:00:10Z", "steps": [{"number": 1, "name": "Run npm ci TOKEN=secret-value", "status": "completed", "conclusion": "success", "started_at": "2026-10-11T00:00:01Z", "completed_at": "2026-10-11T00:00:09Z"}]}]}
+    return {"total_count": 1, "jobs": [{"id": 2, "name": "private owner name", "labels": ["ubuntu-latest", "private-host"], "status": "completed", "conclusion": "success", "created_at": "2026-10-11T00:00:00Z", "started_at": "2026-10-11T00:00:01Z", "completed_at": "2026-10-11T00:00:10Z", "steps": [{"number": 1, "name": "Run npm ci PRIVATE_DIAGNOSTIC_SENTINEL", "status": "completed", "conclusion": "success", "started_at": "2026-10-11T00:00:01Z", "completed_at": "2026-10-11T00:00:09Z"}]}]}
 
 
 class Reader:

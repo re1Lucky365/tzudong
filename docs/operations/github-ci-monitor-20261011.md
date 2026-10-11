@@ -67,3 +67,5 @@ python3 .github/scripts/run-ci-monitor.py \
 실행 Python은 프로젝트 `/Users/twoimo/Documents/projects/tzudong/.venv/bin/python3`으로 고정한다. 기준선·읽기 영수증·통합 첫 tick·분석·Opus 최종 응답·설정·소스 hash는 `apps/web/performance/ci-monitor-20261011/`에 보존한다. detached `artifact-map.json.sha256`으로 무결성을 확인한다. 공식 운영 개선으로 admitted한 slice는 0이다.
 
 검증: 신규 감시 33개, 관련 Python 16개, Bun source contract 45개, Node classifier 6개 통과. workflow actionlint와 reconciliation도 통과했다. 감시 테스트는 pagination 절단·attempt 실패·손상 시각·scope 충돌·자료 유실·중복 실행·active tombstone·상한 정합성을 포함한다. 이 결과는 로컬 기능 검증이며 미래 heartbeat 실행이나 GitHub CI 성공을 대신하지 않는다.
+
+최초 hosted 감시 테스트 step은 `38123487112`에서 2초로 통과했다. GitGuardian은 sanitization 테스트에 쓴 가짜 비밀번호 문자열을 Generic Password로 탐지했다. fixture는 비자격증명 표식으로 수정하고 33개 테스트를 재검증했다. 검사 설정은 유지한다. [공식 문서](https://docs.gitguardian.com/internal-monitoring/prevent/detect-secrets-in-real-time-in-github)대로 PR의 과거 커밋도 검사하므로 source 수정만으로 이전 탐지가 해결됐다고 주장하지 않는다.

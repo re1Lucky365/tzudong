@@ -23,13 +23,13 @@
     },
     {
       "path": ".github/scripts/test_collect_ci_monitor.py",
-      "sha256": "899b59a4d8758ef6e452d03613688a8fa6ef55d1381171f31607725a68d7dae3",
-      "bytes": 10242
+      "sha256": "1b110a04f421d033c082e90194a295bab33493d0cb8bcc8a8d7622a23f688ca2",
+      "bytes": 10251
     },
     {
       "path": ".github/scripts/test_monitor_ci_performance.py",
-      "sha256": "b750071ac0a63c04fbd7179d65b37f777f71bfce5262ecd2bd932474ce2b1411",
-      "bytes": 14129
+      "sha256": "ed7e89452fa6ac86d6bd404c67f26591af1dace5a441bcc40b0dd4a30b943eaf",
+      "bytes": 14135
     },
     {
       "path": ".github/scripts/test_run_ci_monitor.py",
@@ -43,8 +43,8 @@
     },
     {
       "path": "docs/operations/github-ci-monitor-20261011.md",
-      "sha256": "e05d4e1d0f7b2e12ad360b7b4d4737a1af948f409cec2d7a5bf6f6488ae9d50d",
-      "bytes": 8858
+      "sha256": "29462c7470a672f4c01b1a8d2358c6723b4b8ba191c3aac474bdac7aa6e244ac",
+      "bytes": 9409
     },
     {
       "path": "apps/web/performance/ci-monitor-20261011/automation-readback.json",
@@ -175,6 +175,11 @@
       "path": "apps/web/performance/ci-monitor-20261011/warm-complete-export.json",
       "sha256": "a4041b2d9ff6f887727c7e16bb032bc897a3fd5742ff8f941c252c38b06ab781",
       "bytes": 1098889
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/scanner-observation.json",
+      "sha256": "34b8d5251fee6634d3ba8687da66403ec3bfc0e729af503468e9cee686d8b852",
+      "bytes": 506
     }
   ],
   "sourceBaseCommit": "9cc99c171c3ad039daf10fa01c335df5210b9b4f",

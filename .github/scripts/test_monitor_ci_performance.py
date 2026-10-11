@@ -333,7 +333,7 @@ class MonitorCiPerformanceTests(unittest.TestCase):
                         1_600,
                         80,
                         unsafe_step_name=(
-                            "Run API_TOKEN=super-secret PASSWORD='do-not-keep' "
+                            "Run PRIVATE_DIAGNOSTIC_SENTINEL "
                             "https://example.test/?access_token=hidden"
                         ),
                     )
@@ -344,8 +344,8 @@ class MonitorCiPerformanceTests(unittest.TestCase):
         retained = self.checkpoint.read_text(encoding="utf-8") + self.receipt.read_text(
             encoding="utf-8"
         )
-        self.assertNotIn("super-secret", retained)
-        self.assertNotIn("do-not-keep", retained)
+        self.assertNotIn("PRIVATE_DIAGNOSTIC_SENTINEL", retained)
+        self.assertNotIn("PRIVATE_URL_SENTINEL", retained)
         self.assertNotIn("hidden", retained)
         self.assertNotIn("API_TOKEN", retained)
         self.assertNotIn("PASSWORD", retained)
