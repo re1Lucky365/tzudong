@@ -1,0 +1,11 @@
+{
+  "sourceSha256": "3abd3906e66805606d7f9ff7f894c3f641f3aac14e1be2b60161e0baabee4699",
+  "testSha256": "11b56d4636a6dffa4a75410fbadedb9b59ee688c63f713438ba26a70625a5386",
+  "bun": "1.4.0",
+  "pass": 31,
+  "fail": 0,
+  "assertions": 294,
+  "realLoopbackHTTP": true,
+  "newExpiryCases": 5,
+  "operatingWrites": 0
+}

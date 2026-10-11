@@ -1,0 +1,45 @@
+{
+  "migrationSha256": "b7061015ea07192dccfcf0774d5548a9c2a584c7daa140d77fccd7c75cb8bf88",
+  "engine": "17.6",
+  "network": "none",
+  "ports": "none",
+  "synthetic": true,
+  "rollbackExact": true,
+  "beforeFingerprint": {
+    "data": [
+      0,
+      0,
+      0
+    ],
+    "members": "f8a54adbc187f6341ec23c8fa8f2115b",
+    "manifest": "6d1617b6499884bd7fb3f838724a1960",
+    "policies": "0e32330213a8633a43bfecb05e531fbc",
+    "functions": "83024221d8713572c29972676f5ea87f",
+    "relations": "834a109e65569dbe081b8154dbe79736",
+    "defaultACL": "b39a6aa2273f39b73602ebccebb5923e",
+    "constraints": "e04885f9f21337e355b1e490a0508c3e"
+  },
+  "afterFingerprint": {
+    "data": [
+      0,
+      0,
+      0
+    ],
+    "members": "f8a54adbc187f6341ec23c8fa8f2115b",
+    "manifest": "6d1617b6499884bd7fb3f838724a1960",
+    "policies": "0e32330213a8633a43bfecb05e531fbc",
+    "functions": "83024221d8713572c29972676f5ea87f",
+    "relations": "834a109e65569dbe081b8154dbe79736",
+    "defaultACL": "b39a6aa2273f39b73602ebccebb5923e",
+    "constraints": "e04885f9f21337e355b1e490a0508c3e"
+  },
+  "safeupdateUnboundedWriteRejected": true,
+  "idempotentApply": {
+    "auditCount": 1,
+    "reviewUnchanged": true,
+    "privateAnonDenied": true,
+    "privateAuthenticatedDenied": true
+  },
+  "operatingDDL": 0,
+  "productionContentCommitVerified": false
+}

@@ -205,6 +205,28 @@ export function createRecordActionClient(options: {
     } catch (error) {
       if (epoch === token) {
         options.onInvalidate?.();
+        // The DB serializes readback with Apply and only emits this code for an
+        // expired, still-preview operation. A local clock or pending receipt
+        // alone cannot establish that the earlier Apply did not commit.
+        if (error instanceof RecordActionClientError && error.code === 'RECORD_ACTION_PREVIEW_EXPIRED') {
+          try {
+            const saved = options.storage?.getItem(pendingKey);
+            if (saved) {
+              const pending: unknown = JSON.parse(saved);
+              if (!pending || typeof pending !== 'object' || !('operationId' in pending)
+                || pending.operationId !== identity?.operationId
+                || !('action' in pending) || pending.action !== identity?.action
+                || !('previewHash' in pending) || pending.previewHash !== identity?.previewHash
+                || !('targetIds' in pending) || !Array.isArray(pending.targetIds)
+                || !pending.targetIds.every(id => typeof id === 'string')
+                || !sameIds(pending.targetIds, identity?.targetIds ?? [])) throw Error('PENDING_CHANGED');
+              options.storage?.removeItem(pendingKey);
+              if (options.storage?.getItem(pendingKey)) throw Error('PENDING_NOT_REMOVED');
+            }
+            fail(error.code);
+            return;
+          } catch { /* Preserve the other operation or an unreadable intent. */ }
+        }
         uncertain();
         if (error instanceof RecordActionClientError && error.code === 'RECORD_ACTION_FORBIDDEN') publish({ message: '관리자 권한을 확인한 뒤 기존 작업 결과를 조회하세요. 다시 전송하지 않습니다.' });
       }

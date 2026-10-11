@@ -1,0 +1,32 @@
+{
+  "check": "lint",
+  "exit": 0,
+  "node": "v24.21.0",
+  "command": [
+    "/Users/twoimo/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+    "node_modules/eslint/bin/eslint.js",
+    "lib/admin/record-action-client.ts",
+    "tests-unit/admin-record-action-client.test.ts",
+    "tests-unit/nightly-regression-workflow.test.ts"
+  ],
+  "sourceHead": "ed8ad8abad196afa756ad846862d5869ab27966e",
+  "dirtyTrackedInputs": {
+    ".github/scripts/build-nightly-local-publication.py": "c11a184b61e4af391bdc2c21876b088f63ff7d86fad4b42ff63786649d38f70d",
+    ".github/scripts/verify-nightly-local-publication.py": "6a03fe239f59c6b602b5e0e01d648584e1687c8f56a1fdac167d5fa69e228cf3",
+    "apps/web/lib/admin/record-action-client.ts": "3abd3906e66805606d7f9ff7f894c3f641f3aac14e1be2b60161e0baabee4699",
+    "apps/web/scripts/run-nightly-regression.mjs": "3dcadbc658286671bb51c43138b9a2f35791f057d31ca5f2c6b2a6b386048108",
+    "apps/web/tests-unit/admin-record-action-client.test.ts": "11b56d4636a6dffa4a75410fbadedb9b59ee688c63f713438ba26a70625a5386",
+    "apps/web/tests-unit/nightly-regression-workflow.test.ts": "dd1b350089da99ef30200deebf82569f1aadd066f45155e30797e7ceda4d619a",
+    "backend/supabase/scripts/local-migrate.py": "1002e52c8ce59be5296d734b86268bd43b618e087bae2f744d2c06443b4323e5",
+    "backend/supabase/scripts/local_catalog_readback.sql": "9f4fd73552755fdb659aa4fa34068a79d2c8c27643612baf4dbf5658b6fda426",
+    "backend/supabase/tests/test_local_function_runtime_contract.py": "9a4dadc0d354a9fbf505ffbbeeb4ee5ee656c1e4d38b649e10ba47e8817a7a1f",
+    "backend/supabase/tests/test_local_publication_verifier.py": "db1e1a1991edd7b4880eeaaa817f699d9ef9f1466a84003fb8fa9d2ba99d2d2f",
+    "backend/supabase/tests/test_local_seed_receipt_contract.py": "90f1fb4c6e2b4b3b07f7368bfdadac6e971752d69df5bfcad4f8c35624bc5b8a",
+    "backend/supabase/tests/test_review_media_catalog_integration.py": "ec7cc20e2010ada57e21aeee3a3636ffe9052d923198dbd299c09f14a2d81d0a"
+  },
+  "elapsedSeconds": 3.3973050410859287,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "unitTotals": null,
+  "localOnly": true,
+  "operatingWrites": 0
+}

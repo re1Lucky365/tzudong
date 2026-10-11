@@ -1,0 +1,18 @@
+{
+  "sourceHead": "f358ed975bcf5d4c41b88bc660c35e5dc8b1fc72",
+  "sourceScriptSha256": "5d2100dfd008a4afa86d43a23b5f63b0878356dee80d37d3f2f3adcf3d24b6ba",
+  "node": "v24.21.0",
+  "startedAtUtc": "2026-10-11T09:13:19.049Z",
+  "distDir": ".next-media-followup-v1",
+  "productionBuild": true,
+  "syntheticAuthAndRest": true,
+  "operatingWrites": 0,
+  "physicalDevice": false,
+  "fieldAdmission": 0,
+  "pageErrors": 0,
+  "consoleErrors": 0,
+  "unsupportedFixture": 0,
+  "cases": [],
+  "passed": false,
+  "failureCode": "SERVER_UNAVAILABLE"
+}

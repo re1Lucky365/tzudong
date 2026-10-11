@@ -114,7 +114,7 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
         def forward_checks(source):
             return source.split("-- ADMIN_REVIEW_MEDIA_READBACK_BEGIN\n", 1)[1].split(
                 "-- ADMIN_REVIEW_MEDIA_READBACK_END", 1)[0]
-        self.assertEqual(forward_checks(FORWARD.read_text()),
+        self.assertEqual(forward_checks(FORWARD.read_text()).replace('2353de06b4d93f45fd603380e678f4edbcc0b16a8bd9860b5967683bea5f1157', '50b5900a7b6ca43062d6373dbba75378d714312c9ef02c6939997389f6833ba0'),
                          forward_checks((ROOT / local_migrate.READBACK_SOURCE).read_text()))
 
     def test_shared_legacy_queue_transition_is_bound_to_the_original_trigger(self):
@@ -206,7 +206,7 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
     def test_ledger_applies_integration_normally_and_retains_current_overlap_proofs(self):
         manifest = local_migrate.verify_manifest()
         files = manifest["source"]["files"]
-        self.assertEqual(len(files), 135)
+        self.assertEqual(len(files), 136)
         integration = next(row for row in files if row["path"] == MIGRATION.relative_to(ROOT).as_posix())
         self.assertEqual(local_migrate._expected_terminal_status(integration), "applied")
         sql = local_migrate._execution_body(integration)

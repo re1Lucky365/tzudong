@@ -1,0 +1,63 @@
+{
+  "engine": "17.6",
+  "context": "colima-tzudong-catalog-20261007",
+  "container": "tzudong-ranking-clone-20261008",
+  "network": "none",
+  "ports": "none",
+  "sourceSha256": "26c64074bb98e718ba96732ac2baeedb851afe6ff745e0ddb5ca075359892472",
+  "scriptSha256": "0b1f1c53a528068f08464e38ce2db68c460fc254abbbe40a14bf820a8b34c0a5",
+  "synthetic": true,
+  "baseline": {
+    "exit": 0,
+    "codes": [],
+    "returnedState": "preview",
+    "auditCount": 0
+  },
+  "candidate": {
+    "exit": 3,
+    "codes": [
+      "RECORD_ACTION_PREVIEW_EXPIRED"
+    ],
+    "returnedState": null,
+    "auditCount": 0
+  },
+  "lockRaces": [
+    {
+      "serializedOnOperationLock": true,
+      "lockTimeoutStayedUncertain": true,
+      "expiredAppliedReadback": "applied",
+      "repeatedApplySameAudit": true,
+      "auditCount": 1
+    },
+    {
+      "serializedOnOperationLock": true,
+      "lockTimeoutStayedUncertain": false,
+      "expiredAppliedReadback": "applied",
+      "repeatedApplySameAudit": true,
+      "auditCount": 1
+    }
+  ],
+  "privileges": {
+    "anonDenied": true,
+    "serviceAllowed": true,
+    "authenticatedDenied": true
+  },
+  "rollbackExact": true,
+  "rollbackFingerprint": {
+    "data": [
+      0,
+      0,
+      0
+    ],
+    "members": "f8a54adbc187f6341ec23c8fa8f2115b",
+    "manifest": "6d1617b6499884bd7fb3f838724a1960",
+    "policies": "0e32330213a8633a43bfecb05e531fbc",
+    "functions": "63a9fe9e8b21582565f52a8ecff712cd",
+    "relations": "834a109e65569dbe081b8154dbe79736",
+    "defaultACL": "b39a6aa2273f39b73602ebccebb5923e",
+    "constraints": "e04885f9f21337e355b1e490a0508c3e"
+  },
+  "safeupdateEnabledInRuntime": true,
+  "operatingDDL": 0,
+  "productionContentCommitVerified": false
+}

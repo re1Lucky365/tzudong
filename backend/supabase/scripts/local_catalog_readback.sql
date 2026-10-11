@@ -1402,7 +1402,7 @@ BEGIN
     AND encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')='f4d19bc5b41fe7808635240cae80f796d12f6cad8b13802577a88afbb1f024a7'
     AND NOT has_function_privilege('anon',p.oid,'EXECUTE') AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
     AND has_function_privilege('service_role',p.oid,'EXECUTE'))
-    OR (SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid='public.admin_record_action(uuid,text,uuid,text,uuid[],jsonb,text)'::regprocedure)<>'2353de06b4d93f45fd603380e678f4edbcc0b16a8bd9860b5967683bea5f1157'
+    OR (SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid='public.admin_record_action(uuid,text,uuid,text,uuid[],jsonb,text)'::regprocedure)<>'50b5900a7b6ca43062d6373dbba75378d714312c9ef02c6939997389f6833ba0'
     OR (SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid='public.mutate_review_with_media(uuid,uuid,text,timestamp with time zone,text,text[],text[])'::regprocedure)<>'d5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7e323'
     THEN RAISE EXCEPTION 'REVIEW_MEDIA_FORWARD_READBACK_DRIFT'; END IF;
 END $readback$;
@@ -2130,3 +2130,16 @@ BEGIN
     THEN RAISE EXCEPTION 'ADMIN_REVISION_READBACK_DRIFT'; END IF;
 END $readback$;
 -- ADMIN_REVISION_READBACK_END
+
+-- ADMIN_PREVIEW_EXPIRY_READBACK_BEGIN
+DO $readback$
+BEGIN
+  IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid='public.admin_record_action(uuid,text,uuid,text,uuid[],jsonb,text)'::regprocedure
+    AND proowner='postgres'::regrole AND NOT prosecdef AND proconfig=ARRAY['search_path=""']::text[]
+    AND encode(sha256(convert_to(prosrc,'UTF8')),'hex')='50b5900a7b6ca43062d6373dbba75378d714312c9ef02c6939997389f6833ba0')
+    OR has_function_privilege('anon','public.admin_record_action(uuid,text,uuid,text,uuid[],jsonb,text)','EXECUTE')
+    OR has_function_privilege('authenticated','public.admin_record_action(uuid,text,uuid,text,uuid[],jsonb,text)','EXECUTE')
+    OR NOT has_function_privilege('service_role','public.admin_record_action(uuid,text,uuid,text,uuid[],jsonb,text)','EXECUTE')
+    THEN RAISE EXCEPTION 'ADMIN_PREVIEW_READBACK_DRIFT'; END IF;
+END $readback$;
+-- ADMIN_PREVIEW_EXPIRY_READBACK_END

@@ -1,0 +1,138 @@
+{
+  "sourceHead": "ed8ad8abad196afa756ad846862d5869ab27966e",
+  "sourceScriptSha256": "496795a1d65508ff192cf4216fca990184359154893ed6f6c9992256ef907ddb",
+  "node": "v24.21.0",
+  "startedAtUtc": "2026-10-11T10:25:11.669Z",
+  "distDir": ".next-media-followup-v4",
+  "productionBuild": true,
+  "syntheticAuthAndRest": true,
+  "serverAuthMockedInOwnedProcess": true,
+  "myPageSourceSha256": "0efb2b61d531dc11e51d7fa3f548aaad6949ed54496c017367686b6328e5233e",
+  "operatingWrites": 0,
+  "physicalDevice": false,
+  "fieldAdmission": 0,
+  "pageErrors": 0,
+  "consoleErrors": 9,
+  "unsupportedFixture": 0,
+  "cases": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "uncertain preview recovery remains GET-only even after its deadline",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "server-confirmed expired unapplied operation clears matching pending identity",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "terminal operation can close without replaying Apply",
+      "passed": true,
+      "recordGets": 2,
+      "recordPosts": 0
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "case": "uncertain preview recovery remains GET-only even after its deadline",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "case": "server-confirmed expired unapplied operation clears matching pending identity",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "case": "terminal operation can close without replaying Apply",
+      "passed": true,
+      "recordGets": 2,
+      "recordPosts": 0
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "case": "uncertain preview recovery remains GET-only even after its deadline",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "case": "server-confirmed expired unapplied operation clears matching pending identity",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "case": "terminal operation can close without replaying Apply",
+      "passed": true,
+      "recordGets": 2,
+      "recordPosts": 0
+    }
+  ],
+  "passed": true,
+  "browser": "154.0.8037.98",
+  "rpcNames": [
+    "ad_banners",
+    "announcements",
+    "get_current_privacy_eligibility",
+    "notifications",
+    "read_public_profile_summaries",
+    "restaurants",
+    "reviews",
+    "user_bookmarks",
+    "user_roles"
+  ],
+  "authFixtureCalls": 0,
+  "consoleKinds": {
+    "CSP": 3,
+    "unclassified": 3,
+    "expectedExpiry409": 3
+  },
+  "consoleShapes": [
+    {
+      "digest": "d3896fd78f62c1f3b92c314d96ecff21047bb08ac1f2ef540bd40086fb840c44",
+      "tokens": [
+        "Failed to load resource"
+      ]
+    },
+    {
+      "digest": "d3896fd78f62c1f3b92c314d96ecff21047bb08ac1f2ef540bd40086fb840c44",
+      "tokens": [
+        "Failed to load resource"
+      ]
+    },
+    {
+      "digest": "d3896fd78f62c1f3b92c314d96ecff21047bb08ac1f2ef540bd40086fb840c44",
+      "tokens": [
+        "Failed to load resource"
+      ]
+    }
+  ],
+  "functionalFlowsPassed": true,
+  "browserHealthClean": false
+}
