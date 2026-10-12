@@ -748,3 +748,11 @@ root page server23개/231assertions 통과, agent의 범위 수정 전 관련27�
 - [x] 정정 소스의 관련32개 테스트·1,495 assertions, ESLint, typecheck parity 진단0과 합성 CUA 3개 폭·근거6개·그래프3개를 확인했다. 문서 가로 넘침·관측 예외·외부 요청·쓰기 요청·콘솔 오류는0이었다. 운영·공급자·전체 영상 검증으로 확대하지 않는다.
 - [x] 정정 전 develop `14ccd8775e52ab81143626515f850ee544907da9`의 READY Preview에서 기존 실제 관리자 세션으로 사용자 목록20행과 그래프30nodes/88edges를 읽었다. 이전 사용자 목록 오류 관측을 최신 상태로 간주하지 않는다. 저장·삭제·승인 검증은 수행하지 않았다.
 - [ ] 정정 소스의 보호 병합·배포 및 실제 화면 확인을 완료한다. 운영 읽기의 ledger86/latest20261009101645, 맛집1,659건, 신규 후속 SQL3개 미적용, 자동 검수OFF/version1/runs0/items0과 전체 목표의 남은 항목을 유지한다.
+
+## 2026-10-12 UI·Gemini source 전달 준비
+
+- develop `dd0c790be7ffc94a86f95126aa60019ded8ff9b7`, branch `codex/goal-delivery-20261012`에 웹 source·test 30개와 기존 candidate-local 증빙 261개를 원본 SHA 일치 상태로 이식했다. backend source와 롱폼 증빙은 원래 후보에 보존했고 이번 전달에는 포함하지 않았다. 기존 261개는 frozen source·환경의 역사적 증빙이며 현재 후보의 commit·PR·배포를 입증하지 않는다.
+- 세 UI 보정은 사용자 관리 데스크톱 77→57px(-20px, -25.97%), 배너 관리 모바일 163→113px(-50px, -30.67%), 맛집 관리 모바일 121→113px(-8px, -6.61%)다. 각 전후는 고정 module·viewport `n=1`이라 확률 표본 95% CI를 적용하지 않는다. 최신 build `HcJtq7WT9AGLOOijoRGrZ`의 Node 24.21.0·Next 16.3.8 webpack production·Chrome extension·합성 loopback에서 메뉴 15×3폭=45조합, desktop/tablet 57px, mobile focus 15/15와 제목·overflow·44px 위반 0건을 확인했다.
+- chart는 285.15625px→표→285.15625px로 복원되고 Escape는 trigger focus를 복원했다. 직전 S3 빌드에서 pointer scroll 이동은 관측하지 못했고 keyboard PageDown만 canvas 748px 이동을 확인했다. 최종 빌드의 pointer hiding 재검증으로 세지 않는다. 최초 직접 Turbopack build는 실패했고 이후 공식 webpack bundle만 성공했다. 이는 합성 UI 범위이며 CI는 source commit·PR 전이라 아직 적용하지 않았다.
+- 기존 Gemini canary 4회는 실제 provider 호출이지만 사용자 인증·운영 DB 저장·배포 UI를 검증하지 않았다. 누계는 HTTP 11회, generation 요청 8회, 결과 수신 5회(유효 canary 4 + strict 거절 pilot 1), 알려진 tokens 24,014이며 실패 3회의 usage·cost는 미확인이다. 신규 롱폼 완료는 0/1,071이고 일반 품질·지연·비용 절감을 주장하지 않는다.
+- `tsconfig.json` 원본 bytes를 복원했고 CLI 출력 부모 교체 경쟁 보완과 18개·103 assertions 경계 검증 및 parity 진단 0(3,149 입력)을 완료했다. 최종 build의 579개 source hash는 전후 일치한다. DB migration 11개 carrier 준비와 관련 PostgreSQL 17.6 검증 50/50은 완료했으며 원자적 successor 구현은 별도 격리 작업 트리에서 진행 중이다. commit·PR·필수 검사·운영 DB·배포·live readback은 아직 전달 단계이며 전체 목표는 active다.

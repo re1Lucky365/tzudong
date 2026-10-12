@@ -1,0 +1,1 @@
+{"strategy": "ui_only_read", "steps": ["record_observed_capability_gap", "batch_safe_reads_from_owned_fresh_state", "save_reusable_local_artifact"], "item_count": 45, "execution_performed": false, "permission_granted": false, "model_calls": 0, "per_item_browser_read_required": true, "source_change_invalidates_plan": true}

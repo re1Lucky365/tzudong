@@ -1270,7 +1270,6 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
         <AdminEmbeddedModuleShell
             moduleId="insights"
             titleId="admin-insights-title"
-            title="영상 성과 분석"
             icon={Lightbulb}
             summary={summary}
             contentClassName="p-2"

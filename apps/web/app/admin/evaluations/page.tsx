@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 
 import { createPortal } from 'react-dom';
 import { useRestaurantManagementHeader } from '@/components/admin/RestaurantManagementWorkspace';
@@ -2142,7 +2143,7 @@ function AdminEvaluationPage({
   const embeddedModuleId: Extract<AdminConsoleRouteModuleId, 'restaurants' | 'submissions' | 'reviews'> = showSubmissionView
     ? (submissionInitialTab === 'reviews' ? 'reviews' : 'submissions')
     : 'restaurants';
-  const ModuleTitle = embedded ? 'h2' : 'h1';
+  const ModuleTitle = 'h1';
   const compactReviewHeader = embedded && embeddedModuleId === 'restaurants' && managementHeader !== null;
 
   const reviewSummary = recordViewsInvalidated ? '새 조회 필요' : !legacyEvaluationLoad && pageReadError ? '조회 실패' : !isInitialEvaluationDataLoading
@@ -2199,8 +2200,8 @@ function AdminEvaluationPage({
         managementHeader.views,
       )}
       {embedded && !compactReviewHeader && <AdminPageHeader
-        title={embeddedModuleId === 'submissions' ? '제보 관리' : embeddedModuleId === 'reviews' ? '리뷰 관리' : '관리자 데이터 검수'}
-        titleAs="h2" icon={ClipboardCheck}
+        title={getAdminModuleTitle(embeddedModuleId)}
+        icon={ClipboardCheck}
         summary={embeddedModuleId === 'restaurants' ? reviewSummary : pendingQueueSummaryContent}
         data-admin-module-header="compact" data-admin-module-header-module={embeddedModuleId}
         actions={canSwitchEvaluationView ? <div data-admin-evaluation-view-actions="top-right">{reviewViewActions}</div> : undefined}

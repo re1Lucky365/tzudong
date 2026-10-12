@@ -235,6 +235,8 @@ async function observation(pattern: string) {
     const headerSummary = pageHeader?.querySelector<HTMLElement>('.admin-page-header-summary');
     const headerGeometry = headerBox && titleBox && headerStyle ? {
       ...headerBox, title: titleBox, titleInset: titleBox.x - headerBox.x,
+      titlePreserved: title!.clientWidth > 0 && title!.scrollWidth <= title!.clientWidth + 1
+        && titleBox.x >= headerBox.x - 1 && titleBox.x + titleBox.width <= headerBox.x + headerBox.width + 1,
       padding: { top: headerStyle.paddingTop, right: headerStyle.paddingRight, bottom: headerStyle.paddingBottom, left: headerStyle.paddingLeft },
       summary: headerSummary && visible(headerSummary) ? bounds(headerSummary) : null,
       summaryGap: headerSummary && visible(headerSummary) ? bounds(headerSummary).x - titleBox.x - titleBox.width : null,
@@ -504,6 +506,7 @@ for (const width of widths) for (const colorScheme of colors) {
       const settled = await settle(titlePattern), state = settled.value;
       if (!state || state.activeModule !== moduleId) issues.push('wrong-route');
       if (!state?.titleMatched) issues.push('module-title-not-observed');
+      if (state?.headerGeometry && !state.headerGeometry.titlePreserved) issues.push('module-title-clipped');
       if (settled.readinessTimedOut) issues.push('readiness-timeout');
       if (state && (state.documentOverflow > 1 || state.bodyOverflow > 1)) issues.push('page-horizontal-overflow');
       if (state?.escapedControls) issues.push('horizontally-clipped-controls');

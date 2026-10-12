@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "source": {
+    "commit": "056a86600f412eb42df4304e3206841679012f3e",
+    "tree": "4b47fe832c375a9a0f829332c354379c042ace06",
+    "archive": "git archive exact commit"
+  },
+  "runtime": {
+    "postgres": "postgres (PostgreSQL) 17.6",
+    "network": "none required by selected suite",
+    "hostedReads": 0,
+    "hostedWrites": 0,
+    "storageWrites": 0,
+    "providerCalls": 0
+  },
+  "suite": {
+    "modules": [
+      "backend.supabase.tests.test_review_media_commit_cleanup",
+      "backend.supabase.tests.test_review_media_catalog_integration",
+      "backend.supabase.tests.test_admin_evaluation_revision_safeupdate",
+      "backend.supabase.tests.test_admin_record_expired_preview_readback",
+      "backend.supabase.tests.test_admin_verification_durable_staging",
+      "backend.supabase.tests.test_review_storage_retirement_contract",
+      "backend.supabase.tests.test_review_storage_pg15_replay"
+    ],
+    "testsRun": 50,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "reportedSeconds": 4.328,
+    "wallSeconds": 4.567651
+  },
+  "scope": {
+    "proves": [
+      "target source contracts",
+      "review media catalog integration",
+      "rollback and permission checks covered by the selected tests",
+      "PG17.6 compatibility exercised by the integration fixture"
+    ],
+    "doesNotProve": [
+      "hosted prior state",
+      "one-transaction replay of all 11 migrations",
+      "writer-fence freshness",
+      "hosted terminal readback",
+      "deployment readiness"
+    ]
+  }
+}

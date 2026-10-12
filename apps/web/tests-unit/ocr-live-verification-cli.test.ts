@@ -1,48 +1,120 @@
 import { expect, test } from 'bun:test';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const webRoot = resolve(import.meta.dir, '..');
-const script = resolve(webRoot, 'scripts/verify-ocr-gemini-live.ts');
-const nonexistentEnv = '/unused-ocr-verification-operator.env';
-function invoke(args: string[]) {
-  return spawnSync(process.execPath, ['run', script, nonexistentEnv, ...args], {
-    cwd: webRoot, encoding: 'utf8', timeout: 15_000,
+const scripts = {
+  ocr: resolve(webRoot, 'scripts/verify-ocr-gemini-live.ts'),
+  storyboard: resolve(webRoot, 'scripts/verify-storyboard-gemini-live.ts'),
+};
+const nonexistentEnv = '/unused-gemini-verification-operator.env';
+
+function invoke(script: string, envFile: string, args: string[]) {
+  return spawnSync(process.execPath, ['run', script, envFile, ...args], {
+    cwd: webRoot,
+    encoding: 'utf8',
+    timeout: 15_000,
   });
 }
 
-test('rejects unknown or incomplete options before reading credentials or contacting the provider', () => {
-  for (const args of [['--unknown'], ['--output-dir']]) {
-    const result = invoke(args);
+test('both live CLIs reject incomplete, duplicate, unknown, and excess options before reading credentials', () => {
+  const cases = [
+    [scripts.ocr, ['--unknown']],
+    [scripts.ocr, ['--output-dir']],
+    [scripts.ocr, ['--current-candidate-defaults', '--current-candidate-defaults']],
+    [scripts.storyboard, ['--pro-image', '--pro-image']],
+    [scripts.storyboard, ['--output-dir', '--pro-image']],
+    [scripts.storyboard, ['unexpected-positional']],
+  ] as const;
+  for (const [script, args] of cases) {
+    const result = invoke(script, nonexistentEnv, [...args]);
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('verification_arguments_invalid');
     expect(result.stderr).not.toContain('ENOENT');
   }
 });
 
-test('cannot write into the performance root or outside its evidence subdirectories', () => {
-  for (const destination of ['performance', '../outside-ocr-verification']) {
-    const result = invoke(['--output-dir', destination]);
-    expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain('verification_output_outside_performance');
-    expect(result.stderr).not.toContain('ENOENT');
+test('both live CLIs cannot write into the performance root or outside its evidence subdirectories', () => {
+  for (const script of Object.values(scripts)) {
+    for (const destination of ['performance', '../outside-gemini-verification']) {
+      const result = invoke(script, nonexistentEnv, ['--output-dir', destination]);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('verification_output_outside_performance');
+      expect(result.stderr).not.toContain('ENOENT');
+    }
   }
 });
 
-test('an existing uncertain receipt remains byte-identical and blocks a new provider attempt', () => {
-  const root = mkdtempSync(resolve(webRoot, 'performance/ocr-cli-boundary-'));
+test('existing OCR and storyboard pending receipts remain byte-identical and block provider access', () => {
+  const root = mkdtempSync(resolve(webRoot, 'performance/gemini-cli-pending-'));
   try {
+    const original = '{"pending":"provider","generationCallsStarted":1,"passed":false}\n';
+    const cases = [
+      [scripts.ocr, 'ocr-live-readback.json', ['--current-candidate-defaults']],
+      [scripts.storyboard, 'gemini-live-generation.json', []],
+      [scripts.storyboard, 'gemini-live-pro-image.json', ['--pro-image']],
+    ] as const;
+    for (const [script, filename, flags] of cases) {
+      const destination = resolve(root, filename.replace('.json', ''));
+      mkdirSync(destination);
+      const receipt = resolve(destination, filename);
+      writeFileSync(receipt, original);
+      const result = invoke(script, nonexistentEnv, [...flags, '--output-dir', destination]);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('existing_receipt_requires_readback');
+      expect(readFileSync(receipt, 'utf8')).toBe(original);
+    }
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('operator env must be an owner-only regular non-symlink file before provider modules load', () => {
+  const root = mkdtempSync(resolve(webRoot, 'performance/gemini-cli-env-'));
+  try {
+    const envFile = resolve(root, 'operator.env');
+    const envLink = resolve(root, 'operator-link.env');
+    writeFileSync(envFile, 'GEMINI_API_KEY=synthetic-test-only\n', { mode: 0o600 });
+    symlinkSync(envFile, envLink);
+
+    const symlinkResult = invoke(scripts.storyboard, envLink, ['--output-dir', resolve(root, 'symlink-run')]);
+    expect(symlinkResult.status).not.toBe(0);
+    expect(symlinkResult.stderr).toContain('operator_env_file_invalid');
+
+    chmodSync(envFile, 0o644);
+    const modeResult = invoke(scripts.ocr, envFile, ['--current-candidate-defaults', '--output-dir', resolve(root, 'mode-run')]);
+    expect(modeResult.status).not.toBe(0);
+    expect(modeResult.stderr).toContain('operator_env_file_permissions_invalid');
+    expect(modeResult.stderr).not.toContain('synthetic-test-only');
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('storyboard refuses an earlier image before reservation or provider access', () => {
+  const root = mkdtempSync(resolve(webRoot, 'performance/gemini-cli-image-'));
+  try {
+    const envFile = resolve(root, 'operator.env');
     const destination = resolve(root, 'run');
+    const image = resolve(destination, 'gemini-live-image.jpg');
+    writeFileSync(envFile, 'GEMINI_API_KEY=synthetic-test-only\n', { mode: 0o600 });
     mkdirSync(destination);
-    const receipt = resolve(destination, 'ocr-live-readback.json');
-    const original = '{"pending":"provider","callsStarted":1,"passed":false}\n';
-    writeFileSync(receipt, original);
-    const result = invoke(['--current-candidate-defaults', '--output-dir', destination]);
+    writeFileSync(image, 'historical-image');
+    const result = invoke(scripts.storyboard, envFile, ['--output-dir', destination]);
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain('existing_receipt_requires_readback');
-    expect(result.stderr).not.toContain('ENOENT');
-    expect(readFileSync(receipt, 'utf8')).toBe(original);
+    expect(result.stderr).toContain('existing_artifact_requires_readback');
+    expect(result.stderr).not.toContain('synthetic-test-only');
+    expect(readFileSync(image, 'utf8')).toBe('historical-image');
+    expect(() => readFileSync(resolve(destination, 'gemini-live-generation.json'))).toThrow();
   } finally {
     rmSync(root, { recursive: true });
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useInitialLoadPending } from '@/lib/use-initial-load-pending';
@@ -646,7 +647,7 @@ export default function AdminUsersPanel({
       data-admin-embedded-module-shell="true"
       data-admin-embedded-module-id="users"
     >
-      <AdminPageHeader title="사용자 관리" titleId="admin-users-title" titleAs="h2" icon={UsersRound}
+      <AdminPageHeader title={getAdminModuleTitle("users")} titleId="admin-users-title" icon={UsersRound}
         data-admin-module-header="compact" data-admin-module-header-module="users"
         summary={<div className="flex flex-wrap gap-1" data-admin-users-summary data-admin-module-summary="true">
             <SummaryMetric label="불러온 사용자" value={summary.loadedUsers} isLoading={isLoading && users.length === 0} />
@@ -654,6 +655,9 @@ export default function AdminUsersPanel({
             <SummaryMetric label="비활성" value={summary.disabledUsers} isLoading={isLoading && users.length === 0} />
             <SummaryMetric label="이메일 미확인" value={summary.unconfirmedUsers} isLoading={isLoading && users.length === 0} />
           </div>}
+        actions={<Button type="button" variant="ghost" size="sm" aria-label="사용자 목록 새로고침" onClick={() => requestIntent({ type: "refresh" })} disabled={isLoading || isMutating} data-admin-users-refresh>
+          <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />새로고침
+        </Button>}
       />
 
 
@@ -680,9 +684,6 @@ export default function AdminUsersPanel({
                 />
               </div>
               <Button type="submit" className="h-9 shrink-0 rounded-md" disabled={isLoading || isMutating} data-admin-users-search-submit>검색</Button>
-              <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-md" aria-label="사용자 목록 새로고침" onClick={() => requestIntent({ type: "refresh" })} disabled={isLoading || isMutating} data-admin-users-refresh>
-                <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />
-              </Button>
             </form>
             <div className="flex w-full flex-wrap items-center gap-2">
               <select aria-label="사용자 상태 필터" value={userFilter} onChange={(event) => setUserFilter(event.target.value)} className="h-8 min-w-0 rounded-md border border-input bg-background px-2 text-xs">
