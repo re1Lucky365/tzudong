@@ -278,6 +278,20 @@ test('source binding records Git identity and exact working-file hashes', () => 
   expect(hashPublicConfiguration({ model: 'a' })).not.toBe(hashPublicConfiguration({ model: 'b' }));
 });
 
+test('source binding cannot report a clean tree when an unlisted path is dirty', () => {
+  const relativePath = `.gemini-source-binding-unlisted-${process.pid}`;
+  const path = resolve(webRoot, relativePath);
+  try {
+    writeFileSync(path, 'unlisted execution dependency');
+    const binding = buildSourceBinding(['scripts/verify-ocr-gemini-live.ts']);
+    expect(binding.workingTreeDirty).toBe(true);
+    expect(binding.workingTreeStatus).toContain(`?? apps/web/${relativePath}`);
+    expect(binding.sourceHashes[relativePath]).toBeUndefined();
+  } finally {
+    rmSync(path, { force: true });
+  }
+});
+
 test('OCR runtime resolver preserves funded exclusivity and OCR-specific key priority', async () => {
   const funded = await resolveOcrAiRuntimeConfig({
     GEMINI_CREDITS_API_KEY: 'funded',

@@ -704,7 +704,7 @@ export function createOneShotGate(code = 'attempt_bound_exceeded'): () => void {
 export function buildSourceBinding(relativePaths: string[]) {
   const uniquePaths = [...new Set(relativePaths)].sort();
   const sourceHashes = Object.fromEntries(uniquePaths.map((path) => [path, sha256(readFileSync(resolve(WEB_ROOT, path)))]));
-  const status = execFileSync('git', ['status', '--porcelain=v1', '--', ...uniquePaths], {
+  const status = execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
     cwd: WEB_ROOT,
     encoding: 'utf8',
   }).trim().split('\n').filter(Boolean);
