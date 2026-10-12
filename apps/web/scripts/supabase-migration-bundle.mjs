@@ -10,6 +10,7 @@ import {
 
 const BUNDLE_SIZE = 4;
 const SUCCESSOR_BUNDLE_SIZE = 5;
+const REVIEW_MEDIA_SUCCESSOR_BUNDLE_SIZE = 11;
 const HEX_SHA256 = /^[0-9a-f]{64}$/;
 const MIGRATION_ID = /^[a-z0-9_]{1,80}$/;
 
@@ -152,6 +153,10 @@ export function fiveMigrationBundleSuffixRoot(migrations) {
   return bundleSuffixRoot(migrations, SUCCESSOR_BUNDLE_SIZE);
 }
 
+export function elevenMigrationBundleSuffixRoot(migrations) {
+  return bundleSuffixRoot(migrations, REVIEW_MEDIA_SUCCESSOR_BUNDLE_SIZE);
+}
+
 function validateBundle(bundle, materials, expectedSize) {
   exactKeys(bundle, [
     'finalReadback',
@@ -275,6 +280,10 @@ export function compileMigrationBundle(bundle, materials) {
 
 export function compileFiveMigrationBundle(bundle, materials) {
   return compileMigrationSequence(bundle, materials, SUCCESSOR_BUNDLE_SIZE);
+}
+
+export function compileElevenMigrationBundle(bundle, materials) {
+  return compileMigrationSequence(bundle, materials, REVIEW_MEDIA_SUCCESSOR_BUNDLE_SIZE);
 }
 
 export function bundleReconciliationSql(compiled) {
