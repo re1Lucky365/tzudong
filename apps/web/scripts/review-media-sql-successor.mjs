@@ -86,6 +86,10 @@ const FIXED_CONTROLLER_CODES = new Set([
   'SUCCESSOR_ROLLBACK_READBACK_INVALID',
   'SUCCESSOR_SOURCE_DRIFT',
 ]);
+const FIXED_JOURNAL_OPERATION_CODES = new Set([
+  ...FIXED_CONTROLLER_CODES,
+  'SUCCESSOR_COMMITTED',
+]);
 
 const operationError = code => {
   const error = new Error(code);
@@ -122,13 +126,17 @@ function safeCode(error, key = 'code') {
   } catch { return ''; }
 }
 
+function safeTrue(error, key) {
+  try { return error?.[key] === true; } catch { return false; }
+}
+
 export function boundedSuccessorError(error) {
   const code = safeCode(error);
   if (FIXED_CONTROLLER_CODES.has(code)) {
     const bounded = operationError(code);
     if (code === 'SUCCESSOR_JOURNAL_APPEND_FAILED') {
       const operationCode = safeCode(error, 'operationCode');
-      if (FIXED_CONTROLLER_CODES.has(operationCode)) bounded.operationCode = operationCode;
+      if (FIXED_JOURNAL_OPERATION_CODES.has(operationCode)) bounded.operationCode = operationCode;
     }
     return bounded;
   }
@@ -146,7 +154,7 @@ export function successorFailureResult(error) {
 
 function journalFailure(operationCode) {
   const error = operationError('SUCCESSOR_JOURNAL_APPEND_FAILED');
-  if (FIXED_CONTROLLER_CODES.has(operationCode)) error.operationCode = operationCode;
+  if (FIXED_JOURNAL_OPERATION_CODES.has(operationCode)) error.operationCode = operationCode;
   return error;
 }
 
@@ -1590,6 +1598,26 @@ function appendRehearsalVerification(descriptor, entry, {
   }
 }
 
+function assertFreshRehearsalBoundary(descriptor, admission, expiresAt, now, {
+  binding,
+  appendJournalImpl = appendJournal,
+} = {}) {
+  const checkedAt = now();
+  try {
+    assertAdmissionFresh(expiresAt, checkedAt);
+  } catch {
+    appendRehearsalTerminal(
+      descriptor,
+      admission,
+      'SUCCESSOR_ADMISSION_EXPIRED',
+      () => checkedAt,
+      { binding, appendJournalImpl },
+    );
+    fail('SUCCESSOR_ADMISSION_EXPIRED');
+  }
+  return checkedAt;
+}
+
 export function runReviewMediaSuccessorRehearsal({
   admissionPath,
   journalPath,
@@ -1756,15 +1784,13 @@ export function runReviewMediaSuccessorRehearsal({
     });
     fail('SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
   }
-  const receiptObservedAt = now();
-  try {
-    assertAdmissionFresh(admissionWindow.expiresAt, receiptObservedAt);
-  } catch {
-    appendRehearsalTerminal(descriptor, admission, 'SUCCESSOR_ADMISSION_EXPIRED', now, {
-      appendJournalImpl,
-    });
-    fail('SUCCESSOR_ADMISSION_EXPIRED');
-  }
+  const receiptObservedAt = assertFreshRehearsalBoundary(
+    descriptor,
+    admission,
+    admissionWindow.expiresAt,
+    now,
+    { appendJournalImpl },
+  );
   const priorStateSha256 = sha256(JSON.stringify(canonical(preflight.state)));
   const receipt = {
     admissionSha256,
@@ -1804,16 +1830,30 @@ export function runReviewMediaSuccessorRehearsal({
     sourceRevision: admission.sourceRevision,
     sourceRoot: manifestRecord.manifest.sourceRoot,
   };
+  const verificationCheckedAt = assertFreshRehearsalBoundary(
+    descriptor,
+    admission,
+    admissionWindow.expiresAt,
+    now,
+    { binding: verificationBinding, appendJournalImpl },
+  );
   const verificationEntry = {
     attemptId: admission.attemptId,
     code: 'SUCCESSOR_REHEARSAL_VERIFIED',
     event: 'verification',
-    verifiedAt: now().toISOString(),
+    verifiedAt: verificationCheckedAt.toISOString(),
     ...verificationBinding,
   };
   appendRehearsalVerification(descriptor, verificationEntry, {
     appendJournalImpl,
   });
+  assertFreshRehearsalBoundary(
+    descriptor,
+    admission,
+    admissionWindow.expiresAt,
+    now,
+    { binding: verificationBinding, appendJournalImpl },
+  );
   const receiptBytes = canonicalReceiptBytes(receipt);
   let publishFailed = false;
   let publicationReadbackEligible = false;
@@ -1821,7 +1861,7 @@ export function runReviewMediaSuccessorRehearsal({
     publishReceiptImpl(pendingReceiptFile, receiptFile);
   } catch (error) {
     publishFailed = true;
-    publicationReadbackEligible = error?.publicationReadbackEligible === true;
+    publicationReadbackEligible = safeTrue(error, 'publicationReadbackEligible');
   }
   if ((publishFailed && !publicationReadbackEligible)
     || !publishedReceiptMatches(receiptFile, receiptBytes)) {
@@ -1834,24 +1874,32 @@ export function runReviewMediaSuccessorRehearsal({
     );
     fail('SUCCESSOR_REHEARSAL_RECEIPT_PUBLISH_FAILED');
   }
+  const publicationCheckedAt = assertFreshRehearsalBoundary(
+    descriptor,
+    admission,
+    admissionWindow.expiresAt,
+    now,
+    { binding: verificationBinding, appendJournalImpl },
+  );
   const publicationEntry = {
     attemptId: admission.attemptId,
     code: 'SUCCESSOR_REHEARSAL_PUBLICATION_CONFIRMED',
     event: 'publication',
-    publishedAt: now().toISOString(),
+    publishedAt: publicationCheckedAt.toISOString(),
     ...verificationBinding,
   };
   let publicationAuditReadback = 'confirmed';
   try {
     appendJournalImpl(descriptor, publicationEntry);
   } catch (error) {
-    publicationAuditReadback = error?.publicationAuditReadbackEligible === true && publishedJournalMatches(
+    publicationAuditReadback = safeTrue(error, 'publicationAuditReadbackEligible') && publishedJournalMatches(
       journalFile,
       [startedEntry, verificationEntry, publicationEntry],
     ) ? 'reconciled' : 'unconfirmed';
     try { closeSync(descriptor); } catch { /* append implementation may already have closed it */ }
     if (publicationAuditReadback === 'unconfirmed') fail('SUCCESSOR_JOURNAL_APPEND_FAILED');
   }
+  assertAdmissionFresh(admissionWindow.expiresAt, now());
   return Object.freeze({
     attemptId: admission.attemptId,
     code: 'SUCCESSOR_REHEARSAL_PASSED',
@@ -1958,7 +2006,7 @@ export function runReviewMediaSuccessor({
 
   const admissionSha256 = sha256(admissionBytes);
   assertDurableRehearsalArtifacts(dirname(admissionFile), admission, fsyncImpl);
-  const descriptor = writeJournalStart(journalFile, {
+  const startedEntry = {
     admissionSha256,
     attemptId: admission.attemptId,
     event: 'started',
@@ -1966,7 +2014,8 @@ export function runReviewMediaSuccessor({
     sourceRevision: admission.sourceRevision,
     sourceRoot: manifestRecord.manifest.sourceRoot,
     startedAt: now().toISOString(),
-  }, { fsyncImpl });
+  };
+  const descriptor = writeJournalStart(journalFile, startedEntry, { fsyncImpl });
   let result;
   try {
     assertAdmissionFresh(admissionWindow.expiresAt, now());
@@ -1986,17 +2035,29 @@ export function runReviewMediaSuccessor({
     }
     throw bounded;
   }
-  appendJournalImpl(descriptor, {
+  const terminalEntry = {
     attemptId: admission.attemptId,
     code: 'SUCCESSOR_COMMITTED',
     completedAt: now().toISOString(),
     event: 'terminal',
-  });
+  };
+  let terminalAuditReadback = 'confirmed';
+  try {
+    appendJournalImpl(descriptor, terminalEntry);
+  } catch (error) {
+    terminalAuditReadback = safeTrue(error, 'publicationAuditReadbackEligible') && publishedJournalMatches(
+      journalFile,
+      [startedEntry, terminalEntry],
+    ) ? 'reconciled' : 'unconfirmed';
+    try { closeSync(descriptor); } catch { /* append implementation may already have closed it */ }
+    if (terminalAuditReadback === 'unconfirmed') throw journalFailure('SUCCESSOR_COMMITTED');
+  }
   return Object.freeze({
     attemptId: admission.attemptId,
     code: 'SUCCESSOR_COMMITTED',
     sourceRevision: admission.sourceRevision,
     status: 'committed',
+    terminalAuditReadback,
     terminal: result,
   });
 }

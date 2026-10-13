@@ -30,10 +30,13 @@ and durable publication protocol. Operating application remains unperformed.
 
 ## Current verification
 
-Pinned Node 24 and Bun 1.4.0 ran four affected suites: **53 passed, 0 failed,
-284 assertions**. The checks include publication fsync/close failures, five
+Pinned Node 24 and Bun 1.4.0 ran five affected suites: **81 passed, 0 failed,
+450 assertions**. The checks include publication fsync/close failures, five
 pre-mutation durability failures, expiry plus audit failure, tampered/orphan
-journals, retained evidence, unique container ownership and lost acknowledgements.
+journals, retained evidence, private admission formatting, database/role ownership
+and lost acknowledgements. Filesystem expiry is rechecked before verification,
+publication, and successful return. A committed database outcome survives terminal
+audit failure; only proven durability plus exact journal bytes permits reconciliation.
 Targeted ESLint and Node syntax checks passed.
 
 The final source was replayed once in an isolated Supabase PostgreSQL 17.6
@@ -49,10 +52,10 @@ The verifier explicitly checks `public.profiles` and `public.reviews` are empty;
 it does not claim a universal personal-data census. Its synthetic ledger has 86
 entries, not an operating ledger readback.
 
-- Current proof: `pg17-rollback-rehearsal-final-20261013.json`
-- Proof SHA-256: `7f74c175be3eee72b5e93eb75dac07bfefc0ef88d7d9957c26d877ee125ff590`
-- Manifest SHA-256: `8297b18793513956118c720e3aa5bd481d0769645c263f680a5272825b70569e`
-- Toolchain root: `91a7166b76b0f867b4e74dd0e2258d1f22457c75a61e55b161148378f08ac739`
+- Current proof: `pg17-terminal-boundaries-20261013.json`
+- Proof SHA-256: `0cfc9c10ff7b70c606f6eeef33fff8dbd14636dc15b7c963925097454ee454a2`
+- Manifest SHA-256: `ae764bb760102a6d7d066be669c85248feed1823eafded4bf8c246a062090a8c`
+- Toolchain root: `a0eeeb623c80b8a5e416b84397bdb07e4bd65c670d98b70707cc816d37e9a18b`
 - Source root: `61f9d7637c0714a7b0d9108c6f7959ea820175a7870dba681498b570296a1544`
 - Verifier SHA-256: `8088aa57f39045e2bf93cba084711119395098d053318b70aaa676b5c13fea26`
 - Compiled SQL SHA-256: `285d0c859117006646389dbd2a22de9aef1c0b97bc796a9e4d4448a8a232b093`
@@ -89,3 +92,13 @@ source/rollback and writer-fence receipts, private admission and a new journal.
 Storage projections exclude timestamps and cannot distinguish recreation of an
 otherwise identical bucket. The retained evidence and source hashes are in
 `SHA256SUMS`; raw SQL, credentials and operating rows are absent from the proof.
+
+The earlier `pg17-rollback-rehearsal-final-20261013.json` remains immutable
+historical evidence for the earlier durability implementation.
+`interrupted-attempt-20261013.json` records a stopped attempt without a result;
+its exact owned container was removed after the process was confirmed absent.
+It is not counted as a successful replay.
+
+Private admission formatting does not authenticate observation origin. The
+operating capture adapter, fresh writer-fence evidence, protected promotion,
+hosted application and live user flows remain separate unfinished steps.

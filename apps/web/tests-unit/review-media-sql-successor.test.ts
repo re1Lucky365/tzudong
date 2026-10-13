@@ -770,6 +770,199 @@ test('pending receipt full-write then fsync-failure records failure without cano
   })).toThrow('SUCCESSOR_ADMISSION_INVALID');
 });
 
+test('pending receipt storage delay cannot verify after the admission expires', () => {
+  const document = rehearsalAdmission();
+  const expiresAt = new Date(fixedNow.getTime() + 1_000);
+  document.expiresAt = expiresAt.toISOString();
+  const files = rehearsalCustodyFiles(document);
+  let clock = fixedNow;
+  let calls = 0;
+  expect(() => runReviewMediaSuccessorRehearsal({
+    admissionPath: files.admissionPath,
+    journalPath: files.journalPath,
+    receiptPath: files.receiptPath,
+    environment: { SUPABASE_DB_URL: databaseUrl },
+  }, {
+    now: () => clock,
+    gitFactsImpl: () => ({ clean: true, detached: true, revision }),
+    loadManifestImpl: () => record,
+    protectedMainReadbackImpl: () => protectedSourceReadbackBinding(manifest, revision),
+    rollbackReadbackImpl: () => rollbackReadback(),
+    runPsqlImpl: () => {
+      calls += 1;
+      return calls === 2 ? rehearsalStageOutput() : rehearsalReadback();
+    },
+    writePendingReceiptImpl: (path: string, receipt: any) => {
+      const descriptor = openSync(path, 'wx', 0o600);
+      const bytes = canonicalBytes(receipt);
+      expect(writeSync(descriptor, bytes)).toBe(bytes.length);
+      fsyncSync(descriptor);
+      closeSync(descriptor);
+      clock = expiresAt;
+    },
+  })).toThrow('SUCCESSOR_ADMISSION_EXPIRED');
+  expect(existsSync(files.pendingReceiptPath)).toBe(true);
+  expect(existsSync(files.receiptPath)).toBe(false);
+  const journal = readFileSync(files.journalPath, 'utf8');
+  expect(journal).toContain('SUCCESSOR_ADMISSION_EXPIRED');
+  expect(journal).not.toContain('SUCCESSOR_REHEARSAL_VERIFIED');
+  expect(journal).not.toContain('SUCCESSOR_REHEARSAL_PUBLICATION_CONFIRMED');
+});
+
+test('expiry terminal audit failure preserves the bounded rehearsal outcome', () => {
+  const document = rehearsalAdmission();
+  const expiresAt = new Date(fixedNow.getTime() + 1_000);
+  document.expiresAt = expiresAt.toISOString();
+  const files = rehearsalCustodyFiles(document);
+  let clock = fixedNow;
+  let calls = 0;
+  let observed: any;
+  try {
+    runReviewMediaSuccessorRehearsal({
+      admissionPath: files.admissionPath,
+      journalPath: files.journalPath,
+      receiptPath: files.receiptPath,
+      environment: { SUPABASE_DB_URL: databaseUrl },
+    }, {
+      now: () => clock,
+      gitFactsImpl: () => ({ clean: true, detached: true, revision }),
+      loadManifestImpl: () => record,
+      protectedMainReadbackImpl: () => protectedSourceReadbackBinding(manifest, revision),
+      rollbackReadbackImpl: () => rollbackReadback(),
+      runPsqlImpl: () => {
+        calls += 1;
+        return calls === 2 ? rehearsalStageOutput() : rehearsalReadback();
+      },
+      writePendingReceiptImpl: (path: string, receipt: any) => {
+        writeFileSync(path, canonicalBytes(receipt), { flag: 'wx', mode: 0o600 });
+        clock = expiresAt;
+      },
+      appendJournalImpl: () => { throw new Error('fixture expiry audit unavailable'); },
+    });
+  } catch (error) {
+    observed = successorFailureResult(error);
+  }
+  expect(observed).toEqual({
+    code: 'SUCCESSOR_JOURNAL_APPEND_FAILED',
+    operationCode: 'SUCCESSOR_ADMISSION_EXPIRED',
+    status: 'failed',
+  });
+  expect(existsSync(files.receiptPath)).toBe(false);
+});
+
+test('verification journal storage delay cannot publish after the admission expires', () => {
+  const document = rehearsalAdmission();
+  const expiresAt = new Date(fixedNow.getTime() + 1_000);
+  document.expiresAt = expiresAt.toISOString();
+  const files = rehearsalCustodyFiles(document);
+  let clock = fixedNow;
+  let calls = 0;
+  let appendCalls = 0;
+  expect(() => runReviewMediaSuccessorRehearsal({
+    admissionPath: files.admissionPath,
+    journalPath: files.journalPath,
+    receiptPath: files.receiptPath,
+    environment: { SUPABASE_DB_URL: databaseUrl },
+  }, {
+    now: () => clock,
+    gitFactsImpl: () => ({ clean: true, detached: true, revision }),
+    loadManifestImpl: () => record,
+    protectedMainReadbackImpl: () => protectedSourceReadbackBinding(manifest, revision),
+    rollbackReadbackImpl: () => rollbackReadback(),
+    runPsqlImpl: () => {
+      calls += 1;
+      return calls === 2 ? rehearsalStageOutput() : rehearsalReadback();
+    },
+    appendJournalImpl: (descriptor: number, entry: any, options: any) => {
+      appendCalls += 1;
+      const result = appendJournal(descriptor, entry, options);
+      if (appendCalls === 1) clock = expiresAt;
+      return result;
+    },
+  })).toThrow('SUCCESSOR_ADMISSION_EXPIRED');
+  expect(appendCalls).toBe(2);
+  expect(existsSync(files.pendingReceiptPath)).toBe(true);
+  expect(existsSync(files.receiptPath)).toBe(false);
+  const journal = readFileSync(files.journalPath, 'utf8');
+  expect(journal).toContain('SUCCESSOR_REHEARSAL_VERIFIED');
+  expect(journal).toContain('SUCCESSOR_ADMISSION_EXPIRED');
+  expect(journal).not.toContain('SUCCESSOR_REHEARSAL_PUBLICATION_CONFIRMED');
+});
+
+test('canonical publication storage delay cannot record an expired passed result', () => {
+  const document = rehearsalAdmission();
+  const expiresAt = new Date(fixedNow.getTime() + 1_000);
+  document.expiresAt = expiresAt.toISOString();
+  const files = rehearsalCustodyFiles(document);
+  let clock = fixedNow;
+  let calls = 0;
+  expect(() => runReviewMediaSuccessorRehearsal({
+    admissionPath: files.admissionPath,
+    journalPath: files.journalPath,
+    receiptPath: files.receiptPath,
+    environment: { SUPABASE_DB_URL: databaseUrl },
+  }, {
+    now: () => clock,
+    gitFactsImpl: () => ({ clean: true, detached: true, revision }),
+    loadManifestImpl: () => record,
+    protectedMainReadbackImpl: () => protectedSourceReadbackBinding(manifest, revision),
+    rollbackReadbackImpl: () => rollbackReadback(),
+    runPsqlImpl: () => {
+      calls += 1;
+      return calls === 2 ? rehearsalStageOutput() : rehearsalReadback();
+    },
+    publishReceiptImpl: (pendingPath: string, receiptPath: string) => {
+      linkSync(pendingPath, receiptPath);
+      const directoryDescriptor = openSync(files.directory, 'r');
+      fsyncSync(directoryDescriptor);
+      closeSync(directoryDescriptor);
+      clock = expiresAt;
+    },
+  })).toThrow('SUCCESSOR_ADMISSION_EXPIRED');
+  expect(readFileSync(files.receiptPath)).toEqual(readFileSync(files.pendingReceiptPath));
+  const journal = readFileSync(files.journalPath, 'utf8');
+  expect(journal).toContain('SUCCESSOR_REHEARSAL_VERIFIED');
+  expect(journal).toContain('SUCCESSOR_ADMISSION_EXPIRED');
+  expect(journal).not.toContain('SUCCESSOR_REHEARSAL_PUBLICATION_CONFIRMED');
+});
+
+test('publication journal completion cannot return passed after the admission expires', () => {
+  const document = rehearsalAdmission();
+  const expiresAt = new Date(fixedNow.getTime() + 1_000);
+  document.expiresAt = expiresAt.toISOString();
+  const files = rehearsalCustodyFiles(document);
+  let clock = fixedNow;
+  let calls = 0;
+  let appendCalls = 0;
+  expect(() => runReviewMediaSuccessorRehearsal({
+    admissionPath: files.admissionPath,
+    journalPath: files.journalPath,
+    receiptPath: files.receiptPath,
+    environment: { SUPABASE_DB_URL: databaseUrl },
+  }, {
+    now: () => clock,
+    gitFactsImpl: () => ({ clean: true, detached: true, revision }),
+    loadManifestImpl: () => record,
+    protectedMainReadbackImpl: () => protectedSourceReadbackBinding(manifest, revision),
+    rollbackReadbackImpl: () => rollbackReadback(),
+    runPsqlImpl: () => {
+      calls += 1;
+      return calls === 2 ? rehearsalStageOutput() : rehearsalReadback();
+    },
+    appendJournalImpl: (descriptor: number, entry: any, options: any) => {
+      appendCalls += 1;
+      const result = appendJournal(descriptor, entry, options);
+      if (appendCalls === 2) clock = expiresAt;
+      return result;
+    },
+  })).toThrow('SUCCESSOR_ADMISSION_EXPIRED');
+  expect(appendCalls).toBe(2);
+  expect(readFileSync(files.receiptPath)).toEqual(readFileSync(files.pendingReceiptPath));
+  const journal = readFileSync(files.journalPath, 'utf8').trim().split('\n').map(JSON.parse);
+  expect(journal).toHaveLength(3);
+  expect(journal[2].code).toBe('SUCCESSOR_REHEARSAL_PUBLICATION_CONFIRMED');
+});
+
 test('prepublication interruption leaves verified journal and pending receipt apply-invalid', () => {
   const files = rehearsalCustodyFiles();
   let calls = 0;
@@ -1186,6 +1379,105 @@ test('success path performs preflight, rechecks rollback and commits all eleven 
   expect(calls[0]).not.toMatch(/^INSERT INTO supabase_migrations\.schema_migrations/gm);
   expect(calls[1].match(/INSERT INTO supabase_migrations\.schema_migrations/g)).toHaveLength(11);
   expect(readFileSync(files.journalPath, 'utf8')).toContain('SUCCESSOR_COMMITTED');
+});
+
+for (const failureAt of ['fsync', 'close'] as const) {
+  test(`committed terminal audit ${failureAt} failure preserves the committed outcome`, () => {
+    const files = custodyFiles();
+    const plan = compileSuccessorPlan(executableRecord, files.document);
+    const calls: string[] = [];
+    let observed: any;
+    try {
+      observed = runReviewMediaSuccessor({
+        admissionPath: files.admissionPath,
+        journalPath: files.journalPath,
+        environment: { SUPABASE_DB_URL: databaseUrl },
+      }, {
+        now: () => fixedNow,
+        gitFactsImpl: () => ({ clean: true, detached: true, revision }),
+        loadManifestImpl: () => executableRecord,
+        protectedMainReadbackImpl: () => protectedSourceReadbackBinding(manifest, revision),
+        rollbackReadbackImpl: () => rollbackReadback(),
+        runPsqlImpl: (_url, sql) => {
+          calls.push(sql);
+          return JSON.stringify(calls.length === 1
+            ? plan.priorReadback.expected
+            : plan.finalReadback.expected);
+        },
+        appendJournalImpl: (descriptor: number, entry: any) => appendJournal(descriptor, entry, {
+          fsyncImpl: (fd: number) => {
+            if (failureAt === 'fsync') throw new Error('fixture committed audit sync failure');
+            fsyncSync(fd);
+          },
+          closeImpl: () => { throw new Error('fixture committed audit close acknowledgement loss'); },
+        }),
+      });
+    } catch (error) {
+      observed = successorFailureResult(error);
+    }
+    if (failureAt === 'fsync') {
+      expect(observed).toEqual({
+        code: 'SUCCESSOR_JOURNAL_APPEND_FAILED',
+        operationCode: 'SUCCESSOR_COMMITTED',
+        status: 'failed',
+      });
+    } else {
+      expect(observed).toMatchObject({
+        code: 'SUCCESSOR_COMMITTED',
+        status: 'committed',
+        terminalAuditReadback: 'reconciled',
+      });
+    }
+    expect(calls).toHaveLength(2);
+    expect(calls[1].match(/INSERT INTO supabase_migrations\.schema_migrations/g)).toHaveLength(11);
+    const journal = readFileSync(files.journalPath, 'utf8').trim().split('\n').map(JSON.parse);
+    expect(journal).toHaveLength(2);
+    expect(journal[1].code).toBe('SUCCESSOR_COMMITTED');
+  });
+}
+
+test('committed terminal audit readback requires both durability and exact bytes', () => {
+  const files = custodyFiles();
+  const plan = compileSuccessorPlan(executableRecord, files.document);
+  const calls: string[] = [];
+  let observed: any;
+  try {
+    runReviewMediaSuccessor({
+      admissionPath: files.admissionPath,
+      journalPath: files.journalPath,
+      environment: { SUPABASE_DB_URL: databaseUrl },
+    }, {
+      now: () => fixedNow,
+      gitFactsImpl: () => ({ clean: true, detached: true, revision }),
+      loadManifestImpl: () => executableRecord,
+      protectedMainReadbackImpl: () => protectedSourceReadbackBinding(manifest, revision),
+      rollbackReadbackImpl: () => rollbackReadback(),
+      runPsqlImpl: (_url, sql) => {
+        calls.push(sql);
+        return JSON.stringify(calls.length === 1
+          ? plan.priorReadback.expected
+          : plan.finalReadback.expected);
+      },
+      appendJournalImpl: () => {
+        const error: Error & { publicationAuditReadbackEligible?: boolean } = new Error(
+          'fixture durable acknowledgement without terminal bytes',
+        );
+        error.publicationAuditReadbackEligible = true;
+        throw error;
+      },
+    });
+  } catch (error) {
+    observed = successorFailureResult(error);
+  }
+  expect(observed).toEqual({
+    code: 'SUCCESSOR_JOURNAL_APPEND_FAILED',
+    operationCode: 'SUCCESSOR_COMMITTED',
+    status: 'failed',
+  });
+  expect(calls).toHaveLength(2);
+  const journal = readFileSync(files.journalPath, 'utf8').trim().split('\n').map(JSON.parse);
+  expect(journal).toHaveLength(1);
+  expect(journal[0].event).toBe('started');
 });
 
 test('concurrent rollback deployment change rejects before journal or mutation', () => {

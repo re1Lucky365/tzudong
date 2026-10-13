@@ -4,10 +4,11 @@
  * Local-only PostgreSQL 17.6 rehearsal for the held eleven-stage successor.
  *
  * The harness clones the existing schema-only ranking_clone template into one
- * fixed, owned database name. It refuses a reused target, never connects to a
- * hosted endpoint, and drops the owned database before emitting its current-source result.
+ * per-process, owned database name. It refuses a reused target, never connects
+ * to a hosted endpoint, and drops the owned database before emitting its
+ * current-source result.
  */
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,10 +28,11 @@ const RETAINED_PROOF_REPOSITORY_PATH = 'apps/web/performance/review-db-successor
 const DOCKER_CONTEXT = process.env.TZUDONG_REHEARSAL_DOCKER_CONTEXT || 'colima-tzudong-catalog-20261007';
 const DOCKER_CONTAINER = process.env.TZUDONG_REHEARSAL_DOCKER_CONTAINER || 'tzudong-ranking-clone-20261008';
 const TEMPLATE_DATABASE = 'ranking_clone';
-const DATABASE = 'review_successor_local_20261012_v1';
+const DATABASE = `review_successor_local_${randomBytes(16).toString('hex')}`;
 const FIXTURE_PASSWORD = 'fixture-only';
 const FIXTURE_PARENT_ROLE = 'review_successor_fixture_parent_20261012';
 const FIXTURE_MEMBER_ROLE = 'review_successor_fixture_member_20261012';
+const FIXTURE_OWNER_PREFIX = 'tzudong-review-successor-fixture';
 const EXPIRY_APPLICATION_NAME = 'tzudong-review-successor-expiry-fixture';
 const PREDECESSOR_PATHS = Object.freeze([
   'backend/supabase/migrations/20261004190259_admin_record_guarded_actions.sql',
@@ -126,16 +128,115 @@ ON CONFLICT(singleton) DO NOTHING;
 `;
 }
 
+function databaseMetadataSql(databaseName) {
+  const projection = alias => `jsonb_build_object(
+    'name',${alias}.datname,
+    'owner',pg_get_userbyid(${alias}.datdba),
+    'encoding',pg_encoding_to_char(${alias}.encoding),
+    'collate',${alias}.datcollate,
+    'ctype',${alias}.datctype,
+    'localeProvider',${alias}.datlocprovider::text,
+    'allowConnections',${alias}.datallowconn,
+    'isTemplate',${alias}.datistemplate
+  )`;
+  return `SELECT jsonb_build_object(
+  'target',(SELECT ${projection('target_database')} FROM pg_database target_database
+    WHERE target_database.datname=${quote(databaseName)}),
+  'template',(SELECT ${projection('template_database')} FROM pg_database template_database
+    WHERE template_database.datname=${quote(TEMPLATE_DATABASE)})
+)::text;`;
+}
+
+function inspectDatabaseOwnership(databaseName, { scalarImpl = scalar } = {}) {
+  let state;
+  try {
+    state = JSON.parse(scalarImpl('postgres', databaseMetadataSql(databaseName), 'supabase_admin'));
+  } catch {
+    fail('LOCAL_REHEARSAL_DATABASE_STATE_INVALID');
+  }
+  if (!state
+    || typeof state !== 'object'
+    || !Object.hasOwn(state, 'target')
+    || !databaseMetadataValid(state.template)
+    || state.template.name !== TEMPLATE_DATABASE
+    || (state.target !== null && !databaseMetadataValid(state.target))) {
+    fail('LOCAL_REHEARSAL_DATABASE_STATE_INVALID');
+  }
+  return state;
+}
+
+function databaseMetadataValid(metadata) {
+  return metadata
+    && typeof metadata === 'object'
+    && ['name', 'owner', 'encoding', 'collate', 'ctype', 'localeProvider']
+      .every(field => typeof metadata[field] === 'string' && metadata[field].length > 0)
+    && typeof metadata.allowConnections === 'boolean'
+    && typeof metadata.isTemplate === 'boolean';
+}
+
+function databaseTargetAbsent(state, databaseName) {
+  return state?.target === null && state?.template?.name === TEMPLATE_DATABASE && databaseName === DATABASE;
+}
+
+function databaseTargetOwned(state, baseline, databaseName) {
+  const target = state?.target;
+  const template = state?.template;
+  return databaseTargetAbsent(baseline, databaseName)
+    && target?.name === databaseName
+    && target.owner === 'postgres'
+    && target.allowConnections === true
+    && target.isTemplate === false
+    && template?.name === TEMPLATE_DATABASE
+    && equal(template, baseline.template)
+    && target.encoding === template.encoding
+    && target.collate === template.collate
+    && target.ctype === template.ctype
+    && target.localeProvider === template.localeProvider;
+}
+
 export function createOwnedDatabase(ownership, {
   scalarImpl = scalar,
   psqlImpl = psql,
   readFileImpl = readFileSync,
 } = {}) {
-  if (!ownership || ownership.database !== false) fail('LOCAL_REHEARSAL_OWNERSHIP_STATE_INVALID');
-  const exists = scalarImpl('postgres', `SELECT count(*) FROM pg_database WHERE datname=${quote(DATABASE)};`, 'supabase_admin');
-  if (exists !== '0') fail('LOCAL_REHEARSAL_TARGET_ALREADY_EXISTS');
-  psqlImpl('postgres', `CREATE DATABASE ${DATABASE} TEMPLATE ${TEMPLATE_DATABASE} OWNER postgres;`, { actor: 'supabase_admin' });
+  if (!ownership
+    || ownership.database !== false
+    || ownership.databaseAttempted
+    || ownership.databaseName
+    || ownership.databaseBaseline) {
+    fail('LOCAL_REHEARSAL_OWNERSHIP_STATE_INVALID');
+  }
+  const baseline = inspectDatabaseOwnership(DATABASE, { scalarImpl });
+  if (!databaseTargetAbsent(baseline, DATABASE)) fail('LOCAL_REHEARSAL_TARGET_ALREADY_EXISTS');
+  ownership.databaseName = DATABASE;
+  ownership.databaseBaseline = baseline;
+  ownership.databaseAttempted = true;
+  let creationAcknowledged = false;
+  try {
+    psqlImpl('postgres', `CREATE DATABASE ${DATABASE} TEMPLATE ${TEMPLATE_DATABASE} OWNER postgres;`, { actor: 'supabase_admin' });
+    creationAcknowledged = true;
+  } catch {
+    // CREATE is intentionally never replayed. The exact catalog readback below
+    // distinguishes a committed CREATE from a failure before mutation.
+  }
+  let observed;
+  try {
+    observed = inspectDatabaseOwnership(DATABASE, { scalarImpl });
+  } catch {
+    fail('LOCAL_REHEARSAL_DATABASE_READBACK_FAILED');
+  }
+  if (!databaseTargetOwned(observed, baseline, DATABASE)) {
+    if (databaseTargetAbsent(observed, DATABASE)) {
+      ownership.databaseAttempted = false;
+      ownership.databaseName = null;
+      ownership.databaseBaseline = null;
+      fail('LOCAL_REHEARSAL_DATABASE_CREATION_UNCONFIRMED');
+    }
+    fail('LOCAL_REHEARSAL_DATABASE_OWNERSHIP_UNPROVEN');
+  }
   ownership.database = true;
+  ownership.databaseCreationAcknowledged = creationAcknowledged;
+  ownership.databaseCreationReconciled = !creationAcknowledged;
   PREDECESSOR_PATHS.forEach((path, index) => {
     try {
       psqlImpl(DATABASE, readFileImpl(resolve(REPOSITORY_ROOT, path)));
@@ -144,18 +245,63 @@ export function createOwnedDatabase(ownership, {
     }
   });
   psqlImpl(DATABASE, fixtureSql());
+  return true;
 }
 
 export function dropOwnedDatabase(ownership, { scalarImpl = scalar, psqlImpl = psql } = {}) {
-  if (!ownership?.database) return false;
-  const exists = scalarImpl('postgres', `SELECT count(*) FROM pg_database WHERE datname=${quote(DATABASE)};`, 'supabase_admin');
-  if (exists === '1') {
+  if (!ownership?.database && !ownership?.databaseAttempted) return false;
+  if (ownership.databaseName !== DATABASE
+    || !ownership.databaseBaseline
+    || !databaseTargetAbsent(ownership.databaseBaseline, DATABASE)) {
+    fail('LOCAL_REHEARSAL_DATABASE_OWNERSHIP_STATE_INVALID');
+  }
+  let before;
+  try {
+    before = inspectDatabaseOwnership(DATABASE, { scalarImpl });
+  } catch {
+    fail('LOCAL_REHEARSAL_DATABASE_CLEANUP_READBACK_FAILED');
+  }
+  if (databaseTargetAbsent(before, DATABASE)) {
+    const wasOwned = ownership.database === true;
+    ownership.database = false;
+    ownership.databaseAttempted = false;
+    ownership.databaseDropped = wasOwned;
+    ownership.databaseCleanupReconciled = true;
+    ownership.databaseName = null;
+    ownership.databaseBaseline = null;
+    return false;
+  }
+  if (!databaseTargetOwned(before, ownership.databaseBaseline, DATABASE)) {
+    fail('LOCAL_REHEARSAL_DATABASE_OWNERSHIP_UNPROVEN');
+  }
+  ownership.database = true;
+  let removalAcknowledged = false;
+  try {
     psqlImpl('postgres', `DROP DATABASE ${DATABASE} WITH (FORCE);`, { actor: 'supabase_admin' });
-  } else if (exists !== '0') {
-    fail('LOCAL_REHEARSAL_TARGET_CARDINALITY_INVALID');
+    removalAcknowledged = true;
+  } catch {
+    // A lost DROP acknowledgement is reconciled once; DROP is not replayed.
+  }
+  let after;
+  try {
+    after = inspectDatabaseOwnership(DATABASE, { scalarImpl });
+  } catch {
+    fail('LOCAL_REHEARSAL_DATABASE_CLEANUP_READBACK_FAILED');
+  }
+  if (!databaseTargetAbsent(after, DATABASE)) {
+    if (!databaseTargetOwned(after, ownership.databaseBaseline, DATABASE)) {
+      fail('LOCAL_REHEARSAL_DATABASE_OWNERSHIP_UNPROVEN');
+    }
+    fail('LOCAL_REHEARSAL_DATABASE_DROP_UNCONFIRMED');
   }
   ownership.database = false;
-  return exists === '1';
+  ownership.databaseAttempted = false;
+  ownership.databaseDropped = true;
+  ownership.databaseRemovalAcknowledged = removalAcknowledged;
+  ownership.databaseCleanupReconciled = !removalAcknowledged;
+  ownership.databaseName = null;
+  ownership.databaseBaseline = null;
+  return true;
 }
 
 function resetOwnedDatabase(ownership) {
@@ -163,30 +309,193 @@ function resetOwnedDatabase(ownership) {
   createOwnedDatabase(ownership);
 }
 
-function createFixtureMembership() {
-  const existing = scalar('postgres', `SELECT count(*) FROM pg_roles WHERE rolname IN(${quote(FIXTURE_PARENT_ROLE)},${quote(FIXTURE_MEMBER_ROLE)});`, 'supabase_admin');
-  if (existing !== '0') fail('LOCAL_REHEARSAL_FIXTURE_ROLE_EXISTS');
-  psql('postgres', `
+function fixtureRoleStateQuery() {
+  return `WITH fixture_roles AS (
+  SELECT fixture_role.rolname,
+         fixture_role.rolcanlogin,
+         fixture_role.rolsuper,
+         fixture_role.rolcreatedb,
+         fixture_role.rolcreaterole,
+         fixture_role.rolinherit,
+         fixture_role.rolreplication,
+         fixture_role.rolbypassrls,
+         fixture_role.rolconnlimit,
+         fixture_role.rolvaliduntil,
+         fixture_role.rolconfig,
+         coalesce(shobj_description(fixture_role.oid,'pg_authid'),'') AS owner_marker
+  FROM pg_roles fixture_role
+  WHERE fixture_role.rolname IN(${quote(FIXTURE_PARENT_ROLE)},${quote(FIXTURE_MEMBER_ROLE)})
+), fixture_memberships AS (
+  SELECT parent.rolname AS parent,
+         member.rolname AS member,
+         grantor.rolname AS grantor,
+         membership.admin_option,
+         membership.inherit_option,
+         membership.set_option
+  FROM pg_auth_members membership
+  JOIN pg_roles parent ON parent.oid=membership.roleid
+  JOIN pg_roles member ON member.oid=membership.member
+  JOIN pg_roles grantor ON grantor.oid=membership.grantor
+  WHERE parent.rolname IN(${quote(FIXTURE_PARENT_ROLE)},${quote(FIXTURE_MEMBER_ROLE)})
+     OR member.rolname IN(${quote(FIXTURE_PARENT_ROLE)},${quote(FIXTURE_MEMBER_ROLE)})
+)
+SELECT jsonb_build_object(
+  'roles',coalesce((SELECT jsonb_agg(to_jsonb(fixture_role) ORDER BY fixture_role.rolname) FROM fixture_roles fixture_role),'[]'::jsonb),
+  'memberships',coalesce((SELECT jsonb_agg(to_jsonb(fixture_membership) ORDER BY fixture_membership.parent,fixture_membership.member,fixture_membership.grantor) FROM fixture_memberships fixture_membership),'[]'::jsonb)
+)::text;`;
+}
+
+function inspectFixtureMembership({ scalarImpl = scalar } = {}) {
+  let output;
+  try {
+    output = scalarImpl('postgres', fixtureRoleStateQuery(), 'supabase_admin');
+  } catch {
+    fail('LOCAL_REHEARSAL_FIXTURE_ROLE_READBACK_FAILED');
+  }
+  let state;
+  try {
+    state = JSON.parse(output);
+  } catch {
+    fail('LOCAL_REHEARSAL_FIXTURE_ROLE_READBACK_INVALID');
+  }
+  if (!Array.isArray(state?.roles) || !Array.isArray(state?.memberships)) {
+    fail('LOCAL_REHEARSAL_FIXTURE_ROLE_READBACK_INVALID');
+  }
+  return Object.freeze({
+    roles: Object.freeze(state.roles.map(role => Object.freeze({ ...role }))),
+    memberships: Object.freeze(state.memberships.map(membership => Object.freeze({ ...membership }))),
+  });
+}
+
+function fixtureMembershipAbsent(state) {
+  return state.roles.length === 0 && state.memberships.length === 0;
+}
+
+function fixtureMembershipOwned(state, token) {
+  const roles = new Map(state.roles.map(role => [role.rolname, role]));
+  const parent = roles.get(FIXTURE_PARENT_ROLE);
+  const member = roles.get(FIXTURE_MEMBER_ROLE);
+  const membership = state.memberships[0];
+  const sharedRoleShape = role => role
+    && role.rolcanlogin === false
+    && role.rolsuper === false
+    && role.rolcreatedb === false
+    && role.rolcreaterole === false
+    && role.rolreplication === false
+    && role.rolbypassrls === false
+    && role.rolconnlimit === -1
+    && role.rolvaliduntil === null
+    && role.rolconfig === null;
+  return state.roles.length === 2
+    && sharedRoleShape(parent)
+    && parent.rolinherit === false
+    && parent.owner_marker === `${FIXTURE_OWNER_PREFIX}:${token}:parent`
+    && sharedRoleShape(member)
+    && member.rolinherit === true
+    && member.owner_marker === `${FIXTURE_OWNER_PREFIX}:${token}:member`
+    && state.memberships.length === 1
+    && membership.parent === FIXTURE_PARENT_ROLE
+    && membership.member === FIXTURE_MEMBER_ROLE
+    && membership.grantor === 'supabase_admin'
+    && membership.admin_option === false
+    && membership.inherit_option === true
+    && membership.set_option === true;
+}
+
+export function createFixtureMembership(ownership, {
+  scalarImpl = scalar,
+  psqlImpl = psql,
+  generateToken = () => randomBytes(16).toString('hex'),
+} = {}) {
+  if (!ownership
+    || ownership.fixtureMembership !== false
+    || ownership.fixtureMembershipAttempted
+    || ownership.fixtureMembershipToken
+    || ownership.fixtureMembershipBaseline) {
+    fail('LOCAL_REHEARSAL_FIXTURE_ROLE_OWNERSHIP_STATE_INVALID');
+  }
+  const baseline = inspectFixtureMembership({ scalarImpl });
+  ownership.fixtureMembershipBaseline = baseline;
+  if (!fixtureMembershipAbsent(baseline)) fail('LOCAL_REHEARSAL_FIXTURE_ROLE_EXISTS');
+  const token = generateToken();
+  if (!/^[0-9a-f]{32}$/.test(token)) fail('LOCAL_REHEARSAL_FIXTURE_ROLE_TOKEN_INVALID');
+  ownership.fixtureMembershipToken = token;
+  ownership.fixtureMembershipAttempted = true;
+  let creationAcknowledged = false;
+  try {
+    psqlImpl('postgres', `
 BEGIN;
 CREATE ROLE ${FIXTURE_PARENT_ROLE} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
 CREATE ROLE ${FIXTURE_MEMBER_ROLE} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION NOBYPASSRLS;
+COMMENT ON ROLE ${FIXTURE_PARENT_ROLE} IS ${quote(`${FIXTURE_OWNER_PREFIX}:${token}:parent`)};
+COMMENT ON ROLE ${FIXTURE_MEMBER_ROLE} IS ${quote(`${FIXTURE_OWNER_PREFIX}:${token}:member`)};
 GRANT ${FIXTURE_PARENT_ROLE} TO ${FIXTURE_MEMBER_ROLE}
   WITH ADMIN FALSE, INHERIT TRUE, SET TRUE GRANTED BY supabase_admin;
 COMMIT;
 `, { actor: 'supabase_admin' });
+    creationAcknowledged = true;
+  } catch {}
+  const observed = inspectFixtureMembership({ scalarImpl });
+  if (!fixtureMembershipOwned(observed, token)) {
+    ownership.fixtureMembershipAttempted = false;
+    if (fixtureMembershipAbsent(observed)) fail('LOCAL_REHEARSAL_FIXTURE_ROLE_CREATION_UNCONFIRMED');
+    fail('LOCAL_REHEARSAL_FIXTURE_ROLE_OWNERSHIP_UNPROVEN');
+  }
+  ownership.fixtureMembership = true;
+  ownership.fixtureMembershipCreationAcknowledged = creationAcknowledged;
+  ownership.fixtureMembershipCreationReconciled = !creationAcknowledged;
+  return true;
 }
 
-function dropFixtureMembership() {
-  const existing = scalar('postgres', `SELECT count(*) FROM pg_roles WHERE rolname IN(${quote(FIXTURE_PARENT_ROLE)},${quote(FIXTURE_MEMBER_ROLE)});`, 'supabase_admin');
-  if (existing === '0') return;
-  if (existing !== '2') fail('LOCAL_REHEARSAL_FIXTURE_ROLE_CARDINALITY_INVALID');
-  psql('postgres', `
+export function dropFixtureMembership(ownership, {
+  scalarImpl = scalar,
+  psqlImpl = psql,
+} = {}) {
+  if (!ownership?.fixtureMembership && !ownership?.fixtureMembershipAttempted) return false;
+  const token = ownership.fixtureMembershipToken;
+  if (!/^[0-9a-f]{32}$/.test(token || '')
+    || !ownership.fixtureMembershipBaseline
+    || !fixtureMembershipAbsent(ownership.fixtureMembershipBaseline)) {
+    fail('LOCAL_REHEARSAL_FIXTURE_ROLE_OWNERSHIP_STATE_INVALID');
+  }
+  const before = inspectFixtureMembership({ scalarImpl });
+  if (fixtureMembershipAbsent(before)) {
+    const wasOwned = ownership.fixtureMembership === true;
+    ownership.fixtureMembership = false;
+    ownership.fixtureMembershipAttempted = false;
+    ownership.fixtureMembershipDropped = wasOwned;
+    ownership.fixtureMembershipCleanupReconciled = true;
+    return wasOwned;
+  }
+  if (!fixtureMembershipOwned(before, token)) {
+    fail('LOCAL_REHEARSAL_FIXTURE_ROLE_OWNERSHIP_UNPROVEN');
+  }
+  // An earlier creation readback can fail after COMMIT. Exact token, shape,
+  // membership, and empty preimage establish this run's cleanup authority.
+  ownership.fixtureMembership = true;
+  let removalAcknowledged = false;
+  try {
+    psqlImpl('postgres', `
 BEGIN;
 REVOKE ${FIXTURE_PARENT_ROLE} FROM ${FIXTURE_MEMBER_ROLE} GRANTED BY supabase_admin;
 DROP ROLE ${FIXTURE_MEMBER_ROLE};
 DROP ROLE ${FIXTURE_PARENT_ROLE};
 COMMIT;
 `, { actor: 'supabase_admin' });
+    removalAcknowledged = true;
+  } catch {}
+  const after = inspectFixtureMembership({ scalarImpl });
+  if (!fixtureMembershipAbsent(after)) {
+    if (!fixtureMembershipOwned(after, token)) {
+      fail('LOCAL_REHEARSAL_FIXTURE_ROLE_OWNERSHIP_UNPROVEN');
+    }
+    fail('LOCAL_REHEARSAL_FIXTURE_ROLE_REMOVAL_UNCONFIRMED');
+  }
+  ownership.fixtureMembership = false;
+  ownership.fixtureMembershipAttempted = false;
+  ownership.fixtureMembershipDropped = true;
+  ownership.fixtureMembershipRemovalAcknowledged = removalAcknowledged;
+  return true;
 }
 
 function cleanupOwnedFixtures(ownership) {
@@ -197,8 +506,7 @@ function cleanupOwnedFixtures(ownership) {
     failures.push(`database:${error.message}`);
   }
   try {
-    if (ownership.fixtureMembership) dropFixtureMembership();
-    ownership.fixtureMembership = false;
+    dropFixtureMembership(ownership);
   } catch (error) {
     failures.push(`roles:${error.message}`);
   }
@@ -531,11 +839,19 @@ export async function run() {
     || template.profiles !== 0
     || template.reviews !== 0) fail('LOCAL_REHEARSAL_TEMPLATE_INVALID');
 
-  const ownership = { database: false, fixtureMembership: false };
+  const ownership = {
+    database: false,
+    databaseAttempted: false,
+    databaseName: null,
+    databaseBaseline: null,
+    fixtureMembership: false,
+    fixtureMembershipAttempted: false,
+    fixtureMembershipToken: null,
+    fixtureMembershipBaseline: null,
+  };
   let proof;
   try {
-    createFixtureMembership();
-    ownership.fixtureMembership = true;
+    createFixtureMembership(ownership);
     createOwnedDatabase(ownership);
     if (scalar(DATABASE, `SELECT coalesce('security_invoker=true'=ANY(c.reloptions),false)
       FROM pg_class c WHERE c.oid='public.admin_evaluation_related_rows'::regclass;`) !== 't') {
