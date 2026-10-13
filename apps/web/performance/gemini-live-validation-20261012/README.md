@@ -29,7 +29,7 @@
 
 ## Source binding
 
-세 단계가 기록한 Git binding은 `HEAD bd80988fb925e7c47d4fe202da8d929d119a6cca`, tree `998d3a5568190d2fc0ba3e3634c302313f3c5b9c`다. 실행 당시 working tree는 dirty 상태였으므로 커밋만으로 실제 source를 대표하지 않는다. 각 영수증의 source SHA-256은 당시 실행의 기록으로 보존한다. 2026-10-13 정정 확인에서는 현재 소스와 다른 기록이 6개(고유 경로 2개)였다. 현재 검토 코드의 실제 유료 호출 증거로 사용하지 않는다. 원본 map과 provider receipt는 그대로 보존했고, 정정 확인의 새 공급자 호출은 0회다.
+세 단계가 기록한 Git binding은 `HEAD bd80988fb925e7c47d4fe202da8d929d119a6cca`, tree `998d3a5568190d2fc0ba3e3634c302313f3c5b9c`다. 실행 당시 working tree는 dirty 상태였으므로 커밋만으로 실제 source를 대표하지 않는다. 각 영수증의 source SHA-256은 당시 실행의 기록으로 보존한다. 현재 checkpoint `bb6f9228209c9a4a8251ca2e182428f7021d6a3e`에서 역사적 provider-bound 경로만 다시 비교한 `source-reconciliation-20261013-v2.json`에는 단계별 불일치 7개(고유 경로 3개)와 현재 OCR 검증 체인 3개 파일의 SHA-256을 분리해 기록했다. 이는 전체 application source 검증이나 현재 코드의 실제 유료 호출 증거가 아니다. 원본 map, provider receipt와 앞선 정정 파일은 그대로 보존했고, v2 정정의 새 공급자 호출은 0회다.
 
 | 단계 | configuration SHA-256 |
 | --- | --- |

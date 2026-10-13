@@ -2,6 +2,8 @@
 
 이 디렉터리는 `dd0c790be7ffc94a86f95126aa60019ded8ff9b7` 기반 전달 후보의 합성 loopback UI 검증을 보관한다. 이식된 기존 261개 UI·Gemini 산출물은 각각의 frozen source와 실행 환경에 대한 역사적 증빙이다. 현재 후보의 commit, PR, 보호 검사, 배포 또는 운영 동작을 입증하지 않는다.
 
+`artifact-map.json`의 `changedSources` SHA·bytes는 build `HcJtq7WT9AGLOOijoRGrZ` 당시 결합을 보존하는 **역사적 source binding**이며 현재 소스 결합이 아니다. 최초 `source-reconciliation-delta-20261013.json`도 두 파일만 비교한 중간 checkpoint로 보존한다. 현재 checkpoint `bb6f9228209c9a4a8251ca2e182428f7021d6a3e`의 `source-reconciliation-delta-20261013-v2.json`은 검토로 바뀐 역사적 binding 5개와 역사 목록에 없던 관련 source 2개를 별도로 결속한다. 이는 선택된 counterpart 정정일 뿐 전체 `changedSources`·579개 build manifest 검증이 아니며, build·브라우저 readback·provider 호출은 재실행하지 않았다.
+
 ## 헤더 보정 결과
 
 변화율은 `(후값 - 전값) / 전값 × 100`으로 계산했다. 음수는 높이 감소다.
@@ -24,7 +26,7 @@
 
 ## Gemini와 전달 경계
 
-기존 Gemini canary 4회는 실제 provider 호출이다. 사용자 인증, 운영 DB 저장, 배포 UI까지 검증한 결과는 아니다. 현재 누계는 HTTP 11회, generation 요청 8회, 결과 수신 5회(유효 canary 4회 + strict validator 거절 pilot 1회), 알려진 tokens 24,014이며 실패 3회의 usage와 cost는 미확인이다. 신규 롱폼 완료는 0/1,071이다.
+기존 Gemini canary 4회는 당시 frozen source에서 수행한 실제 provider 호출이다. 사용자 인증, 운영 DB 저장, 배포 UI 또는 현재 source의 provider 동작을 검증한 결과는 아니다. 역사적 누계는 HTTP 11회, generation 요청 8회, 결과 수신 5회(유효 canary 4회 + strict validator 거절 pilot 1회), 알려진 tokens 24,014이며 실패 3회의 usage와 cost는 미확인이다. 신규 롱폼 완료는 0/1,071이다.
 
 `tsconfig.json`의 generated include 2개를 원래 SHA `776471d5…` bytes로 복원했다. CLI의 디렉터리 생성·영수증 갱신·이미지 저장은 검증한 디렉터리 fd를 기준으로 수행한다. 상대 helper 경로·helper 부재·실행 실패와 부모 경로 교체는 고정 오류로 거절하며 외부 replacement 대상 쓰기는 0건이었다. 프로젝트 Python 3.14.8로 CLI 경계 테스트 18개·103 assertions와 대상 ESLint가 통과했다. 열린 원본 디렉터리 inode 자체를 옮기는 동일 사용자 행위는 fd capability의 일반적 한계로 남긴다. Windows fallback은 이번 descriptor 검증 범위에 포함되지 않는다.
 

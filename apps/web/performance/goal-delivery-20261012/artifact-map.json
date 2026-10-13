@@ -158,8 +158,9 @@
   "artifacts": [
     {
       "path": "README.md",
-      "bytes": 5883,
-      "sha256": "47ffdfc8efccb8d33942098ef929b0e62af76ca5f3240f4aeb61b37b58aa862a"
+      "bytes": 6672,
+      "sha256": "4c9c42e43813c2bfe1777483305ffd3b56bfc607865456415ad5b2cc2524b16a",
+      "role": "canonical-summary"
     },
     {
       "path": "accepted-desktop-audit.jpg",
@@ -1025,6 +1026,18 @@
       "path": "third-build-header-render.json",
       "bytes": 33341,
       "sha256": "0fe3c495538d0dd9d0cfe695bab0ee64fe4c88c4d9d7d9f94c303647d96818ba"
+    },
+    {
+      "path": "source-reconciliation-delta-20261013.json",
+      "bytes": 1768,
+      "sha256": "fe0da048921eb9729738aa607efdb0d9ecb149d2a580c0528fe67b5117dede0a",
+      "role": "pre-final-selected-source-reconciliation-delta"
+    },
+    {
+      "path": "source-reconciliation-delta-20261013-v2.json",
+      "bytes": 3962,
+      "sha256": "4f5dd32c69dcb3d285448aea6b8f9013fb27259b9553bacf99468fc4ad23d8ac",
+      "role": "current-selected-source-reconciliation-delta"
     }
   ],
   "historicalPackages": [
@@ -1034,14 +1047,54 @@
       "verifiedArtifacts": 251
     },
     {
-      "path": "../gemini-live-validation-20261012/artifact-map.json",
+      "path": "../gemini-live-validation-20261012/artifact-map-paid-historical.json",
       "sha256": "251afc906a6493ced159430ff72b55d56b63ee6c62afbc0e10a218ab4e116114",
-      "verifiedArtifacts": 6
+      "verifiedArtifacts": 6,
+      "classification": "historical-paid-provider-package"
     }
   ],
   "limits": [
     "Source, local synthetic rendering, provider canaries and operating deployment remain separate evidence classes.",
     "No production DB, Storage, provider, billing or deployment mutation in this delivery.",
     "Whole goal remains active; provider/DB/UI end-to-end, card removal and 1071 long-form completion are not proven."
-  ]
+  ],
+  "changedSourcesClassification": {
+    "status": "historical-build-source-bindings",
+    "buildId": "HcJtq7WT9AGLOOijoRGrZ",
+    "sourceManifestSha256": "2cc2a16f055ce9bbcb3cd1c75ac05c90cc0cbd36d29661d1967260ccf8dc3cfa",
+    "currentSourceBindingsClaimed": false,
+    "currentCheckpointHead": "bb6f9228209c9a4a8251ca2e182428f7021d6a3e",
+    "reconciliationScope": "selected-reviewed-source-counterparts-only",
+    "selectedHistoricalRowsChecked": 5,
+    "selectedMismatchCount": 5,
+    "selectedMismatchPaths": [
+      "apps/web/scripts/gemini-live-verification-io.ts",
+      "apps/web/scripts/verify-admin-sidebar-pages-browser.ts",
+      "apps/web/scripts/verify-ocr-gemini-live.ts",
+      "apps/web/tests-unit/gemini-live-verification-boundary.test.ts",
+      "apps/web/tests-unit/ocr-live-verification-cli.test.ts"
+    ],
+    "currentOnlyRelatedPaths": [
+      "apps/web/scripts/ocr-gemini-live-attempt.ts",
+      "apps/web/scripts/verify-admin-pipeline-browser.ts"
+    ],
+    "fullChangedSourcesInventoryVerified": false,
+    "fullBuildSourceManifestVerified": false,
+    "reconciliationDelta": "source-reconciliation-delta-20261013-v2.json",
+    "reconciliationDeltaSha256": "4f5dd32c69dcb3d285448aea6b8f9013fb27259b9553bacf99468fc4ad23d8ac",
+    "reconciliationDeltas": [
+      {
+        "path": "source-reconciliation-delta-20261013.json",
+        "sha256": "fe0da048921eb9729738aa607efdb0d9ecb149d2a580c0528fe67b5117dede0a",
+        "classification": "pre-final-selected-source-reconciliation"
+      },
+      {
+        "path": "source-reconciliation-delta-20261013-v2.json",
+        "sha256": "4f5dd32c69dcb3d285448aea6b8f9013fb27259b9553bacf99468fc4ad23d8ac",
+        "classification": "current-selected-source-reconciliation"
+      }
+    ],
+    "historicalBuildReplayed": false,
+    "historicalReadbackReplayed": false
+  }
 }

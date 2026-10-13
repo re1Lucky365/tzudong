@@ -12,6 +12,14 @@ import {
   reserveJsonReceipt,
   sha256,
 } from './gemini-live-verification-io';
+import {
+  assertExpectedModelIdentity,
+  createOcrGeminiLiveAttemptState,
+  invokeAdmittedGeneration,
+  isGenerationDeliveryUnknown,
+  recordGenerationCallStarted,
+  recordModelMetadataRequest,
+} from './ocr-gemini-live-attempt';
 
 // One provider generation attempt, synthetic text only, no raw OCR/image/credential output.
 const cli = parseLiveVerificationArguments(process.argv.slice(2), {
@@ -72,6 +80,7 @@ const sourceBinding = buildSourceBinding([
   'lib/ocr/runtime-config.ts',
   'package-lock.json',
   'scripts/gemini-live-verification-io.ts',
+  'scripts/ocr-gemini-live-attempt.ts',
   'scripts/verify-ocr-gemini-live.ts',
 ]);
 const report: Record<string, unknown> = {
@@ -82,6 +91,7 @@ const report: Record<string, unknown> = {
   operationalDatabaseWrites: 0,
   maximumGenerationCalls: 1,
   generationCallsStarted: 0,
+  generationRequestsAdmitted: 0,
   providerRequestsStarted: 0,
   sdkAttempts: 1,
   environment: { sdk: readPackageVersion('node_modules/@google/genai/package.json') },
@@ -101,8 +111,13 @@ const report: Record<string, unknown> = {
 };
 const receipt = reserveJsonReceipt(receiptPath, report);
 const save = () => receipt.write(report);
-let generationCalls = 0;
-let providerRequests = 0;
+const attempt = createOcrGeminiLiveAttemptState();
+const persistAttempt = (next: Readonly<typeof attempt>) => {
+  report.generationCallsStarted = next.generationCallsStarted;
+  report.generationRequestsAdmitted = next.generationRequestsAdmitted;
+  report.providerRequestsStarted = next.providerRequestsStarted;
+  save();
+};
 
 try {
   const provider = new sdk.GoogleGenAI({
@@ -110,12 +125,10 @@ try {
     httpOptions: { retryOptions: { attempts: 1 }, timeout: 12_000 },
   });
   report.pending = 'model-readiness';
-  providerRequests += 1;
-  report.providerRequestsStarted = providerRequests;
-  save();
+  recordModelMetadataRequest(attempt, persistAttempt);
   // Metadata readiness is separate from the bounded generation call.
   const metadata = await provider.models.get({ model: models[0], config: { httpOptions: { timeout: 12_000 } } });
-  if (metadata.name?.replace(/^models\//, '') !== models[0]) throw new Error('model_identity_mismatch');
+  assertExpectedModelIdentity(metadata.name, models[0]);
 
   const text = [
     'Synthetic Noodle Shop',
@@ -129,11 +142,7 @@ try {
   const image = await sharp(Buffer.from(svg)).png().toBuffer();
   report.inputSha256 = sha256(image);
   report.pending = 'provider-generation';
-  generationCalls = 1;
-  providerRequests += 1;
-  report.generationCallsStarted = generationCalls;
-  report.providerRequestsStarted = providerRequests;
-  save();
+  recordGenerationCallStarted(attempt, persistAttempt);
 
   const start = performance.now();
   const enterGenerationCallback = createOneShotGate();
@@ -145,8 +154,9 @@ try {
     env,
     generateContentImpl: async (input) => {
       enterGenerationCallback();
-      if (generationCalls !== 1) throw new Error('attempt_bound_exceeded');
-      const response = await provider.models.generateContent(ocr.buildGeminiReceiptOcrRequest({ ...input, timeoutMs: 12_000 }));
+      const response = await invokeAdmittedGeneration(attempt, persistAttempt, () => (
+        provider.models.generateContent(ocr.buildGeminiReceiptOcrRequest({ ...input, timeoutMs: 12_000 }))
+      ));
       report.responseModel = response.modelVersion ?? null;
       const usage = response.usageMetadata;
       report.usage = {
@@ -185,23 +195,26 @@ try {
     elapsedMs: report.elapsedMs,
     matches: report.matches,
     usage: report.usage,
-    generationCallsStarted: generationCalls,
-    providerRequestsStarted: providerRequests,
+    generationCallsStarted: attempt.generationCallsStarted,
+    generationRequestsAdmitted: attempt.generationRequestsAdmitted,
+    providerRequestsStarted: attempt.providerRequestsStarted,
   }));
   if (!report.passed) process.exitCode = 1;
 } catch {
   report.passed = false;
-  report.generationCallsStarted = generationCalls;
-  report.providerRequestsStarted = providerRequests;
+  report.generationCallsStarted = attempt.generationCallsStarted;
+  report.generationRequestsAdmitted = attempt.generationRequestsAdmitted;
+  report.providerRequestsStarted = attempt.providerRequestsStarted;
   report.code = 'ocr_live_verification_failed';
-  report.deliveryUnknown = providerRequests > 0;
+  report.deliveryUnknown = isGenerationDeliveryUnknown(attempt);
   save();
   console.log(JSON.stringify({
     passed: false,
     code: report.code,
-    generationCallsStarted: generationCalls,
-    providerRequestsStarted: providerRequests,
-    deliveryUnknown: providerRequests > 0,
+    generationCallsStarted: attempt.generationCallsStarted,
+    generationRequestsAdmitted: attempt.generationRequestsAdmitted,
+    providerRequestsStarted: attempt.providerRequestsStarted,
+    deliveryUnknown: isGenerationDeliveryUnknown(attempt),
   }));
   process.exitCode = 1;
 } finally {

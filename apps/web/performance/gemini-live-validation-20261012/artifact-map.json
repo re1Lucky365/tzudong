@@ -106,7 +106,7 @@
     "gitTree": "998d3a5568190d2fc0ba3e3634c302313f3c5b9c",
     "workingTreeDirty": true,
     "currentSourceHashesVerified": false,
-    "sourceHashMismatchCount": 6,
+    "sourceHashMismatchCount": 7,
     "phases": {
       "ocr": {
         "configurationSha256": "6748727560a176b3482ebca41aa51a6fe68b88cd86f19a81ce8cde870a17b121",
@@ -142,14 +142,20 @@
         }
       }
     },
-    "uniqueSourceHashMismatchCount": 2,
+    "uniqueSourceHashMismatchCount": 3,
     "phaseSourceHashMismatchCounts": {
-      "ocr": 2,
+      "ocr": 3,
       "storyboard": 2,
       "proImage": 2
     },
     "classification": "historical-provider-evidence-current-source-mismatch",
-    "comparisonReceipt": "performance/gemini-live-validation-20261012/source-reconciliation-20261013.json"
+    "comparisonReceipt": "performance/gemini-live-validation-20261012/source-reconciliation-20261013-v2.json",
+    "comparisonReceipts": [
+      "performance/gemini-live-validation-20261012/source-reconciliation-20261013.json",
+      "performance/gemini-live-validation-20261012/source-reconciliation-20261013-v2.json"
+    ],
+    "comparisonScope": "historical-provider-bound-source-paths-only",
+    "fullApplicationSourceVerified": false
   },
   "privacyReview": {
     "receiptsContainRawProviderDiagnostics": false,
@@ -164,8 +170,8 @@
     {
       "path": "performance/gemini-live-validation-20261012/README.md",
       "role": "canonical-summary",
-      "sha256": "d766c818cab03aa17e4b1539343ee347294de3deff07bd53837a79b2f0da0639",
-      "bytes": 3950
+      "sha256": "3e779574f3adb6323cf728a810724212843132e16948c26ca02e8601ccd0e854",
+      "bytes": 4183
     },
     {
       "path": "performance/gemini-ocr-live-20261012/ocr-live-readback.json",
@@ -222,9 +228,15 @@
     },
     {
       "path": "performance/gemini-live-validation-20261012/source-reconciliation-20261013.json",
-      "role": "source-reconciliation",
+      "role": "pre-final-source-reconciliation",
       "sha256": "4bbd345d4a38010f5e45282e1f70936df48be3b228140b9306610ae662a41ebd",
       "bytes": 1977
+    },
+    {
+      "path": "performance/gemini-live-validation-20261012/source-reconciliation-20261013-v2.json",
+      "bytes": 4161,
+      "sha256": "05f45e2c5fdf9973abfe8bae9e6c9e2fc59fabe13fe4c446e0a44e3186e8ab5c",
+      "role": "current-source-reconciliation-delta"
     }
   ],
   "notProven": [

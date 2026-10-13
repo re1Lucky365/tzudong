@@ -10,6 +10,14 @@ import {
 } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import {
+  assertExpectedModelIdentity,
+  createOcrGeminiLiveAttemptState,
+  invokeAdmittedGeneration,
+  isGenerationDeliveryUnknown,
+  recordGenerationCallStarted,
+  recordModelMetadataRequest,
+} from '../scripts/ocr-gemini-live-attempt';
 
 const webRoot = resolve(import.meta.dir, '..');
 const scripts = {
@@ -118,4 +126,75 @@ test('storyboard refuses an earlier image before reservation or provider access'
   } finally {
     rmSync(root, { recursive: true });
   }
+});
+
+test.each([
+  ['timeout', () => Promise.reject(new DOMException('timed out', 'TimeoutError'))],
+  ['rejection', () => Promise.reject(new Error('metadata unavailable'))],
+] as const)('OCR metadata %s records no generation admission or delivery uncertainty', async (_name, getModel) => {
+  const state = createOcrGeminiLiveAttemptState();
+  const persisted: Array<Readonly<typeof state>> = [];
+  recordModelMetadataRequest(state, (next) => persisted.push({ ...next }));
+
+  await expect(getModel()).rejects.toBeTruthy();
+  expect(state).toEqual({
+    generationCallsStarted: 0,
+    generationRequestsAdmitted: 0,
+    providerRequestsStarted: 1,
+  });
+  expect(isGenerationDeliveryUnknown(state)).toBe(false);
+  expect(persisted).toEqual([{ ...state }]);
+});
+
+test('OCR metadata with the wrong model identity records no generation admission or delivery uncertainty', () => {
+  const state = createOcrGeminiLiveAttemptState();
+  recordModelMetadataRequest(state, () => {});
+
+  expect(() => assertExpectedModelIdentity('models/not-the-configured-model', 'gemini-3.8-flash'))
+    .toThrow('model_identity_mismatch');
+  expect(state.generationCallsStarted).toBe(0);
+  expect(state.generationRequestsAdmitted).toBe(0);
+  expect(state.providerRequestsStarted).toBe(1);
+  expect(isGenerationDeliveryUnknown(state)).toBe(false);
+});
+
+test('OCR generation failure is delivery-unknown only after the durable generation admission', async () => {
+  const state = createOcrGeminiLiveAttemptState();
+  const events: string[] = [];
+  const persist = (next: Readonly<typeof state>) => {
+    events.push(`persist:${next.generationRequestsAdmitted}`);
+  };
+  recordModelMetadataRequest(state, persist);
+  assertExpectedModelIdentity('models/gemini-3.8-flash', 'gemini-3.8-flash');
+  recordGenerationCallStarted(state, persist);
+
+  await expect(invokeAdmittedGeneration(state, persist, async () => {
+    events.push('provider');
+    throw new Error('generation response lost');
+  })).rejects.toThrow('generation response lost');
+  expect(events).toEqual(['persist:0', 'persist:0', 'persist:1', 'provider']);
+  expect(state).toEqual({
+    generationCallsStarted: 1,
+    generationRequestsAdmitted: 1,
+    providerRequestsStarted: 2,
+  });
+  expect(isGenerationDeliveryUnknown(state)).toBe(true);
+});
+
+test('OCR generation is not invoked when durable admission persistence fails', async () => {
+  const state = createOcrGeminiLiveAttemptState();
+  recordModelMetadataRequest(state, () => {});
+  recordGenerationCallStarted(state, () => {});
+  let providerCalls = 0;
+
+  await expect(invokeAdmittedGeneration(state, () => {
+    throw new Error('receipt_fsync_failed');
+  }, async () => {
+    providerCalls += 1;
+    return 'unreachable';
+  })).rejects.toThrow('receipt_fsync_failed');
+  expect(providerCalls).toBe(0);
+  expect(state.generationRequestsAdmitted).toBe(0);
+  expect(state.providerRequestsStarted).toBe(1);
+  expect(isGenerationDeliveryUnknown(state)).toBe(false);
 });
