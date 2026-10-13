@@ -309,11 +309,15 @@
   "toolchain": [
     {
       "path": "apps/web/scripts/review-media-sql-successor.mjs",
-      "sha256": "928d7b8bd601ab585870d4e04ee468e952f6053df81e403de925e032924f40d1"
+      "sha256": "2080947cbc3c92934c98cee259d4f41e9c1eebc80e437f20862849fd36bd4f40"
+    },
+    {
+      "path": "apps/web/scripts/review-media-sql-rehearsal.mjs",
+      "sha256": "c893c294719776bf5b064c3355866ab97e0fa9412082d9b47d7de5266094c65f"
     },
     {
       "path": "apps/web/scripts/supabase-migration-bundle.mjs",
-      "sha256": "a374211be376e3a9af8215751accb52eb43943fc93b8651ba4e186e412588ba7"
+      "sha256": "fcebc20dc4846606dc14bdbe658a07daa32430ad632e52383151f5c22d22efb9"
     },
     {
       "path": "apps/web/scripts/supabase-migration-transaction.mjs",

@@ -3,8 +3,11 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   closeSync,
+  constants,
   existsSync,
+  fstatSync,
   fsyncSync,
+  linkSync,
   lstatSync,
   openSync,
   readFileSync,
@@ -21,6 +24,7 @@ import {
   selectDirectDatabaseTransport,
 } from './apply-supabase-migration.mjs';
 import {
+  compileElevenMigrationRehearsalSources,
   compileElevenMigrationBundle,
   executeMigrationBundle,
   elevenMigrationBundleSuffixRoot,
@@ -48,6 +52,7 @@ const GIT_REMOTE_READ_TIMEOUT_MS = 15_000;
 const PRIVATE_RECEIPT_FILES = Object.freeze({
   protectedMain: 'protected-main-receipt.json',
   rehearsal: 'rehearsal-receipt.json',
+  rehearsalJournal: 'rehearsal-journal.jsonl',
   rollback: 'rollback-readback-receipt.json',
   source: 'source-receipt.json',
 });
@@ -70,6 +75,14 @@ const FIXED_CONTROLLER_CODES = new Set([
   'SUCCESSOR_MANIFEST_INVALID',
   'SUCCESSOR_PREFLIGHT_MISMATCH',
   'SUCCESSOR_READBACK_INVALID',
+  'SUCCESSOR_REHEARSAL_ARGUMENT_INVALID',
+  'SUCCESSOR_REHEARSAL_BASELINE_INVALID',
+  'SUCCESSOR_REHEARSAL_OUTCOME_UNCONFIRMED',
+  'SUCCESSOR_REHEARSAL_OUTPUT_INVALID',
+  'SUCCESSOR_REHEARSAL_RECEIPT_PUBLISH_FAILED',
+  'SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED',
+  'SUCCESSOR_REHEARSAL_RESTORE_CONFLICT',
+  'SUCCESSOR_REHEARSAL_RESTORE_UNKNOWN',
   'SUCCESSOR_ROLLBACK_READBACK_INVALID',
   'SUCCESSOR_SOURCE_DRIFT',
 ]);
@@ -102,14 +115,39 @@ function exactKeys(value, keys, code) {
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) fail(code);
 }
 
-function safeCode(error) {
-  try { return typeof error?.code === 'string' ? error.code : ''; } catch { return ''; }
+function safeCode(error, key = 'code') {
+  try {
+    const value = error?.[key];
+    return typeof value === 'string' ? value : '';
+  } catch { return ''; }
 }
 
 export function boundedSuccessorError(error) {
   const code = safeCode(error);
-  if (FIXED_CONTROLLER_CODES.has(code)) return operationError(code);
+  if (FIXED_CONTROLLER_CODES.has(code)) {
+    const bounded = operationError(code);
+    if (code === 'SUCCESSOR_JOURNAL_APPEND_FAILED') {
+      const operationCode = safeCode(error, 'operationCode');
+      if (FIXED_CONTROLLER_CODES.has(operationCode)) bounded.operationCode = operationCode;
+    }
+    return bounded;
+  }
   return boundedMigrationError(error);
+}
+
+export function successorFailureResult(error) {
+  const bounded = boundedSuccessorError(error);
+  return {
+    code: bounded.code,
+    ...(bounded.operationCode ? { operationCode: bounded.operationCode } : {}),
+    status: 'failed',
+  };
+}
+
+function journalFailure(operationCode) {
+  const error = operationError('SUCCESSOR_JOURNAL_APPEND_FAILED');
+  if (FIXED_CONTROLLER_CODES.has(operationCode)) error.operationCode = operationCode;
+  return error;
 }
 
 function parseJsonObject(bytes, code) {
@@ -140,6 +178,7 @@ function sourceProjection(migration) {
 function assertToolchain(manifest) {
   const expected = [
     'apps/web/scripts/review-media-sql-successor.mjs',
+    'apps/web/scripts/review-media-sql-rehearsal.mjs',
     'apps/web/scripts/supabase-migration-bundle.mjs',
     'apps/web/scripts/supabase-migration-transaction.mjs',
     'apps/web/scripts/apply-supabase-migration.mjs',
@@ -546,6 +585,39 @@ function readPrivateCanonicalReceipt(directory, fileName, expectedSha256) {
   return receipt;
 }
 
+function readPrivateCanonicalJournal(directory, fileName, expectedSha256) {
+  if (typeof directory !== 'string' || !isAbsolute(directory) || typeof fileName !== 'string') {
+    fail('SUCCESSOR_ADMISSION_INVALID');
+  }
+  let bytes;
+  let journalPath;
+  let receiptDirectory;
+  try {
+    const directoryStatus = lstatSync(directory);
+    if (!directoryStatus.isDirectory()
+      || directoryStatus.isSymbolicLink()
+      || (process.platform !== 'win32' && (directoryStatus.mode & 0o077) !== 0)) {
+      fail('SUCCESSOR_ADMISSION_INVALID');
+    }
+    receiptDirectory = realpathSync(directory);
+    journalPath = assertPrivateAdmissionPath(join(directory, fileName));
+    bytes = readFileSync(journalPath);
+  } catch {
+    fail('SUCCESSOR_ADMISSION_INVALID');
+  }
+  if (dirname(realpathSync(journalPath)) !== receiptDirectory
+    || sha256(bytes) !== expectedSha256) fail('SUCCESSOR_ADMISSION_INVALID');
+  const text = bytes.toString('utf8');
+  if (!text.endsWith('\n')) fail('SUCCESSOR_ADMISSION_INVALID');
+  const lines = text.slice(0, -1).split('\n');
+  if (lines.length !== 3 || lines.some(line => !line)) fail('SUCCESSOR_ADMISSION_INVALID');
+  return Object.freeze(lines.map(line => {
+    const entry = parseJsonObject(line, 'SUCCESSOR_ADMISSION_INVALID');
+    if (`${JSON.stringify(canonical(entry))}\n` !== `${line}\n`) fail('SUCCESSOR_ADMISSION_INVALID');
+    return entry;
+  }));
+}
+
 function assertReceiptWindow(receipt, admission, createdAt, expiresAt, nowMs) {
   if (receipt.expiresAt !== admission.expiresAt) fail('SUCCESSOR_ADMISSION_INVALID');
   const observedAt = Date.parse(receipt.observedAt);
@@ -556,9 +628,24 @@ function assertReceiptWindow(receipt, admission, createdAt, expiresAt, nowMs) {
     || Date.parse(receipt.expiresAt) !== expiresAt) fail('SUCCESSOR_ADMISSION_INVALID');
 }
 
+function assertPriorReceiptWindow(receipt, createdAt, expiresAt, nowMs) {
+  const observedAt = Date.parse(receipt.observedAt);
+  const receiptExpiresAt = Date.parse(receipt.expiresAt);
+  if (!Number.isFinite(observedAt)
+    || !Number.isFinite(receiptExpiresAt)
+    || receiptExpiresAt <= observedAt
+    || receiptExpiresAt - observedAt > ADMISSION_MAX_AGE_MS
+    || observedAt < createdAt - ADMISSION_MAX_AGE_MS
+    || observedAt > createdAt + 30_000
+    || observedAt > nowMs + 30_000
+    || receiptExpiresAt < expiresAt
+    || nowMs >= receiptExpiresAt) fail('SUCCESSOR_ADMISSION_INVALID');
+}
+
 function validatePrivateReceipts(admission, manifestRecord, {
   createdAt,
   expiresAt,
+  includeRehearsal = true,
   nowMs,
   receiptDirectory,
 }) {
@@ -601,27 +688,99 @@ function validatePrivateReceipts(admission, manifestRecord, {
     || protectedMain.revision !== admission.sourceRevision) fail('SUCCESSOR_ADMISSION_INVALID');
   assertReceiptWindow(protectedMain, admission, createdAt, expiresAt, nowMs);
 
-  const rehearsal = readPrivateCanonicalReceipt(
-    receiptDirectory,
-    PRIVATE_RECEIPT_FILES.rehearsal,
-    admission.rehearsalReceiptSha256,
-  );
-  exactKeys(rehearsal, [
-    'expiresAt', 'id', 'kind', 'manifestSha256', 'observedAt', 'passed', 'projectRef',
-    'purpose', 'schemaVersion', 'serverVersionNum', 'sourceRevision', 'sourceRoot',
-    'stageStatesSha256', 'suffixRoot',
-  ], 'SUCCESSOR_ADMISSION_INVALID');
-  if (!common(rehearsal)
-    || rehearsal.kind !== 'successor-rehearsal-receipt'
-    || rehearsal.passed !== true
-    || !Number.isSafeInteger(rehearsal.serverVersionNum)
-    || Math.floor(rehearsal.serverVersionNum / 10_000) !== manifest.serverMajor
-    || rehearsal.sourceRoot !== manifest.sourceRoot
-    || rehearsal.suffixRoot !== elevenMigrationBundleSuffixRoot(manifest.migrations)
-    || rehearsal.stageStatesSha256 !== sha256(JSON.stringify(canonical(admission.stageStates)))) {
-    fail('SUCCESSOR_ADMISSION_INVALID');
+  if (includeRehearsal) {
+    const rehearsal = readPrivateCanonicalReceipt(
+      receiptDirectory,
+      PRIVATE_RECEIPT_FILES.rehearsal,
+      admission.rehearsalReceiptSha256,
+    );
+    exactKeys(rehearsal, [
+      'admissionSha256', 'attemptId', 'expiresAt', 'id', 'journalPathSha256', 'kind',
+      'manifestSha256', 'observedAt', 'passed',
+      'preflightStateSha256', 'projectRef', 'purpose', 'restoredStateSha256',
+      'schemaVersion', 'serverVersionNum', 'sourceRevision', 'sourceRoot', 'stageStates',
+      'stageStatesSha256', 'suffixRoot',
+    ], 'SUCCESSOR_ADMISSION_INVALID');
+    const stageStatesSha256 = sha256(JSON.stringify(canonical(admission.stageStates)));
+    const priorStateSha256 = sha256(JSON.stringify(canonical(admission.stageStates[0])));
+    if (!common(rehearsal)
+      || rehearsal.kind !== 'successor-rehearsal-receipt'
+      || rehearsal.passed !== true
+      || !UUID.test(rehearsal.attemptId)
+      || !HEX_SHA256.test(rehearsal.admissionSha256)
+      || rehearsal.journalPathSha256 !== sha256(Buffer.from(resolve(
+        receiptDirectory,
+        PRIVATE_RECEIPT_FILES.rehearsalJournal,
+      )))
+      || !Number.isSafeInteger(rehearsal.serverVersionNum)
+      || Math.floor(rehearsal.serverVersionNum / 10_000) !== manifest.serverMajor
+      || rehearsal.sourceRoot !== manifest.sourceRoot
+      || rehearsal.suffixRoot !== elevenMigrationBundleSuffixRoot(manifest.migrations)
+      || rehearsal.stageStatesSha256 !== stageStatesSha256
+      || rehearsal.preflightStateSha256 !== priorStateSha256
+      || rehearsal.restoredStateSha256 !== priorStateSha256
+      || !equal(rehearsal.stageStates, admission.stageStates)) {
+      fail('SUCCESSOR_ADMISSION_INVALID');
+    }
+    assertPriorReceiptWindow(rehearsal, createdAt, expiresAt, nowMs);
+
+    const journal = readPrivateCanonicalJournal(
+      receiptDirectory,
+      PRIVATE_RECEIPT_FILES.rehearsalJournal,
+      admission.rehearsalJournalSha256,
+    );
+    const [started, verification, publication] = journal;
+    exactKeys(started, [
+      'admissionSha256', 'attemptId', 'event', 'manifestSha256', 'sourceRevision',
+      'sourceRoot', 'startedAt',
+    ], 'SUCCESSOR_ADMISSION_INVALID');
+    exactKeys(verification, [
+      'admissionSha256', 'attemptId', 'code', 'event', 'manifestSha256',
+      'receiptSha256', 'sourceRevision', 'sourceRoot', 'verifiedAt',
+    ], 'SUCCESSOR_ADMISSION_INVALID');
+    exactKeys(publication, [
+      'admissionSha256', 'attemptId', 'code', 'event', 'manifestSha256',
+      'publishedAt', 'receiptSha256', 'sourceRevision', 'sourceRoot',
+    ], 'SUCCESSOR_ADMISSION_INVALID');
+    const startedAt = Date.parse(started.startedAt);
+    const verifiedAt = Date.parse(verification.verifiedAt);
+    const publishedAt = Date.parse(publication.publishedAt);
+    const observedAt = Date.parse(rehearsal.observedAt);
+    if (started.event !== 'started'
+      || verification.event !== 'verification'
+      || verification.code !== 'SUCCESSOR_REHEARSAL_VERIFIED'
+      || publication.event !== 'publication'
+      || publication.code !== 'SUCCESSOR_REHEARSAL_PUBLICATION_CONFIRMED'
+      || started.attemptId !== rehearsal.attemptId
+      || verification.attemptId !== rehearsal.attemptId
+      || publication.attemptId !== rehearsal.attemptId
+      || started.admissionSha256 !== rehearsal.admissionSha256
+      || verification.admissionSha256 !== rehearsal.admissionSha256
+      || publication.admissionSha256 !== rehearsal.admissionSha256
+      || started.manifestSha256 !== manifestSha256
+      || verification.manifestSha256 !== manifestSha256
+      || publication.manifestSha256 !== manifestSha256
+      || started.sourceRevision !== admission.sourceRevision
+      || verification.sourceRevision !== admission.sourceRevision
+      || publication.sourceRevision !== admission.sourceRevision
+      || started.sourceRoot !== manifest.sourceRoot
+      || verification.sourceRoot !== manifest.sourceRoot
+      || publication.sourceRoot !== manifest.sourceRoot
+      || verification.receiptSha256 !== admission.rehearsalReceiptSha256
+      || publication.receiptSha256 !== admission.rehearsalReceiptSha256
+      || !Number.isFinite(startedAt)
+      || !Number.isFinite(verifiedAt)
+      || !Number.isFinite(publishedAt)
+      || startedAt > observedAt
+      || verifiedAt < observedAt
+      || publishedAt < verifiedAt
+      || verifiedAt >= Date.parse(rehearsal.expiresAt)
+      || publishedAt >= Date.parse(rehearsal.expiresAt)
+      || verifiedAt > createdAt + 30_000
+      || publishedAt > createdAt + 30_000
+      || verifiedAt > nowMs + 30_000
+      || publishedAt > nowMs + 30_000) fail('SUCCESSOR_ADMISSION_INVALID');
   }
-  assertReceiptWindow(rehearsal, admission, createdAt, expiresAt, nowMs);
 
   const rollback = readPrivateCanonicalReceipt(
     receiptDirectory,
@@ -667,39 +826,24 @@ function validatePrivateReceipts(admission, manifestRecord, {
   }
 }
 
-export function validateSuccessorAdmission(admission, manifestRecord, {
-  now = new Date(),
+function validateAdmissionEnvelope(admission, manifestRecord, {
+  expectedKind,
+  includeRehearsal,
+  now,
   receiptDirectory,
-} = {}) {
+  requiredReceiptHashes,
+}) {
   const { manifest, manifestSha256 } = manifestRecord;
-  exactKeys(admission, [
-    'attemptId',
-    'createdAt',
-    'expiresAt',
-    'id',
-    'journalPathSha256',
-    'manifestSha256',
-    'projectRef',
-    'protectedMainReceiptSha256',
-    'purpose',
-    'rehearsalReceiptSha256',
-    'rollback',
-    'schemaVersion',
-    'sourceReceiptSha256',
-    'sourceRevision',
-    'sourceRoot',
-    'stageStates',
-    'writerFences',
-  ], 'SUCCESSOR_ADMISSION_INVALID');
   if (admission.schemaVersion !== 1
     || admission.id !== manifest.id
     || admission.purpose !== manifest.purpose
     || admission.projectRef !== manifest.projectRef
     || admission.manifestSha256 !== manifestSha256
     || admission.sourceRoot !== manifest.sourceRoot
+    || (expectedKind !== undefined && admission.kind !== expectedKind)
     || !UUID.test(admission.attemptId)
     || !REVISION.test(admission.sourceRevision)) fail('SUCCESSOR_ADMISSION_INVALID');
-  for (const field of ['protectedMainReceiptSha256', 'rehearsalReceiptSha256', 'sourceReceiptSha256']) {
+  for (const field of requiredReceiptHashes) {
     assertHex(admission[field], 'SUCCESSOR_ADMISSION_INVALID');
   }
   assertHex(admission.journalPathSha256, 'SUCCESSOR_ADMISSION_INVALID');
@@ -744,18 +888,69 @@ export function validateSuccessorAdmission(admission, manifestRecord, {
     if (fence.state !== manifest.requiredWriterFences[key]) fail('SUCCESSOR_ADMISSION_INVALID');
     assertHex(fence.evidenceSha256, 'SUCCESSOR_ADMISSION_INVALID');
   }
+  validatePrivateReceipts(admission, manifestRecord, {
+    createdAt,
+    expiresAt,
+    includeRehearsal,
+    nowMs,
+    receiptDirectory,
+  });
+  return Object.freeze({ createdAt, expiresAt });
+}
 
-  if (!Array.isArray(admission.stageStates)
-    || admission.stageStates.length !== manifest.migrations.length + 1) fail('SUCCESSOR_ADMISSION_INVALID');
+export function validateSuccessorAdmission(admission, manifestRecord, {
+  now = new Date(),
+  receiptDirectory,
+} = {}) {
+  const { manifest } = manifestRecord;
+  exactKeys(admission, [
+    'attemptId',
+    'createdAt',
+    'expiresAt',
+    'id',
+    'journalPathSha256',
+    'manifestSha256',
+    'projectRef',
+    'protectedMainReceiptSha256',
+    'purpose',
+    'rehearsalJournalSha256',
+    'rehearsalReceiptSha256',
+    'rollback',
+    'schemaVersion',
+    'sourceReceiptSha256',
+    'sourceRevision',
+    'sourceRoot',
+    'stageStates',
+    'writerFences',
+  ], 'SUCCESSOR_ADMISSION_INVALID');
+  const envelope = validateAdmissionEnvelope(admission, manifestRecord, {
+    includeRehearsal: true,
+    now,
+    receiptDirectory,
+    requiredReceiptHashes: [
+      'protectedMainReceiptSha256',
+      'rehearsalJournalSha256',
+      'rehearsalReceiptSha256',
+      'sourceReceiptSha256',
+    ],
+  });
+
+  const stageBinding = validateSuccessorStageStates(admission.stageStates, manifest);
+  return Object.freeze({ ...envelope, ...stageBinding });
+}
+
+export function validateSuccessorStageStates(stageStates, manifest) {
+  if (!Array.isArray(stageStates)
+    || stageStates.length !== manifest.migrations.length + 1) fail('SUCCESSOR_ADMISSION_INVALID');
   const suffixRoot = elevenMigrationBundleSuffixRoot(manifest.migrations);
-  const priorCount = admission.stageStates[0]?.bundle?.priorCount;
-  const prefixRoot = admission.stageStates[0]?.bundle?.prefixRoot;
+  const priorCount = stageStates[0]?.bundle?.priorCount;
+  const prefixRoot = stageStates[0]?.bundle?.prefixRoot;
   if (priorCount !== manifest.operatingTransition.beforeEleven
     || priorCount + manifest.migrations.length !== manifest.operatingTransition.afterEleven) {
     fail('SUCCESSOR_ADMISSION_INVALID');
   }
   assertHex(prefixRoot, 'SUCCESSOR_ADMISSION_INVALID');
-  admission.stageStates.forEach((stage, index) => validateStageState(
+  stageStates.forEach((stage, index) => validateStageState(
     stage,
     index,
     manifest,
@@ -763,21 +958,48 @@ export function validateSuccessorAdmission(admission, manifestRecord, {
     priorCount,
     prefixRoot,
   ));
-  const g014Roots = admission.stageStates.map(stage => stage.state.g014Root);
+  const g014Roots = stageStates.map(stage => stage.state.g014Root);
   if (g014Roots[1] !== g014Roots[0]
     || g014Roots[2] !== g014Roots[0]
     || new Set(g014Roots.slice(4)).size !== 1) {
     fail('SUCCESSOR_ADMISSION_INVALID');
   }
-  const ledgerRoots = admission.stageStates.map(stage => stage.state.ledgerRoot);
+  const ledgerRoots = stageStates.map(stage => stage.state.ledgerRoot);
   if (new Set(ledgerRoots).size !== ledgerRoots.length) fail('SUCCESSOR_ADMISSION_INVALID');
-  validatePrivateReceipts(admission, manifestRecord, {
-    createdAt,
-    expiresAt,
-    nowMs,
+  return Object.freeze({ prefixRoot, priorCount, suffixRoot });
+}
+
+export function validateSuccessorRehearsalAdmission(admission, manifestRecord, {
+  now = new Date(),
+  receiptDirectory,
+} = {}) {
+  exactKeys(admission, [
+    'attemptId',
+    'createdAt',
+    'expiresAt',
+    'id',
+    'journalPathSha256',
+    'kind',
+    'manifestSha256',
+    'projectRef',
+    'protectedMainReceiptSha256',
+    'purpose',
+    'receiptPathSha256',
+    'rollback',
+    'schemaVersion',
+    'sourceReceiptSha256',
+    'sourceRevision',
+    'sourceRoot',
+    'writerFences',
+  ], 'SUCCESSOR_ADMISSION_INVALID');
+  assertHex(admission.receiptPathSha256, 'SUCCESSOR_ADMISSION_INVALID');
+  return validateAdmissionEnvelope(admission, manifestRecord, {
+    expectedKind: 'successor-rehearsal-admission',
+    includeRehearsal: false,
+    now,
     receiptDirectory,
+    requiredReceiptHashes: ['protectedMainReceiptSha256', 'sourceReceiptSha256'],
   });
-  return Object.freeze({ createdAt, expiresAt, prefixRoot, priorCount, suffixRoot });
 }
 
 function assertAdmissionFresh(expiresAt, value) {
@@ -848,6 +1070,89 @@ export function compileSuccessorPlan(manifestRecord, admission) {
   });
 }
 
+export function validateSuccessorBaseline(stage, manifest) {
+  const suffixRoot = elevenMigrationBundleSuffixRoot(manifest.migrations);
+  const priorCount = stage?.bundle?.priorCount;
+  const prefixRoot = stage?.bundle?.prefixRoot;
+  if (priorCount !== manifest.operatingTransition.beforeEleven) {
+    fail('SUCCESSOR_REHEARSAL_BASELINE_INVALID');
+  }
+  try {
+    assertHex(prefixRoot, 'SUCCESSOR_ADMISSION_INVALID');
+    validateStageState(stage, 0, manifest, suffixRoot, priorCount, prefixRoot);
+  } catch {
+    fail('SUCCESSOR_REHEARSAL_BASELINE_INVALID');
+  }
+  return Object.freeze({ prefixRoot, priorCount, suffixRoot });
+}
+
+function rehearsalExpirySql(admission, suffix) {
+  const tag = `$successor_rehearsal_expiry_${sha256(`${admission.expiresAt}:${suffix}`).slice(0, 18)}$`;
+  return `DO ${tag} BEGIN IF clock_timestamp() >= ${quote(admission.expiresAt)}::timestamptz THEN RAISE EXCEPTION 'SUCCESSOR_ADMISSION_EXPIRED'; END IF; END ${tag};`;
+}
+
+function rehearsalStageSql(stateQuery, index) {
+  return `SELECT json_build_object('index',${index},'kind','successor-rehearsal-stage','serverVersionNum',current_setting('server_version_num')::int,'state',(${stateQuery})::jsonb)::text;`;
+}
+
+export function compileSuccessorStateReadQuery(manifestRecord) {
+  const stateQuery = buildSuccessorStateQuery(manifestRecord.manifest);
+  return Object.freeze({
+    sql: `SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;\nSET LOCAL statement_timeout='15s';\nSELECT json_build_object('kind','successor-rehearsal-readback','serverVersionNum',current_setting('server_version_num')::int,'state',(${stateQuery})::jsonb)::text;`,
+    stateQuery,
+  });
+}
+
+export function compileSuccessorRehearsalPlan(manifestRecord, admission, expectedBaseline) {
+  const { manifest, materials } = manifestRecord;
+  validateSuccessorBaseline(expectedBaseline, manifest);
+  const sources = compileElevenMigrationRehearsalSources(manifest.migrations, materials);
+  const suffixRoot = elevenMigrationBundleSuffixRoot(manifest.migrations);
+  const stateQuery = buildSuccessorStateQuery(manifest, suffixRoot);
+  const lockTag = `$successor_rehearsal_${sha256(manifest.advisoryLockKey).slice(0, 18)}$`;
+  const baselineTag = `$successor_rehearsal_baseline_${sha256(JSON.stringify(canonical(expectedBaseline))).slice(0, 18)}$`;
+  const parts = [
+    'BEGIN;',
+    "SET LOCAL lock_timeout='2s';",
+    "SET LOCAL statement_timeout='15s';",
+    "SET LOCAL idle_in_transaction_session_timeout='30s';",
+    `DO ${lockTag} BEGIN PERFORM pg_advisory_xact_lock(${manifest.advisoryLockKey}::bigint); END ${lockTag};`,
+    rehearsalExpirySql(admission, 'after-lock'),
+    'LOCK TABLE supabase_migrations.schema_migrations IN EXCLUSIVE MODE;',
+    `DO ${baselineTag} BEGIN
+ IF NOT has_schema_privilege(current_user,'supabase_migrations','USAGE')
+  OR NOT has_table_privilege(current_user,'supabase_migrations.schema_migrations','SELECT')
+  OR NOT has_table_privilege(current_user,'supabase_migrations.schema_migrations','INSERT')
+  OR (${stateQuery})::jsonb IS DISTINCT FROM ${quote(JSON.stringify(canonical(expectedBaseline)))}::jsonb
+ THEN RAISE EXCEPTION 'SUCCESSOR_REHEARSAL_BASELINE_INVALID'; END IF;
+END ${baselineTag};`,
+    rehearsalStageSql(stateQuery, 0),
+  ];
+  sources.forEach((source, index) => {
+    const migration = manifest.migrations[index];
+    const ledgerTag = `$successor_rehearsal_ledger_${sha256(migration.id).slice(0, 18)}$`;
+    parts.push(
+      rehearsalExpirySql(admission, `before-${index + 1}`),
+      '\\o /dev/null',
+      source.execution,
+      `INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES(${quote(source.version)},${quote(source.name)},ARRAY(SELECT jsonb_array_elements_text(${quote(JSON.stringify(source.originalVector))}::jsonb)));`,
+      `DO ${ledgerTag} BEGIN
+ IF NOT EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version=${quote(source.version)} AND name IS NOT DISTINCT FROM ${quote(source.name)} AND statements IS NOT DISTINCT FROM ARRAY(SELECT jsonb_array_elements_text(${quote(JSON.stringify(source.originalVector))}::jsonb)))
+ THEN RAISE EXCEPTION 'MIGRATION_LEDGER_READBACK_FAILED'; END IF;
+END ${ledgerTag};`,
+      '\\o',
+      rehearsalStageSql(stateQuery, index + 1),
+    );
+  });
+  parts.push(rehearsalExpirySql(admission, 'before-rollback'), 'ROLLBACK;');
+  return Object.freeze({
+    sql: parts.join('\n'),
+    stateQuery,
+    suffixRoot,
+    transactionMode: 'explicit-rollback-only',
+  });
+}
+
 function checkoutPath(path, code, { mustExist = true } = {}) {
   if (typeof path !== 'string' || !isAbsolute(path)) fail(code);
   const absolute = resolve(path);
@@ -874,29 +1179,83 @@ function assertJournalPath(path) {
   return absolute;
 }
 
-function writeJournalStart(path, entry) {
+function syncDirectory(path, fsyncImpl = fsyncSync) {
+  const descriptor = openSync(path, 'r');
+  try { fsyncImpl(descriptor); } finally { closeSync(descriptor); }
+}
+
+function writeJournalStart(path, entry, { fsyncImpl = fsyncSync } = {}) {
   let descriptor;
   try {
     descriptor = openSync(path, 'wx', 0o600);
-    writeSync(descriptor, `${JSON.stringify(canonical(entry))}\n`);
-    fsyncSync(descriptor);
+    writeAllSync(descriptor, Buffer.from(`${JSON.stringify(canonical(entry))}\n`));
+    fsyncImpl(descriptor);
+    syncDirectory(dirname(path), fsyncImpl);
     return descriptor;
   } catch (error) {
-    if (descriptor !== undefined) closeSync(descriptor);
+    if (descriptor !== undefined) {
+      try { closeSync(descriptor); } catch { /* preserve the bounded original failure */ }
+    }
     if (safeCode(error) === 'EEXIST') fail('SUCCESSOR_JOURNAL_EXISTS');
     fail('SUCCESSOR_JOURNAL_INVALID');
   }
 }
 
-function appendJournal(descriptor, entry) {
+function writeAllSync(descriptor, bytes, code = 'SUCCESSOR_JOURNAL_APPEND_FAILED') {
+  let offset = 0;
+  while (offset < bytes.length) {
+    const written = writeSync(descriptor, bytes, offset, bytes.length - offset);
+    if (!Number.isSafeInteger(written) || written <= 0) fail(code);
+    offset += written;
+  }
+}
+
+export function appendJournal(descriptor, entry, {
+  close = true,
+  fsyncImpl = fsyncSync,
+  closeImpl = closeSync,
+} = {}) {
+  let durable = false;
   try {
-    writeSync(descriptor, `${JSON.stringify(canonical(entry))}\n`);
-    fsyncSync(descriptor);
-    closeSync(descriptor);
+    writeAllSync(descriptor, Buffer.from(`${JSON.stringify(canonical(entry))}\n`));
+    fsyncImpl(descriptor);
+    durable = true;
+    if (close) closeImpl(descriptor);
   } catch {
     try { closeSync(descriptor); } catch { /* fixed outcome below */ }
-    fail('SUCCESSOR_JOURNAL_APPEND_FAILED');
+    const error = operationError('SUCCESSOR_JOURNAL_APPEND_FAILED');
+    error.publicationAuditReadbackEligible = durable;
+    throw error;
   }
+}
+
+function assertDurableRehearsalArtifacts(directory, admission, fsyncImpl) {
+  // Visibility after a failed publication fsync is not evidence of durability.
+  // Reconfirm the exact admitted files before any new database mutation.
+  try {
+    const directoryStatus = lstatSync(directory);
+    if (!directoryStatus.isDirectory() || directoryStatus.isSymbolicLink()
+      || (process.platform !== 'win32' && (directoryStatus.mode & 0o077) !== 0)) {
+      fail('SUCCESSOR_ADMISSION_INVALID');
+    }
+    for (const [fileName, expected] of [
+      [PRIVATE_RECEIPT_FILES.rehearsal, admission.rehearsalReceiptSha256],
+      [PRIVATE_RECEIPT_FILES.rehearsalJournal, admission.rehearsalJournalSha256],
+    ]) {
+      const path = join(directory, fileName);
+      const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+      try {
+        const status = fstatSync(descriptor);
+        const named = lstatSync(path);
+        if (!status.isFile() || named.isSymbolicLink()
+          || status.dev !== named.dev || status.ino !== named.ino
+          || (process.platform !== 'win32' && (status.mode & 0o077) !== 0)
+          || sha256(readFileSync(descriptor)) !== expected) fail('SUCCESSOR_ADMISSION_INVALID');
+        fsyncImpl(descriptor);
+      } finally { closeSync(descriptor); }
+    }
+    syncDirectory(directory, fsyncImpl);
+  } catch { fail('SUCCESSOR_ADMISSION_INVALID'); }
 }
 
 function gitCommand(args, repositoryRoot = REPOSITORY_ROOT) {
@@ -1005,6 +1364,9 @@ function transportError(result) {
   if (result.error) return operationError('MIGRATION_PSQL_EXECUTION_FAILED');
   const stderr = typeof result.stderr === 'string' ? result.stderr : '';
   const sqlstate = /ERROR:\s+([0-9A-Z]{5}):/m.exec(stderr)?.[1];
+  if (/ERROR:\s+(?:[0-9A-Z]{5}:\s*)?SUCCESSOR_ADMISSION_EXPIRED\b/m.test(stderr)) {
+    return operationError('SUCCESSOR_ADMISSION_EXPIRED');
+  }
   const error = operationError(sqlstate ? `MIGRATION_PSQL_FAILED_${sqlstate}` : 'MIGRATION_PSQL_FAILED');
   error.fixedSqlCode = /ERROR:\s+(?:[0-9A-Z]{5}:\s*)?(MIGRATION_[A-Z0-9_]{1,96})\b/m.exec(stderr)?.[1];
   return error;
@@ -1035,6 +1397,472 @@ function parseReadback(output) {
   return parseJsonObject(output.trim(), 'SUCCESSOR_READBACK_INVALID');
 }
 
+function parseRehearsalReadback(output, manifest) {
+  let value;
+  try {
+    value = parseJsonObject(output.trim(), 'SUCCESSOR_REHEARSAL_BASELINE_INVALID');
+    exactKeys(value, ['kind', 'serverVersionNum', 'state'], 'SUCCESSOR_REHEARSAL_BASELINE_INVALID');
+    if (value.kind !== 'successor-rehearsal-readback'
+      || !Number.isSafeInteger(value.serverVersionNum)
+      || Math.floor(value.serverVersionNum / 10_000) !== manifest.serverMajor) {
+      fail('SUCCESSOR_REHEARSAL_BASELINE_INVALID');
+    }
+    validateSuccessorBaseline(value.state, manifest);
+  } catch {
+    fail('SUCCESSOR_REHEARSAL_BASELINE_INVALID');
+  }
+  return value;
+}
+
+function parseRehearsalStages(output, manifest, expectedBaseline, expectedServerVersionNum) {
+  if (typeof output !== 'string') fail('SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
+  const lines = output.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  if (lines.length !== manifest.migrations.length + 1) fail('SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
+  let stages;
+  try {
+    stages = lines.map((line, index) => {
+      const value = parseJsonObject(line, 'SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
+      exactKeys(value, ['index', 'kind', 'serverVersionNum', 'state'], 'SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
+      if (value.kind !== 'successor-rehearsal-stage'
+        || value.index !== index
+        || value.serverVersionNum !== expectedServerVersionNum) {
+        fail('SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
+      }
+      return value.state;
+    });
+    validateSuccessorStageStates(stages, manifest);
+  } catch {
+    fail('SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
+  }
+  if (!equal(stages[0], expectedBaseline)) fail('SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
+  return Object.freeze(stages);
+}
+
+function assertRehearsalReceiptPath(path, admissionFile) {
+  let absolute;
+  try {
+    absolute = checkoutPath(path, 'SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED', { mustExist: false });
+    if (absolute !== resolve(dirname(admissionFile), PRIVATE_RECEIPT_FILES.rehearsal)
+      || existsSync(absolute)) fail('SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED');
+    const parent = lstatSync(dirname(absolute));
+    if (!parent.isDirectory()
+      || parent.isSymbolicLink()
+      || (process.platform !== 'win32' && (parent.mode & 0o077) !== 0)) {
+      fail('SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED');
+    }
+  } catch {
+    fail('SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED');
+  }
+  return absolute;
+}
+
+function assertRehearsalJournalPath(path, admissionFile) {
+  const absolute = assertJournalPath(path);
+  if (absolute !== resolve(dirname(admissionFile), PRIVATE_RECEIPT_FILES.rehearsalJournal)) {
+    fail('SUCCESSOR_JOURNAL_BINDING_MISMATCH');
+  }
+  return absolute;
+}
+
+function assertPendingRehearsalReceiptPath(receiptFile, attemptId) {
+  let pendingFile;
+  try {
+    pendingFile = checkoutPath(
+      `${receiptFile}.${attemptId}.pending`,
+      'SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED',
+      { mustExist: false },
+    );
+    if (dirname(pendingFile) !== dirname(receiptFile) || existsSync(pendingFile)) {
+      fail('SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED');
+    }
+  } catch {
+    fail('SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED');
+  }
+  return pendingFile;
+}
+
+function writePendingReceipt(path, receipt) {
+  let descriptor;
+  try {
+    descriptor = openSync(path, 'wx', 0o600);
+    writeAllSync(
+      descriptor,
+      canonicalReceiptBytes(receipt),
+      'SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED',
+    );
+    fsyncSync(descriptor);
+    closeSync(descriptor);
+  } catch {
+    if (descriptor !== undefined) {
+      try { closeSync(descriptor); } catch { /* fixed outcome below */ }
+    }
+    fail('SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED');
+  }
+}
+
+function publishPendingReceipt(pendingPath, receiptPath) {
+  let directoryDescriptor;
+  try {
+    linkSync(pendingPath, receiptPath);
+  } catch {
+    const error = operationError('SUCCESSOR_REHEARSAL_RECEIPT_PUBLISH_FAILED');
+    error.publicationReadbackEligible = false;
+    throw error;
+  }
+  try {
+    directoryDescriptor = openSync(dirname(receiptPath), 'r');
+    fsyncSync(directoryDescriptor);
+  } catch {
+    if (directoryDescriptor !== undefined) {
+      try { closeSync(directoryDescriptor); } catch { /* fixed outcome below */ }
+    }
+    const error = operationError('SUCCESSOR_REHEARSAL_RECEIPT_PUBLISH_FAILED');
+    error.publicationReadbackEligible = false;
+    throw error;
+  }
+  try {
+    closeSync(directoryDescriptor);
+  } catch {
+    const error = operationError('SUCCESSOR_REHEARSAL_RECEIPT_PUBLISH_FAILED');
+    error.publicationReadbackEligible = true;
+    throw error;
+  }
+}
+
+function publishedReceiptMatches(path, expectedBytes) {
+  try {
+    const status = lstatSync(path);
+    if (!status.isFile()
+      || status.isSymbolicLink()
+      || (process.platform !== 'win32' && (status.mode & 0o077) !== 0)) return false;
+    return readFileSync(path).equals(expectedBytes);
+  } catch {
+    return false;
+  }
+}
+
+function canonicalJournalBytes(entries) {
+  return Buffer.from(entries
+    .map(entry => JSON.stringify(canonical(entry)))
+    .join('\n') + '\n');
+}
+
+function publishedJournalMatches(path, entries) {
+  try {
+    const status = lstatSync(path);
+    if (!status.isFile()
+      || status.isSymbolicLink()
+      || (process.platform !== 'win32' && (status.mode & 0o077) !== 0)
+      || dirname(realpathSync(path)) !== realpathSync(dirname(path))) return false;
+    return readFileSync(path).equals(canonicalJournalBytes(entries));
+  } catch {
+    return false;
+  }
+}
+
+function appendRehearsalTerminal(descriptor, admission, code, now, {
+  binding,
+  appendJournalImpl = appendJournal,
+} = {}) {
+  const entry = {
+    attemptId: admission.attemptId,
+    code,
+    completedAt: now().toISOString(),
+    event: 'terminal',
+    ...(binding ?? {}),
+  };
+  try {
+    appendJournalImpl(descriptor, entry);
+  } catch {
+    try { closeSync(descriptor); } catch { /* append implementation may already have closed it */ }
+    throw journalFailure(code);
+  }
+}
+
+function appendRehearsalVerification(descriptor, entry, {
+  appendJournalImpl = appendJournal,
+} = {}) {
+  try {
+    appendJournalImpl(descriptor, entry, { close: false });
+  } catch {
+    try { closeSync(descriptor); } catch { /* append implementation may already have closed it */ }
+    fail('SUCCESSOR_JOURNAL_APPEND_FAILED');
+  }
+}
+
+export function runReviewMediaSuccessorRehearsal({
+  admissionPath,
+  journalPath,
+  receiptPath,
+  environment = process.env,
+}, {
+  now = () => new Date(),
+  gitFactsImpl = currentSuccessorGitFacts,
+  loadManifestImpl = loadSuccessorManifest,
+  protectedMainReadbackImpl = currentProtectedMainReadback,
+  rollbackReadbackImpl = captureVercelRollbackReadbackSync,
+  runPsqlImpl,
+  writePendingReceiptImpl = writePendingReceipt,
+  publishReceiptImpl = publishPendingReceipt,
+  appendJournalImpl = appendJournal,
+  fsyncImpl = fsyncSync,
+} = {}) {
+  const manifestRecord = loadManifestImpl();
+  const admissionFile = assertPrivateAdmissionPath(admissionPath);
+  const admissionBytes = readFileSync(admissionFile);
+  const admission = parseJsonObject(admissionBytes, 'SUCCESSOR_ADMISSION_INVALID');
+  const admissionWindow = validateSuccessorRehearsalAdmission(admission, manifestRecord, {
+    now: now(),
+    receiptDirectory: dirname(admissionFile),
+  });
+  assertCheckout(admission, gitFactsImpl());
+  assertProtectedSourceReadback(
+    admission,
+    manifestRecord.manifest,
+    protectedMainReadbackImpl(manifestRecord.manifest),
+  );
+  let rollbackReadback;
+  try {
+    rollbackReadback = rollbackReadbackImpl({
+      expected: {
+        deploymentId: admission.rollback.deploymentId,
+        deploymentUrl: admission.rollback.deploymentUrl,
+        gitRef: admission.rollback.gitRef,
+        gitSha: admission.rollback.deploymentSha,
+      },
+      now,
+    });
+  } catch {
+    fail('SUCCESSOR_ROLLBACK_READBACK_INVALID');
+  }
+  const rollbackCheckedAt = now();
+  assertAdmissionFresh(admissionWindow.expiresAt, rollbackCheckedAt);
+  assertLiveRollbackReadback(admission, rollbackReadback, {
+    ...admissionWindow,
+    checkedAt: rollbackCheckedAt,
+  });
+
+  const journalFile = assertRehearsalJournalPath(journalPath, admissionFile);
+  if (sha256(Buffer.from(journalFile)) !== admission.journalPathSha256) {
+    fail('SUCCESSOR_JOURNAL_BINDING_MISMATCH');
+  }
+  const receiptFile = assertRehearsalReceiptPath(receiptPath, admissionFile);
+  if (sha256(Buffer.from(receiptFile)) !== admission.receiptPathSha256) {
+    fail('SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED');
+  }
+  const pendingReceiptFile = assertPendingRehearsalReceiptPath(receiptFile, admission.attemptId);
+  const { databaseUrl } = selectDirectDatabaseTransport(environment);
+  assertSuccessorDatabaseTarget(databaseUrl, manifestRecord.manifest);
+  const transport = runPsqlImpl ?? createSuccessorPsqlRunner(databaseUrl, { environment });
+  const readPlan = compileSuccessorStateReadQuery(manifestRecord);
+
+  let preflight;
+  try {
+    preflight = parseRehearsalReadback(
+      transport(databaseUrl, readPlan.sql, true),
+      manifestRecord.manifest,
+    );
+  } catch (error) {
+    const code = safeCode(error) === 'SUCCESSOR_REHEARSAL_BASELINE_INVALID'
+      ? 'SUCCESSOR_REHEARSAL_BASELINE_INVALID'
+      : boundedSuccessorError(error).code;
+    fail(code);
+  }
+
+  let finalRollbackReadback;
+  try {
+    finalRollbackReadback = rollbackReadbackImpl({
+      expected: {
+        deploymentId: admission.rollback.deploymentId,
+        deploymentUrl: admission.rollback.deploymentUrl,
+        gitRef: admission.rollback.gitRef,
+        gitSha: admission.rollback.deploymentSha,
+      },
+      now,
+    });
+  } catch {
+    fail('SUCCESSOR_ROLLBACK_READBACK_INVALID');
+  }
+  const finalRollbackCheckedAt = now();
+  assertAdmissionFresh(admissionWindow.expiresAt, finalRollbackCheckedAt);
+  assertLiveRollbackReadback(admission, finalRollbackReadback, {
+    ...admissionWindow,
+    checkedAt: finalRollbackCheckedAt,
+  });
+
+  const plan = compileSuccessorRehearsalPlan(manifestRecord, admission, preflight.state);
+  const admissionSha256 = sha256(admissionBytes);
+  const startedEntry = {
+    admissionSha256,
+    attemptId: admission.attemptId,
+    event: 'started',
+    manifestSha256: manifestRecord.manifestSha256,
+    sourceRevision: admission.sourceRevision,
+    sourceRoot: manifestRecord.manifest.sourceRoot,
+    startedAt: now().toISOString(),
+  };
+  const descriptor = writeJournalStart(journalFile, startedEntry, { fsyncImpl });
+
+  let transactionOutput;
+  let transactionError;
+  try {
+    assertAdmissionFresh(admissionWindow.expiresAt, now());
+    transactionOutput = transport(databaseUrl, plan.sql, false);
+  } catch (error) {
+    transactionError = error;
+  }
+
+  let restored;
+  try {
+    restored = parseRehearsalReadback(
+      transport(databaseUrl, readPlan.sql, true),
+      manifestRecord.manifest,
+    );
+  } catch {
+    appendRehearsalTerminal(descriptor, admission, 'SUCCESSOR_REHEARSAL_RESTORE_UNKNOWN', now, {
+      appendJournalImpl,
+    });
+    fail('SUCCESSOR_REHEARSAL_RESTORE_UNKNOWN');
+  }
+  if (restored.serverVersionNum !== preflight.serverVersionNum
+    || !equal(restored.state, preflight.state)) {
+    appendRehearsalTerminal(descriptor, admission, 'SUCCESSOR_REHEARSAL_RESTORE_CONFLICT', now, {
+      appendJournalImpl,
+    });
+    fail('SUCCESSOR_REHEARSAL_RESTORE_CONFLICT');
+  }
+  if (transactionError) {
+    const bounded = boundedSuccessorError(transactionError);
+    const code = bounded.code === 'SUCCESSOR_ADMISSION_EXPIRED'
+      ? bounded.code
+      : 'SUCCESSOR_REHEARSAL_OUTCOME_UNCONFIRMED';
+    appendRehearsalTerminal(descriptor, admission, code, now, {
+      appendJournalImpl,
+    });
+    fail(code);
+  }
+
+  let stageStates;
+  try {
+    stageStates = parseRehearsalStages(
+      transactionOutput,
+      manifestRecord.manifest,
+      preflight.state,
+      preflight.serverVersionNum,
+    );
+  } catch {
+    appendRehearsalTerminal(descriptor, admission, 'SUCCESSOR_REHEARSAL_OUTPUT_INVALID', now, {
+      appendJournalImpl,
+    });
+    fail('SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
+  }
+  const receiptObservedAt = now();
+  try {
+    assertAdmissionFresh(admissionWindow.expiresAt, receiptObservedAt);
+  } catch {
+    appendRehearsalTerminal(descriptor, admission, 'SUCCESSOR_ADMISSION_EXPIRED', now, {
+      appendJournalImpl,
+    });
+    fail('SUCCESSOR_ADMISSION_EXPIRED');
+  }
+  const priorStateSha256 = sha256(JSON.stringify(canonical(preflight.state)));
+  const receipt = {
+    admissionSha256,
+    attemptId: admission.attemptId,
+    expiresAt: admission.expiresAt,
+    id: manifestRecord.manifest.id,
+    kind: 'successor-rehearsal-receipt',
+    journalPathSha256: sha256(Buffer.from(journalFile)),
+    manifestSha256: manifestRecord.manifestSha256,
+    observedAt: receiptObservedAt.toISOString(),
+    passed: true,
+    preflightStateSha256: priorStateSha256,
+    projectRef: manifestRecord.manifest.projectRef,
+    purpose: manifestRecord.manifest.purpose,
+    restoredStateSha256: priorStateSha256,
+    schemaVersion: 1,
+    serverVersionNum: preflight.serverVersionNum,
+    sourceRevision: admission.sourceRevision,
+    sourceRoot: manifestRecord.manifest.sourceRoot,
+    stageStates,
+    stageStatesSha256: sha256(JSON.stringify(canonical(stageStates))),
+    suffixRoot: plan.suffixRoot,
+  };
+  const receiptSha256 = sha256(canonicalReceiptBytes(receipt));
+  try {
+    writePendingReceiptImpl(pendingReceiptFile, receipt);
+  } catch {
+    appendRehearsalTerminal(descriptor, admission, 'SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED', now, {
+      appendJournalImpl,
+    });
+    fail('SUCCESSOR_REHEARSAL_RECEIPT_WRITE_FAILED');
+  }
+  const verificationBinding = {
+    admissionSha256,
+    manifestSha256: manifestRecord.manifestSha256,
+    receiptSha256,
+    sourceRevision: admission.sourceRevision,
+    sourceRoot: manifestRecord.manifest.sourceRoot,
+  };
+  const verificationEntry = {
+    attemptId: admission.attemptId,
+    code: 'SUCCESSOR_REHEARSAL_VERIFIED',
+    event: 'verification',
+    verifiedAt: now().toISOString(),
+    ...verificationBinding,
+  };
+  appendRehearsalVerification(descriptor, verificationEntry, {
+    appendJournalImpl,
+  });
+  const receiptBytes = canonicalReceiptBytes(receipt);
+  let publishFailed = false;
+  let publicationReadbackEligible = false;
+  try {
+    publishReceiptImpl(pendingReceiptFile, receiptFile);
+  } catch (error) {
+    publishFailed = true;
+    publicationReadbackEligible = error?.publicationReadbackEligible === true;
+  }
+  if ((publishFailed && !publicationReadbackEligible)
+    || !publishedReceiptMatches(receiptFile, receiptBytes)) {
+    appendRehearsalTerminal(
+      descriptor,
+      admission,
+      'SUCCESSOR_REHEARSAL_RECEIPT_PUBLISH_FAILED',
+      now,
+      { appendJournalImpl },
+    );
+    fail('SUCCESSOR_REHEARSAL_RECEIPT_PUBLISH_FAILED');
+  }
+  const publicationEntry = {
+    attemptId: admission.attemptId,
+    code: 'SUCCESSOR_REHEARSAL_PUBLICATION_CONFIRMED',
+    event: 'publication',
+    publishedAt: now().toISOString(),
+    ...verificationBinding,
+  };
+  let publicationAuditReadback = 'confirmed';
+  try {
+    appendJournalImpl(descriptor, publicationEntry);
+  } catch (error) {
+    publicationAuditReadback = error?.publicationAuditReadbackEligible === true && publishedJournalMatches(
+      journalFile,
+      [startedEntry, verificationEntry, publicationEntry],
+    ) ? 'reconciled' : 'unconfirmed';
+    try { closeSync(descriptor); } catch { /* append implementation may already have closed it */ }
+    if (publicationAuditReadback === 'unconfirmed') fail('SUCCESSOR_JOURNAL_APPEND_FAILED');
+  }
+  return Object.freeze({
+    attemptId: admission.attemptId,
+    code: 'SUCCESSOR_REHEARSAL_PASSED',
+    publicationAuditReadback,
+    receiptSha256,
+    publicationReadback: publishFailed ? 'reconciled' : 'confirmed',
+    sourceRevision: admission.sourceRevision,
+    status: 'rolled_back',
+  });
+}
+
 export function runReviewMediaSuccessor({
   admissionPath,
   journalPath,
@@ -1046,6 +1874,8 @@ export function runReviewMediaSuccessor({
   protectedMainReadbackImpl = currentProtectedMainReadback,
   rollbackReadbackImpl = captureVercelRollbackReadbackSync,
   runPsqlImpl,
+  fsyncImpl = fsyncSync,
+  appendJournalImpl = appendJournal,
 } = {}) {
   const manifestRecord = loadManifestImpl();
   assertLaunchReady(manifestRecord.manifest);
@@ -1127,6 +1957,7 @@ export function runReviewMediaSuccessor({
   });
 
   const admissionSha256 = sha256(admissionBytes);
+  assertDurableRehearsalArtifacts(dirname(admissionFile), admission, fsyncImpl);
   const descriptor = writeJournalStart(journalFile, {
     admissionSha256,
     attemptId: admission.attemptId,
@@ -1135,22 +1966,27 @@ export function runReviewMediaSuccessor({
     sourceRevision: admission.sourceRevision,
     sourceRoot: manifestRecord.manifest.sourceRoot,
     startedAt: now().toISOString(),
-  });
+  }, { fsyncImpl });
   let result;
   try {
     assertAdmissionFresh(admissionWindow.expiresAt, now());
     result = executeMigrationBundle(databaseUrl, plan, { runPsqlImpl: transport });
   } catch (error) {
     const bounded = boundedSuccessorError(error);
-    appendJournal(descriptor, {
-      attemptId: admission.attemptId,
-      code: bounded.code,
-      completedAt: now().toISOString(),
-      event: 'terminal',
-    });
+    try {
+      appendJournalImpl(descriptor, {
+        attemptId: admission.attemptId,
+        code: bounded.code,
+        completedAt: now().toISOString(),
+        event: 'terminal',
+      });
+    } catch {
+      try { closeSync(descriptor); } catch { /* append may already have closed it */ }
+      throw journalFailure(bounded.code);
+    }
     throw bounded;
   }
-  appendJournal(descriptor, {
+  appendJournalImpl(descriptor, {
     attemptId: admission.attemptId,
     code: 'SUCCESSOR_COMMITTED',
     completedAt: now().toISOString(),
@@ -1191,8 +2027,7 @@ if (process.argv[1] && resolve(process.argv[1]) === SCRIPT_PATH) {
   try {
     console.log(JSON.stringify(main()));
   } catch (error) {
-    const bounded = boundedSuccessorError(error);
-    console.error(JSON.stringify({ code: bounded.code, status: 'failed' }));
+    console.error(JSON.stringify(successorFailureResult(error)));
     process.exitCode = 1;
   }
 }

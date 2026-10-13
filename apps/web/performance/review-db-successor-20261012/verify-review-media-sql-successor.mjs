@@ -5,10 +5,10 @@
  *
  * The harness clones the existing schema-only ranking_clone template into one
  * fixed, owned database name. It refuses a reused target, never connects to a
- * hosted endpoint, and drops the owned database before writing its proof.
+ * hosted endpoint, and drops the owned database before emitting its current-source result.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
@@ -22,6 +22,8 @@ import {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(HERE, '../../../..');
 const OUTPUT_PATH = resolve(HERE, 'pg17-local-replay.json');
+const CHECKSUMS_PATH = resolve(HERE, 'SHA256SUMS');
+const RETAINED_PROOF_REPOSITORY_PATH = 'apps/web/performance/review-db-successor-20261012/pg17-local-replay.json';
 const DOCKER_CONTEXT = process.env.TZUDONG_REHEARSAL_DOCKER_CONTEXT || 'colima-tzudong-catalog-20261007';
 const DOCKER_CONTAINER = process.env.TZUDONG_REHEARSAL_DOCKER_CONTAINER || 'tzudong-ranking-clone-20261008';
 const TEMPLATE_DATABASE = 'ranking_clone';
@@ -124,32 +126,41 @@ ON CONFLICT(singleton) DO NOTHING;
 `;
 }
 
-function createOwnedDatabase() {
-  const exists = scalar('postgres', `SELECT count(*) FROM pg_database WHERE datname=${quote(DATABASE)};`, 'supabase_admin');
+export function createOwnedDatabase(ownership, {
+  scalarImpl = scalar,
+  psqlImpl = psql,
+  readFileImpl = readFileSync,
+} = {}) {
+  if (!ownership || ownership.database !== false) fail('LOCAL_REHEARSAL_OWNERSHIP_STATE_INVALID');
+  const exists = scalarImpl('postgres', `SELECT count(*) FROM pg_database WHERE datname=${quote(DATABASE)};`, 'supabase_admin');
   if (exists !== '0') fail('LOCAL_REHEARSAL_TARGET_ALREADY_EXISTS');
-  psql('postgres', `CREATE DATABASE ${DATABASE} TEMPLATE ${TEMPLATE_DATABASE} OWNER postgres;`, { actor: 'supabase_admin' });
+  psqlImpl('postgres', `CREATE DATABASE ${DATABASE} TEMPLATE ${TEMPLATE_DATABASE} OWNER postgres;`, { actor: 'supabase_admin' });
+  ownership.database = true;
   PREDECESSOR_PATHS.forEach((path, index) => {
     try {
-      psql(DATABASE, readFileSync(resolve(REPOSITORY_ROOT, path)));
+      psqlImpl(DATABASE, readFileImpl(resolve(REPOSITORY_ROOT, path)));
     } catch (error) {
       fail('LOCAL_REHEARSAL_PREDECESSOR_FAILED', `${index + 1}:${error.message}`);
     }
   });
-  psql(DATABASE, fixtureSql());
+  psqlImpl(DATABASE, fixtureSql());
 }
 
-function dropOwnedDatabase() {
-  const exists = scalar('postgres', `SELECT count(*) FROM pg_database WHERE datname=${quote(DATABASE)};`, 'supabase_admin');
+export function dropOwnedDatabase(ownership, { scalarImpl = scalar, psqlImpl = psql } = {}) {
+  if (!ownership?.database) return false;
+  const exists = scalarImpl('postgres', `SELECT count(*) FROM pg_database WHERE datname=${quote(DATABASE)};`, 'supabase_admin');
   if (exists === '1') {
-    psql('postgres', `DROP DATABASE ${DATABASE} WITH (FORCE);`, { actor: 'supabase_admin' });
+    psqlImpl('postgres', `DROP DATABASE ${DATABASE} WITH (FORCE);`, { actor: 'supabase_admin' });
   } else if (exists !== '0') {
     fail('LOCAL_REHEARSAL_TARGET_CARDINALITY_INVALID');
   }
+  ownership.database = false;
+  return exists === '1';
 }
 
-function resetOwnedDatabase() {
-  dropOwnedDatabase();
-  createOwnedDatabase();
+function resetOwnedDatabase(ownership) {
+  dropOwnedDatabase(ownership);
+  createOwnedDatabase(ownership);
 }
 
 function createFixtureMembership() {
@@ -176,6 +187,81 @@ DROP ROLE ${FIXTURE_MEMBER_ROLE};
 DROP ROLE ${FIXTURE_PARENT_ROLE};
 COMMIT;
 `, { actor: 'supabase_admin' });
+}
+
+function cleanupOwnedFixtures(ownership) {
+  const failures = [];
+  try {
+    dropOwnedDatabase(ownership);
+  } catch (error) {
+    failures.push(`database:${error.message}`);
+  }
+  try {
+    if (ownership.fixtureMembership) dropFixtureMembership();
+    ownership.fixtureMembership = false;
+  } catch (error) {
+    failures.push(`roles:${error.message}`);
+  }
+  if (failures.length > 0) fail('LOCAL_REHEARSAL_CLEANUP_FAILED', failures.join(','));
+}
+
+export function inspectRetainedProof({
+  outputPath = OUTPUT_PATH,
+  checksumsPath = CHECKSUMS_PATH,
+  currentBindings,
+  existsImpl = existsSync,
+  readFileImpl = readFileSync,
+} = {}) {
+  if (!existsImpl(outputPath)) return Object.freeze({ present: false });
+  if (!currentBindings || typeof currentBindings !== 'object') {
+    fail('LOCAL_REHEARSAL_CURRENT_BINDINGS_INVALID');
+  }
+  const checksumLines = readFileImpl(checksumsPath, 'utf8').split(/\r?\n/).filter(Boolean);
+  const matchingLines = checksumLines.filter(line => line.endsWith(`  ${RETAINED_PROOF_REPOSITORY_PATH}`));
+  if (matchingLines.length !== 1) fail('LOCAL_REHEARSAL_RETAINED_CHECKSUM_MISSING');
+  const checksumMatch = matchingLines[0].match(/^([0-9a-f]{64})  (.+)$/);
+  if (!checksumMatch || checksumMatch[2] !== RETAINED_PROOF_REPOSITORY_PATH) {
+    fail('LOCAL_REHEARSAL_RETAINED_CHECKSUM_INVALID');
+  }
+  const bytes = readFileImpl(outputPath);
+  const actualSha256 = sha256(bytes);
+  if (actualSha256 !== checksumMatch[1]) fail('LOCAL_REHEARSAL_RETAINED_SHA256_MISMATCH');
+  let retained;
+  try {
+    retained = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    fail('LOCAL_REHEARSAL_RETAINED_JSON_INVALID');
+  }
+  const retainedBindings = {
+    manifestSha256: retained.manifestSha256,
+    rehearsalHarnessSha256: retained.rehearsalHarnessSha256,
+    sourceRoot: retained.sourceRoot,
+  };
+  if (retained.status !== 'passed'
+    || retained.temporaryDatabaseDropped !== true
+    || retained.hostedWrites !== false
+    || retained.operatingWrites !== false
+    || Object.values(retainedBindings).some(value => !/^[0-9a-f]{64}$/.test(value))) {
+    fail('LOCAL_REHEARSAL_RETAINED_SHAPE_INVALID');
+  }
+  const bindingDifferences = Object.keys(retainedBindings)
+    .filter(key => retainedBindings[key] !== currentBindings[key])
+    .map(key => ({
+      field: key,
+      retained: retainedBindings[key],
+      current: currentBindings[key],
+    }));
+  return Object.freeze({
+    present: true,
+    classification: 'retained-historical-evidence',
+    repositoryPath: RETAINED_PROOF_REPOSITORY_PATH,
+    expectedSha256: checksumMatch[1],
+    actualSha256,
+    bindings: Object.freeze(retainedBindings),
+    currentSourceMatch: bindingDifferences.length === 0,
+    bindingDifferences: Object.freeze(bindingDifferences),
+    usedAsCurrentProof: false,
+  });
 }
 
 function applyRawMigration(record, index) {
@@ -270,8 +356,8 @@ COMMIT;
 `);
 }
 
-function assertCatalogDriftRejected({ label, plan, stages, stateQuery, tamperSql, restoreSql = null }) {
-  resetOwnedDatabase();
+function assertCatalogDriftRejected({ label, ownership, plan, stages, stateQuery, tamperSql, restoreSql = null }) {
+  resetOwnedDatabase(ownership);
   const baseline = readState(DATABASE, stateQuery);
   if (!equal(baseline, stages[0])) fail('LOCAL_REHEARSAL_DRIFT_BASELINE_INVALID', label);
   psql(DATABASE, tamperSql, { actor: 'supabase_admin' });
@@ -388,8 +474,8 @@ async function waitForAdvisoryContention(expiresAt) {
   fail('LOCAL_REHEARSAL_ADVISORY_CONTENTION_NOT_OBSERVED');
 }
 
-async function assertContendedExpiryRejected(record, stages, stateQuery) {
-  resetOwnedDatabase();
+async function assertContendedExpiryRejected(record, stages, stateQuery, ownership) {
+  resetOwnedDatabase(ownership);
   const baseline = readState(DATABASE, stateQuery);
   if (!equal(baseline, stages[0])) fail('LOCAL_REHEARSAL_EXPIRY_BASELINE_INVALID');
   const expiresAt = Date.now() + 1500;
@@ -423,10 +509,15 @@ async function assertContendedExpiryRejected(record, stages, stateQuery) {
   return true;
 }
 
-async function run() {
-  if (existsSync(OUTPUT_PATH)) fail('LOCAL_REHEARSAL_PROOF_EXISTS');
+export async function run() {
   const manifestBytes = readFileSync(resolve(REPOSITORY_ROOT, '.github/review-media-sql-successor.v1.json'));
   const record = loadSuccessorManifest();
+  const currentBindings = Object.freeze({
+    manifestSha256: sha256(manifestBytes),
+    rehearsalHarnessSha256: sha256(readFileSync(fileURLToPath(import.meta.url))),
+    sourceRoot: record.manifest.sourceRoot,
+  });
+  const retainedProof = inspectRetainedProof({ currentBindings });
   const stateQuery = buildSuccessorStateQuery(record.manifest);
   const template = JSON.parse(scalar(TEMPLATE_DATABASE, `SELECT json_build_object(
     'engine',current_setting('server_version'),
@@ -440,14 +531,12 @@ async function run() {
     || template.profiles !== 0
     || template.reviews !== 0) fail('LOCAL_REHEARSAL_TEMPLATE_INVALID');
 
-  let created = false;
-  let fixtureMembershipCreated = false;
+  const ownership = { database: false, fixtureMembership: false };
   let proof;
   try {
     createFixtureMembership();
-    fixtureMembershipCreated = true;
-    createOwnedDatabase();
-    created = true;
+    ownership.fixtureMembership = true;
+    createOwnedDatabase(ownership);
     if (scalar(DATABASE, `SELECT coalesce('security_invoker=true'=ANY(c.reloptions),false)
       FROM pg_class c WHERE c.oid='public.admin_evaluation_related_rows'::regclass;`) !== 't') {
       fail('LOCAL_REHEARSAL_SECURITY_INVOKER_BASELINE_INVALID');
@@ -466,7 +555,7 @@ async function run() {
       stageStates: stages,
     });
 
-    resetOwnedDatabase();
+    resetOwnedDatabase(ownership);
     let success;
     try {
       success = psql(DATABASE, plan.sql, { singleTransaction: true });
@@ -490,7 +579,7 @@ async function run() {
       fail('LOCAL_REHEARSAL_COMMIT_READBACK_INVALID');
     }
 
-    resetOwnedDatabase();
+    resetOwnedDatabase(ownership);
     const rollback = psql(DATABASE, `${plan.sql}\nDO $forced$ BEGIN RAISE EXCEPTION 'LOCAL_FORCED_ROLLBACK'; END $forced$;\n`, {
       singleTransaction: true,
       allowFailure: true,
@@ -501,7 +590,7 @@ async function run() {
     const rolledBack = readState(DATABASE, stateQuery);
     if (!equal(rolledBack, stages[0])) fail('LOCAL_REHEARSAL_ROLLBACK_DRIFT');
 
-    resetOwnedDatabase();
+    resetOwnedDatabase(ownership);
     for (let index = 0; index < 10; index += 1) applyRawMigration(record, index);
     const cleanPreimage = readState(DATABASE, stateQuery);
     if (!equal(cleanPreimage, stages[10])) fail('LOCAL_REHEARSAL_STAGE10_REPLAY_DRIFT');
@@ -520,6 +609,7 @@ async function run() {
 
     const securityInvokerDriftRejected = assertCatalogDriftRejected({
       label: 'security-invoker',
+      ownership,
       plan,
       stages,
       stateQuery,
@@ -527,6 +617,7 @@ async function run() {
     });
     const columnAclDriftRejected = assertCatalogDriftRejected({
       label: 'column-acl',
+      ownership,
       plan,
       stages,
       stateQuery,
@@ -534,6 +625,7 @@ async function run() {
     });
     const membershipInheritOptionDriftRejected = assertCatalogDriftRejected({
       label: 'membership-inherit-option',
+      ownership,
       plan,
       stages,
       stateQuery,
@@ -542,13 +634,14 @@ async function run() {
     });
     const membershipSetOptionDriftRejected = assertCatalogDriftRejected({
       label: 'membership-set-option',
+      ownership,
       plan,
       stages,
       stateQuery,
       tamperSql: `GRANT ${FIXTURE_PARENT_ROLE} TO ${FIXTURE_MEMBER_ROLE} WITH ADMIN FALSE, INHERIT TRUE, SET FALSE GRANTED BY supabase_admin;`,
       restoreSql: `GRANT ${FIXTURE_PARENT_ROLE} TO ${FIXTURE_MEMBER_ROLE} WITH ADMIN FALSE, INHERIT TRUE, SET TRUE GRANTED BY supabase_admin;`,
     });
-    const contendedAdmissionExpiryRejected = await assertContendedExpiryRejected(record, stages, stateQuery);
+    const contendedAdmissionExpiryRejected = await assertContendedExpiryRejected(record, stages, stateQuery, ownership);
 
     proof = {
       schemaVersion: 1,
@@ -561,9 +654,7 @@ async function run() {
         temporaryDatabase: DATABASE,
       },
       input: template,
-      manifestSha256: sha256(manifestBytes),
-      rehearsalHarnessSha256: sha256(readFileSync(fileURLToPath(import.meta.url))),
-      sourceRoot: record.manifest.sourceRoot,
+      ...currentBindings,
       predecessorSources: PREDECESSOR_PATHS.map(path => ({
         path,
         sha256: sha256(readFileSync(resolve(REPOSITORY_ROOT, path))),
@@ -597,26 +688,20 @@ async function run() {
       operatingWrites: false,
     };
   } finally {
-    if (created) dropOwnedDatabase();
-    if (fixtureMembershipCreated) dropFixtureMembership();
+    cleanupOwnedFixtures(ownership);
   }
   proof.temporaryDatabaseDropped = true;
-  writeFileSync(OUTPUT_PATH, `${JSON.stringify(proof, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+  proof.fixtureRolesDropped = true;
+  const currentProofBytes = Buffer.from(`${JSON.stringify(canonical(proof))}\n`);
   process.stdout.write(`${JSON.stringify({
-    status: proof.status,
-    migrationCount: proof.migrationCount,
-    statementCount: proof.statementCount,
-    atomicCommit: proof.results.atomicCommit,
-    atomicRollbackExact: proof.results.atomicRollbackExact,
-    catalogDriftRejected: proof.results.securityInvokerDriftRejected
-      && proof.results.columnAclDriftRejected
-      && proof.results.membershipInheritOptionDriftRejected
-      && proof.results.membershipSetOptionDriftRejected,
-    contendedAdmissionExpiryRejected: proof.results.contendedAdmissionExpiryRejected,
-    wrongFinishPreimageRejected: proof.results.wrongFinishPreimageRejected,
-    terminalLedgerCount: proof.results.terminalLedgerCount,
-    temporaryDatabaseDropped: proof.temporaryDatabaseDropped,
+    current: {
+      classification: 'current-source-verification',
+      proofSha256: sha256(currentProofBytes),
+      bindings: currentBindings,
+      proof,
+    },
+    retained: retainedProof,
   })}\n`);
 }
 
-await run();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await run();

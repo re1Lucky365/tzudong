@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   bundleReconciliationOutcome,
   compileElevenMigrationBundle,
+  compileElevenMigrationRehearsalSources,
   elevenMigrationBundleSuffixRoot,
   executeMigrationBundle,
 } from '../scripts/supabase-migration-bundle.mjs';
@@ -99,6 +100,34 @@ test('eleven-stage compiler rejects source, vector, order and cardinality drift 
   }
 });
 
+test('rollback-only source compiler preserves exact vectors and rejects source identity drift', () => {
+  const input = fixture();
+  const plans = compileElevenMigrationRehearsalSources(input.bundle.migrations, input.materials);
+  expect(plans).toHaveLength(11);
+  expect(plans.map(plan => plan.sourceSha256)).toEqual(manifest.migrations.map((migration: any) => migration.sha256));
+  expect(plans.map(plan => plan.vectorSha256)).toEqual(manifest.migrations.map((migration: any) => migration.statementVectorSha256));
+  {
+    const drifted = fixture();
+    drifted.materials[0].bytes = Buffer.concat([drifted.materials[0].bytes, Buffer.from(' ')]);
+    expect(() => compileElevenMigrationRehearsalSources(
+      drifted.bundle.migrations,
+      drifted.materials,
+    )).toThrow('MIGRATION_FILE_DIGEST_MISMATCH');
+  }
+  {
+    const drifted = fixture();
+    [drifted.bundle.migrations[0], drifted.bundle.migrations[1]] = [
+      drifted.bundle.migrations[1],
+      drifted.bundle.migrations[0],
+    ];
+    [drifted.materials[0], drifted.materials[1]] = [drifted.materials[1], drifted.materials[0]];
+    expect(() => compileElevenMigrationRehearsalSources(
+      drifted.bundle.migrations,
+      drifted.materials,
+    )).toThrow('MIGRATION_BUNDLE_ORDER_OR_IDENTITY_INVALID');
+  }
+});
+
 test('lost acknowledgement reconciles exactly once and never resends the eleven mutations', () => {
   const input = fixture();
   const compiled = compileElevenMigrationBundle(input.bundle, input.materials);
@@ -113,4 +142,21 @@ test('lost acknowledgement reconciles exactly once and never resends the eleven 
   expect(calls[1]).not.toContain('INSERT INTO');
   expect(bundleReconciliationOutcome(compiled.finalReadback.expected, compiled)).toBe('committed');
   expect(bundleReconciliationOutcome(compiled.priorReadback.expected, compiled)).toBe('not_applied');
+});
+
+test('post-lock successor expiry survives bounded reconciliation unchanged', () => {
+  const input = fixture();
+  const compiled = compileElevenMigrationBundle(input.bundle, input.materials);
+  const calls: string[] = [];
+  const expired = Object.assign(new Error('provider detail must not escape'), {
+    code: 'SUCCESSOR_ADMISSION_EXPIRED',
+  });
+  expect(() => executeMigrationBundle('fixture-db', compiled, { runPsqlImpl: (_url, sql) => {
+    calls.push(sql);
+    if (calls.length === 1) throw expired;
+    return JSON.stringify(compiled.priorReadback.expected);
+  } })).toThrow('SUCCESSOR_ADMISSION_EXPIRED');
+  expect(calls).toHaveLength(2);
+  expect(calls[0].match(/INSERT INTO supabase_migrations\.schema_migrations/g)).toHaveLength(11);
+  expect(calls[1]).not.toContain('INSERT INTO');
 });
