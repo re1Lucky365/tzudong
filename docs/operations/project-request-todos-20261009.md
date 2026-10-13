@@ -13,9 +13,9 @@
 
 | 우선 | 실행 묶음 | I 구현 | L 로컬 검증 | O 운영 반영 | R 실제 동작 확인 | 다음 행동 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | DB successor·적용기 내구성 | 부분 — journal fsync, custody와 적용 경계를 보완 중 | 부분 — 관련 53개 테스트 통과; 현재 source의 격리 PG17.6 재생과 독립 검토 후 최종 재검증 중 | 미적용 | 미확인 | fsync 실패와 close ACK 유실을 구분하고 apply 전 파일·디렉터리 저장을 강제했다. 독립 검토의 오류 getter 문제까지 수정한 최종 source로 재검증한 뒤 PR에 반영한다. 운영 적용은 아직 수행하지 않았다. |
-| 2 | 보호 승격·운영 SQL | 후보·release contract 준비 중 | 부분 — clean replay와 rollback 증거가 있으나 현재 successor와 재결속 필요 | 미적용 | 미확인 | PR #3196의 수정·필수 CI·검토를 마친 뒤 `develop → data → main` 보호 순서와 writer fence를 지키며 additive SQL을 적용하고 ledger·행·정책·관리자 수정 불변식을 재조회한다. |
-| 3 | 배포·rollback·live readback | UI 후보 `b6ae27de` 준비, 원격 후보보다 1커밋 앞선 상태 | 부분 — 해당 tree의 관련 로컬 검사와 합성 렌더 증거가 있음 | 미적용 | 미확인 | PR #3195를 검증된 source로 반영하고 DB 호환 순서에 맞춰 배포한 뒤 배포 SHA·alias·이전 production rollback identity를 확인한다. |
+| 1 | DB successor·적용기 내구성 | 부분 — 최종 보완 `0833ed81` 원격 반영; admission formatter 추가, 실제 capture adapter·운영 적용 미완료 | 부분 — 관련 5개 모듈 81 pass·0 fail·450 assertions; fresh PG17.6 rollback 12개 상태에서 정상·강제실패·응답유실·잠금만료 정확 복구; 새 컨테이너의 role/database ownership 6개 시나리오가 각각 CREATE 1회와 cleanup을 확인 | 미적용 | 미확인 | fsync 실패와 close ACK 유실을 구분하고 apply 전 파일·디렉터리 저장을 강제했다. 검증된 formatter에 실제 source·rollback·7개 writer-fence 읽기 근거를 공급하는 capture adapter를 연결한 뒤 운영 적용을 검증한다. |
+| 2 | 보호 승격·운영 SQL | 후보·release contract 준비 중; 추가 PR 검토 3건의 소스 수정·원격 반영·검토 해결 완료 | 부분 — 기존 PR #3196 `4d4ecf60`의 CI 6개 작업 성공; 추가 검토 3건의 로컬 검증 완료; `0833ed81` 원격 CI 실행 38364792651 진행 중 | 미적용 | 미확인 | 변경분 원격 CI를 확인한 뒤 운영 adapter와 현재 근거를 검증한다. 이후 `develop → data → main` 보호 순서와 writer fence를 지키며 additive SQL을 적용하고 ledger·행·정책·관리자 수정 불변식을 재조회한다. 기존 가짜 테스트 입력 탐지 #38128430만 승인된 Skip: test cred로 확인했다. |
+| 3 | 배포·rollback·live readback | UI 후보 `cf9bc101` 원격 반영 | 부분 — 해당 UI source의 관련 로컬 검사·합성 렌더 증거; CI 6개 작업 성공; 기존 Vercel CLI 인증으로 production `main@1884f87e`와 두 alias 동일 배포 결속 확인 | 최신 UI 후보 미적용 | 기존 preflight의 production identity 확인; 최신 업무 검증 미완료 | 추가 토큰 없이 기존 CLI로 rollback readback이 가능하다. PR #3195를 DB 호환 순서에 맞춰 보호 승격·배포하고 새 배포 SHA·alias·실제 인증 업무를 확인한다. |
 | 4 | 맛집 자동 분류·재검수·자동 승인 | 부분 — 정책·CAS·중지·이력 경로가 있으나 전체 운영 전이 미완료 | 부분 — 합성 정책·경합 검증과 실제 운영 자동 검수 OFF readback 존재 | 미적용 | 미확인 | 독립 정답 집합에서 Gemini 근거·필수 필드·위치·중복·identity·승인 한도를 검증하고 frozen target의 guarded apply·보류·중지·재개·이력을 운영 저장과 대조한다. |
 | 5 | 크롤링→평가→저장 최적화 | 부분 — 증분·캐시·쿼터·병렬·배치 source 존재 | 부분 — 일부 7쌍 및 합성 replay, cold/CPU/DB-write 악화 기록 존재 | 미적용 또는 미확인 | 실제 공급자·전체 운영 관측 미확인 | provider-admitted 대표 입력으로 중단·재개·bounded LAAJ와 누락·중복·관리자 보호를 확인하고 처리량·토큰·다운로드·CPU·RSS·DB·실패율을 동일 조건으로 재측정한다. |
 | 6 | 공개·관리자 전체 CMS/UI | 부분 — route census 27개와 관리자 합성 15모듈, 공통 헤더 보정 source 존재 | 부분 — privacy 3폭 렌더와 기존 합성 행렬 존재 | 최신 후보 미배포 | 실제 인증·데이터 업무 전수 미확인 | 27개 실제 경로와 모든 사이드바 업무 흐름을 1440/1024/390px에서 source-bound로 재검증한다. 현재 UI 증빙은 31개/1,039,081bytes와 소스 9개를 검증한 활성 map으로 정정했다. 원본이 없는 로그 4개/3,099bytes는 역사 map과 제외 영수증으로 보존하며 렌더·빌드 성공의 추가 근거로 사용하지 않는다. |
@@ -26,7 +26,7 @@
 | 11 | Gemini 크레딧·한도·카드 0488 | 부분 — funded 계정·프로젝트와 자동충전 OFF 확인 | paid Tier1·prepay 10,000원·GCP 크레딧 표시 확인; 호출별 귀속 미확인 | OCR/스토리보드 운영 호출 귀속 미확인 | 0488 삭제 미완료 | 새 카드·추가 충전·계정 폐쇄 없이 OCR/스토리보드 호출의 모델·프로젝트·크레딧/현금 귀속을 확인한다. 0488은 유효 대체수단 제약이 해소된 정확한 프로필에서만 삭제하고 제거 readback을 남긴다. |
 | 12 | 스킬 정본·정량 최종 보고 | 부분 — 직접 관련된 일부 스킬과 공식 문서 대조·수정 이력 존재 | 부분 — 여러 로컬 수치와 CI가 있으나 전체 요구 집계 미완료 | 관리형 정본 업데이트·운영 관측 미완료 또는 미확인 | 최종 전체 기능 확인 미완료 | 설치본·프로젝트 pin·공식 문서·최소 실행을 다시 결속하고, 채택·악화·noise·미측정을 `전/후/절대 차이/변화율/95% CI/n/환경`으로 집계한다. 운영 DB·배포 SHA·live 결과와 rollback까지 확인한 뒤에만 전체 완료를 판정한다. |
 
-현재 실행의 임계 경로는 `DB successor 내구성 수정 → 현재 source의 fresh PG17.6 replay → PR #3196 필수 CI·검토 → 보호 승격 → 운영 SQL readback → PR #3195 UI 승격·배포 → 실제 인증 업무 흐름 확인`이다. 이 순서는 다른 독립 구현·검증을 중단하라는 뜻이 아니며, 어느 한 단계의 성공도 뒤 단계의 완료 증거로 대체하지 않는다.
+현재 실행의 임계 경로는 `운영 admission producer·adapter → 실제 source/rollback/writer-fence 근거 → 보호 승격 → 운영 SQL readback → PR #3195 UI 승격·배포 → 실제 인증 업무 흐름 확인`이다. 내구성 수정·최종 PG17.6 replay·두 PR의 기존 HEAD CI는 통과했으며, 이후 소스 변경의 검증은 별도로 결속한다. 이 순서는 다른 독립 구현·검증을 중단하라는 뜻이 아니며, 어느 한 단계의 성공도 뒤 단계의 완료 증거로 대체하지 않는다.
 
 ## 2026-10-10 운영 배포·적용기 검증 갱신
 
