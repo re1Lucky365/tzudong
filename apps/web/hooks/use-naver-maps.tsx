@@ -121,6 +121,36 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
     const [loadError, setLoadError] = useState<Error | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
+    // A retry belongs to the shared provider, not only to the consumer that
+    // requested it. Capture script completion for every mounted consumer;
+    // remove the subscription when that consumer leaves.
+    useEffect(() => {
+        const observeScript = (event: Event) => {
+            const script = event.target;
+            if (!(script instanceof HTMLScriptElement)) return;
+            if (!script.matches(LOCAL_OFFLINE_MAP
+                ? 'script[data-local-naver-maps="true"]'
+                : 'script[src*="oapi.map.naver.com"]')) return;
+
+            setIsLoading(false);
+            if (event.type === 'load' && hasUsableNaverMaps()) {
+                installLocalNaverStyleHostFallback();
+                setIsLoaded(true);
+                setLoadError(null);
+            } else if (!hasUsableNaverMaps()) {
+                setLoadError(new Error(event.type === 'load'
+                    ? '네이버 지도 API 초기화 실패'
+                    : '네이버 지도 API 로딩 실패 - 네트워크 오류'));
+            }
+        };
+        document.addEventListener('load', observeScript, true);
+        document.addEventListener('error', observeScript, true);
+        return () => {
+            document.removeEventListener('load', observeScript, true);
+            document.removeEventListener('error', observeScript, true);
+        };
+    }, []);
+
     // 수동으로 스크립트 로드하는 함수
     const load = useCallback(() => {
         // 이미 로드되었거나 로딩 중이면 무시
@@ -149,20 +179,6 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
 
         if (existingScript) {
             setIsLoading(true);
-            existingScript.addEventListener("load", () => {
-                installLocalNaverStyleHostFallback();
-                if (hasUsableNaverMaps()) {
-                    setIsLoaded(true);
-                    setIsLoading(false);
-                } else {
-                    setLoadError(new Error("네이버 지도 API 초기화 실패"));
-                    setIsLoading(false);
-                }
-            });
-            existingScript.addEventListener("error", () => {
-                setLoadError(new Error("네이버 지도 API 로딩 실패 - 네트워크 오류"));
-                setIsLoading(false);
-            });
             return;
         }
 
@@ -177,6 +193,8 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
             script.async = true;
 
             script.onload = () => {
+                script.onload = null;
+                script.onerror = null;
                 installLocalNaverStyleHostFallback();
                 if (hasUsableNaverMaps()) {
                     setIsLoaded(true);
@@ -191,6 +209,8 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
             };
 
             script.onerror = () => {
+                script.onload = null;
+                script.onerror = null;
                 script.remove();
                 setLoadError(
                     new Error(

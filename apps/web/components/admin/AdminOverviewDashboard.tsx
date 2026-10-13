@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNaverMaps } from "@/hooks/use-naver-maps";
+import { AdminMapLoadErrorState } from "@/components/admin/admin-map-load-error-state";
 import { readAdminNaverCoordinate } from "@/lib/admin/naver-coordinate";
 import { REGION_MAP_CONFIG } from "@/config/maps";
 import { getNaverIndividualMarkerVisual } from "@/lib/naver-map-marker-visuals";
@@ -882,17 +883,7 @@ function AdminNaverMapSurface({
       {isMapPreparing && <AdminMapLoadingSkeleton />}
 
       {loadError && !isMapPreparing && (
-        <div className="absolute inset-0 grid place-items-center bg-card/85 p-4 text-center backdrop-blur-sm">
-          <div className="max-w-sm rounded-2xl bg-card/95 p-4 shadow-sm">
-            <p className="text-sm font-bold text-foreground">
-              네이버 지도를 불러오지 못했습니다
-            </p>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              {loadError.message} 지도 키가 준비되면 홈과 같은 마커와 클러스터로
-              자동 표시됩니다.
-            </p>
-          </div>
-        </div>
+        <AdminMapLoadErrorState onRetry={loadNaverMaps} />
       )}
     </div>
   );

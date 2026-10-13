@@ -22,15 +22,19 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {useNaverMaps} from './hooks/use-naver-maps';
 import {NaverMapLoadErrorState} from './components/map/map-view-status-panels';
+import {AdminMapLoadErrorState} from './components/admin/admin-map-load-error-state';
 function Consumer({id}) {
   const {isLoaded,isLoading,loadError,load}=useNaverMaps({autoLoad:true});
+  const admin=new URLSearchParams(location.search).get('ui')==='admin';
   return <section data-testid={'consumer-'+id}>
     <output data-testid={'state-'+id}>{loadError?'error':isLoaded?'ready':isLoading?'loading':'idle'}</output>
-    {loadError&&<NaverMapLoadErrorState message={loadError.message} onRetry={load}/>}
+    {loadError&&(admin?<AdminMapLoadErrorState onRetry={load}/>:<NaverMapLoadErrorState message={loadError.message} onRetry={load}/>)}
   </section>;
 }
 const count=Number(new URLSearchParams(location.search).get('consumers')||1);
-createRoot(document.getElementById('root')).render(<>{Array.from({length:count},(_,i)=><Consumer id={i} key={i}/>)}</>);
+const root=createRoot(document.getElementById('root'));
+window.__unmountNaverFixture=()=>root.unmount();
+root.render(<>{Array.from({length:count},(_,i)=><Consumer id={i} key={i}/>)}</>);
 `;
 
 beforeAll(async () => {
@@ -58,10 +62,26 @@ beforeAll(async () => {
 afterAll(async () => { await browser?.close(); });
 
 type Outcome = 'network-error' | 'missing-api' | 'success';
-async function run(outcomes: Outcome[], check: (page: Page, counts: { live: number; stub: number }) => Promise<void>, consumers = 1, mode = 'live') {
+async function run(outcomes: Outcome[], check: (page: Page, counts: { live: number; stub: number }) => Promise<void>, consumers = 1, mode = 'live', uiMode = 'public') {
   const context = await browser.newContext();
   const page = await context.newPage();
   const counts = { live: 0, stub: 0 };
+  await page.addInitScript(() => {
+    const active = new Map<string, Set<EventListenerOrEventListenerObject>>();
+    const add = document.addEventListener.bind(document);
+    const remove = document.removeEventListener.bind(document);
+    document.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) => {
+      if (type === 'load' || type === 'error') {
+        const listeners = active.get(type) ?? new Set();
+        listeners.add(listener); active.set(type, listeners);
+      }
+      add(type, listener, options);
+    }) as typeof document.addEventListener;
+    document.removeEventListener = ((type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions) => {
+      active.get(type)?.delete(listener); remove(type, listener, options);
+    }) as typeof document.removeEventListener;
+    Object.assign(window, { __documentScriptListenerCount: () => [...active.values()].reduce((sum, listeners) => sum + listeners.size, 0) });
+  });
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (route.request().isNavigationRequest()) return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body><div id="root"></div></body></html>' });
@@ -77,7 +97,7 @@ async function run(outcomes: Outcome[], check: (page: Page, counts: { live: numb
     return route.abort();
   });
   try {
-    await page.goto(`http://naver-loader.fixture.test/?consumers=${consumers}`);
+    await page.goto(`http://naver-loader.fixture.test/?consumers=${consumers}&ui=${uiMode}`);
     await page.addScriptTag({ content: scripts[mode] });
     await check(page, counts);
   } finally { await context.close(); }
@@ -105,17 +125,39 @@ for (const failure of ['network-error', 'missing-api'] as const) {
   }));
 }
 
-browserTest('concurrent consumers share a failure and one explicit recovery request', async () => run(['network-error', 'success'], async (page, counts) => {
+for (const failure of ['network-error', 'missing-api'] as const) {
+browserTest(`one retry after ${failure} recovers every concurrent consumer`, async () => run([failure, 'success'], async (page, counts) => {
   await ui(page.getByTestId('state-0')).toHaveText('error');
   await ui(page.getByTestId('state-1')).toHaveText('error');
   expect(counts).toEqual({ live: 1, stub: 0 });
-  await page.getByRole('button', { name: '다시 시도', exact: true }).evaluateAll(buttons => buttons.forEach(button => (button as HTMLButtonElement).click()));
+  await page.getByRole('button', { name: '다시 시도', exact: true }).first().click();
   await ui(page.getByTestId('state-0')).toHaveText('ready');
   await ui(page.getByTestId('state-1')).toHaveText('ready');
   expect(counts).toEqual({ live: 2, stub: 0 });
 }, 2));
 
+browserTest(`admin error control recovers after ${failure}`, async () => run([failure, 'success'], async (page, counts) => {
+  await ui(page.getByTestId('state-0')).toHaveText('error');
+  await ui(page.getByRole('alert')).toContainText('네이버 지도를 불러오지 못했습니다');
+  await page.getByRole('button', { name: '다시 시도', exact: true }).click();
+  await ui(page.getByTestId('state-0')).toHaveText('ready');
+  await ui(page.getByRole('alert')).toHaveCount(0);
+  expect(counts).toEqual({ live: 2, stub: 0 });
+}, 1, 'live', 'admin'));
+}
+
 browserTest('explicit local offline mode still uses its deterministic stub', async () => run([], async (page, counts) => {
   await ui(page.getByTestId('state-0')).toHaveText('ready');
   expect(counts).toEqual({ live: 0, stub: 1 });
 }, 1, 'local'));
+
+browserTest('unmount releases provider subscriptions and settled script callbacks', async () => run(['success'], async page => {
+  await ui(page.getByTestId('state-0')).toHaveText('ready');
+  expect(await page.evaluate('window.__documentScriptListenerCount()')).toBe(2);
+  expect(await page.evaluate(() => {
+    const script = document.querySelector<HTMLScriptElement>('script[src*="oapi.map.naver.com"]');
+    return Boolean(script?.onload || script?.onerror);
+  })).toBe(false);
+  await page.evaluate('window.__unmountNaverFixture()');
+  expect(await page.evaluate('window.__documentScriptListenerCount()')).toBe(0);
+}));
