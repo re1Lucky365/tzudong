@@ -145,7 +145,9 @@ function fixture() {
 describe('actual ReviewModal submit and Supabase adapter', () => {
     test('receipt selection and preparation enforce the private bucket MIME allowlist', () => {
         expect(source).toContain('SUPPORTED_RECEIPT_MIME_TYPES.has(file.type)');
-        expect(source).toContain("if (!isSupportedReceiptImage(file)) throw new Error('REVIEW_VERIFICATION_FORMAT_UNSUPPORTED')");
+        expect(source).toContain('preparedFile = await prepareVerificationUploadFile({');
+        expect(source).toContain('분석 요청은 전송되지 않았습니다.');
+        expect(source).not.toContain('영수증 리사이즈 실패, 원본 사용');
         expect(source.match(/accept=\{RECEIPT_IMAGE_ACCEPT\}/g)?.length).toBe(3);
         expect(source).toContain('const imageFiles = files.filter(isSupportedReceiptImage);');
     });
@@ -176,7 +178,7 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         const f = fixture(); f.setMode('lost'); await f.submit(); await f.submit();
         expect(f.rows.size).toBe(1); expect(f.counts.inserts).toBe(1); expect(f.counts.uploads).toBe(2); expect(f.counts.removes).toBe(0);
         expect(f.filters[0]).toEqual({ id: [...f.rows.keys()][0], user_id: 'fixture-owner' });
-        expect(f.selected[0]).toBe('id, user_id, restaurant_id, verification_photo, food_photos');
+        expect(f.selected[0]).toBe('id, user_id, restaurant_id, verification_photo, food_photos, receipt_data, ocr_processed_at');
     });
     test('unavailable readback blocks duplicate write and leaves draft/photos intact', async () => {
         const f = fixture(); f.setMode('lost-read-fails'); await f.submit(); await f.submit();

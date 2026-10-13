@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { parse } from 'dotenv';
 import sharp from 'sharp';
 import { GeminiStoryboardClient, resolveStoryboardGeminiKey } from '../lib/admin/storyboard/gemini-client';
-import { storyboardProductionRequestSchema } from '../lib/admin/storyboard/production-contract';
+import { STORYBOARD_WORKFLOW, storyboardProductionRequestSchema } from '../lib/admin/storyboard/production-contract';
 
 // One bounded text request and one image request. Never retry an uncertain response.
 const envFile = process.argv[2];
@@ -17,7 +17,7 @@ mkdirSync(directory, { recursive: true });
 const env: NodeJS.ProcessEnv = { ...parse(readFileSync(envFile)), NODE_ENV: 'production' };
 const usage: Array<{ model: string; promptTokens: number | null; outputTokens: number | null; thoughtTokens: number | null; totalTokens: number | null }> = [];
 const provider = new GeminiStoryboardClient({ apiKey: resolveStoryboardGeminiKey(env) ?? undefined, onUsage: (entry) => usage.push(entry) });
-const request = storyboardProductionRequestSchema.parse({ workflow: 'storyboard-mlx-v1', requestId: crypto.randomUUID(),
+const request = storyboardProductionRequestSchema.parse({ workflow: STORYBOARD_WORKFLOW, requestId: crypto.randomUUID(),
   prompt: '개인정보와 실제 식당 이름이 없는 합성 검증용 촬영안. 국수 한 그릇을 소재로 5개 장면을 구성하고 각 설명은 간결하게 작성하세요.',
   sceneCount: 5, providers: { externalAI: true, text: { id: 'gemini-api', model: 'gemini-3.8-flash' },
     image: { id: 'gemini-api', model: proImage ? 'gemini-3-pro-image' : 'gemini-3.1-flash-image' } } });

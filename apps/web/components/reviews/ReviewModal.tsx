@@ -28,6 +28,10 @@ import {
     type OcrProgressStage,
     type ReviewOcrFieldKey,
 } from "@/lib/ocr/review-modal-ocr-ux";
+import {
+    prepareVerificationUploadFile,
+    ReceiptUploadPreparationError,
+} from "@/lib/ocr/receipt-upload-preparation";
 
 // 음식 사진용 압축 옵션 (스토리지 최적화)
 const FOOD_PHOTO_OPTIONS = {
@@ -50,33 +54,6 @@ const generateSafeFilename = (extension: string = ".webp"): string => {
     const randomString = Math.random().toString(36).substring(2, 15);
     const timestamp = Date.now();
     return `${timestamp}_${randomString}${extension}`;
-};
-
-// 영수증 이미지 준비 (OCR 정확도 유지, 너무 큰 파일만 리사이즈)
-// OCR 후 서버에서 WebP로 압축됨
-const prepareReceiptImage = async (file: File): Promise<File> => {
-    if (!isSupportedReceiptImage(file)) throw new Error('REVIEW_VERIFICATION_FORMAT_UNSUPPORTED');
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const safeFileName = generateSafeFilename(`.${ext}`);
-
-    // 5MB 초과 시에만 리사이즈 (품질 손실 최소화)
-    if (file.size > 5 * 1024 * 1024) {
-        try {
-            const resizedBlob = await imageCompression(file, {
-                maxSizeMB: 5,
-                maxWidthOrHeight: 3000,  // 고해상도 유지
-                fileType: file.type as "image/jpeg" | "image/png" | "image/webp",
-                initialQuality: 1.0,     // 품질 손실 없음
-                useWebWorker: true,
-            });
-            return new File([resizedBlob], safeFileName, { type: file.type });
-        } catch (error) {
-            console.warn("영수증 리사이즈 실패, 원본 사용:");
-        }
-    }
-
-    // 5MB 이하는 원본 그대로
-    return new File([file], safeFileName, { type: file.type });
 };
 
 // 음식 사진 압축 (WebP - 스토리지 최적화)
@@ -103,10 +80,8 @@ function createReviewSaveOperation(
             return reviewId;
         },
         prepare: async (draft, reviewId) => {
-            const [receipt, ...food] = await Promise.all([
-                prepareReceiptImage(draft.verificationPhoto),
-                ...draft.foodPhotos.map(compressFoodImage),
-            ]);
+            const receipt = draft.verificationPhoto;
+            const food = await Promise.all(draft.foodPhotos.map(compressFoodImage));
             const uploadTimestamp = Date.now();
             const verificationPhotoPath = buildReviewPhotoObjectPath(
                 { ownerId: draft.ownerId, reviewId, purpose: 'verification' },
@@ -132,20 +107,55 @@ function createReviewSaveOperation(
             return !error && data !== null && data.size === file.size
                 && (!file.type || data.contentType === file.type);
         },
-        insert: (draft, reviewId, uploads) => supabase.from('reviews').insert({
-            id: reviewId,
-            user_id: draft.ownerId,
-            restaurant_id: draft.restaurantId,
-            title: draft.title,
-            content: draft.content,
-            visited_at: draft.visitedAt,
-            verification_photo: uploads.find(upload => upload.purpose === 'verification')!.path,
-            food_photos: uploads.filter(upload => upload.purpose === 'food').map(upload => upload.path),
-            categories: draft.categories,
-            is_verified: false,
-        }),
+        insert: async (draft, reviewId, uploads) => {
+            const verificationPhoto = uploads.find(upload => upload.purpose === 'verification')!.path;
+            const foodPhotos = uploads.filter(upload => upload.purpose === 'food').map(upload => upload.path);
+            if (!draft.ocrResultRef && !draft.ocrResultRevision) {
+                return supabase.from('reviews').insert({
+                    id: reviewId,
+                    user_id: draft.ownerId,
+                    restaurant_id: draft.restaurantId,
+                    title: draft.title,
+                    content: draft.content,
+                    visited_at: draft.visitedAt,
+                    verification_photo: verificationPhoto,
+                    food_photos: foodPhotos,
+                    categories: draft.categories,
+                    is_verified: false,
+                });
+            }
+            if (!draft.ocrResultRef || !draft.ocrResultRevision) {
+                return { error: { code: '42501', status: 422 } };
+            }
+            const { data: { session } } = await supabase.auth.getSession();
+            const response = await fetch('/api/ocr/reviews/save', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                },
+                body: JSON.stringify({
+                    reviewId,
+                    restaurantId: draft.restaurantId,
+                    title: draft.title,
+                    content: draft.content,
+                    visitedAt: draft.visitedAt,
+                    verificationPhoto,
+                    foodPhotos,
+                    categories: draft.categories,
+                    ocrResultRef: draft.ocrResultRef,
+                    ocrResultRevision: draft.ocrResultRevision,
+                }),
+            });
+            if (response.ok) return { error: null };
+            const code = response.status === 409
+                ? '23505'
+                : [400, 401, 403, 413, 422].includes(response.status) ? '42501' : 'transport';
+            return { error: { code, status: response.status } };
+        },
         read: (ownerId, reviewId) => supabase.from('reviews')
-            .select('id, user_id, restaurant_id, verification_photo, food_photos')
+            .select('id, user_id, restaurant_id, verification_photo, food_photos, receipt_data, ocr_processed_at')
             .eq('id', reviewId).eq('user_id', ownerId).maybeSingle(),
         cleanup: async (ownerId, reviewId, uploads) => {
             const results = await Promise.all((['verification', 'food'] as const).map(purpose => (
@@ -268,6 +278,9 @@ export interface OCRResult {
     confidence?: number;
     field_trust?: OcrFieldTrustPayload[];
     needs_review?: string[];
+    ocr_result_ref?: string;
+    ocr_result_revision?: string;
+    cache_reused?: boolean;
 }
 
 type OcrProgressState = {
@@ -461,6 +474,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     const [ocrFocusTarget, setOcrFocusTarget] = useState<OcrFocusTarget | null>(null);
     const [aiFilledFields, setAiFilledFields] = useState<Set<ReviewOcrFieldKey>>(() => new Set());
     const [ocrFallbackNotice, setOcrFallbackNotice] = useState<OcrFallbackNotice | null>(null);
+    const [ocrResultRef, setOcrResultRef] = useState<string | null>(null);
+    const [ocrResultRevision, setOcrResultRevision] = useState<string | null>(null);
     const [currentStep, setCurrentStep] = useState<ReviewFormStep>(1);
 
     // 맛집 검색 상태
@@ -477,16 +492,16 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     const submitInFlightRef = useRef(false);
     const closeRequestedRef = useRef(false);
     const composerOpenRef = useRef(isOpen);
-    const latestSaveInputsRef = useRef({ visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: reviewTargetRestaurant?.id });
+    const latestSaveInputsRef = useRef({ visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: reviewTargetRestaurant?.id, ocrResultRef, ocrResultRevision });
     useLayoutEffect(() => {
         if (draftScopeRef.current.ownerId !== user?.id || draftScopeRef.current.restaurantId !== reviewTargetRestaurant?.id || !isOpen) {
             draftScopeRef.current = { ownerId: user?.id, restaurantId: reviewTargetRestaurant?.id, revision: null };
         }
         saveOwnerRef.current = user?.id;
         composerOpenRef.current = isOpen;
-        latestSaveInputsRef.current = { visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: reviewTargetRestaurant?.id };
+        latestSaveInputsRef.current = { visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: reviewTargetRestaurant?.id, ocrResultRef, ocrResultRevision };
         saveOperationRef.current ??= createReviewSaveOperation(() => saveOwnerRef.current, () => draftScopeRef.current.revision);
-    }, [user?.id, isOpen, visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, reviewTargetRestaurant?.id]);
+    }, [user?.id, isOpen, visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, reviewTargetRestaurant?.id, ocrResultRef, ocrResultRevision]);
 
     useLayoutEffect(() => {
         const operation = saveOperationRef.current!;
@@ -764,6 +779,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         verificationPhotoUrlRef.current = nextUrl;
         setVerificationPhotoUrl(nextUrl);
         setVerificationPhoto(file);
+        setOcrResultRef(null);
+        setOcrResultRevision(null);
     }, []);
 
     const foodPhotoUrls = useMemo(() => {
@@ -787,7 +804,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     }, [foodPhotoUrls]);
 
     // 메모이제이션된 이벤트 핸들러들
-    const handleVerificationPhotoSelected = (file: File) => {
+    const handleVerificationPhotoSelected = async (file: File) => {
         if (!isSupportedReceiptImage(file)) {
             toast({
                 title: "지원하지 않는 영수증 형식",
@@ -796,13 +813,31 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
             });
             return;
         }
-        replaceVerificationPhoto(file);
+        let preparedFile: File;
+        try {
+            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+            preparedFile = await prepareVerificationUploadFile({
+                file,
+                filename: generateSafeFilename(`.${ext}`),
+                compress: imageCompression,
+            });
+        } catch (error) {
+            toast({
+                title: "영수증 사진을 준비하지 못했습니다",
+                description: error instanceof ReceiptUploadPreparationError && error.code === 'too_large'
+                    ? "5MB 이하 이미지로 다시 선택해 주세요. 분석 요청은 전송되지 않았습니다."
+                    : "JPG, PNG, WebP 또는 AVIF 이미지를 선택해 주세요.",
+                variant: "destructive",
+            });
+            return;
+        }
+        replaceVerificationPhoto(preparedFile);
         verificationFileInputRef.current?.blur();
         if (verificationInputMode === "ai") {
             // Android 파일 선택기 복귀 직후 requestAnimationFrame이 누락되는 케이스가 있어
             // macrotask로 OCR을 시작한다. 상태 업데이트는 이미 큐에 들어가므로 미리보기가 먼저 그려진다.
             window.setTimeout(() => {
-                void analyzeReceipt(file);
+                void analyzeReceipt(preparedFile);
             }, 0);
         }
     };
@@ -810,7 +845,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     const handleVerificationPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            handleVerificationPhotoSelected(file);
+            void handleVerificationPhotoSelected(file);
         }
         e.target.value = '';
     };
@@ -859,7 +894,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         const imageFiles = files.filter(isSupportedReceiptImage);
 
         if (imageFiles.length > 0) {
-            handleVerificationPhotoSelected(imageFiles[0]);
+            void handleVerificationPhotoSelected(imageFiles[0]);
         }
     };
 
@@ -1248,6 +1283,14 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                 data = await response.json();
             }
 
+            const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (!data.ocr_result_ref || !uuidPattern.test(data.ocr_result_ref)
+                || !data.ocr_result_revision || !uuidPattern.test(data.ocr_result_revision)) {
+                throw new Error('OCR 검증 결과를 확인할 수 없습니다.');
+            }
+            setOcrResultRef(data.ocr_result_ref);
+            setOcrResultRevision(data.ocr_result_revision);
+
             // 4. provider/model/prompt/preprocess-aware server cache에만 저장한다.
             // 클라이언트 sessionStorage cache는 Track 1 정확도 실험 동안 사용하지 않는다.
 
@@ -1444,6 +1487,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
             ownerId: user.id, restaurantId: targetRestaurant.id,
             title: `${targetRestaurant.name} 방문 후기`, content: content.trim(), visitedAt,
             categories, verificationPhoto, foodPhotos,
+            ocrResultRef: submittedInputs.ocrResultRef,
+            ocrResultRevision: submittedInputs.ocrResultRevision,
         };
         submitInFlightRef.current = true;
         setIsSubmitting(true);

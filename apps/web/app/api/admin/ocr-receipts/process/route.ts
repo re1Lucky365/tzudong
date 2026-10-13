@@ -36,7 +36,19 @@ import {
     readContainedPrivateReceiptFile,
     writeExclusivePrivateReceiptFile,
 } from '@/lib/ocr/admin-receipt-image-security';
-import { callGeminiReceiptOcr } from '@/lib/ocr/gemini';
+import { callGeminiReceiptOcr, GEMINI_OCR_FALLBACK_MODEL } from '@/lib/ocr/gemini';
+import { resolveOcrAiRuntimeConfig } from '@/lib/ocr/runtime-config';
+import { getRunnableCredentials } from '@/lib/ocr/route-helpers';
+import { buildReceiptOcrEnvelope, RECEIPT_OCR_NORMALIZATION_VERSION } from '@/lib/ocr/receipt-normalization';
+import {
+    DurableReceiptOcrPendingError,
+    DurableReceiptOcrPersistenceError,
+    buildDurableReceiptOcrPayload,
+    buildOcrInputContextHash,
+    createSupabaseDurableReceiptOcrStore,
+    executeDurableReceiptOcr,
+    hasDurableOcrReviewResult,
+} from '@/lib/ocr/durable-result';
 import type { ReceiptOcrData } from '@/lib/ocr/types';
 import { readBoundedJsonRequest } from '@/lib/security/bounded-json-request';
 import { isTrustedSameOriginMutation } from '@/lib/security/same-origin-mutation';
@@ -45,7 +57,6 @@ import { createSupabaseStorageServerClient } from '@/lib/supabase/storage-server
 
 export const runtime = 'nodejs';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const MAX_REQUEST_BYTES = 4 * 1024;
 const MAX_PREPROCESS_RESULT_BYTES = 16 * 1024;
 const PREPROCESS_DEADLINE_MS = 30_000;
@@ -57,6 +68,8 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^\d{2}:\d{2}$/;
 const PHONE_LIKE_PATTERN = /(?:\+?82[-.\s]?)?0?1[0-9][-.\s]?\d{3,4}[-.\s]?\d{4}|0[2-6][-.\s]?\d{3,4}[-.\s]?\d{4}/;
 const RECEIPT_SCHEMA_VERSION = 'receipt_summary_v1';
+const ADMIN_OCR_PROMPT_VERSION = 'admin-receipt-summary-v1';
+const ADMIN_OCR_PREPROCESS_VERSION = 'admin-python-warp-canonical-jpeg-v1';
 const SAFE_OCR_FAILURE_CODES = new Set([
     'not_receipt',
     'unreadable',
@@ -110,6 +123,7 @@ type OcrReviewUpdate = {
 
 class OcrPersistenceError extends Error {}
 class OcrUnsafeReceiptValueError extends Error {}
+class OcrProviderUnavailableError extends Error {}
 
 const routeDirname = path.dirname(fileURLToPath(import.meta.url));
 const preprocessScriptPath = path.resolve(
@@ -354,6 +368,11 @@ async function persistOcrResult(
         .from('reviews')
         .update(update)
         .eq('id', reviewId)
+        // Preserve any OCR/operator result committed after the initial read.
+        // An explicit reset clears all three fields before a new process run.
+        .is('receipt_hash', null)
+        .is('receipt_data', null)
+        .is('ocr_processed_at', null)
         .select('id, receipt_hash, receipt_data, is_duplicate, ocr_processed_at')
         .maybeSingle();
 
@@ -615,21 +634,6 @@ export async function POST(request: Request) {
 
     const correlationId = `ocr-inline-${crypto.randomUUID()}`;
 
-    if (!GEMINI_API_KEY?.trim()) {
-        return NextResponse.json(
-            {
-                code: 'OCR_PROVIDER_UNAVAILABLE',
-                error: OCR_ERROR_MESSAGES.OCR_PROVIDER_UNAVAILABLE,
-                guardedMutation: buildInlineOcrGuardedMutation(correlationId, {
-                    reviewId: body.reviewId,
-                    applied: false,
-                    providerConfigured: false,
-                }),
-            },
-            { status: 503, headers: { 'Cache-Control': 'no-store' } },
-        );
-    }
-
     const supabase = getSupabaseAdmin();
     const storageAdmin = getSupabaseStorageAdmin();
     let tempRun: ReturnType<typeof createAdminReceiptTempRun> | null = null;
@@ -637,12 +641,25 @@ export async function POST(request: Request) {
     try {
         const { data: review, error: fetchError } = await supabase
             .from('reviews')
-            .select('id, user_id, verification_photo')
+            .select('id, user_id, verification_photo, receipt_hash, receipt_data, is_duplicate, ocr_processed_at')
             .eq('id', body.reviewId)
             .single();
 
         if (fetchError || !review) return errorResponse('REVIEW_NOT_FOUND', 404);
         if (!review.verification_photo) return errorResponse('RECEIPT_NOT_FOUND', 400);
+        if (hasDurableOcrReviewResult(review)) {
+            return NextResponse.json({
+                success: true,
+                isDuplicate: review.is_duplicate === true,
+                message: '기존 OCR 결과를 유지했습니다.',
+                guardedMutation: buildInlineOcrGuardedMutation(correlationId, {
+                    reviewId: body.reviewId,
+                    applied: false,
+                    readbackVerified: true,
+                    status: 'preserved',
+                }),
+            }, { headers: { 'Cache-Control': 'no-store' } });
+        }
         const receiptObjectPath = getOwnedReviewPhotoObjectPath(review.verification_photo, {
             ownerId: review.user_id,
             reviewId: body.reviewId,
@@ -675,38 +692,74 @@ export async function POST(request: Request) {
             if (!await drainAdminVerificationCleanup(cleanup, body.reviewId, review.user_id)) throw new OcrPersistenceError();
         }
 
-        tempRun = createAdminReceiptTempRun();
-        const tempInputPath = writeExclusivePrivateReceiptFile(
-            tempRun,
-            'input.jpg',
-            canonicalStorageImage.bytes,
-        );
-        const preprocessOutputDir = createPrivateReceiptTempDirectory(tempRun, 'stages');
+        const imageHash = crypto.createHash('sha256').update(canonicalStorageImage.bytes).digest('hex');
+        const aiRuntime = await resolveOcrAiRuntimeConfig();
+        const model = aiRuntime.models[0] || aiRuntime.model || GEMINI_OCR_FALLBACK_MODEL;
+        const credentials = getRunnableCredentials({ candidate: aiRuntime, routingMode: aiRuntime.routingMode });
+        const durable = await executeDurableReceiptOcr({
+            store: createSupabaseDurableReceiptOcrStore(supabase as never),
+            binding: {
+                userId: review.user_id,
+                imageHash,
+                inputContextHash: buildOcrInputContextHash(imageHash, null),
+                provider: 'gemini',
+                model,
+                promptVersion: ADMIN_OCR_PROMPT_VERSION,
+                preprocessVersion: ADMIN_OCR_PREPROCESS_VERSION,
+                normalizationVersion: RECEIPT_OCR_NORMALIZATION_VERSION,
+            },
+            operationId: crypto.randomUUID(),
+            forceRefresh: false,
+            beforeProvider: async () => {
+                if (!credentials[0]) throw new OcrProviderUnavailableError();
+            },
+            runProvider: async () => {
+                tempRun = createAdminReceiptTempRun();
+                const tempInputPath = writeExclusivePrivateReceiptFile(
+                    tempRun,
+                    'input.jpg',
+                    canonicalStorageImage.bytes,
+                );
+                const preprocessOutputDir = createPrivateReceiptTempDirectory(tempRun, 'stages');
 
-        let preprocessResult: PreprocessResult;
-        try {
-            preprocessResult = await runPythonPreprocess(tempInputPath, preprocessOutputDir);
-        } catch {
-            preprocessResult = {};
-        }
+                let preprocessResult: PreprocessResult;
+                try {
+                    preprocessResult = await runPythonPreprocess(tempInputPath, preprocessOutputDir);
+                } catch {
+                    preprocessResult = {};
+                }
 
-        let providerImage = canonicalStorageImage;
-        if (preprocessResult.warped) {
-            const preprocessedBytes = readContainedPrivateReceiptFile(tempRun, preprocessResult.warped);
-            const preprocessedMimeType = getReceiptImageMimeTypeFromSignature(preprocessedBytes);
-            if (!preprocessedMimeType) throw new OcrPersistenceError();
-            providerImage = await canonicalizeReceiptImage(preprocessedBytes, preprocessedMimeType);
-        }
+                let providerImage = canonicalStorageImage;
+                if (preprocessResult.warped) {
+                    const preprocessedBytes = readContainedPrivateReceiptFile(tempRun, preprocessResult.warped);
+                    const preprocessedMimeType = getReceiptImageMimeTypeFromSignature(preprocessedBytes);
+                    if (!preprocessedMimeType) throw new OcrPersistenceError();
+                    providerImage = await canonicalizeReceiptImage(preprocessedBytes, preprocessedMimeType);
+                }
 
-        const imageBase64 = providerImage.bytes.toString('base64');
-        const ocrResult = await callGeminiReceiptOcr({
-            apiKey: GEMINI_API_KEY,
-            imageBase64,
-            mimeType: 'image/jpeg',
-            prompt: OCR_PROMPT,
-            signal: request.signal,
+                const ocrResult = await callGeminiReceiptOcr({
+                    apiKey: credentials[0]!.apiKey,
+                    imageBase64: providerImage.bytes.toString('base64'),
+                    mimeType: 'image/jpeg',
+                    prompt: OCR_PROMPT,
+                    env: { ...process.env, GEMINI_OCR_MODEL: model },
+                    signal: request.signal,
+                });
+                const envelope = buildReceiptOcrEnvelope({
+                    provider: 'gemini',
+                    model: ocrResult.model,
+                    attempts: ocrResult.attempts,
+                    data: ocrResult.data,
+                });
+                const payload = buildDurableReceiptOcrPayload({ provider: 'gemini', model: ocrResult.model, envelope });
+                assertPrivacySafe(payload);
+                return payload;
+            },
         });
-        const ocrData = ocrResult.data;
+        const ocrData: ReceiptOcrData = {
+            ...durable.payload.normalized,
+            ...(durable.payload.failure_code ? { error: durable.payload.failure_code } : {}),
+        };
 
         assertOcrInputSafe(ocrData);
         const receiptData = buildReceiptPersistenceData(ocrData);
@@ -800,7 +853,13 @@ export async function POST(request: Request) {
         if (error instanceof PrivacyUnsafeValueError || error instanceof OcrUnsafeReceiptValueError) {
             return errorResponse(PRIVACY_UNSAFE_VALUE_REASON, 422);
         }
-        if (error instanceof AdminReceiptImageSecurityError || error instanceof OcrPersistenceError) {
+        if (error instanceof OcrProviderUnavailableError) {
+            return errorResponse('OCR_PROVIDER_UNAVAILABLE', 503);
+        }
+        if (error instanceof AdminReceiptImageSecurityError
+            || error instanceof OcrPersistenceError
+            || error instanceof DurableReceiptOcrPersistenceError
+            || error instanceof DurableReceiptOcrPendingError) {
             return errorResponse('OCR_READBACK_FAILED', 503);
         }
         return errorResponse('OCR_PROCESSING_FAILED', 500);

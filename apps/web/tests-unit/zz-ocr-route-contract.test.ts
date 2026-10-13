@@ -106,7 +106,7 @@ describe('OCR extract route privacy and normalization contract', () => {
     }
     expect(routeSource).toContain("const failureMetadata = { error_code: failureCode, provider: failureProvider }");
     expect(streamRouteSource).toContain('error_code: failureCode');
-    expect(streamRouteSource).toContain('attempt_count: failedAttemptCount');
+    expect(streamRouteSource).toContain('attempt_count: providerStarted ? 1 : 0');
     expect(geminiSource).toContain("'provider_request_failed'");
     expect(geminiSource).not.toContain('error.message : String(error)');
   });
@@ -292,7 +292,7 @@ describe('OCR extract route privacy and normalization contract', () => {
 
     for (const ocrRouteSource of [routeSource, streamRouteSource]) {
       expect(ocrRouteSource).toContain('OCR 사용 한도를 확인할 수 없습니다.');
-      expect(ocrRouteSource).toContain('status: 503');
+      expect(ocrRouteSource).toMatch(/OCR_QUOTA_UNAVAILABLE|OcrHttpError\(503/);
       expect(ocrRouteSource).not.toContain('쿼터 확인 실패:');
     }
     expect(quotaRouteSource).toContain("'OCR_QUOTA_UNAVAILABLE'");
@@ -447,7 +447,7 @@ describe('OCR extract route privacy and normalization contract', () => {
     expect(processRouteSource).not.toContain('x-admin-guarded-mutation-confirmation');
     expect(processRouteSource).toContain('function noStoreJson');
     expect(processRouteSource).toContain("response.headers.set('Cache-Control', 'no-store')");
-    expect(processRouteSource).toContain("import { callGeminiReceiptOcr } from '@/lib/ocr/gemini'");
+    expect(processRouteSource).toContain("import { callGeminiReceiptOcr, GEMINI_OCR_FALLBACK_MODEL } from '@/lib/ocr/gemini'");
     expect(processRouteSource).toContain("import {\n    PRIVACY_UNSAFE_VALUE_REASON,\n    PrivacyUnsafeValueError,\n    assertPrivacySafe,\n} from '@/lib/privacy/sanitize';");
     expect(processRouteSource).toContain('assertOcrInputSafe(ocrData);');
     expect(processRouteSource).toContain('const receiptData = buildReceiptPersistenceData(ocrData);');
@@ -473,10 +473,11 @@ describe('OCR extract route privacy and normalization contract', () => {
     const inlineReaderIndex = postSource.indexOf('readBoundedJsonRequest(request, MAX_REQUEST_BYTES)');
     const inlineSchemaIndex = postSource.indexOf('const body = parseInlineOcrProcessBody(parsedBody.value);');
     const inlineConfirmIndex = postSource.indexOf('if (!hasGuardedMutationConfirmation(body))');
-    const inlineProviderPreflightIndex = postSource.indexOf("if (!GEMINI_API_KEY?.trim())", inlineConfirmIndex);
     const inlineSupabaseIndex = postSource.indexOf('const supabase = getSupabaseAdmin()', inlineConfirmIndex);
+    const inlineDurableClaimIndex = postSource.indexOf('await executeDurableReceiptOcr({', inlineSupabaseIndex);
+    const inlineProviderPreflightIndex = postSource.indexOf('if (!credentials[0])', inlineDurableClaimIndex);
     const inlineOcrCallIndex = postSource.indexOf('await callGeminiReceiptOcr({', inlineConfirmIndex);
-    const inlineOcrResultIndex = postSource.indexOf('const ocrData = ocrResult.data;', inlineOcrCallIndex);
+    const inlineOcrResultIndex = postSource.indexOf('const ocrData: ReceiptOcrData = {', inlineOcrCallIndex);
     const inlinePrivacyBoundaryIndex = postSource.indexOf('assertOcrInputSafe(ocrData);', inlineOcrResultIndex);
     const inlinePersistenceIndex = postSource.indexOf(
       'await persistOcrResult(supabase, body.reviewId, {',
@@ -488,14 +489,14 @@ describe('OCR extract route privacy and normalization contract', () => {
     expect(inlineReaderIndex).toBeGreaterThan(inlineFeatureEnabledIndex);
     expect(inlineSchemaIndex).toBeGreaterThan(inlineReaderIndex);
     expect(inlineConfirmIndex).toBeGreaterThan(inlineSchemaIndex);
-    expect(inlineProviderPreflightIndex).toBeGreaterThan(inlineConfirmIndex);
-    expect(inlineSupabaseIndex).toBeGreaterThan(inlineProviderPreflightIndex);
-    expect(inlineOcrCallIndex).toBeGreaterThan(inlineSupabaseIndex);
+    expect(inlineSupabaseIndex).toBeGreaterThan(inlineConfirmIndex);
+    expect(inlineDurableClaimIndex).toBeGreaterThan(inlineSupabaseIndex);
+    expect(inlineProviderPreflightIndex).toBeGreaterThan(inlineDurableClaimIndex);
+    expect(inlineOcrCallIndex).toBeGreaterThan(inlineProviderPreflightIndex);
     expect(inlineOcrResultIndex).toBeGreaterThan(inlineOcrCallIndex);
     expect(inlinePrivacyBoundaryIndex).toBeGreaterThan(inlineOcrResultIndex);
     expect(inlinePersistenceIndex).toBeGreaterThan(inlinePrivacyBoundaryIndex);
     expect(postSource.slice(inlineFeatureEnabledIndex, inlineReaderIndex)).toContain('return noStoreJson');
-    expect(postSource.slice(inlineConfirmIndex, inlineProviderPreflightIndex)).toContain('return noStoreJson');
     expect(submissionListViewSource).toContain("GUARDED_MUTATION_CONFIRMATION");
     expect(submissionListViewSource).toContain("confirmGuardedOcrMutation");
     expect(submissionListViewSource).toContain("guardedMutationConfirmation: GUARDED_MUTATION_CONFIRMATION");

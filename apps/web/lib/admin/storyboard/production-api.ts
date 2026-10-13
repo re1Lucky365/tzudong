@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/auth/require-admin';
 import { BOUNDED_JSON_REQUEST_ERROR, readBoundedJsonRequest } from '@/lib/security/bounded-json-request';
 import { isTrustedSameOriginMutation } from '@/lib/security/same-origin-mutation';
 import {
-  MAX_STORYBOARD_DOCUMENT_BYTES, MAX_STORYBOARD_IMAGE_BYTES, STORYBOARD_WORKFLOW,
+  MAX_STORYBOARD_DOCUMENT_BYTES, MAX_STORYBOARD_IMAGE_BYTES,
   StoryboardProductionError, storyboardProvenanceSchema,
 } from './production-contract';
 import { PRODUCTION_FAILURE_STATUSES, StoryboardProductionStore } from './production-store';
@@ -112,7 +112,7 @@ async function imageFile(form: FormData) {
 type RouteContext = { params: Promise<{ id: string }> };
 type AssetContext = { params: Promise<{ id: string; assetId: string }> };
 type AdminAuth = () => Promise<{ ok: true; userId: string } | { ok: false; response: Response }>;
-type StoreApi = Pick<StoryboardProductionStore, 'list' | 'get' | 'create' | 'apply' | 'importImage'
+type StoreApi = Pick<StoryboardProductionStore, 'list' | 'get' | 'create' | 'apply'
   | 'downloadAsset' | 'exportProject' | 'workerOperation' | 'workerImage' | 'versions'>;
 
 /** Dependency injection is restricted to tests; route files use the authenticated server defaults. */
@@ -152,17 +152,6 @@ export function createStoryboardProductionApi(options: {
     projectPOST: (request: Request, context: RouteContext) => admin(request, async (owner) => {
       const id = parse(productionUuid, (await context.params).id);
       return json(await store.apply(owner, id, await boundedJson(request)));
-    }),
-    imagePOST: (request: Request, context: RouteContext) => admin(request, async (owner) => {
-      const id = parse(productionUuid, (await context.params).id);
-      const form = await readStoryboardMultipart(request, ['revision', 'sceneNo', 'projectId', 'schema', 'file']);
-      if (parse(productionUuid, field(form, 'projectId')) !== id || field(form, 'schema') !== STORYBOARD_WORKFLOW) {
-        throw new StoryboardProductionError('invalid_request');
-      }
-      const revision = integerField(form, 'revision', 0);
-      const sceneNo = integerField(form, 'sceneNo', 1, 12);
-      const file = await imageFile(form);
-      return json(await store.importImage(owner, id, revision, sceneNo, file.bytes, file.mime));
     }),
     assetGET: (request: Request, context: AssetContext) => admin(request, async (owner) => {
       const params = await context.params;

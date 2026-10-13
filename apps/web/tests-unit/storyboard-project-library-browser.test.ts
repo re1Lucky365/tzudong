@@ -32,9 +32,9 @@ const now='2026-10-05T01:00:00.000Z', A='${A}', B='${B}';
 const titles={ [A]:'서울 시장 먹방', [B]:'부산 골목의 오래된 가게에서 만난 따뜻한 국밥과 반찬을 소개하는 촬영 기획' };
 const scene=n=>({sceneNo:n,title:'장면 '+n,durationSec:10,description:'촬영 내용',visualDirection:'가게 전경',narration:'음식 소개',caption:'오늘의 맛집',productionNotes:['고정 카메라'],imagePrompt:'Food',sourceIds:[],revision:1,image:null,imageError:null});
 const summary=id=>({id,title:titles[id],revision:1,status:id===A?'partial':'failed',createdAt:now,updatedAt:id===A?'2026-10-04T01:00:00.000Z':now});
-const project=id=>({...summary(id),request:{workflow:STORYBOARD_WORKFLOW,requestId:id,prompt:'촬영 기획',sceneCount:5,retrieval:'none',sources:[],imageWidth:1024,imageHeight:576,providers:{externalAI:false,text:{id:'manual',model:''},image:{id:'manual',model:''}}},
+const project=id=>({...summary(id),request:{workflow:STORYBOARD_WORKFLOW,requestId:id,prompt:'촬영 기획',sceneCount:5,retrieval:'none',sources:[],imageWidth:1024,imageHeight:576,providers:{externalAI:true,text:{id:'gemini-api',model:'gemini-3.8-flash'},image:{id:'gemini-api',model:'gemini-3.1-flash-image'}}},
  document:{schema:STORYBOARD_WORKFLOW,projectId:id,revision:1,generatedAt:now,title:titles[id],logline:'저장된 기획',
- textProvenance:{providerId:'manual',model:'',verification:'user-import',generatedAt:now,requestId:id,responseId:null,responseModel:null,modelEvidence:'unverified'},scenes:Array.from({length:5},(_,i)=>scene(i+1))}});
+ textProvenance:{providerId:'gemini-api',model:'gemini-3.8-flash',verification:'official-api',generatedAt:now,requestId:id,responseId:'fixture',responseModel:'gemini-3.8-flash',modelEvidence:'response'},scenes:Array.from({length:5},(_,i)=>scene(i+1))}});
 const fixture=window.storyboardLibraryFixture={mode:'normal',allowDeparture:false,calls:[],confirmations:[],release:()=>{}};
 window.confirm=text=>{fixture.confirmations.push(text);return fixture.allowDeparture;};
 window.fetch=async(url,init={})=>{

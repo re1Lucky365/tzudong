@@ -15,7 +15,6 @@ const isolated = new Set([
   'admin-storyboard-generator.test.ts',
   'admin-storyboard-langgraph.test.ts',
   'admin-storyboard-caption-provenance.test.ts',
-  'admin-storyboard-local-bridge.test.ts',
   // Its authenticated worker and Supabase transport mocks must stay in one process.
   'storyboard-gemini-rag.test.ts',
   'admin-youtube-thumbnail-readiness-gate.test.ts',

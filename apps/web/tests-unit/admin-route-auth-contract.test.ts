@@ -22,7 +22,6 @@ const delegatedProductionApiRoutes: ReadonlyArray<readonly [string, readonly str
   ['app/api/admin/storyboard/production/route.ts', ['GET', 'POST']],
   ['app/api/admin/storyboard/production/[id]/route.ts', ['GET', 'POST']],
   ['app/api/admin/storyboard/production/[id]/export/route.ts', ['GET']],
-  ['app/api/admin/storyboard/production/[id]/images/route.ts', ['POST']],
   ['app/api/admin/storyboard/production/[id]/assets/[assetId]/route.ts', ['GET']],
 ];
 
