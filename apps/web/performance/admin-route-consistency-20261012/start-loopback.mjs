@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import {
+  closeSync,
   createWriteStream,
   existsSync,
+  openSync,
   readFileSync,
   writeFileSync,
 } from 'node:fs';
@@ -40,6 +42,28 @@ const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 
 function save(name, value) {
   writeFileSync(join(RUNTIME_OUT, name), `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+}
+
+function reserveRuntimeEvidence() {
+  const startPath = join(RUNTIME_OUT, 'privacy-runtime-start.json');
+  const logPath = join(RUNTIME_OUT, 'privacy-runtime.log');
+  const startFd = openSync(startPath, 'wx', 0o600);
+  try {
+    const logFd = openSync(logPath, 'wx', 0o600);
+    return { startFd, logFd, logPath };
+  } catch (error) {
+    writeFileSync(startFd, `${JSON.stringify({
+      schema: 'tzudong-privacy-incidents-loopback-reservation/v1',
+      status: 'evidence-reservation-failed',
+    }, null, 2)}\n`);
+    closeSync(startFd);
+    throw error;
+  }
+}
+
+function commitRuntimeStart(fd, value) {
+  writeFileSync(fd, `${JSON.stringify(value, null, 2)}\n`);
+  closeSync(fd);
 }
 
 function safeEnvironment() {
@@ -88,8 +112,12 @@ const fixtureInvocation = fixtureServerInvocation({
 });
 prepareRuntimeOutput({ buildOut: BUILD_OUT, runtimeOut: RUNTIME_OUT, runtimeAttempt: run.runtimeAttempt });
 
+const runtimeEvidence = reserveRuntimeEvidence();
+const runtimeLog = createWriteStream(runtimeEvidence.logPath, {
+  fd: runtimeEvidence.logFd,
+  autoClose: true,
+});
 prepareFixtureDependencies(dependencyPlan);
-const runtimeLog = createWriteStream(join(RUNTIME_OUT, 'privacy-runtime.log'), { flags: 'wx', mode: 0o600 });
 function mirror(name, stream, target) {
   let pending = '';
   stream.on('data', (chunk) => {
@@ -128,7 +156,7 @@ mirror('next:stderr', next.stderr, process.stderr);
 mirror('gateway:stdout', gateway.stdout, process.stdout);
 mirror('gateway:stderr', gateway.stderr, process.stderr);
 
-save('privacy-runtime-start.json', {
+commitRuntimeStart(runtimeEvidence.startFd, {
   schema: 'tzudong-privacy-incidents-loopback/v1',
   node: process.versions.node,
   ...(run.runId !== null || run.basePort !== DEFAULT_BASE_PORT ? { runId: run.runId, basePort: run.basePort } : {}),

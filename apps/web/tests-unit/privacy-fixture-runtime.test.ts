@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   lstatSync,
@@ -40,6 +41,15 @@ function fixtureRoot() {
   return { root, webRoot };
 }
 
+function node24Binary() {
+  const candidates = [...new Set([process.env.TZUDONG_NODE24_BIN, 'node'].filter(Boolean))] as string[];
+  for (const candidate of candidates) {
+    const probe = spawnSync(candidate, ['-p', 'process.versions.node'], { encoding: 'utf8' });
+    if (probe.status === 0 && probe.stdout.trim().startsWith('24.')) return candidate;
+  }
+  throw new Error('NODE_24_REQUIRED_FOR_PRIVACY_FIXTURE_LAUNCHER_TEST');
+}
+
 describe('privacy fixture runtime ownership', () => {
   test('both build and loopback generations share the portable dependency contract', () => {
     const webRoot = path.resolve(import.meta.dir, '..');
@@ -63,9 +73,26 @@ describe('privacy fixture runtime ownership', () => {
         expect(source).toContain('prepareRuntimeOutput');
         expect(source).toContain("join(BUILD_OUT, 'privacy-build-receipt.json')");
         expect(source).toContain('writeFileSync(join(RUNTIME_OUT, name)');
+        expect(source).toContain("join(RUNTIME_OUT, 'privacy-runtime-start.json')");
         expect(source).toContain("join(RUNTIME_OUT, 'privacy-runtime.log')");
+        expect(source).toContain("openSync(startPath, 'wx', 0o600)");
+        expect(source).toContain("openSync(logPath, 'wx', 0o600)");
+        const reserveIndex = source.indexOf('const runtimeEvidence = reserveRuntimeEvidence()');
+        const dependenciesIndex = source.indexOf('prepareFixtureDependencies(dependencyPlan)', reserveIndex);
+        const spawnIndex = source.indexOf('const next = spawn(', reserveIndex);
+        expect(reserveIndex).toBeGreaterThan(-1);
+        expect(dependenciesIndex).toBeGreaterThan(reserveIndex);
+        expect(spawnIndex).toBeGreaterThan(dependenciesIndex);
+        expect(source).not.toContain("save('privacy-runtime-start.json'");
       } else {
         expect(source).not.toContain('allowRuntimeAttempt: true');
+        expect(source).toContain("const excludedBuildInputRoots = new Set([");
+        expect(source).toContain("const excludedBuildInputPaths = new Set(['supabase/.temp'])");
+        expect(source).toContain("entry.name === '.next'");
+        expect(source).toContain("entry.name.startsWith('.next-')");
+        expect(source).toContain("function walk(path = '')");
+        expect(source).not.toContain("const roots = ['app/admin'");
+        expect(source).not.toContain("const extra = ['app/layout.tsx'");
       }
     }
   });
@@ -183,6 +210,85 @@ describe('privacy fixture runtime ownership', () => {
         runtimeOut: buildOut,
         runtimeAttempt: null,
       })).toEqual({ created: false });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('reserves an existing start receipt before borrowing dependencies or spawning either server', () => {
+    const { root, webRoot } = fixtureRoot();
+    try {
+      const webSource = path.resolve(import.meta.dir, '..');
+      const evidenceRoot = path.join(webRoot, 'performance', 'admin-route-consistency-20261012');
+      const launcherDirectory = path.join(evidenceRoot, 'v2');
+      const runOut = path.join(launcherDirectory, 'runs', 'collision');
+      const dist = '.next-privacy-incidents-v2-20261012-collision';
+      const dependencies = path.join(root, 'dependencies');
+      const nextMarker = path.join(root, 'next-spawned');
+      const gatewayMarker = path.join(root, 'gateway-spawned');
+      mkdirSync(path.join(dependencies, 'next', 'dist', 'bin'), { recursive: true });
+      mkdirSync(runOut, { recursive: true });
+      mkdirSync(path.join(webRoot, dist), { recursive: true });
+      mkdirSync(path.join(webRoot, 'performance', 'admin-header-consistency-20261011'), { recursive: true });
+      writeFileSync(
+        path.join(evidenceRoot, 'privacy-fixture-runtime.mjs'),
+        readFileSync(path.join(webSource, 'performance/admin-route-consistency-20261012/privacy-fixture-runtime.mjs')),
+      );
+      writeFileSync(
+        path.join(launcherDirectory, 'start-loopback.mjs'),
+        readFileSync(path.join(webSource, 'performance/admin-route-consistency-20261012/v2/start-loopback.mjs')),
+      );
+      writeFileSync(path.join(webRoot, 'package-lock.json'), readFileSync(path.join(webSource, 'package-lock.json')));
+      writeFileSync(path.join(webRoot, dist, 'BUILD_ID'), 'fixture-build-id\n');
+      writeFileSync(path.join(dependencies, 'next', 'package.json'), '{"version":"16.3.8"}\n');
+      writeFileSync(
+        path.join(dependencies, 'next', 'dist', 'bin', 'next'),
+        `require('node:fs').writeFileSync(${JSON.stringify(nextMarker)}, 'spawned');\n`,
+      );
+      writeFileSync(
+        path.join(launcherDirectory, 'fixture-server.mjs'),
+        [
+          "import { writeFileSync } from 'node:fs';",
+          "import {} from '../../admin-header-consistency-20261011/fixture-data.mjs';",
+          'const NEXT_PORT = 18950;',
+          'const SUPABASE_PORT = 18951;',
+          'const GATEWAY_PORT = 18952;',
+          `writeFileSync(${JSON.stringify(gatewayMarker)}, 'spawned');`,
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        path.join(webRoot, 'performance', 'admin-header-consistency-20261011', 'fixture-data.mjs'),
+        'export {};\n',
+      );
+      writeFileSync(path.join(runOut, 'privacy-build-receipt.json'), `${JSON.stringify({
+        status: 0,
+        distDir: dist,
+        buildId: 'fixture-build-id',
+        sourceUnchanged: true,
+        tsconfigRestored: true,
+        runId: 'collision',
+        basePort: 31900,
+      })}\n`);
+      const existingStart = Buffer.from('{"owned":"existing-start"}\n');
+      const existingLog = Buffer.from('existing log bytes\n');
+      writeFileSync(path.join(runOut, 'privacy-runtime-start.json'), existingStart);
+      writeFileSync(path.join(runOut, 'privacy-runtime.log'), existingLog);
+
+      const result = spawnSync(node24Binary(), [
+        path.join(launcherDirectory, 'start-loopback.mjs'),
+        '--run-id', 'collision',
+        '--base-port', '31900',
+        '--dependencies', dependencies,
+      ], { cwd: webRoot, encoding: 'utf8' });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('EEXIST');
+      expect(readFileSync(path.join(runOut, 'privacy-runtime-start.json'))).toEqual(existingStart);
+      expect(readFileSync(path.join(runOut, 'privacy-runtime.log'))).toEqual(existingLog);
+      expect(existsSync(path.join(webRoot, 'node_modules'))).toBe(false);
+      expect(existsSync(nextMarker)).toBe(false);
+      expect(existsSync(gatewayMarker)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

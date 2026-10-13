@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "056a86600f412eb42df4304e3206841679012f3e",
+  "artifacts": [
+    {
+      "path": "README.md",
+      "bytes": 5439,
+      "sha256": "afbd96f4d149c89314e215906dbf5334b7c33eecf1d7813b80ddea24ded9a3b6"
+    },
+    {
+      "path": "build_artifact_map.py",
+      "bytes": 1124,
+      "sha256": "eedbaca05ccce255b9477b530c319bd752b52574ea8e657dcc54c0c68ea56e95"
+    },
+    {
+      "path": "build_carrier.py",
+      "bytes": 13317,
+      "sha256": "cebc35b4b7fb9856a0e23c0249acb8f0eb1248c73d10aa5d40bd6c27c92cc2d6"
+    },
+    {
+      "path": "local-replay-v1.json",
+      "bytes": 1549,
+      "sha256": "44ee007b4d0a3896eda7afffd75f65154fbfa32838451bd9d8e3b9b59b99aaf4"
+    },
+    {
+      "path": "review-carrier-v1.json",
+      "bytes": 14880,
+      "sha256": "ddc64738652c7a4a2da7aa294a4d8aaac4dcb945e6ec963a3ac855eb5e78551a"
+    },
+    {
+      "path": "run_local_replay.py",
+      "bytes": 4484,
+      "sha256": "22b457af353db43914e0b35b04647278b359fa3827af033d630394ab526a3787"
+    },
+    {
+      "path": "verify_carrier.py",
+      "bytes": 3637,
+      "sha256": "4bd5f7d9d357cd2ec379bc2ff0c111f7bfa564b9e8f1d4dc312e23c4d8739a65"
+    }
+  ]
+}
