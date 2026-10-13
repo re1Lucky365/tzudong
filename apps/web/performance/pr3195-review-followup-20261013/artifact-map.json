@@ -1,18 +1,92 @@
 {
-  "schema": "tzudong-pr3195-review-followup-artifact-map/v1",
-  "evidenceClass": "current-source-local-review-fixes-no-provider-or-render-replay",
+  "schema": "tzudong-pr3195-review-artifact-map/v2",
   "artifacts": [
+    {
+      "path": "bun-historical-discovery-verification-delta-20261013.json",
+      "bytes": 3317,
+      "sha256": "2e9699e93247704644d7e05d8083dd9e500772bdde5f6bdc65a460d31b2fe090",
+      "classification": "current CI/discovery delta"
+    },
+    {
+      "path": "bun-historical-discovery-verification-delta-20261013.sha256",
+      "bytes": 124,
+      "sha256": "6e93e9127cee8b4ec1555b46a7befdaa6cf8e73fd194f7e9e22d2887a6378fea",
+      "classification": "current CI/discovery delta"
+    },
     {
       "path": "canonical-title-patterns.json",
       "bytes": 1218,
-      "sha256": "3efb83d1f3c91e293c160ebe1819624240c3c3727baa796c498bee7f4381ea6a"
+      "sha256": "3efb83d1f3c91e293c160ebe1819624240c3c3727baa796c498bee7f4381ea6a",
+      "classification": "retained earlier local delta"
+    },
+    {
+      "path": "ci-typecheck-historical-input-delta-20261013.json",
+      "bytes": 3183,
+      "sha256": "a1e997ce5a045338af4f41ebf89695cc0ea7986b5167b653fd2dd7f42ab0a257",
+      "classification": "current CI/discovery delta"
+    },
+    {
+      "path": "ci-typecheck-historical-input-delta-20261013.sha256",
+      "bytes": 116,
+      "sha256": "82f067ccbc75038ded8a81d86acf32589529405c4fbf51d6cd43e187a06bc610",
+      "classification": "current CI/discovery delta"
+    },
+    {
+      "path": "historical-a077a1f2/artifact-map.json",
+      "bytes": 535,
+      "sha256": "39b1914d07c8bcb63d556ff2fd841c9eba3fa971bd0e14659c0bda4388258871",
+      "classification": "historical index bytes"
+    },
+    {
+      "path": "historical-a077a1f2/artifact-map.sha256",
+      "bytes": 84,
+      "sha256": "19c04034273fa92036eff0213473b2b04bdf2f4e334cb141ddcd58bf330c01eb",
+      "classification": "historical index bytes"
     },
     {
       "path": "review-followup-delta.json",
       "bytes": 3689,
-      "sha256": "e6dfc35d56b9a908ead551c1c834d510ee543ebb673ebba54d155fbcffdbd314"
+      "sha256": "e6dfc35d56b9a908ead551c1c834d510ee543ebb673ebba54d155fbcffdbd314",
+      "classification": "retained earlier local delta"
+    },
+    {
+      "path": "review-followup-delta.json.sha256",
+      "bytes": 93,
+      "sha256": "495c5aa3bd52cacce9576511ebc9f2b250ca4b6eaf114c3d91a73e6121e5849c",
+      "classification": "retained earlier local delta"
     }
   ],
-  "artifactCount": 2,
-  "bytes": 4907
+  "artifactCount": 9,
+  "artifactBytes": 12359,
+  "currentCIInputBindings": [
+    {
+      "path": "apps/web/bunfig.toml",
+      "bytes": 63,
+      "sha256": "3b49f3e9081826d620c036167072a9dbaf5b7eb4316e43b71dd7823671d22ccf"
+    },
+    {
+      "path": "apps/web/tsconfig.json",
+      "bytes": 1298,
+      "sha256": "42fa4271abb1177f6c171d2740f71012247c8f75dd05fd58ffa288231d9f2bc6"
+    },
+    {
+      "path": "apps/web/tests-unit/typescript-toolchain-source.test.ts",
+      "bytes": 8803,
+      "sha256": "294b043f83c8aba726b29279002d79c7d1b93a45050aa8c98cc473d3c5c9aa57"
+    },
+    {
+      "path": "apps/web/tests-unit/bun-historical-discovery-contract.test.ts",
+      "bytes": 3315,
+      "sha256": "e290b22b1e1bdcd856a11110b0dc57b62cfb483fc959abeb4ad28fb55f3b3610"
+    }
+  ],
+  "previousIndexSha256": "39b1914d07c8bcb63d556ff2fd841c9eba3fa971bd0e14659c0bda4388258871",
+  "previousIndexClassification": "preserved historical bytes; this index does not rerun old build/provider evidence",
+  "officialSource": "https://bun.com/docs/runtime/bunfig#testpathignorepatterns",
+  "limits": [
+    "Compiler and runtime discovery checks are local evidence; GitHub CI and Windows readback remain separate.",
+    "Active performance source remains admitted. Only explicit historical archive paths are excluded.",
+    "No hosted/provider/performance/monetary claim.",
+    "Current map and detached checksum exclude themselves."
+  ]
 }
