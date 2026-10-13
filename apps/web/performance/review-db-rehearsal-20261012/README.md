@@ -113,3 +113,17 @@ SUCCESSOR_ADMISSION_EXPIRED and confirmed exact baseline restoration from a sepa
 read-only connection. This explicitly labelled fault injection proves the final
 guard/rollback path; it does not measure an actual fifteen-minute operating lease.
 The original migration statements and statement vectors remain unchanged.
+# Review-fix verification — 2026-10-14
+
+The current selector now points to `pg17-review-fixes-20261014-v1.json`.
+It binds the changed successor manifest and the unchanged rollback harness.
+Twelve stage readbacks, exact rollback, forced failure, lost acknowledgement
+with one mutation attempt, real contended expiry, and apply-final deadline
+rejection passed on isolated PostgreSQL 17.6. The owned container was removed.
+No hosted rows or operating changes were involved.
+
+The first PR3202 Ubuntu npm full suite correctly rejected stale dependency
+hashes in this directory's complete artifact map. Its bounded failure receipt
+and the old map, pin and selector are retained. The current map binds current
+source bytes while historical proofs remain historical; the new selector is
+backed by a fresh replay, not by relabelling an older proof.

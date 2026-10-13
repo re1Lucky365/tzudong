@@ -445,6 +445,10 @@ test('apply producer binds the verified rehearsal artifacts without extending th
   expect(published.receipt.attemptId).toBe(published.admission.attemptId);
   expect(admission.attemptId).toBe(applyInputDocument.attemptId);
   expect(admission.attemptId).not.toBe(published.admission.attemptId);
+  expect(admission.rehearsalAdmissionSha256).toBe(sha256(readFileSync(
+    join(prepared.custodyDirectory, 'rehearsal-admission.json'),
+  )));
+  expect(admission.rehearsalAdmissionSha256).toBe(published.receipt.admissionSha256);
   expect(admission.createdAt).toBe(createdAt);
   expect(admission.expiresAt).toBe(expiresAt);
   expect(admission.stageStates).toEqual(published.receipt.stageStates);
