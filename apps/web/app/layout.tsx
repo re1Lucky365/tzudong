@@ -8,8 +8,6 @@ import { VIEWPORT_HEIGHT_BOOTSTRAP_SOURCE } from "@/lib/viewport-height-bootstra
 import { RootSpeedInsights } from "./root-speed-insights";
 import { LocalWorkspaceBanner } from "@/components/home/LocalWorkspaceBanner";
 import "./globals.css";
-// Marker styles are tiny and must be ready before the deferred map initializes.
-import "@/components/map/marker-icons.css";
 export const dynamic = "force-dynamic";
 
 // 카카오톡 OG 이미지 표시를 위해 절대 URL 필요
