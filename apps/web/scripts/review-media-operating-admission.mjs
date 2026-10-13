@@ -598,7 +598,7 @@ export function prepareReviewMediaApplyAdmission({
   const priorStateSha256 = sha256(JSON.stringify(canonical(receipt.stageStates?.[0])));
   const receiptBindings = {
     admissionSha256: HEX_SHA256.test(receipt.admissionSha256 ?? ''),
-    attemptId: UUID.test(receipt.attemptId ?? ''),
+    attemptId: receipt.attemptId === rehearsal.attemptId,
     common: receipt.schemaVersion === 1
       && receipt.id === manifestRecord.manifest.id
       && receipt.projectRef === manifestRecord.manifest.projectRef

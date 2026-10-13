@@ -16,15 +16,18 @@ import { spawn, spawnSync } from 'node:child_process';
 
 import {
   buildSuccessorStateQuery,
+  compileSuccessorPlan,
   compileSuccessorRehearsalPlan,
   loadSuccessorManifest,
+  SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER,
   validateSuccessorStageStates,
 } from '../../scripts/review-media-sql-successor.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(HERE, '../../../..');
-const OUTPUT_PATH = resolve(HERE, 'pg17-rollback-rehearsal.json');
+export const DEFAULT_RETAINED_PROOF_SELECTOR_PATH = resolve(HERE, 'retained-current-proof.json');
 const CHECKSUMS_PATH = resolve(HERE, 'SHA256SUMS');
+const CHECKSUMS_DIGEST_PATH = resolve(HERE, 'SHA256SUMS.sha256');
 const DOCKER_CONTEXT = process.env.TZUDONG_REHEARSAL_DOCKER_CONTEXT || 'colima-tzudong-catalog-20261007';
 const SOURCE_CONTAINER = process.env.TZUDONG_REHEARSAL_SOURCE_CONTAINER || 'tzudong-ranking-clone-20261008';
 const CONTAINER_PREFIX = 'tzudong-review-rollback-rehearsal';
@@ -74,31 +77,178 @@ function currentBindings(record, manifestBytes, harnessBytes) {
   });
 }
 
-function checksumEntry(checksumsBytes, repositoryPath) {
+function checksumEntries(checksumsBytes) {
   const entries = checksumsBytes.toString('utf8').split(/\r?\n/).filter(Boolean).map(line => {
     const match = /^([0-9a-f]{64})  (.+)$/.exec(line);
     if (!match) fail('LOCAL_REHEARSAL_CHECKSUMS_INVALID');
     return { sha256: match[1], path: match[2] };
   });
+  if (new Set(entries.map(entry => entry.path)).size !== entries.length) {
+    fail('LOCAL_REHEARSAL_CHECKSUMS_DUPLICATE_PATH');
+  }
+  return entries;
+}
+
+function checksumEntry(entries, repositoryPath, missingCode = 'LOCAL_REHEARSAL_RETAINED_CHECKSUM_MISSING') {
   const matches = entries.filter(entry => entry.path === repositoryPath);
-  if (matches.length !== 1) fail('LOCAL_REHEARSAL_RETAINED_CHECKSUM_MISSING');
+  if (matches.length !== 1) fail(missingCode);
   return matches[0];
 }
 
+function repositoryPathFor(repositoryRoot, absolutePath, invalidCode) {
+  const repositoryPath = relative(repositoryRoot, absolutePath).replaceAll('\\', '/');
+  if (!repositoryPath || repositoryPath.startsWith('../')) fail(invalidCode);
+  return repositoryPath;
+}
+
+function parseRetainedProofSelector(bytes, { selectorPath, selectorRepositoryPath, repositoryRoot }) {
+  let selector;
+  try { selector = JSON.parse(bytes.toString('utf8')); }
+  catch { fail('LOCAL_REHEARSAL_SELECTOR_JSON_INVALID'); }
+  const keys = selector && typeof selector === 'object' && !Array.isArray(selector)
+    ? Object.keys(selector).sort()
+    : [];
+  if (!equal(keys, ['kind', 'proofPath', 'proofSha256', 'schemaVersion'])
+    || selector.schemaVersion !== 1
+    || selector.kind !== 'review-media-sql-retained-current-proof'
+    || typeof selector.proofPath !== 'string'
+    || !/^[A-Za-z0-9][A-Za-z0-9._-]*\.json$/.test(selector.proofPath)
+    || !/^[0-9a-f]{64}$/.test(selector.proofSha256)) {
+    fail('LOCAL_REHEARSAL_SELECTOR_INVALID');
+  }
+  const proofAbsolutePath = resolve(dirname(selectorPath), selector.proofPath);
+  const proofRepositoryPath = repositoryPathFor(
+    repositoryRoot,
+    proofAbsolutePath,
+    'LOCAL_REHEARSAL_SELECTOR_PATH_INVALID',
+  );
+  if (dirname(proofRepositoryPath) !== dirname(selectorRepositoryPath)) {
+    fail('LOCAL_REHEARSAL_SELECTOR_PATH_INVALID');
+  }
+  return Object.freeze({ ...selector, proofAbsolutePath, proofRepositoryPath });
+}
+
+function readArtifactMap({
+  checksumsPath,
+  checksumsDigestPath,
+  repositoryRoot,
+  retainedRepositoryPath,
+  selectorPath,
+}) {
+  const checksumsBytes = readFileSync(checksumsPath);
+  if (checksumsDigestPath) {
+    if (!existsSync(checksumsDigestPath)) fail('LOCAL_REHEARSAL_CHECKSUMS_DIGEST_MISSING');
+    const digest = readFileSync(checksumsDigestPath, 'utf8').trim();
+    if (!/^[0-9a-f]{64}$/.test(digest)) fail('LOCAL_REHEARSAL_CHECKSUMS_DIGEST_INVALID');
+    if (sha256(checksumsBytes) !== digest) fail('LOCAL_REHEARSAL_CHECKSUMS_DIGEST_MISMATCH');
+  }
+  const entries = checksumEntries(checksumsBytes);
+  const snapshots = new Map();
+  const checksumsAbsolute = resolve(checksumsPath);
+  const digestAbsolute = checksumsDigestPath ? resolve(checksumsDigestPath) : null;
+  let selector = null;
+  let selectorRepositoryPath = null;
+  let selectedRepositoryPath = retainedRepositoryPath;
+  if (selectorPath) {
+    selectorRepositoryPath = repositoryPathFor(
+      repositoryRoot,
+      resolve(selectorPath),
+      'LOCAL_REHEARSAL_SELECTOR_PATH_INVALID',
+    );
+    const selectorEntry = checksumEntry(
+      entries,
+      selectorRepositoryPath,
+      'LOCAL_REHEARSAL_SELECTOR_CHECKSUM_MISSING',
+    );
+    if (!existsSync(selectorPath)) fail('LOCAL_REHEARSAL_SELECTOR_MISSING');
+    const selectorBytes = readFileSync(selectorPath);
+    if (sha256(selectorBytes) !== selectorEntry.sha256) fail('LOCAL_REHEARSAL_SELECTOR_SHA256_MISMATCH');
+    snapshots.set(selectorRepositoryPath, selectorBytes);
+    selector = parseRetainedProofSelector(selectorBytes, {
+      selectorPath: resolve(selectorPath),
+      selectorRepositoryPath,
+      repositoryRoot,
+    });
+    const proofEntry = checksumEntry(
+      entries,
+      selector.proofRepositoryPath,
+      'LOCAL_REHEARSAL_SELECTOR_PROOF_CHECKSUM_MISSING',
+    );
+    if (proofEntry.sha256 !== selector.proofSha256) fail('LOCAL_REHEARSAL_SELECTOR_PROOF_SHA256_MISMATCH');
+    selectedRepositoryPath = selector.proofRepositoryPath;
+  }
+  const expected = checksumEntry(entries, selectedRepositoryPath);
+  for (const entry of entries) {
+    const absolutePath = resolve(repositoryRoot, entry.path);
+    const normalizedPath = relative(repositoryRoot, absolutePath).replaceAll('\\', '/');
+    if (!normalizedPath
+      || normalizedPath.startsWith('../')
+      || normalizedPath !== entry.path
+      || absolutePath === checksumsAbsolute
+      || absolutePath === digestAbsolute) {
+      fail('LOCAL_REHEARSAL_ARTIFACT_PATH_INVALID');
+    }
+    if (!existsSync(absolutePath)) {
+      fail(entry.path === selectedRepositoryPath
+        ? 'LOCAL_REHEARSAL_CURRENT_PROOF_MISSING'
+        : 'LOCAL_REHEARSAL_ARTIFACT_MISSING');
+    }
+    const bytes = snapshots.get(entry.path) ?? readFileSync(absolutePath);
+    const actualSha256 = sha256(bytes);
+    if (actualSha256 !== entry.sha256) {
+      fail(entry.path === selectedRepositoryPath
+        ? 'LOCAL_REHEARSAL_RETAINED_SHA256_MISMATCH'
+        : selectorPath && resolve(absolutePath) === resolve(selectorPath)
+          ? 'LOCAL_REHEARSAL_SELECTOR_SHA256_MISMATCH'
+        : 'LOCAL_REHEARSAL_ARTIFACT_SHA256_MISMATCH');
+    }
+    snapshots.set(entry.path, bytes);
+  }
+  return Object.freeze({
+    expected,
+    retainedRepositoryPath: selectedRepositoryPath,
+    selector: selector && Object.freeze({
+      repositoryPath: selectorRepositoryPath,
+      sha256: sha256(snapshots.get(selectorRepositoryPath)),
+      proofPath: selector.proofPath,
+      proofSha256: selector.proofSha256,
+    }),
+    snapshots,
+  });
+}
+
 export function inspectRetainedProof({
-  outputPath = OUTPUT_PATH,
+  outputPath,
+  selectorPath = outputPath ? null : DEFAULT_RETAINED_PROOF_SELECTOR_PATH,
   checksumsPath = CHECKSUMS_PATH,
+  checksumsDigestPath,
   bindings,
   repositoryRoot = REPOSITORY_ROOT,
+  required = Boolean(selectorPath),
 } = {}) {
-  if (!existsSync(outputPath)) return Object.freeze({ present: false, classification: 'missing' });
+  if (outputPath && selectorPath) fail('LOCAL_REHEARSAL_RETAINED_SOURCE_AMBIGUOUS');
+  if (outputPath && !existsSync(outputPath)) {
+    if (required) fail('LOCAL_REHEARSAL_CURRENT_PROOF_MISSING');
+    return Object.freeze({ present: false, classification: 'missing' });
+  }
   if (!existsSync(checksumsPath)) fail('LOCAL_REHEARSAL_CHECKSUMS_MISSING');
-  const proofBytes = readFileSync(outputPath);
-  const repositoryPath = relative(repositoryRoot, outputPath).replaceAll('\\', '/');
-  if (!repositoryPath || repositoryPath.startsWith('../')) fail('LOCAL_REHEARSAL_RETAINED_PATH_INVALID');
-  const expected = checksumEntry(readFileSync(checksumsPath), repositoryPath);
+  const repositoryPath = outputPath
+    ? repositoryPathFor(repositoryRoot, outputPath, 'LOCAL_REHEARSAL_RETAINED_PATH_INVALID')
+    : null;
+  const effectiveDigestPath = checksumsDigestPath === undefined && resolve(checksumsPath) === CHECKSUMS_PATH
+    ? CHECKSUMS_DIGEST_PATH
+    : checksumsDigestPath;
+  const artifactMap = readArtifactMap({
+    checksumsPath,
+    checksumsDigestPath: effectiveDigestPath,
+    repositoryRoot,
+    retainedRepositoryPath: repositoryPath,
+    selectorPath,
+  });
+  const selectedRepositoryPath = artifactMap.retainedRepositoryPath;
+  const proofBytes = artifactMap.snapshots.get(selectedRepositoryPath);
+  const expected = artifactMap.expected;
   const actualSha256 = sha256(proofBytes);
-  if (actualSha256 !== expected.sha256) fail('LOCAL_REHEARSAL_RETAINED_SHA256_MISMATCH');
   let proof;
   try { proof = JSON.parse(proofBytes.toString('utf8')); } catch { fail('LOCAL_REHEARSAL_RETAINED_JSON_INVALID'); }
   const fields = ['manifestSha256', 'rehearsalHarnessSha256', 'sourceRoot'];
@@ -114,7 +264,8 @@ export function inspectRetainedProof({
     classification: bindingDifferences.length === 0
       ? 'retained-current-source-evidence'
       : 'retained-historical-evidence',
-    repositoryPath,
+    repositoryPath: selectedRepositoryPath,
+    selector: artifactMap.selector,
     expectedSha256: expected.sha256,
     actualSha256,
     currentSourceMatch: bindingDifferences.length === 0,
@@ -238,7 +389,7 @@ export function createOwnedContainer(ownership, {
   generateToken = () => randomBytes(16).toString('hex'),
   processId = process.pid,
 } = {}) {
-  if (ownership.created || ownership.id || ownership.name || ownership.token) {
+  if (ownership.attempted || ownership.created || ownership.id || ownership.name || ownership.token) {
     fail('LOCAL_REHEARSAL_CONTAINER_OWNERSHIP_STATE_INVALID');
   }
   const token = generateToken();
@@ -246,6 +397,7 @@ export function createOwnedContainer(ownership, {
   const name = `${CONTAINER_PREFIX}-${processId}-${token.slice(0, 12)}`;
   ownership.name = name;
   ownership.token = token;
+  ownership.attempted = true;
   const creation = dockerImpl([
     'run', '-d', '--rm', '--name', name, '--label', `${OWNER_LABEL}=${token}`,
     '-e', `POSTGRES_PASSWORD=${BOOTSTRAP_PASSWORD}`, IMAGE,
@@ -265,15 +417,23 @@ export function createOwnedContainer(ownership, {
 }
 
 export function removeOwnedContainer(ownership, { dockerImpl = docker } = {}) {
-  if (!ownership.created || !ownership.id || !ownership.name || !ownership.token) return false;
-  const observed = inspectContainer(ownership.id, ownership, dockerImpl);
+  if ((!ownership.attempted && !ownership.created) || !ownership.name || !ownership.token) return false;
+  let observed;
+  try {
+    observed = inspectContainer(ownership.id || ownership.name, ownership, dockerImpl);
+  } catch (error) {
+    if (!ownership.id && error?.code === 'LOCAL_REHEARSAL_CONTAINER_OWNERSHIP_UNPROVEN') return false;
+    throw error;
+  }
   if (!observed) {
     ownership.created = false;
     ownership.removed = true;
     return true;
   }
-  const removal = dockerImpl(['container', 'rm', '--force', ownership.id], { allowFailure: true });
-  const after = inspectContainer(ownership.id, ownership, dockerImpl);
+  ownership.id = observed.id;
+  ownership.created = true;
+  const removal = dockerImpl(['container', 'rm', '--force', observed.id], { allowFailure: true });
+  const after = inspectContainer(observed.id, ownership, dockerImpl);
   if (after) fail('LOCAL_REHEARSAL_CONTAINER_REMOVAL_UNCONFIRMED');
   ownership.created = false;
   ownership.removed = true;
@@ -330,6 +490,34 @@ function parseStages(output, manifest) {
   } catch { fail('LOCAL_REHEARSAL_STAGE_JSON_INVALID'); }
   validateSuccessorStageStates(stages, manifest);
   return stages;
+}
+
+export function injectFinalApplyExpiryFault(sql, expiresAt, {
+  expiredAt = '1970-01-01T00:00:00.000Z',
+} = {}) {
+  if (typeof sql !== 'string'
+    || !Number.isFinite(Date.parse(expiresAt))
+    || !Number.isFinite(Date.parse(expiredAt))) {
+    fail('LOCAL_REHEARSAL_APPLY_EXPIRY_FAULT_INVALID');
+  }
+  const markerIndex = sql.indexOf(SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER);
+  if (markerIndex < 0
+    || sql.indexOf(SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER, markerIndex + 1) >= 0) {
+    fail('LOCAL_REHEARSAL_APPLY_EXPIRY_MARKER_INVALID');
+  }
+  const prefix = sql.slice(0, markerIndex + SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER.length);
+  const suffix = sql.slice(prefix.length);
+  const deadline = `'${expiresAt}'::timestamptz`;
+  const matches = suffix.split(deadline).length - 1;
+  if (matches !== 1) fail('LOCAL_REHEARSAL_APPLY_EXPIRY_MARKER_INVALID');
+  const faultedSuffix = suffix.replace(deadline, `'${expiredAt}'::timestamptz`);
+  return Object.freeze({
+    sql: `${prefix}${faultedSuffix}`,
+    marker: SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER,
+    originalDeadline: expiresAt,
+    injectedDeadline: expiredAt,
+    wrapperOnlyFaultInjection: true,
+  });
 }
 
 function startLockHolder(container) {
@@ -395,7 +583,7 @@ export async function run(argv = process.argv.slice(2)) {
   const harnessBytes = readFileSync(fileURLToPath(import.meta.url));
   const bindings = currentBindings(record, manifestBytes, harnessBytes);
   const retainedProof = inspectRetainedProof({ bindings });
-  const ownership = { created: false, id: null, name: null, token: null };
+  const ownership = { attempted: false, created: false, id: null, name: null, token: null };
   let proof;
   try {
     const environment = initializeFixture(ownership);
@@ -441,6 +629,31 @@ export async function run(argv = process.argv.slice(2)) {
     }
     if (!equal(state(container, 'postgres', stateQuery), expiryBaseline)) fail('LOCAL_REHEARSAL_EXPIRY_DRIFT');
 
+    const applyExpiryBaseline = state(container, 'postgres', stateQuery);
+    const applyExpiresAt = '9999-12-31T23:59:59.999Z';
+    const applyPlan = compileSuccessorPlan(record, { expiresAt: applyExpiresAt, stageStates: stages });
+    const applyExpiryFault = injectFinalApplyExpiryFault(applyPlan.sql, applyExpiresAt);
+    const applyExpiryResult = psql(
+      container,
+      'postgres',
+      `BEGIN;\n${applyExpiryFault.sql}\nCOMMIT;`,
+      { allowFailure: true },
+    );
+    if (applyExpiryResult.status === 0
+      || !/ERROR:\s+(?:[0-9A-Z]{5}:\s*)?SUCCESSOR_ADMISSION_EXPIRED\b/m.test(applyExpiryResult.stderr)
+      || /transaction timeout/i.test(applyExpiryResult.stderr)) {
+      fail('LOCAL_REHEARSAL_APPLY_EXPIRY_NOT_REJECTED');
+    }
+    let applyTerminalReadback;
+    try { applyTerminalReadback = JSON.parse(applyExpiryResult.stdout.trim()); }
+    catch { fail('LOCAL_REHEARSAL_APPLY_TERMINAL_READBACK_INVALID'); }
+    if (!equal(applyTerminalReadback, stages.at(-1))) {
+      fail('LOCAL_REHEARSAL_APPLY_TERMINAL_READBACK_INVALID');
+    }
+    if (!equal(state(container, 'postgres', stateQuery), applyExpiryBaseline)) {
+      fail('LOCAL_REHEARSAL_APPLY_EXPIRY_ROLLBACK_DRIFT');
+    }
+
     const toolchain = record.manifest.toolchain.map(entry => ({ ...entry }));
     proof = {
       schemaVersion: 1,
@@ -466,6 +679,8 @@ export async function run(argv = process.argv.slice(2)) {
       terminalStateSha256: sha256(JSON.stringify(canonical(stages.at(-1)))),
       compiledSqlBytes: Buffer.byteLength(plan.sql),
       compiledSqlSha256: sha256(plan.sql),
+      applyCompiledSqlSha256: sha256(applyPlan.sql),
+      applyExpiryFaultedSqlSha256: sha256(applyExpiryFault.sql),
       results: {
         rollbackStageCount: stages.length,
         rollbackExact: true,
@@ -475,6 +690,11 @@ export async function run(argv = process.argv.slice(2)) {
         lostResponseRestorationExact: true,
         contendedExpiryRejected: true,
         contendedExpiryRollbackExact: true,
+        applyFinalGuardDeadlineFaultInjected: true,
+        applyTerminalReadbackObserved: true,
+        applyExpiryRejectedBeforeCommit: true,
+        applyExpiryMutationAttempts: 1,
+        applyExpiryRollbackExact: true,
       },
       hostedWrites: false,
       operatingRowsRead: false,

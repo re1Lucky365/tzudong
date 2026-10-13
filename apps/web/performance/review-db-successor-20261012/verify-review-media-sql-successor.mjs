@@ -98,6 +98,40 @@ function readState(database, stateQuery) {
   }
 }
 
+export function applySuccessorPlanOnce({
+  database,
+  sql,
+  stateQuery,
+  baselineState,
+  terminalState,
+  psqlImpl = psql,
+  readStateImpl = readState,
+}) {
+  try {
+    return Object.freeze({
+      outcome: 'acknowledged',
+      result: psqlImpl(database, sql, { singleTransaction: true }),
+    });
+  } catch {
+    let observedState;
+    try {
+      observedState = readStateImpl(database, stateQuery);
+    } catch {
+      fail('LOCAL_REHEARSAL_APPLICATION_OUTCOME_UNCERTAIN');
+    }
+    if (equal(observedState, terminalState)) {
+      return Object.freeze({
+        outcome: 'committed-after-acknowledgement-loss',
+        result: Object.freeze({ stdout: `${JSON.stringify(observedState)}\n` }),
+      });
+    }
+    if (equal(observedState, baselineState)) {
+      fail('LOCAL_REHEARSAL_APPLICATION_ROLLED_BACK');
+    }
+    fail('LOCAL_REHEARSAL_APPLICATION_STATE_AMBIGUOUS');
+  }
+}
+
 function ledgerInsert(migration) {
   const vector = JSON.stringify(migration.originalStatementVector);
   const tag = `$vector_${sha256(vector).slice(0, 20)}$`;
@@ -872,22 +906,14 @@ export async function run() {
     });
 
     resetOwnedDatabase(ownership);
-    let success;
-    try {
-      success = psql(DATABASE, plan.sql, { singleTransaction: true });
-    } catch (error) {
-      let stage = 0;
-      const diagnosticSql = plan.sql.replaceAll('MIGRATION_TERMINAL_READBACK_FAILED', () => {
-        stage += 1;
-        return `MIGRATION_TERMINAL_READBACK_FAILED_STAGE_${stage}`;
-      });
-      try {
-        psql(DATABASE, diagnosticSql, { singleTransaction: true });
-      } catch (diagnostic) {
-        fail('LOCAL_REHEARSAL_ATOMIC_STAGE_FAILED', diagnostic.message);
-      }
-      throw error;
-    }
+    const application = applySuccessorPlanOnce({
+      database: DATABASE,
+      sql: plan.sql,
+      stateQuery,
+      baselineState: stages[0],
+      terminalState: stages[11],
+    });
+    const success = application.result;
     const successLines = success.stdout.trim().split(/\r?\n/).filter(Boolean);
     const successReadback = JSON.parse(successLines.at(-1));
     const committed = readState(DATABASE, stateQuery);
@@ -982,6 +1008,7 @@ export async function run() {
       results: {
         advisoryContentionObserved: true,
         atomicCommit: true,
+        atomicCommitOutcome: application.outcome,
         atomicRollbackExact: true,
         catalogDriftStatePreserved: true,
         columnAclDriftRejected,

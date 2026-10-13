@@ -442,6 +442,9 @@ test('apply producer binds the verified rehearsal artifacts without extending th
     now: fixedNow,
   });
   const admission = JSON.parse(readFileSync(result.admissionPath, 'utf8'));
+  expect(published.receipt.attemptId).toBe(published.admission.attemptId);
+  expect(admission.attemptId).toBe(applyInputDocument.attemptId);
+  expect(admission.attemptId).not.toBe(published.admission.attemptId);
   expect(admission.createdAt).toBe(createdAt);
   expect(admission.expiresAt).toBe(expiresAt);
   expect(admission.stageStates).toEqual(published.receipt.stageStates);
@@ -475,6 +478,49 @@ test('apply producer rejects a relabeled or tampered rehearsal before writing an
     })).toThrow('SUCCESSOR_OPERATING_ADMISSION_EVIDENCE_INVALID');
     expect(existsSync(join(prepared.custodyDirectory, 'apply-admission.json'))).toBe(false);
   }
+});
+
+test('apply producer rejects a fully rehashed receipt and journal relabeled to another rehearsal attempt', () => {
+  const prepared = prepareRehearsal();
+  const published = publishSyntheticRehearsal(prepared.custodyDirectory);
+  const relabeledAttemptId = '123e4567-e89b-42d3-a456-426614174102';
+  const receiptPath = join(prepared.custodyDirectory, 'rehearsal-receipt.json');
+  const journalPath = join(prepared.custodyDirectory, 'rehearsal-journal.jsonl');
+  const relabeledReceipt = {
+    ...published.receipt,
+    attemptId: relabeledAttemptId,
+  };
+  const relabeledReceiptBytes = canonicalBytes(relabeledReceipt);
+  const relabeledReceiptSha256 = sha256(relabeledReceiptBytes);
+  const relabeledJournal = readFileSync(journalPath, 'utf8').trimEnd().split('\n').map(line => {
+    const entry = JSON.parse(line);
+    return {
+      ...entry,
+      attemptId: relabeledAttemptId,
+      ...(entry.receiptSha256 ? { receiptSha256: relabeledReceiptSha256 } : {}),
+    };
+  });
+  const relabeledJournalBytes = Buffer.from(
+    `${relabeledJournal.map(entry => JSON.stringify(canonical(entry))).join('\n')}\n`,
+  );
+  writeFileSync(receiptPath, relabeledReceiptBytes, { mode: 0o600 });
+  writeFileSync(journalPath, relabeledJournalBytes, { mode: 0o600 });
+  chmodSync(receiptPath, 0o600);
+  chmodSync(journalPath, 0o600);
+
+  const inputPath = join(prepared.root, 'apply-input-relabeled-attempt.json');
+  writePrivateCanonical(inputPath, applyInput(published, {
+    rehearsalJournalSha256: sha256(relabeledJournalBytes),
+    rehearsalReceiptSha256: relabeledReceiptSha256,
+  }));
+
+  expect(() => prepareReviewMediaApplyAdmission({
+    custodyDirectory: prepared.custodyDirectory,
+    inputPath,
+    manifestRecord,
+    now: fixedNow,
+  })).toThrow('SUCCESSOR_OPERATING_ADMISSION_EVIDENCE_INVALID');
+  expect(existsSync(join(prepared.custodyDirectory, 'apply-admission.json'))).toBe(false);
 });
 
 test('apply producer treats a dangling reserved journal symlink as an existing output', () => {

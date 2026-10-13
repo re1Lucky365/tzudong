@@ -30,6 +30,10 @@ import {
   elevenMigrationBundleSuffixRoot,
 } from './supabase-migration-bundle.mjs';
 import {
+  atomicMigrationSql,
+  statementSpans,
+} from './supabase-migration-transaction.mjs';
+import {
   TZUDONG_GITHUB_REPOSITORY,
   TZUDONG_PRODUCTION_ALIASES,
   TZUDONG_VERCEL_PROJECT_ID,
@@ -41,6 +45,7 @@ import {
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 export const REPOSITORY_ROOT = resolve(dirname(SCRIPT_PATH), '../../..');
 export const SUCCESSOR_MANIFEST_PATH = resolve(REPOSITORY_ROOT, '.github/review-media-sql-successor.v1.json');
+export const SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER = '-- successor-pre-commit-expiry-guard';
 
 const HEX_SHA256 = /^[0-9a-f]{64}$/;
 const REVISION = /^[0-9a-f]{40}$/;
@@ -636,15 +641,15 @@ function assertReceiptWindow(receipt, admission, createdAt, expiresAt, nowMs) {
     || Date.parse(receipt.expiresAt) !== expiresAt) fail('SUCCESSOR_ADMISSION_INVALID');
 }
 
-function assertPriorReceiptWindow(receipt, createdAt, expiresAt, nowMs) {
+function assertPriorReceiptWindow(receipt, expiresAt, nowMs) {
   const observedAt = Date.parse(receipt.observedAt);
   const receiptExpiresAt = Date.parse(receipt.expiresAt);
+  const receiptLeaseStartedAt = receiptExpiresAt - ADMISSION_MAX_AGE_MS;
   if (!Number.isFinite(observedAt)
     || !Number.isFinite(receiptExpiresAt)
     || receiptExpiresAt <= observedAt
     || receiptExpiresAt - observedAt > ADMISSION_MAX_AGE_MS
-    || observedAt < createdAt - ADMISSION_MAX_AGE_MS
-    || observedAt > createdAt + 30_000
+    || observedAt < receiptLeaseStartedAt
     || observedAt > nowMs + 30_000
     || receiptExpiresAt < expiresAt
     || nowMs >= receiptExpiresAt) fail('SUCCESSOR_ADMISSION_INVALID');
@@ -730,7 +735,7 @@ function validatePrivateReceipts(admission, manifestRecord, {
       || !equal(rehearsal.stageStates, admission.stageStates)) {
       fail('SUCCESSOR_ADMISSION_INVALID');
     }
-    assertPriorReceiptWindow(rehearsal, createdAt, expiresAt, nowMs);
+    assertPriorReceiptWindow(rehearsal, expiresAt, nowMs);
 
     const journal = readPrivateCanonicalJournal(
       receiptDirectory,
@@ -754,6 +759,7 @@ function validatePrivateReceipts(admission, manifestRecord, {
     const verifiedAt = Date.parse(verification.verifiedAt);
     const publishedAt = Date.parse(publication.publishedAt);
     const observedAt = Date.parse(rehearsal.observedAt);
+    const rehearsalLeaseStartedAt = Date.parse(rehearsal.expiresAt) - ADMISSION_MAX_AGE_MS;
     if (started.event !== 'started'
       || verification.event !== 'verification'
       || verification.code !== 'SUCCESSOR_REHEARSAL_VERIFIED'
@@ -779,13 +785,15 @@ function validatePrivateReceipts(admission, manifestRecord, {
       || !Number.isFinite(startedAt)
       || !Number.isFinite(verifiedAt)
       || !Number.isFinite(publishedAt)
+      || startedAt < rehearsalLeaseStartedAt
+      || observedAt < rehearsalLeaseStartedAt
+      || verifiedAt < rehearsalLeaseStartedAt
+      || publishedAt < rehearsalLeaseStartedAt
       || startedAt > observedAt
       || verifiedAt < observedAt
       || publishedAt < verifiedAt
       || verifiedAt >= Date.parse(rehearsal.expiresAt)
       || publishedAt >= Date.parse(rehearsal.expiresAt)
-      || verifiedAt > createdAt + 30_000
-      || publishedAt > createdAt + 30_000
       || verifiedAt > nowMs + 30_000
       || publishedAt > nowMs + 30_000) fail('SUCCESSOR_ADMISSION_INVALID');
   }
@@ -1044,6 +1052,31 @@ export function assertLaunchReady(manifest) {
   if (manifest.launchPolicy.state !== 'ready') fail('SUCCESSOR_LAUNCH_HELD');
 }
 
+function successorExpirySql(admission, suffix, { armTransactionTimeout = false } = {}) {
+  const tag = `$successor_expiry_${sha256(`${admission.expiresAt}:${suffix}`).slice(0, 18)}$`;
+  const armTimeout = armTransactionTimeout
+    ? `\n PERFORM set_config('transaction_timeout',least(${ADMISSION_MAX_AGE_MS},greatest(1,ceil(extract(epoch FROM (${quote(admission.expiresAt)}::timestamptz-transaction_timestamp()))*1000)::bigint))::text,true);`
+    : '';
+  return `DO ${tag} BEGIN IF clock_timestamp() >= ${quote(admission.expiresAt)}::timestamptz THEN RAISE EXCEPTION 'SUCCESSOR_ADMISSION_EXPIRED'; END IF;${armTimeout} END ${tag};`;
+}
+
+function stripCompiledStageReadback(sql) {
+  const spans = statementSpans(sql);
+  const read = spans.at(-1);
+  if (!read || !/^SELECT\b/i.test(read.token)) fail('SUCCESSOR_SOURCE_DRIFT');
+  return sql.slice(0, read.start).trimEnd();
+}
+
+function guardCompiledSuccessorStages(compiled, migrations, admission) {
+  const stages = compiled.plans.map((plan, index) => stripCompiledStageReadback(
+    atomicMigrationSql(plan, migrations[index]),
+  ));
+  const compiledPrefix = stages.join('\n');
+  if (!compiled.sql.startsWith(`${compiledPrefix}\n`)) fail('SUCCESSOR_SOURCE_DRIFT');
+  const tail = compiled.sql.slice(compiledPrefix.length + 1);
+  return `${stages.map((stage, index) => `${stage}\n${successorExpirySql(admission, `stage-${index + 1}`)}`).join('\n')}\n${tail}${SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER}\n${successorExpirySql(admission, 'pre-commit')}\n`;
+}
+
 export function compileSuccessorPlan(manifestRecord, admission) {
   const { manifest, materials } = manifestRecord;
   const suffixRoot = elevenMigrationBundleSuffixRoot(manifest.migrations);
@@ -1069,8 +1102,8 @@ export function compileSuccessorPlan(manifestRecord, admission) {
     finalReadback: { query: stateQuery, expected: terminal },
   }, materials);
   const lockTag = `$successor_${sha256(manifest.advisoryLockKey).slice(0, 20)}$`;
-  const expiryTag = `$successor_expiry_${sha256(admission.expiresAt).slice(0, 20)}$`;
-  const guardedSql = `SET LOCAL lock_timeout='2s';\nSET LOCAL statement_timeout='15s';\nSET LOCAL idle_in_transaction_session_timeout='30s';\nDO ${lockTag} BEGIN PERFORM pg_advisory_xact_lock(${manifest.advisoryLockKey}::bigint); END ${lockTag};\nDO ${expiryTag} BEGIN IF clock_timestamp() >= ${quote(admission.expiresAt)}::timestamptz THEN RAISE EXCEPTION 'SUCCESSOR_ADMISSION_EXPIRED'; END IF; END ${expiryTag};\n${compiled.sql}`;
+  const guardedStages = guardCompiledSuccessorStages(compiled, migrations, admission);
+  const guardedSql = `SET LOCAL lock_timeout='2s';\nSET LOCAL statement_timeout='15s';\nSET LOCAL idle_in_transaction_session_timeout='30s';\nDO ${lockTag} BEGIN PERFORM pg_advisory_xact_lock(${manifest.advisoryLockKey}::bigint); END ${lockTag};\n${successorExpirySql(admission, 'post-lock', { armTransactionTimeout: true })}\n${guardedStages}`;
   return Object.freeze({
     ...compiled,
     sql: guardedSql,

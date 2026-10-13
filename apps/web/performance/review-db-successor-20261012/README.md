@@ -67,3 +67,17 @@ Current ownership proof: `pg17-fixture-ownership-current-20261013.json`
 The earlier `pg17-fixture-ownership-20261013.json` is retained for the verifier
 before optional exclusive output support. Both establish six isolated scenarios;
 the current proof matches the current helper and verifier bytes.
+
+## Reviewed helper binding — 2026-10-13
+
+Current ownership evidence is `pg17-fixture-ownership-reviewed-20261013.json`.
+It binds the fixture helper, this ownership verifier and the imported rollback
+container helper. All three source byte hashes are checked before/after the run,
+including cleanup. Six scenarios again recorded one CREATE and one confirmed
+cleanup each. Earlier proofs remain immutable historical evidence.
+
+The forward fixture harness now sends the full SQL once. A failed acknowledgement
+is reconciled only by an exact read-only baseline/terminal-state read; it never
+performs a diagnostic mutation replay. Two injected outcome cases cover terminal
+commit acknowledgement loss and a rolled-back baseline. This change has local
+fault tests; no fresh forward-harness replay is claimed.

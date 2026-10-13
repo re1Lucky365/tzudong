@@ -27,6 +27,7 @@ import {
   protectedSourceReadbackBinding,
   runReviewMediaSuccessor,
   runReviewMediaSuccessorRehearsal,
+  SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER,
   validateSuccessorAdmission,
   validateSuccessorRehearsalAdmission,
 } from '../scripts/review-media-sql-successor.mjs';
@@ -272,6 +273,38 @@ function custodyFiles(document = admission()) {
   return { admissionPath, directory, document, journalPath, rehearsalJournalPath };
 }
 
+function rewriteRehearsalTimeline(files: ReturnType<typeof custodyFiles>, {
+  expiresAt = files.document.expiresAt,
+  observedAt,
+  publishedAt,
+  startedAt,
+  verifiedAt,
+}: {
+  expiresAt?: string;
+  observedAt: string;
+  publishedAt: string;
+  startedAt: string;
+  verifiedAt: string;
+}) {
+  const receiptPath = join(files.directory, 'rehearsal-receipt.json');
+  const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+  receipt.expiresAt = expiresAt;
+  receipt.observedAt = observedAt;
+  const receiptBytes = canonicalBytes(receipt);
+  writeFileSync(receiptPath, receiptBytes, { mode: 0o600 });
+  files.document.rehearsalReceiptSha256 = sha256(receiptBytes);
+
+  const journal = readFileSync(files.rehearsalJournalPath, 'utf8').trim().split('\n').map(JSON.parse);
+  journal[0].startedAt = startedAt;
+  journal[1].verifiedAt = verifiedAt;
+  journal[1].receiptSha256 = files.document.rehearsalReceiptSha256;
+  journal[2].publishedAt = publishedAt;
+  journal[2].receiptSha256 = files.document.rehearsalReceiptSha256;
+  const journalBytes = Buffer.from(`${journal.map(entry => JSON.stringify(canonical(entry))).join('\n')}\n`);
+  writeFileSync(files.rehearsalJournalPath, journalBytes, { mode: 0o600 });
+  files.document.rehearsalJournalSha256 = sha256(journalBytes);
+}
+
 function rehearsalAdmission() {
   const writerFences = Object.fromEntries(Object.entries(manifest.requiredWriterFences).map(
     ([key, state], index) => [key, { evidenceSha256: (index + 8).toString(16).repeat(64), state }],
@@ -432,6 +465,10 @@ test('compiled plan has one advisory lock, one outer transaction and eleven ledg
   expect(plan.transactionMode).toBe('single-outer-transaction');
   expect(plan.sql.match(/pg_advisory_xact_lock\(7311754282260211::bigint\)/g)).toHaveLength(1);
   expect(plan.sql.match(/INSERT INTO supabase_migrations\.schema_migrations/g)).toHaveLength(11);
+  expect(plan.sql.match(/SUCCESSOR_ADMISSION_EXPIRED/g)).toHaveLength(13);
+  expect(plan.sql.match(/set_config\('transaction_timeout'/g)).toHaveLength(1);
+  expect(plan.sql).toContain('transaction_timestamp()');
+  expect(plan.sql.match(new RegExp(SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER, 'g'))).toHaveLength(1);
   expect(statementSpans(plan.sql).some(span => /^(?:BEGIN|COMMIT|ROLLBACK)\b/i.test(span.token))).toBe(false);
   const lockTimeout = plan.sql.indexOf("SET LOCAL lock_timeout='2s'");
   const statementTimeout = plan.sql.indexOf("SET LOCAL statement_timeout='15s'");
@@ -443,6 +480,18 @@ test('compiled plan has one advisory lock, one outer transaction and eleven ledg
   expect(advisoryLock).toBeGreaterThan(statementTimeout);
   expect(expiryCheck).toBeGreaterThan(advisoryLock);
   expect(firstMigration).toBeGreaterThan(expiryCheck);
+  const ledgerWrites = [...plan.sql.matchAll(/INSERT INTO supabase_migrations\.schema_migrations/g)]
+    .map(match => match.index ?? -1);
+  const expiryChecks = [...plan.sql.matchAll(/SUCCESSOR_ADMISSION_EXPIRED/g)]
+    .map(match => match.index ?? -1);
+  ledgerWrites.forEach((writeAt, index) => {
+    expect(expiryChecks[index + 1]).toBeGreaterThan(writeAt);
+    if (index + 1 < ledgerWrites.length) expect(expiryChecks[index + 1]).toBeLessThan(ledgerWrites[index + 1]);
+  });
+  const preCommitMarker = plan.sql.indexOf(SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER);
+  expect(preCommitMarker).toBeGreaterThan(ledgerWrites.at(-1) ?? -1);
+  expect(expiryChecks.at(-1) ?? -1).toBeGreaterThan(preCommitMarker);
+  expect(statementSpans(plan.sql).at(-1)?.token).toContain('SUCCESSOR_ADMISSION_EXPIRED');
   expect(plan.sql).toContain(`clock_timestamp() >= '${admitted.expiresAt}'::timestamptz`);
   expect(plan.stateQuery).toContain('terminalContractReady');
   expect(plan.stateQuery).toContain(manifest.terminalContract.finishPostimageSha256);
@@ -457,6 +506,43 @@ test('compiled plan has one advisory lock, one outer transaction and eleven ledg
   expect(storageState).toContain('lifecycle_configuration_generation');
   expect(storageState).not.toContain('created_at');
   expect(storageState).not.toContain('updated_at');
+});
+
+test('apply accepts rehearsal evidence completed after thirty seconds within its original lease', () => {
+  const document = admission();
+  document.createdAt = '2026-10-12T07:55:00.000Z';
+  document.expiresAt = '2026-10-12T08:10:00.000Z';
+  const files = custodyFiles(document);
+  rewriteRehearsalTimeline(files, {
+    startedAt: '2026-10-12T07:55:00.000Z',
+    observedAt: '2026-10-12T08:08:00.000Z',
+    verifiedAt: '2026-10-12T08:08:05.000Z',
+    publishedAt: '2026-10-12T08:08:10.000Z',
+  });
+  expect(validateSuccessorAdmission(files.document, executableRecord, {
+    now: new Date('2026-10-12T08:09:00.000Z'),
+    receiptDirectory: files.directory,
+  })).toMatchObject({
+    createdAt: Date.parse(document.createdAt),
+    expiresAt: Date.parse(document.expiresAt),
+  });
+});
+
+test('apply rejects rehearsal evidence outside the original fifteen-minute lease', () => {
+  const document = admission();
+  document.createdAt = '2026-10-12T07:55:00.000Z';
+  document.expiresAt = '2026-10-12T08:10:00.000Z';
+  const files = custodyFiles(document);
+  rewriteRehearsalTimeline(files, {
+    startedAt: '2026-10-12T07:54:59.999Z',
+    observedAt: '2026-10-12T08:08:00.000Z',
+    verifiedAt: '2026-10-12T08:08:05.000Z',
+    publishedAt: '2026-10-12T08:08:10.000Z',
+  });
+  expect(() => validateSuccessorAdmission(files.document, executableRecord, {
+    now: new Date('2026-10-12T08:09:00.000Z'),
+    receiptDirectory: files.directory,
+  })).toThrow('SUCCESSOR_ADMISSION_INVALID');
 });
 
 test('actual psql runner with a spy transport preserves the post-lock expiry code', () => {

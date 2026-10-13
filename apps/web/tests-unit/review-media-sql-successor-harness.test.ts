@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
+  applySuccessorPlanOnce,
   createFixtureMembership,
   createOwnedDatabase,
   dropFixtureMembership,
@@ -132,6 +133,63 @@ function databaseOwnership() {
     databaseBaseline: null,
   };
 }
+
+test('successor acknowledgement loss reconciles a committed terminal state without SQL replay', () => {
+  const baselineState = { bundle: { targetCount: 0 }, state: { terminalContractReady: false } };
+  const terminalState = { bundle: { targetCount: 11 }, state: { terminalContractReady: true } };
+  let state = baselineState;
+  const sqlCalls: string[] = [];
+  let readbacks = 0;
+
+  const application = applySuccessorPlanOnce({
+    database: 'fixture_database',
+    sql: 'BEGIN; SELECT successor_mutation(); COMMIT;',
+    stateQuery: 'SELECT successor_state();',
+    baselineState,
+    terminalState,
+    psqlImpl: (_database: string, sql: string) => {
+      sqlCalls.push(sql);
+      state = terminalState;
+      throw new Error('response lost after commit');
+    },
+    readStateImpl: (_database: string, query: string) => {
+      expect(query).toBe('SELECT successor_state();');
+      readbacks += 1;
+      return state;
+    },
+  });
+
+  expect(application.outcome).toBe('committed-after-acknowledgement-loss');
+  expect(JSON.parse(application.result.stdout.trim())).toEqual(terminalState);
+  expect(sqlCalls).toEqual(['BEGIN; SELECT successor_mutation(); COMMIT;']);
+  expect(readbacks).toBe(1);
+});
+
+test('successor failure at the baseline is classified without diagnostic SQL replay', () => {
+  const baselineState = { bundle: { targetCount: 0 }, state: { terminalContractReady: false } };
+  const terminalState = { bundle: { targetCount: 11 }, state: { terminalContractReady: true } };
+  const sqlCalls: string[] = [];
+  let readbacks = 0;
+
+  expect(() => applySuccessorPlanOnce({
+    database: 'fixture_database',
+    sql: 'BEGIN; SELECT successor_mutation(); COMMIT;',
+    stateQuery: 'SELECT successor_state();',
+    baselineState,
+    terminalState,
+    psqlImpl: (_database: string, sql: string) => {
+      sqlCalls.push(sql);
+      throw new Error('transaction rolled back before acknowledgement');
+    },
+    readStateImpl: () => {
+      readbacks += 1;
+      return baselineState;
+    },
+  })).toThrow('LOCAL_REHEARSAL_APPLICATION_ROLLED_BACK');
+
+  expect(sqlCalls).toEqual(['BEGIN; SELECT successor_mutation(); COMMIT;']);
+  expect(readbacks).toBe(1);
+});
 
 test('retained proof is checksum-verified and distinguished from the current harness source', () => {
   const manifestBytes = readFileSync(new URL('../../../.github/review-media-sql-successor.v1.json', import.meta.url));
