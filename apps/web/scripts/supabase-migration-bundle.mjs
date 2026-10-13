@@ -10,6 +10,7 @@ import {
 
 const BUNDLE_SIZE = 4;
 const SUCCESSOR_BUNDLE_SIZE = 5;
+const REVIEW_MEDIA_SUCCESSOR_BUNDLE_SIZE = 11;
 const HEX_SHA256 = /^[0-9a-f]{64}$/;
 const MIGRATION_ID = /^[a-z0-9_]{1,80}$/;
 
@@ -27,6 +28,7 @@ function boundedApplyError(error) {
   if (['MIGRATION_BUNDLE_READBACK_INVALID', 'MIGRATION_BUNDLE_TERMINAL_READBACK_FAILED'].includes(code)) {
     return operationError(code);
   }
+  if (code === 'SUCCESSOR_ADMISSION_EXPIRED') return operationError(code);
   return boundedMigrationError(error);
 }
 
@@ -152,6 +154,10 @@ export function fiveMigrationBundleSuffixRoot(migrations) {
   return bundleSuffixRoot(migrations, SUCCESSOR_BUNDLE_SIZE);
 }
 
+export function elevenMigrationBundleSuffixRoot(migrations) {
+  return bundleSuffixRoot(migrations, REVIEW_MEDIA_SUCCESSOR_BUNDLE_SIZE);
+}
+
 function validateBundle(bundle, materials, expectedSize) {
   exactKeys(bundle, [
     'finalReadback',
@@ -275,6 +281,57 @@ export function compileMigrationBundle(bundle, materials) {
 
 export function compileFiveMigrationBundle(bundle, materials) {
   return compileMigrationSequence(bundle, materials, SUCCESSOR_BUNDLE_SIZE);
+}
+
+export function compileElevenMigrationBundle(bundle, materials) {
+  return compileMigrationSequence(bundle, materials, REVIEW_MEDIA_SUCCESSOR_BUNDLE_SIZE);
+}
+
+/**
+ * Validate and unwrap the exact eleven migration sources for a rollback-only
+ * rehearsal. The returned execution strings preserve every admitted source
+ * statement byte; only an admitted file-level BEGIN/COMMIT envelope is removed
+ * by migrationEnvelope so the caller can own one outer transaction.
+ */
+export function compileElevenMigrationRehearsalSources(migrations, materials) {
+  if (!Array.isArray(migrations)
+    || migrations.length !== REVIEW_MEDIA_SUCCESSOR_BUNDLE_SIZE
+    || !Array.isArray(materials)
+    || materials.length !== REVIEW_MEDIA_SUCCESSOR_BUNDLE_SIZE) {
+    fail('MIGRATION_BUNDLE_SIZE_INVALID');
+  }
+  const ids = new Set();
+  const paths = new Set();
+  let previousVersion = '';
+  const plans = migrations.map((migration, index) => {
+    if (!migration || typeof migration !== 'object' || Array.isArray(migration)) {
+      fail('MIGRATION_BUNDLE_INVALID');
+    }
+    const match = /^backend\/supabase\/migrations\/(\d{14})_[a-z0-9_]+\.sql$/.exec(migration.path ?? '');
+    const material = materials[index];
+    if (!MIGRATION_ID.test(migration.id ?? '')
+      || !match
+      || !HEX_SHA256.test(migration.sha256 ?? '')
+      || !HEX_SHA256.test(migration.statementVectorSha256 ?? '')
+      || ids.has(migration.id)
+      || paths.has(migration.path)
+      || (previousVersion && match[1] <= previousVersion)
+      || !material
+      || !Buffer.isBuffer(material.bytes)
+      || !Array.isArray(material.originalVector)
+      || material.path !== migration.path) {
+      fail('MIGRATION_BUNDLE_ORDER_OR_IDENTITY_INVALID');
+    }
+    const plan = migrationEnvelope(material.bytes, migration, material.originalVector);
+    if (plan.vectorSha256 !== migration.statementVectorSha256) {
+      fail('MIGRATION_BUNDLE_VECTOR_DIGEST_MISMATCH');
+    }
+    ids.add(migration.id);
+    paths.add(migration.path);
+    previousVersion = match[1];
+    return Object.freeze(plan);
+  });
+  return Object.freeze(plans);
 }
 
 export function bundleReconciliationSql(compiled) {

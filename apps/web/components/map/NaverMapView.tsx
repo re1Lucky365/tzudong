@@ -3687,7 +3687,7 @@ const NaverMapView = memo(({
 
     // 로딩 에러 처리
     if (loadError || mapInitError) {
-        return <NaverMapLoadErrorState message={loadError?.message ?? mapInitError ?? "네이버 지도를 초기화하지 못했습니다."} />;
+        return <NaverMapLoadErrorState message={loadError?.message ?? mapInitError ?? "네이버 지도를 초기화하지 못했습니다."} onRetry={loadError ? load : undefined} />;
     }
 
     // 로딩 중

@@ -1,0 +1,28 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-unit/review-media-sql-successor-harness.test.ts:
+(pass) fixture observes delayed advisory contention before expiry without the old 700ms cutoff [0.18ms]
+(pass) fixture rejects contention returned by a slow observation after expiry [0.22ms]
+(pass) successor acknowledgement loss reconciles a committed terminal state without SQL replay [0.24ms]
+(pass) successor failure at the baseline is classified without diagnostic SQL replay [0.06ms]
+(pass) retained proof is checksum-verified and distinguished from the current harness source [1.73ms]
+(pass) retained proof with bytes not authorized by SHA256SUMS is rejected [1.26ms]
+(pass) jointly altered retained proof and checksum map are rejected by the independent digest [1.29ms]
+(pass) owned database is cleaned after predecessor SQL fails [0.55ms]
+(pass) owned database is cleaned after fixture SQL fails [0.05ms]
+(pass) pre-existing database is never acquired or dropped [0.06ms]
+(pass) database CREATE acknowledgement loss is reconciled without replay and cleaned by exact ownership [0.16ms]
+(pass) cleanup re-reads and removes the exact owned database after the first CREATE readback fails [0.10ms]
+(pass) cleanup refuses a database whose exact owner metadata does not match [0.12ms]
+(pass) fixture role creation acknowledgement loss is reconciled and exact owned roles are cleaned [0.38ms]
+(pass) cleanup re-reads exact owned roles when the first post-create readback fails [0.10ms]
+(pass) fixture role creation failure without owned readback never authorizes cleanup [0.05ms]
+(pass) pre-existing fixture role collision is preserved and never acquired for cleanup [0.06ms]
+(pass) uncertain create collision with another owner is not guessed or removed [0.05ms]
+(pass) cleanup refuses roles whose ownership marker changed after creation [0.26ms]
+(pass) cleanup refuses to remove owned roles after an out-of-scope membership is added [0.07ms]
+
+ 20 pass
+ 0 fail
+ 98 expect() calls
+Ran 20 tests across 1 file. [161.00ms]

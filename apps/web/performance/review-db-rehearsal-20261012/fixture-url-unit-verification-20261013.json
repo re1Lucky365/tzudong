@@ -1,0 +1,22 @@
+{
+  "observedAtUtc": "2026-10-13T12:27:16.299025+00:00",
+  "sourceHead": "55a47b105c8709726d578cc935afc253bf6d2cc7",
+  "baselineHead": "7d11134938d79010073bf69c4970c9144a5308c5",
+  "changedSource": [
+    "apps/web/tests-unit/review-media-sql-successor.test.ts"
+  ],
+  "finalFixtureUriByteEqual": true,
+  "passwordPresent": false,
+  "hostedConnectionsPerformed": 0,
+  "testPass": 54,
+  "testFail": 0,
+  "expectCalls": 339,
+  "durationS": 28.39,
+  "lintExit": 0,
+  "actualPostgresReplayRerun": false,
+  "sqlControllerManifestAndReplayDriverUnchanged": true,
+  "retainedPg17ProofUnchanged": true,
+  "oldMapSha256": "5df2ade9cb3618b774eb4d3796df06ade6ba069409de49d0bdd542b34b6ec4ba",
+  "oldDetachedPinSha256": "7d395c9246782322ccc326dd99ab0d5e94e0d82e203eb519a6baf91a4a62ece2",
+  "reason": "Refresh mutable current artifact index for one semantically identical fixture source. Frozen proof results and historical index bytes are retained; no fresh database run is claimed."
+}

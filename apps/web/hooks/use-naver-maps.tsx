@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { NAVER_MAPS_CONFIG } from "@/config/maps";
 import {
     isLocalNaverStyleFallbackHost,
-    LOCAL_NAVER_MAP_STUB_SCRIPT_URL,
     resolveNaverMapScriptUrl,
     rewriteNaverStyleUrlForLocalhost,
     shouldUseLocalNaverMapStub,
@@ -106,53 +105,14 @@ function hasUsableNaverMaps() {
         && maps.Event
     );
 }
-function loadLocalNaverStubFallback(
-    setIsLoaded: (value: boolean) => void,
-    setIsLoading: (value: boolean) => void,
-    setLoadError: (value: Error | null) => void,
-) {
-    if (hasUsableNaverMaps()) {
-        setIsLoaded(true);
-        setIsLoading(false);
-        return;
-    }
-
-    const existingStub = document.querySelector('script[data-local-naver-maps="true"]');
-    const attachStub = (script: HTMLScriptElement) => {
-        script.addEventListener('load', () => {
-            if (hasUsableNaverMaps()) {
-                setIsLoaded(true);
-                setLoadError(null);
-            } else {
-                setLoadError(new Error('네이버 지도 API 초기화 실패'));
-            }
-            setIsLoading(false);
-        });
-        script.addEventListener('error', () => {
-            setLoadError(new Error('네이버 지도 API 로딩 실패 - 네트워크 오류'));
-            setIsLoading(false);
-        });
-    };
-
-    if (existingStub instanceof HTMLScriptElement) {
-        attachStub(existingStub);
-        return;
-    }
-
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.dataset.localNaverMaps = 'true';
-    script.src = LOCAL_NAVER_MAP_STUB_SCRIPT_URL;
-    script.async = true;
-    attachStub(script);
-    document.head.appendChild(script);
-}
-
 const EFFECTIVE_SCRIPT_URL = resolveNaverMapScriptUrl({
     clientId: NAVER_MAPS_CONFIG.clientId,
     configuredScriptUrl: process.env.NEXT_PUBLIC_NAVER_MAPS_SCRIPT_URL,
     useLocalStub: LOCAL_OFFLINE_MAP,
 });
+const SHARED_SCRIPT_SELECTOR = LOCAL_OFFLINE_MAP
+    ? 'script[data-local-naver-maps="true"]'
+    : 'script[data-tzudong-naver-maps="true"], script[src*="oapi.map.naver.com"]';
 
 export function useNaverMaps(options: UseNaverMapsOptions = {}) {
     const { autoLoad = false, strategy = 'afterInteractive' } = options;
@@ -163,11 +123,46 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
     });
     const [loadError, setLoadError] = useState<Error | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const scheduledLoadRef = useRef<(() => void) | null>(null);
+
+    // A retry belongs to the shared provider, not only to the consumer that
+    // requested it. Capture script completion for every mounted consumer;
+    // remove the subscription when that consumer leaves.
+    useEffect(() => {
+        const observeScript = (event: Event) => {
+            const script = event.target;
+            if (!(script instanceof HTMLScriptElement)) return;
+            if (!script.matches(SHARED_SCRIPT_SELECTOR)) return;
+
+            scheduledLoadRef.current?.();
+            scheduledLoadRef.current = null;
+            setIsLoading(false);
+            if (event.type === 'load' && hasUsableNaverMaps()) {
+                installLocalNaverStyleHostFallback();
+                setIsLoaded(true);
+                setLoadError(null);
+            } else if (!hasUsableNaverMaps()) {
+                setLoadError(new Error(event.type === 'load'
+                    ? '네이버 지도 API 초기화 실패'
+                    : '네이버 지도 API 로딩 실패 - 네트워크 오류'));
+            }
+        };
+        document.addEventListener('load', observeScript, true);
+        document.addEventListener('error', observeScript, true);
+        return () => {
+            scheduledLoadRef.current?.();
+            scheduledLoadRef.current = null;
+            document.removeEventListener('load', observeScript, true);
+            document.removeEventListener('error', observeScript, true);
+        };
+    }, []);
 
     // 수동으로 스크립트 로드하는 함수
     const load = useCallback(() => {
         // 이미 로드되었거나 로딩 중이면 무시
-        if (isLoaded || isLoading) return;
+        if (isLoaded || isLoading || scheduledLoadRef.current) return;
+
+        setLoadError(null);
 
         // Client ID 검증
         if (!NAVER_MAPS_CONFIG.clientId && !LOCAL_OFFLINE_MAP) {
@@ -182,61 +177,52 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
         }
 
         // 이미 로딩 중인 스크립트가 있는지 확인
-        const existingScript = document.querySelector(
-            LOCAL_OFFLINE_MAP
-                ? 'script[data-local-naver-maps="true"]'
-                : 'script[src*="oapi.map.naver.com"]'
-        );
+        const existingScript = document.querySelector(SHARED_SCRIPT_SELECTOR);
 
         if (existingScript) {
             setIsLoading(true);
-            existingScript.addEventListener("load", () => {
-                installLocalNaverStyleHostFallback();
-                if (hasUsableNaverMaps()) {
-                    setIsLoaded(true);
-                    setIsLoading(false);
-                } else {
-                    setLoadError(new Error("네이버 지도 API 초기화 실패"));
-                    setIsLoading(false);
-                }
-            });
-            existingScript.addEventListener("error", () => {
-                setLoadError(new Error("네이버 지도 API 로딩 실패 - 네트워크 오류"));
-                setIsLoading(false);
-            });
             return;
         }
 
         // 스크립트 로드 실행 함수
         const injectScript = () => {
+            // Another consumer may have completed or injected the shared SDK
+            // while this consumer was waiting for an idle callback.
+            if (hasUsableNaverMaps()) {
+                setIsLoaded(true);
+                setIsLoading(false);
+                return;
+            }
+            if (document.querySelector(SHARED_SCRIPT_SELECTOR)) return;
             installLocalNaverStyleHostFallback();
             setIsLoading(true);
             const script = document.createElement("script");
             script.type = "text/javascript";
+            script.dataset.tzudongNaverMaps = "true";
             if (LOCAL_OFFLINE_MAP) script.dataset.localNaverMaps = "true";
             script.src = EFFECTIVE_SCRIPT_URL;
             script.async = true;
 
             script.onload = () => {
+                script.onload = null;
+                script.onerror = null;
                 installLocalNaverStyleHostFallback();
                 if (hasUsableNaverMaps()) {
                     setIsLoaded(true);
                     setIsLoading(false);
                     return;
                 }
-                if (!LOCAL_OFFLINE_MAP) {
-                    loadLocalNaverStubFallback(setIsLoaded, setIsLoading, setLoadError);
-                    return;
-                }
+                // A failed live provider must never become a test map. Remove
+                // this failed owned script so a user retry can request it again.
+                script.remove();
                 setLoadError(new Error("네이버 지도 API 초기화 실패"));
                 setIsLoading(false);
             };
 
             script.onerror = () => {
-                if (!LOCAL_OFFLINE_MAP) {
-                    loadLocalNaverStubFallback(setIsLoaded, setIsLoading, setLoadError);
-                    return;
-                }
+                script.onload = null;
+                script.onerror = null;
+                script.remove();
                 setLoadError(
                     new Error(
                         "네이버 지도 API 스크립트 로드 실패 - Client ID 또는 웹 서비스 URL을 확인해주세요."
@@ -250,14 +236,31 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
 
         // 전략에 따른 로드 실행
         if (strategy === 'lazyOnload') {
+            setIsLoading(true);
+            let cancelled = false;
+            const run = () => {
+                scheduledLoadRef.current = null;
+                if (!cancelled) injectScript();
+            };
             // 브라우저 유휴 상태일 때 로드하거나 2초 후 로드
             const idleWindow = window as Window & {
                 requestIdleCallback?: RequestIdleCallbackLike;
+                cancelIdleCallback?: (handle: IdleCallbackHandle) => void;
             };
             if (typeof idleWindow.requestIdleCallback === 'function') {
-                idleWindow.requestIdleCallback(() => injectScript(), { timeout: 2000 });
+                let handle: IdleCallbackHandle | undefined;
+                scheduledLoadRef.current = () => {
+                    cancelled = true;
+                    if (handle !== undefined) idleWindow.cancelIdleCallback?.(handle);
+                };
+                handle = idleWindow.requestIdleCallback(run, { timeout: 2000 });
             } else {
-                setTimeout(injectScript, 2000);
+                let handle: number | undefined;
+                scheduledLoadRef.current = () => {
+                    cancelled = true;
+                    if (handle !== undefined) window.clearTimeout(handle);
+                };
+                handle = window.setTimeout(run, 2000);
             }
         } else {
             // afterInteractive: 즉시 비동기 로드
@@ -268,10 +271,12 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
 
     // autoLoad가 true면 로드 시도
     useEffect(() => {
-        if (autoLoad) {
+        // After a provider failure, wait for an explicit retry. A loading-state
+        // change must not create an unbounded automatic request loop.
+        if (autoLoad && !loadError) {
             load();
         }
-    }, [autoLoad, load]);
+    }, [autoLoad, load, loadError]);
 
     return { isLoaded, loadError, isLoading, load };
 }
