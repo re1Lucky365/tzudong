@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, ShieldAlert } from 'lucide-react';
 
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import {
+  getIncidentListPresentation,
+  nextIncidentListReadState,
+  type IncidentListReadState,
+} from '@/lib/privacy/incident-list-read-state';
 
 type IncidentStatus =
   | 'detected'
@@ -525,6 +530,7 @@ export default function PrivacyIncidentsPage() {
   const [receipt, setReceipt] = useState<ReadbackReceipt | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [incidentListReadState, setIncidentListReadState] = useState<IncidentListReadState>('pending');
   const [detectionSeverity, setDetectionSeverity] = useState<IncidentSeverity>('medium');
   const [detectedAt, setDetectedAt] = useState(localDateTimeValue);
   const [detectionConfirmationText, setDetectionConfirmationText] = useState('');
@@ -533,6 +539,7 @@ export default function PrivacyIncidentsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setIncidentListReadState((current) => nextIncidentListReadState(current, 'start'));
     try {
       const response = await fetch('/api/admin/privacy-incidents', {
         headers: { Accept: 'application/json' },
@@ -549,10 +556,13 @@ export default function PrivacyIncidentsPage() {
       setIncidents(sortedIncidents);
       setNotices(nextNotices);
       setActions(nextActions);
+      setIncidentListReadState((current) => nextIncidentListReadState(current, 'success'));
+      setMessage(null);
       setSelectedIncidentId((current) => current && sortedIncidents.some((incident) => incident.id === current)
         ? current
         : sortedIncidents[0]?.id ?? null);
     } catch (error) {
+      setIncidentListReadState((current) => nextIncidentListReadState(current, 'failure'));
       setMessage(errorMessage(error));
     } finally {
       setLoading(false);
@@ -579,6 +589,11 @@ export default function PrivacyIncidentsPage() {
   const deadlineRiskCount = useMemo(
     () => incidents.filter((incident) => incident.deadlineStatus === 'overdue' || incident.deadlineStatus === 'due_soon').length,
     [incidents],
+  );
+  const incidentListPresentation = getIncidentListPresentation(
+    incidentListReadState,
+    incidents.length,
+    deadlineRiskCount,
   );
 
   const transitionInput = useMemo((): Record<string, unknown> | null => {
@@ -812,7 +827,7 @@ export default function PrivacyIncidentsPage() {
         title="개인정보 사고 대응"
         titleId="admin-privacy-incidents-title"
         icon={ShieldAlert}
-        summary={`${incidents.length}건${deadlineRiskCount > 0 ? ` · 기한 위험 ${deadlineRiskCount}건` : ''}`}
+        summary={incidentListPresentation.summary}
         actions={(
           <button
             type="button"
@@ -878,9 +893,18 @@ export default function PrivacyIncidentsPage() {
         <div className="mb-3 flex items-center gap-3">
           <h2 className="font-semibold">사고 목록</h2>
         </div>
-        {incidents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">표시할 사고가 없습니다. 위 탐지 등록으로 첫 사고를 기록한 뒤 상태 전환을 진행하세요.</p>
-        ) : (
+        {incidentListPresentation.statusMessage ? (
+          <p
+            role={incidentListReadState === 'failed' || incidentListReadState === 'stale' ? 'alert' : 'status'}
+            className="mb-3 text-sm text-muted-foreground"
+            data-privacy-incident-list-read-state={incidentListReadState}
+          >
+            {incidentListPresentation.statusMessage}
+          </p>
+        ) : null}
+        {incidentListPresentation.hasKnownData && incidentListPresentation.emptyMessage ? (
+          <p className="text-sm text-muted-foreground">{incidentListPresentation.emptyMessage}</p>
+        ) : incidentListPresentation.hasKnownData ? (
           <div className="grid gap-2 md:grid-cols-2">
             {incidents.map((incident) => (
               <button
@@ -898,7 +922,7 @@ export default function PrivacyIncidentsPage() {
               </button>
             ))}
           </div>
-        )}
+        ) : null}
         </section>
 
         {selectedIncident ? (

@@ -137,6 +137,58 @@ test('exclusive receipt reservation preserves an uncertain pending receipt on re
   }
 });
 
+test('receipt directory fsync failure retains the exclusive receipt and starts zero provider requests', () => {
+  if (process.platform === 'win32') return;
+  const root = mkdtempSync(resolve(webRoot, 'performance/gemini-receipt-fsync-fault-'));
+  const helper = resolve(root, 'python-directory-fsync-fault');
+  const previousHelper = process.env.TZUDONG_PYTHON;
+  let providerRequestsStarted = 0;
+  try {
+    prepareEvidenceDirectory(root);
+    writeFileSync(helper, `#!/bin/sh
+exec /usr/bin/python3 -I -c 'import os,sys
+args=sys.argv[1:]
+index=args.index("create")
+name=args[index+1]
+payload=sys.stdin.buffer.read()
+fd=os.open(name,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600,dir_fd=3)
+try:
+ os.fchmod(fd,0o600)
+ offset=0
+ while offset < len(payload):
+  written=os.write(fd,payload[offset:])
+  if written <= 0: raise OSError("write failed")
+  offset += written
+ os.ftruncate(fd,len(payload))
+ os.fsync(fd)
+finally:
+ os.close(fd)
+sys.stdout.write("durability")
+raise SystemExit(2)' "$@"
+`, { mode: 0o700 });
+    process.env.TZUDONG_PYTHON = helper;
+    const path = resolve(root, 'receipt.json');
+    const initial = { pending: 'reserved', providerRequestsStarted: 0 };
+    expect(() => {
+      reserveJsonReceipt(path, initial);
+      providerRequestsStarted += 1;
+    }).toThrow('receipt_reservation_failed');
+    expect(providerRequestsStarted).toBe(0);
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual(initial);
+    expect(lstatSync(path).mode & 0o777).toBe(0o600);
+
+    if (previousHelper === undefined) delete process.env.TZUDONG_PYTHON;
+    else process.env.TZUDONG_PYTHON = previousHelper;
+    expect(() => reserveJsonReceipt(path, { pending: 'reserved' }))
+      .toThrow('existing_receipt_requires_readback');
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual(initial);
+  } finally {
+    if (previousHelper === undefined) delete process.env.TZUDONG_PYTHON;
+    else process.env.TZUDONG_PYTHON = previousHelper;
+    rmSync(root, { recursive: true });
+  }
+});
+
 test('two concurrent reservations have exactly one winner before any provider work', async () => {
   const root = mkdtempSync(resolve(webRoot, 'performance/gemini-reservation-race-'));
   try {

@@ -105,8 +105,8 @@
     "gitHead": "bd80988fb925e7c47d4fe202da8d929d119a6cca",
     "gitTree": "998d3a5568190d2fc0ba3e3634c302313f3c5b9c",
     "workingTreeDirty": true,
-    "currentSourceHashesVerified": true,
-    "sourceHashMismatchCount": 0,
+    "currentSourceHashesVerified": false,
+    "sourceHashMismatchCount": 6,
     "phases": {
       "ocr": {
         "configurationSha256": "6748727560a176b3482ebca41aa51a6fe68b88cd86f19a81ce8cde870a17b121",
@@ -141,7 +141,15 @@
           "scripts/verify-storyboard-gemini-live.ts": "9586109f3ffe2fcab671350431c2fa98288419552326c27e3061b969cd7b5676"
         }
       }
-    }
+    },
+    "uniqueSourceHashMismatchCount": 2,
+    "phaseSourceHashMismatchCounts": {
+      "ocr": 2,
+      "storyboard": 2,
+      "proImage": 2
+    },
+    "classification": "historical-provider-evidence-current-source-mismatch",
+    "comparisonReceipt": "performance/gemini-live-validation-20261012/source-reconciliation-20261013.json"
   },
   "privacyReview": {
     "receiptsContainRawProviderDiagnostics": false,
@@ -156,8 +164,8 @@
     {
       "path": "performance/gemini-live-validation-20261012/README.md",
       "role": "canonical-summary",
-      "sha256": "fb383d92177a190b9c1edebff8208761ae351ffd972137d39845a74af77b2465",
-      "bytes": 3708
+      "sha256": "d766c818cab03aa17e4b1539343ee347294de3deff07bd53837a79b2f0da0639",
+      "bytes": 3950
     },
     {
       "path": "performance/gemini-ocr-live-20261012/ocr-live-readback.json",
@@ -199,6 +207,24 @@
       "mediaType": "image/jpeg",
       "width": 1376,
       "height": 768
+    },
+    {
+      "path": "performance/gemini-live-validation-20261012/artifact-map-paid-historical.json",
+      "role": "historical-artifact-map",
+      "sha256": "251afc906a6493ced159430ff72b55d56b63ee6c62afbc0e10a218ab4e116114",
+      "bytes": 7817
+    },
+    {
+      "path": "performance/gemini-live-validation-20261012/artifact-map-paid-historical.sha256",
+      "role": "historical-map-detached-checksum",
+      "sha256": "a3b13b83185f02ab4fa04256cb24d86d09a6c35cf6dc1ab491ba98b9a25a773a",
+      "bytes": 100
+    },
+    {
+      "path": "performance/gemini-live-validation-20261012/source-reconciliation-20261013.json",
+      "role": "source-reconciliation",
+      "sha256": "4bbd345d4a38010f5e45282e1f70936df48be3b228140b9306610ae662a41ebd",
+      "bytes": 1977
     }
   ],
   "notProven": [
@@ -207,6 +233,7 @@
     "general accuracy or reliability beyond n=1 per phase",
     "full user or authentication flows",
     "database, storage, or worker behavior",
-    "deployment state"
+    "deployment state",
+    "paid provider outcomes for the current reviewed source and dependency tree"
   ]
 }

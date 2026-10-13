@@ -2,24 +2,36 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
-  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
-  realpathSync,
-  symlinkSync,
-  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  cleanupFailure,
+  cleanupPrivacyFixtureBuild,
+  prepareFixtureDependencies,
+  resolveFixtureDependencies,
+  resolveFixtureRun,
+  sanitizeFixtureOutput,
+  validateFixtureDependencies,
+} from '../privacy-fixture-runtime.mjs';
 
-const NODE = '/opt/homebrew/opt/node@24/bin/node';
+const NODE = process.execPath;
 const WEB_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const REPO_ROOT = resolve(WEB_ROOT, '../..');
-const OUT = resolve(WEB_ROOT, 'performance/admin-route-consistency-20261012/v2');
-const DIST = '.next-privacy-incidents-v2-20261012';
-const DEPENDENCIES = '/Users/twoimo/.codex/worktrees/goal-delivery-20261012/tzudong/apps/web/node_modules';
+const EVIDENCE_ROOT = resolve(WEB_ROOT, 'performance/admin-route-consistency-20261012');
+const DEFAULT_BASE_PORT = 18950;
+const run = resolveFixtureRun({
+  argv: process.argv.slice(2),
+  defaultOut: resolve(EVIDENCE_ROOT, 'v2'),
+  defaultDist: '.next-privacy-incidents-v2-20261012',
+  defaultBasePort: DEFAULT_BASE_PORT,
+});
+const OUT = run.out;
+const DIST = run.dist;
 const NODE_MODULES = join(WEB_ROOT, 'node_modules');
 const EXPECTED_LOCK_SHA256 = '607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4';
 const roots = ['app/admin', 'app/api/admin/privacy-incidents', 'components/admin', 'components/home', 'integrations', 'lib', 'styles'];
@@ -60,13 +72,13 @@ function safeEnvironment() {
   );
   return {
     ...inherited,
-    PATH: '/opt/homebrew/opt/node@24/bin:/usr/bin:/bin:/usr/sbin:/sbin',
+    PATH: `${dirname(NODE)}:/usr/bin:/bin:/usr/sbin:/sbin`,
     NODE_ENV: 'production',
     NEXT_TELEMETRY_DISABLED: '1',
     NEXT_PUBLIC_NAVER_MAPS_SCRIPT_URL: '/__local/naver-maps.js',
-    NEXT_PUBLIC_SITE_URL: 'http://127.0.0.1:18952',
+    NEXT_PUBLIC_SITE_URL: `http://127.0.0.1:${run.ports.gateway}`,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: 'synthetic-loopback-anon-key',
-    NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:18951',
+    NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${run.ports.supabase}`,
     NEXT_PUBLIC_TZUDONG_LOCAL_RUNTIME: '1',
     TZUDONG_NEXT_DIST_DIR: DIST,
     E2E_ADMIN_ROUTE_BYPASS: '1',
@@ -77,18 +89,18 @@ function safeEnvironment() {
   };
 }
 
-if (realpathSync(process.execPath) !== realpathSync(NODE) || process.versions.node !== '24.21.0') {
-  throw new Error('PINNED_NODE_REQUIRED');
-}
+if (Number.parseInt(process.versions.node.split('.')[0] ?? '', 10) !== 24) throw new Error('NODE_24_REQUIRED');
 for (const root of [WEB_ROOT, REPO_ROOT]) {
   for (const name of ['.env', '.env.local']) {
     if (existsSync(join(root, name))) throw new Error(`REPOSITORY_ENV_FILE_NOT_ADMITTED:${relativePath(join(root, name))}`);
   }
 }
 if (existsSync(join(WEB_ROOT, DIST))) throw new Error('DIST_ALREADY_EXISTS');
-if (existsSync(NODE_MODULES)) throw new Error('NODE_MODULES_ALREADY_EXISTS');
-if (!existsSync(join(DEPENDENCIES, 'next/package.json'))) throw new Error('PINNED_DEPENDENCIES_MISSING');
-if (sha256(readFileSync(join(WEB_ROOT, 'package-lock.json'))) !== EXPECTED_LOCK_SHA256) throw new Error('PACKAGE_LOCK_MISMATCH');
+const packageLockBytes = readFileSync(join(WEB_ROOT, 'package-lock.json'));
+if (sha256(packageLockBytes) !== EXPECTED_LOCK_SHA256) throw new Error('PACKAGE_LOCK_MISMATCH');
+const expectedNextVersion = JSON.parse(packageLockBytes.toString('utf8')).packages?.['node_modules/next']?.version;
+const dependencyPlan = resolveFixtureDependencies({ webRoot: WEB_ROOT, dependencyPath: run.dependencyPath });
+const nextVersion = validateFixtureDependencies(dependencyPlan, { expectedNextVersion });
 
 mkdirSync(OUT, { recursive: true });
 const before = manifest();
@@ -98,12 +110,11 @@ const nextEnvPath = join(WEB_ROOT, 'next-env.d.ts');
 const nextEnv = existsSync(nextEnvPath) ? readFileSync(nextEnvPath) : null;
 save('privacy-build-source-before.json', { baseHead: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: WEB_ROOT, encoding: 'utf8' }).stdout.trim(), rows: before, sha256: beforeHash });
 
-let ownedDependencies = false;
 let result;
 let css = null;
+let primaryError = null;
 try {
-  symlinkSync(DEPENDENCIES, NODE_MODULES, 'dir');
-  ownedDependencies = true;
+  prepareFixtureDependencies(dependencyPlan);
   result = spawnSync(NODE, ['scripts/clean-next.mjs', '--skip-clean', '--', NODE, 'node_modules/next/dist/bin/next', 'build', '--webpack'], {
     cwd: WEB_ROOT,
     env: safeEnvironment(),
@@ -114,19 +125,24 @@ try {
     const { verifyBuildRouteCssBoundaries } = await import('../../../scripts/verify-route-css-boundaries.mjs');
     css = verifyBuildRouteCssBoundaries({ nextDirectory: join(WEB_ROOT, DIST) });
   }
-} finally {
-  const generated = new Set([`${DIST}/types/**/*.ts`, `${DIST}/dev/types/**/*.ts`]);
-  const current = JSON.parse(readFileSync(join(WEB_ROOT, 'tsconfig.json'), 'utf8'));
-  const original = JSON.parse(tsconfig.toString('utf8'));
-  current.include = current.include.filter((path) => !generated.has(path));
-  if (JSON.stringify(current) !== JSON.stringify(original)) throw new Error('UNEXPECTED_TSCONFIG_CHANGE');
-  writeFileSync(join(WEB_ROOT, 'tsconfig.json'), tsconfig);
-  if (nextEnv === null && existsSync(nextEnvPath)) unlinkSync(nextEnvPath);
-  else if (nextEnv !== null) writeFileSync(nextEnvPath, nextEnv);
-  if (ownedDependencies && lstatSync(NODE_MODULES).isSymbolicLink()) unlinkSync(NODE_MODULES);
+} catch (error) {
+  primaryError = error;
 }
+const cleanup = cleanupPrivacyFixtureBuild({
+  webRoot: WEB_ROOT,
+  dist: DIST,
+  tsconfigBefore: tsconfig,
+  nextEnvBefore: nextEnv,
+  dependencyPlan,
+});
+if (cleanup.failures.length > 0) throw cleanupFailure(cleanup, primaryError);
+if (primaryError) throw primaryError;
 
-const output = `${result?.stdout ?? ''}${result?.stderr ?? ''}`;
+const output = sanitizeFixtureOutput(`${result?.stdout ?? ''}${result?.stderr ?? ''}`, [
+  WEB_ROOT,
+  REPO_ROOT,
+  dependencyPlan.source,
+]);
 writeFileSync(join(OUT, 'privacy-build-output.log'), output, { flag: 'wx', mode: 0o600 });
 const after = manifest();
 const sourceUnchanged = JSON.stringify(before) === JSON.stringify(after);
@@ -141,7 +157,8 @@ const receipt = {
   status: result?.status ?? 1,
   signal: result?.signal ?? null,
   node: process.versions.node,
-  next: JSON.parse(readFileSync(join(DEPENDENCIES, 'next/package.json'), 'utf8')).version,
+  next: nextVersion,
+  ...(run.runId !== null || run.basePort !== DEFAULT_BASE_PORT ? { runId: run.runId, basePort: run.basePort } : {}),
   distDir: DIST,
   buildId,
   sourceManifestSha256: beforeHash,
@@ -149,8 +166,9 @@ const receipt = {
   sourceUnchanged,
   tsconfigRestored: readFileSync(join(WEB_ROOT, 'tsconfig.json')).equals(tsconfig),
   dependencyLockSha256: EXPECTED_LOCK_SHA256,
-  dependenciesPath: DEPENDENCIES,
-  dependencyLinkRemoved: !existsSync(NODE_MODULES),
+  dependenciesPath: dependencyPlan.receiptPath,
+  dependencyMode: dependencyPlan.mode,
+  dependencyLinkRemoved: dependencyPlan.mode === 'workspace' || !existsSync(NODE_MODULES),
   artifacts,
   css,
   environment: {

@@ -1,78 +1,73 @@
-# 관리자 독립 경로 일관성 및 전체 경로 census
+# 개인정보 사고 관리자 화면: 현재 소스 결합 증빙
 
-## 범위
+## 현재 결론
 
-기준 HEAD는 `5f17b5f7dfca60f4b75886052dcb6433e97acba0`이다. 이 증빙은 `/admin/privacy-incidents`의 소스 수준 헤더·밀도 보정과 실제 `app` 소스에서 계산한 경로 목록만 다룬다. 네트워크, 공급자, 운영 DB, 개인정보 행, 저장, 승인, 배포에는 접근하지 않았다.
+현재 검토 대상은 HEAD `a45a6bb4989e588ddb02ac6c23ada44eb11cfdb0`에서 수정된 `/admin/privacy-incidents`와 그 읽기 상태 모델이다. 로컬 production bundle의 BUILD_ID는 `VsVqwHP7JPw_Dah--3Lp1`이며 `v2/runs/reviewed-20261013/` 아래 증빙에 결합된다.
 
-`/admin/privacy-incidents`는 공통 `AdminPageHeader`를 사용하고 제목·건수·기한 위험·새로고침을 한 헤더에 모았다. 본문의 수직 간격 토큰은 `space-y-6`에서 `space-y-3`으로, 모바일 패딩은 `p-4`에서 `p-3`으로, 중간 화면 패딩은 `md:p-8`에서 `md:p-5`로 줄였다. 새로고침 진입점은 2개에서 1개로 1개(50%) 줄었다. 이는 소스 토큰과 컨트롤 수 비교이며 렌더 높이·업무 시간 개선 측정이 아니다.
+- 빌드: Node 24.21.0, Next 16.3.8, 종료 코드 0, 소스 manifest 423개 전후 일치, 현재 소스 재읽기 423/423 일치
+- 단위 검증: 4개 파일, 47 통과, 0 실패, 419 assertions
+- TypeScript parity: 논리 입력 3,150개, diagnostics 0
+- 현재 UI: native Chrome CUA에서 390×844, 1024×844, 1440×900 반응형 상태를 관찰했고, 초기 실패·빈 성공·성공 후 갱신 실패·지연 후 성공을 합성 데이터로 확인했다.
+- stale 상태: 첫 성공의 `3건 · 기한 위험 2건`을 보존한 채 갱신 실패 안내가 표시됐다.
+- 지연 대기 상태: AX 관찰은 영수증에 있으나 별도 스크린샷은 없다.
+- 복원: 반응형 폭 400, 기기 도구 모음 해제, DevTools 종료가 영수증에 기록됐다.
 
-사고 상태 전이, 탐지·판단 입력, 사람 승인, 미리보기 → 정확 확인 → 적용 → 읽기검증 → 감사 순서, 외부 제출의 사람 책임, API 호출 형식은 변경하지 않았다. 운영자 경계 문구는 압축했지만 신고 대상·법적 적용·외부 수리·승인은 사람이 결정하고 자동 외부 제출은 없다는 의미를 유지한다.
+현재 렌더 영수증은 `v2/runs/reviewed-20261013/privacy-current-render-receipt.json`, 단위·parity 영수증은 `privacy-reviewed-unit-parity-receipt.json`, 빌드 영수증은 `privacy-build-receipt.json`이다. 저장된 JPEG의 픽셀 크기는 CUA 앱 창 캡처 크기이며 반응형 viewport 자체의 정확한 geometry 증명이 아니다. viewport 값과 관찰 문자열은 렌더 영수증에 기록돼 있다.
 
-## 경로 census
+## 합성 시나리오와 실행 경계
 
-`scripts/audit-route-census.mjs`는 `app/**/page.tsx`와 `app/s/[code]/route.ts`를 재귀적으로 읽고 각 소스의 SHA-256을 기록한다. 결과는 `route-census.json`이다.
+v2 loopback gateway는 GET 진입으로 독립 시나리오 쿠키를 초기화한다.
 
-- 공개·계정 `page.tsx`: 21개
-- 공유 핸들러: 1개
-- 관리자 물리 `page.tsx`: 5개
-- 전체: 27개
-- 과거 공개 행렬이 가진 경로: 22개, 현재 공개·계정 및 공유 경로 포함 22/22
-- 과거 공개 행렬의 운영 인증 데이터 검증: 0/22
-- 현재 관리자 합성 증빙의 사이드바 모듈: 15개
+- `/__fixture/scenario/default`: 기존 합성 사고 3건, 기한 위험 2건
+- `/__fixture/scenario/initial-failure`: 초기 조회 503
+- `/__fixture/scenario/successful-empty`: 빈 목록 200
+- `/__fixture/scenario/delayed-success`: 800ms 뒤 성공
+- `/__fixture/scenario/success-then-refresh-failure`: 첫 조회 성공, 다음 조회 503
 
-이는 모집단 27개를 전수 수집한 소스 목록이므로 표본 신뢰구간을 적용하지 않는다. 경로 파일 존재나 과거 행렬 행은 현재 렌더, OAuth, 운영 DB, 저장·승인 또는 프로덕션 동작을 입증하지 않는다.
+시나리오 제어 쿠키는 합성 전용 HttpOnly 쿠키이며 앱 서버로 전달하지 않는다. API 변경 메서드는 403이다. 공급자, 운영 DB, 실제 OAuth, 실제 개인정보, 앱 변경 요청에는 접근하지 않았다.
 
-동적 경로 입력은 과거 캡처에 실제 기록된 값만 재사용했다.
+동일한 frozen bundle을 사용한 두 런타임 시도는 시작·종료 영수증이 모두 있으며 종료 코드 0과 의존성 정리 성공을 기록한다.
 
-- `/s/[code]`: `/s/audit-invalid-code`
-- `/user/[userId]`: `/user/00000000-0000-4000-8000-000000000009`
+- `runtime-attempts/resume-20261013/`
+- `runtime-attempts/scenario-sweep-20261013/`
 
-관리자 증빙 범위도 경로별로 분리했다. `/admin`은 현재 소스에 묶인 15개 모듈의 합성 레이아웃·이동 증빙만 있고, `/admin/banners`, `/admin/evaluations`, `/admin/submissions`는 내장 모듈 또는 리다이렉트 대상 증빙만 있다. `/admin/privacy-incidents`는 이번 소스 변경 후 실제 렌더 증빙이 없으며 Root의 후속 렌더 확인이 필요하다.
+최초 `privacy-runtime-start.json`은 중단된 초기 시도의 시작 기록만 있고 종료 영수증이 없어 성공적인 lifecycle 판정에서는 제외한다. `privacy-runtime.log` 파일은 인벤토리에 넣지 않는다.
 
-## 검증
+## 현재 증빙의 한계
 
-- `bun test tests-unit/privacy-incident-workflow.test.ts tests-unit/public-surface-design-contract.test.ts tests-unit/route-census.test.ts --timeout 30000`: 24 통과, 0 실패, 349 assertions.
-- 대상 ESLint 4개 파일, `--max-warnings=0`: 통과.
-- TypeScript native 7.0.2 / compat 6.0.2 parity: 진단 0, 논리 입력 3,144개, 입력 이름 SHA-256 `911bcdc4b60d7a269d4d13edfa17845c6faf36ba3bf65c8a46e62f184c13f2c3`.
-- census를 서로 다른 출력 경로에 두 번 생성한 결과 바이트가 일치했다.
-- `git diff --check`: 통과.
+이 묶음은 로컬 합성 UI 증빙이다. 다음은 입증하지 않는다.
 
-검증에는 동일한 `package-lock.json` SHA-256 `607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4`를 가진 준비된 로컬 `node_modules`를 임시 링크로 사용했고 검사 후 제거했다.
+- 정확한 요소 geometry 또는 픽셀 단위 레이아웃 적합성
+- 브라우저 console 무오류
+- 성능 개선이나 전후 지연 비교
+- 운영 OAuth, 운영 DB, 공급자 호출, 배포 또는 실제 기기 동작
+- 법률 판단, 외부 신고·제출 또는 관리자 승인 결과
 
-## 소스 결합
+`privacy-cua-native-width24-failed-input.jpg`는 요청한 폭이 생성되지 않은 진단 캡처다. 바이트 보존을 위해 현재 맵에 포함하지만 viewport acceptance에서는 명시적으로 제외한다. 지연 대기 상태는 AX 관찰만 있고 스크린샷이 없다.
 
-- `app/admin/privacy-incidents/page.tsx`: `a06c2a03e85268f55f85a362d924ef8306d94376205f48fddc3f71797add1050`
-- `tests-unit/privacy-incident-workflow.test.ts`: `92405df000e995a08315dc9bbd7f4e5766fbbfdb7c4ed74448afb17c8aeb118f`
-- `tests-unit/route-census.test.ts`: `0a506927cdd7d0fa7cbf752b96bb913c758e23c24c65edfb3510725c1b42517b`
-- `scripts/audit-route-census.mjs`: `e9e38fdabdd98acc2f98082b55bac0214113921bb994d3273db0976b0a5f79c2`
-- `route-census.json`: `73f6125b9ce41058e59c67bc9b100c729b5973f32ad3fb25effcd2d30ff2f3e1`
+## 역사 자료
 
-입력 증빙 SHA-256은 `route-census.json`의 `evidenceInputs`에도 포함되어 있다. 실제 렌더와 운영 동작은 아직 미확인이다.
+루트와 `v2/` 바로 아래의 기존 PNG·JSON·README는 과거 소스와 frozen bundle에 대한 역사 자료다. 과거 페이지 SHA-256은 `572ac666db2f7f66a852557bacab63b64851056838ef11efa7dbd60a2db057a2`, 현재 페이지 SHA-256은 `e22616985864f9d19f9d16bc91dab114fb22d76de0e8f6dbd6c814a3d73df79b`로 서로 다르다. 과거 build manifest의 421개 소스, 과거 BUILD_ID, PNG와 소스 해시는 현재 렌더 증명이 아니다.
 
-## standalone 렌더 준비
+불변 역사 인벤토리는 다음과 같다.
 
-관리자 segment layout은 `../../styles/admin-ui.css`를 직접 import하므로 `/admin/privacy-incidents`에도 공통 `AdminPageHeader` CSS가 포함된다. 모바일 `max-width: 639px` 규칙은 헤더 액션 버튼에 `min-width: 2.75rem; min-height: 2.75rem`을 적용한다. 따라서 `h-8` 소스 토큰과 별개로 CSS상 44px 하한이 있으나, 계산된 실제 geometry는 Root의 CUA 3폭 검증 전까지 미확인이다.
+- `artifact-map-31-historical.json`: 원본이 남아 검증 가능한 31개 역사 자료
+- `artifact-map-35-historical.json`: 원래 35개 인벤토리
+- `excluded-historical-artifacts.json`: 원본이 없어 현재 증빙에서 제외한 과거 로그 4개
+- `historical-reproduction-sources-a45a6bb4/`: 현재 도구로 교체되기 전 reproduction source 5개
 
-새 production fixture는 기존 frozen build를 건드리지 않고 `.next-privacy-incidents-20261012`에 생성했다.
+역사 인벤토리와 제외 영수증은 수정하지 않았다. 현재 `artifact-map.json`은 현재 파일의 실제 바이트를 다시 해시하며, 자기 자신과 `artifact-map.sha256`은 순환 참조를 피하기 위해 artifacts 목록에 넣지 않는다.
 
-- BUILD_ID: `u8JceLpzbDBeZYdF9j5nJ`
-- build source manifest: 421개, 전후 동일
-- tsconfig 원문 복구: 통과
-- 임시 의존성 링크 제거: 통과
-- route CSS boundary: 통과
-- package lock SHA-256: `607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4`
-- build receipt: `privacy-build-receipt.json`
+## 인벤토리 규칙
 
-Loopback runtime은 Node 24.21.0과 Next 16.3.8로 127.0.0.1에만 열려 있다. 보이는 시작 페이지 `http://127.0.0.1:18942/__fixture/start`의 **검증 화면 열기** 버튼은 합성 localStorage 표식을 설정하고 합성 세션 쿠키를 발급한 뒤 `/admin/privacy-incidents`로 이동한다. 포트는 Next 18940, 합성 Supabase 18941, gateway 18942다.
+`artifact-map.json`은 다음을 구분한다.
 
-HTTP readback은 시작 페이지 200, 세션 이동 후 페이지 200/24,344 bytes, 제목 포함, 합성 사고 3건·기한 위험 2건을 확인했다. 이는 `privacy-http-readback.json`에 기록했으며 렌더·geometry 증빙으로 취급하지 않는다. 실제 1440/1024/390 렌더, 헤더 높이·잘림·overflow, 모바일 새로고침 버튼 44px 하한은 Root CUA 확인 대상으로 남아 있다.
+- 현재 소스·테스트 결합
+- 현재 빌드·검증·렌더·런타임 lifecycle 증빙
+- 현재 viewport acceptance에서 제외된 진단 입력
+- 과거 영수증·렌더·인벤토리
+- 보존된 과거 reproduction source
 
-추가 결합 SHA-256:
+완료된 현재 빌드 출력 로그는 보조 진단 자료로 맵에 포함하지만 비교 성능 증빙으로 사용하지 않는다. 런타임 로그는 lifecycle JSON 대신 사용하지 않으며 현재 artifacts 합계에서 제외한다. 맵 검증은 모든 artifact와 source binding의 크기·SHA-256, 역사 sidecar, 현재 sidecar를 실제 파일에서 다시 읽어 비교한다.
 
-- `app/admin/layout.tsx`: `b9263c7a9583237bdc78662718e2f48c7607e78dce245c1f4d4363612b8006b1`
-- `components/admin/AdminPageHeader.tsx`: `ac2621a32fbed7b801798675683a439b8900621ef86e6116034d71a1cfb40a73`
-- `styles/admin-ui.css`: `b0741acb28a35b16f4bcab415b5549bf30924c19efba86a8048ced2456d4c307`
-- `build-privacy-fixture.mjs`: `551f0ce6acfc477e7d5bb7c3fb4f1ab0248ce7cb93345a6945321d7df1295ef3`
-- `fixture-server.mjs`: `05b24997c5716d19171b0049462775be00d3f0b5db34b3c7b3260bfb8ec58a2c`
-- `start-loopback.mjs`: `fc01cd12a7c6a78936012a2254a52e947f9ab35645c0e866a65988e6de0f0ae8`
-- `privacy-build-receipt.json`: `b8355ff194cff412a77d82adde1f82d4e118053b1f5bd0c88d3c7456a117c3b5`
+현재 빌드 출력 로그는 보조 진단 자료로 로컬에만 보존하며 Git 인벤토리에서는 제외한다. 원문 바이트를 whitespace 검사를 위해 변경하지 않았고, 제외 파일의 원래 크기·SHA는 현재 map의 `localDiagnosticExcluded`에 기록했다. 빌드·소스·단위·렌더 영수증은 계속 필수 artifact다.

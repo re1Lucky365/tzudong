@@ -75,11 +75,21 @@ try:
                     os.mkdir(name, 0o700, dir_fd=current)
                 except FileExistsError:
                     pass
-                following = os.open(
-                    name,
-                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                    dir_fd=current,
-                )
+                following = None
+                try:
+                    following = os.open(
+                        name,
+                        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                        dir_fd=current,
+                    )
+                    # Make both the directory inode and its parent entry durable
+                    # before this component can anchor the next one.
+                    os.fsync(following)
+                    os.fsync(current)
+                except Exception:
+                    if following is not None:
+                        os.close(following)
+                    raise
                 os.close(current)
                 current = following
             final = os.fstat(current)
@@ -108,6 +118,9 @@ try:
                 write_all(fd, payload)
                 final = os.fstat(fd)
                 validate_file(final, expected_size=len(payload))
+                # A durable file body alone does not make a newly-created name
+                # survive a crash. Flush the directory entry before success.
+                os.fsync(ROOT_FD)
                 emit(final)
             finally:
                 os.close(fd)
