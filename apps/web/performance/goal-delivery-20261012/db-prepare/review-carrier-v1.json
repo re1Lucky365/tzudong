@@ -1,0 +1,426 @@
+{
+  "schemaVersion": 1,
+  "id": "goal_delivery_20261012_pending_db_transition",
+  "mode": "review_only_non_executable",
+  "projectRef": "aqlcofblfxdrjhhdmarw",
+  "protectedSource": {
+    "commit": "056a86600f412eb42df4304e3206841679012f3e",
+    "tree": "4b47fe832c375a9a0f829332c354379c042ace06",
+    "ref": "refs/remotes/origin/main"
+  },
+  "priorHostedObservation": {
+    "source": "same-goal read-only audit; not refreshed by this carrier",
+    "ledgerRows": 86,
+    "latestVersion": "20261009101645",
+    "targetAppliedCount": 0,
+    "freshExecutionWindowReadbackRequired": true
+  },
+  "transition": {
+    "targetCount": 11,
+    "expectedLedgerRowsIfNoConcurrentChanges": 97,
+    "expectedLatestVersion": "20261011175912",
+    "requireAllExactStatementVectors": true,
+    "migrationOrder": [
+      "20261008192455",
+      "20261008200719",
+      "20261008201635",
+      "20261011072824",
+      "20261011085342",
+      "20261011094346",
+      "20261011100730",
+      "20261011103501",
+      "20261011105114",
+      "20261011110108",
+      "20261011175912"
+    ]
+  },
+  "criticalPreconditions": {
+    "databaseRole": {
+      "currentUser": "postgres",
+      "sessionUser": "postgres",
+      "transactionReadOnly": "off",
+      "serverMajor": [
+        15,
+        17
+      ]
+    },
+    "ownerCleanup": {
+      "function": "public.finish_review_media_cleanup()",
+      "requiredPreimageSha256": "f6c4e71988ed2b789b887484af5fdf2e482bde98f1d1c5b5d4e7ad124c314bd1",
+      "requiredPostimageSha256": "a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9",
+      "privacyWorkflowOwner": "restricted, non-login, non-inherit, non-bypassrls",
+      "pg17Authority": "external admin-option grant to postgres must exist; self-grant is forbidden"
+    },
+    "freshReadbackRequired": true
+  },
+  "migrations": [
+    {
+      "id": "review_media_commit_cleanup",
+      "version": "20261008192455",
+      "name": "review_media_commit_cleanup",
+      "path": "backend/supabase/migrations/20261008192455_review_media_commit_cleanup.sql",
+      "bytes": 17278,
+      "sha256": "1b018884a0ba8bb25e6a9e31fa831e349bd4442118e5d4bf1699464e09e16c3c",
+      "gitBlob": "a7a9bc9ea5934295fc646a0eed69805aa85d5a30",
+      "statementCount": 34,
+      "statementVectorSha256": "b90dac7fe72cedb2338c60d85f1852ba429c8395bd6a579797178fb067a887c3",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 33,
+          "control": "COMMIT"
+        }
+      ]
+    },
+    {
+      "id": "review_verification_private",
+      "version": "20261008200719",
+      "name": "review_verification_private",
+      "path": "backend/supabase/migrations/20261008200719_review_verification_private.sql",
+      "bytes": 5281,
+      "sha256": "92b469ab0ed1a23bf91c1ab5a3f8e92d45cf0f4e06e5fa602d6a34ad0497a51b",
+      "gitBlob": "3feb6f810f9a772d102b8f8e55bee5056d2ce430",
+      "statementCount": 17,
+      "statementVectorSha256": "3d2e3409b2a271362fb8543b2357bcacece7a990f7960b74ae0807773854f664",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 16,
+          "control": "COMMIT"
+        }
+      ]
+    },
+    {
+      "id": "review_media_catalog_integration",
+      "version": "20261008201635",
+      "name": "review_media_catalog_integration",
+      "path": "backend/supabase/migrations/20261008201635_review_media_catalog_integration.sql",
+      "bytes": 47177,
+      "sha256": "6e820eb535bc514e78f258110e36dff00537bcaefcffd8b354356107ca9c09fe",
+      "gitBlob": "b277a40ea35453e865603baf4b474aeabb43ec2d",
+      "statementCount": 11,
+      "statementVectorSha256": "e69060e11abab0564f63decd2ba601630d13724c0a71b2f6cb2c616c0bb03e9c",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 10,
+          "control": "COMMIT"
+        }
+      ]
+    },
+    {
+      "id": "admin_review_media_completion",
+      "version": "20261011072824",
+      "name": "admin_review_media_completion",
+      "path": "backend/supabase/migrations/20261011072824_admin_review_media_completion.sql",
+      "bytes": 13429,
+      "sha256": "32626259ca77ea913f068ee804815ff439abbff1ce310da4525e4f0bb86d8338",
+      "gitBlob": "b605e9596624df4cecd53b83d9d2a0ebe6b90fc2",
+      "statementCount": 7,
+      "statementVectorSha256": "3a47d7e182bfd764ae70401e4e8462b08eaa5576baf4d051503e80534fc8fb8e",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 6,
+          "control": "COMMIT"
+        }
+      ]
+    },
+    {
+      "id": "review_legacy_shared_cleanup",
+      "version": "20261011085342",
+      "name": "review_legacy_shared_cleanup",
+      "path": "backend/supabase/migrations/20261011085342_review_legacy_shared_cleanup.sql",
+      "bytes": 7661,
+      "sha256": "623236ddbd87059b94c84486f9e14822dba0190d2448656259991bd1345a434f",
+      "gitBlob": "d0b6f21ccce71d32ca0dae7e49b5906016a14a38",
+      "statementCount": 6,
+      "statementVectorSha256": "b7b7cc3636ba9496aea569ec18ddeeeb18dbd97e20228e3490a41dd37f6f3956",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 5,
+          "control": "COMMIT"
+        }
+      ]
+    },
+    {
+      "id": "admin_evaluation_revision_safeupdate",
+      "version": "20261011094346",
+      "name": "admin_evaluation_revision_safeupdate",
+      "path": "backend/supabase/migrations/20261011094346_admin_evaluation_revision_safeupdate.sql",
+      "bytes": 3666,
+      "sha256": "b7061015ea07192dccfcf0774d5548a9c2a584c7daa140d77fccd7c75cb8bf88",
+      "gitBlob": "b4c39e68ab3efb8e49ac6fc775025ad22071c46e",
+      "statementCount": 6,
+      "statementVectorSha256": "8cfd8d94d5419712b767b1360361ed905b151e45c8ba3d9cca8d7fe3f1adbd69",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 5,
+          "control": "COMMIT"
+        }
+      ]
+    },
+    {
+      "id": "admin_record_expired_preview_readback",
+      "version": "20261011100730",
+      "name": "admin_record_expired_preview_readback",
+      "path": "backend/supabase/migrations/20261011100730_admin_record_expired_preview_readback.sql",
+      "bytes": 4163,
+      "sha256": "26c64074bb98e718ba96732ac2baeedb851afe6ff745e0ddb5ca075359892472",
+      "gitBlob": "fde3de8c2e290faf59728f420b1bf114a3fa8371",
+      "statementCount": 6,
+      "statementVectorSha256": "afa3246f159064fa19046cc9da75c3cc215150dc78ad8cf80f887f6263966f5a",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 5,
+          "control": "COMMIT"
+        }
+      ]
+    },
+    {
+      "id": "admin_verification_durable_staging",
+      "version": "20261011103501",
+      "name": "admin_verification_durable_staging",
+      "path": "backend/supabase/migrations/20261011103501_admin_verification_durable_staging.sql",
+      "bytes": 12008,
+      "sha256": "081c48e91172e4e98079b03aa210c0f7481d95a21945e5a288187263089e57db",
+      "gitBlob": "840bbb3e53d81db1444068ffed470709a45c5aef",
+      "statementCount": 6,
+      "statementVectorSha256": "9c2f696f41d5e001d574809b911ba6dc2451bbd6cc9f23684a98fe543d56b512",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 5,
+          "control": "COMMIT"
+        }
+      ]
+    },
+    {
+      "id": "review_media_storage_retirement_fence",
+      "version": "20261011105114",
+      "name": "review_media_storage_retirement_fence",
+      "path": "backend/supabase/migrations/20261011105114_review_media_storage_retirement_fence.sql",
+      "bytes": 11418,
+      "sha256": "79375138d7e82a3be2b85b219ff52147db13db9c93070569be40a61ab97c3d53",
+      "gitBlob": "1b0a8e022a5a57ce24682137b5dfdd70b803171c",
+      "statementCount": 6,
+      "statementVectorSha256": "6be5e2a7387d2e6d71e8ee830cb9a48df74b592ffd18bb51eba43869fc005c89",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 5,
+          "control": "COMMIT"
+        }
+      ]
+    },
+    {
+      "id": "review_storage_caller_bound_admin_policy",
+      "version": "20261011110108",
+      "name": "review_storage_caller_bound_admin_policy",
+      "path": "backend/supabase/migrations/20261011110108_review_storage_caller_bound_admin_policy.sql",
+      "bytes": 8463,
+      "sha256": "45b2a0db333a1e24ac1f68b7693c7cfb98e10cd0ab366b98089c3679a6b5dfbc",
+      "gitBlob": "bbb804e43cd8739afb9301f1ae949d6992571be6",
+      "statementCount": 7,
+      "statementVectorSha256": "02a88a7bb3c01228d2534cd0147c59f5791e42c790b53dad009ac0d442a4f0cd",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 6,
+          "control": "COMMIT"
+        }
+      ]
+    },
+    {
+      "id": "review_owner_cleanup_completion",
+      "version": "20261011175912",
+      "name": "review_owner_cleanup_completion",
+      "path": "backend/supabase/migrations/20261011175912_review_owner_cleanup_completion.sql",
+      "bytes": 6694,
+      "sha256": "9164be35fc17e67c3f1aaf98aad13139a8fd469130bd1315879bff5dac63ba26",
+      "gitBlob": "8ad304724f98daebbc9784f59d8c084c58e345c2",
+      "statementCount": 6,
+      "statementVectorSha256": "1343501bbfeac4c075fcb09f07de1a11e3b02c27d12d5091b65d72c99555269a",
+      "transactionControls": [
+        {
+          "index": 0,
+          "control": "BEGIN"
+        },
+        {
+          "index": 5,
+          "control": "COMMIT"
+        }
+      ]
+    }
+  ],
+  "expectedTerminalContracts": {
+    "relations": [
+      "review_media_private.commits",
+      "review_media_private.cleanup"
+    ],
+    "functions": [
+      "public.mutate_review_with_media(uuid,uuid,text,timestamptz,text,text[],text[])",
+      "public.queue_review_upload_cleanup(uuid,text[])",
+      "public.read_review_media_commit(uuid,uuid,text)",
+      "public.pending_review_media_cleanup()",
+      "public.finish_review_media_cleanup()",
+      "public.review_media_delete_allowed(text)",
+      "public.review_media_upload_allowed(text,text)",
+      "public.admin_review_verification_cleanup(uuid,text,text[])"
+    ],
+    "policies": [
+      "review_media_safe_delete",
+      "review_media_safe_insert",
+      "review_media_safe_update",
+      "review_verifications_owner_read",
+      "review_verifications_owner_insert",
+      "review_verifications_owner_delete",
+      "review_verifications_safe_delete",
+      "review_photos_food_insert",
+      "review_photos_food_update"
+    ],
+    "functionBodySha256": {
+      "public.mutate_review_with_media(uuid,uuid,text,timestamptz,text,text[],text[])": "d5d6646a4294c0e7bd0cd75ea47a996c9c57bac6c32a39ac53fbb7a8b1e7e323",
+      "review_media_private.enqueue_removed()": "cbf6a87e453e8c2e14d67acd73a92e399fbba4b4f24ac27966806e13ef1fd905",
+      "review_media_private.guard_references()": "94113c8ae1231e8eae5a698f35a1370a38367e42c79cc87ac62db76c32e735b1",
+      "public.admin_review_verification_cleanup(uuid,text,text[])": "468c12ee6c3463876cbccb394fcba8f870459a1f6cf3d945d97307f8551f094b",
+      "public.finish_review_media_cleanup()": "a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9"
+    },
+    "acl": {
+      "reviewMediaOwnerFunctions": "authenticated only as asserted by migration readbacks",
+      "adminReviewVerificationCleanup": "service_role only",
+      "publicIsUserAdmin": "no EXECUTE for anon, authenticated, or service_role",
+      "privacyWorkflowOwner": "restricted non-login owner; fresh G014 terminal readback required"
+    },
+    "storage": {
+      "buckets": [
+        "review-photos",
+        "review-verifications"
+      ],
+      "callerBoundAdminPolicies": true,
+      "retirementFence": true,
+      "noObjectMutationByThisCarrier": true
+    }
+  },
+  "applicationDependency": {
+    "mustPrecedeAppDeployment": true,
+    "source": "apps/web/lib/reviews/review-media-mutation.ts",
+    "requiredRpcs": [
+      "mutate_review_with_media",
+      "queue_review_upload_cleanup",
+      "read_review_media_commit"
+    ]
+  },
+  "existingExecutorCompatibility": {
+    "adminRecordSqlSuccessor": {
+      "targetCoverage": [],
+      "targetCoverageCount": 0,
+      "fixedMigrationCount": 5,
+      "operatingTransition": {
+        "beforeFive": 80,
+        "afterFive": 85
+      },
+      "compatible": false,
+      "reason": "fixed five-stage 80-to-85 manifest does not admit these 11 paths"
+    },
+    "genericReleaseManifest": {
+      "targetCoverage": [],
+      "targetCoverageCount": 0,
+      "compatible": false,
+      "reason": "fixed canonical release manifest has no target entries or target readbacks"
+    },
+    "bundleCompiler": {
+      "supportedBundleSizes": [
+        4,
+        5
+      ],
+      "wholeTransitionSupported": false,
+      "reason": "no admitted 11-stage executor or cross-chunk terminal state contract"
+    }
+  },
+  "executorSources": [
+    {
+      "path": ".github/admin-record-sql-successor.v1.json",
+      "sha256": "3674b05d5be0091e1123a1c76709e0a53e9c7dbed3fc468c4fafd9b1a22b985d",
+      "gitBlob": "07b8d47b64b9129d4187cede13fa4ad625d2d1d6"
+    },
+    {
+      "path": ".github/supabase-migration-release-manifest.v1.json",
+      "sha256": "515743d094b4b431a29df772a363837bdad8f7541aa3acf4a923efb79f460c0d",
+      "gitBlob": "80c2c83393f2dbdf47d482df8ecdf622ac24df12"
+    },
+    {
+      "path": "apps/web/scripts/admin-record-sql-successor.mjs",
+      "sha256": "c9b2c3335598bc21a5a721182ae45aae0d009be8684e7a1a2a0871e0cb921466",
+      "gitBlob": "435fdf3f3d597d4e9165723877508125f9d93667"
+    },
+    {
+      "path": "apps/web/scripts/apply-supabase-migration.mjs",
+      "sha256": "02c404e0be3e81b7c8d4d7766ff29e750b1797f5ad49b5f496168170e21192d4",
+      "gitBlob": "434bc053fdf5f509b5740fc9fa33ec9721bf848f"
+    },
+    {
+      "path": "apps/web/scripts/supabase-migration-bundle.mjs",
+      "sha256": "fdc6c175fe77cc11b6252c6d9b326061d67639c6e7fff728e94e70a85f25c5b6",
+      "gitBlob": "b41250d338feaae63c6d73b7a465e774130ae12a"
+    }
+  ],
+  "requiredExecutionHolds": {
+    "writerFences": {
+      "adminRecordMutationsHold": "active",
+      "g037WriteFreeze": "active",
+      "automaticReviewer": "stopped",
+      "browserRpc": "stopped",
+      "directSql": "stopped",
+      "dashboard": "stopped",
+      "providerIngress": "stopped"
+    },
+    "freshProtectedReleaseReceipt": true,
+    "freshAdmissionReceipt": true,
+    "freshPriorStateAndTerminalReadbacks": true,
+    "namedRollbackSourceSha": true,
+    "currentTaskAuthorizesExecution": false
+  },
+  "exclusions": [
+    "database writes",
+    "storage writes",
+    "queue claims",
+    "worker changes",
+    "provider calls",
+    "deployment",
+    "billing"
+  ]
+}

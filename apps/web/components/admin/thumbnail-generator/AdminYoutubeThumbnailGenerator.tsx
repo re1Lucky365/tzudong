@@ -6477,7 +6477,6 @@ export function AdminYoutubeThumbnailGenerator() {
     <AdminEmbeddedModuleShell
       moduleId="youtube-thumbnail-generator"
       titleId="admin-youtube-thumbnail-generator-title"
-      title="유튜브 썸네일 생성"
       icon={Wand2}
       summary={thumbnailModuleSummary}
     >

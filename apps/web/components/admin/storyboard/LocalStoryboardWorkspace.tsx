@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 import { StoryboardProjectLibrary } from "./StoryboardProjectLibrary";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -333,10 +334,12 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
   }
 
   return <section aria-labelledby="local-storyboard-title" data-local-storyboard-workspace="true"
-    className="h-full min-h-0 min-w-0 overflow-y-auto bg-background p-3 pb-24 text-foreground sm:p-4 sm:pb-6">
-    <AdminPageHeader title="스토리보드" titleId="local-storyboard-title" titleAs="h2" icon={Clapperboard}
-      className="admin-storyboard-page-header"
-      actions={<div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+    className="h-full min-h-0 min-w-0 overflow-y-auto bg-background text-foreground">
+    <AdminPageHeader title={getAdminModuleTitle("storyboard")} titleId="local-storyboard-title" icon={Clapperboard}
+      actions={projectId ? <button type="button" className={`${buttonClass} !border-primary !bg-primary !text-primary-foreground`} onClick={() => selectProject(null)}>새 프로젝트</button> : undefined}
+    />
+    <div className="admin-cms-toolbar shrink-0" data-admin-storyboard-toolbar="true">
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
         <label className="sr-only" htmlFor="local-project-select">프로젝트 선택</label>
         <select id="local-project-select" className={`${inputClass} !mt-0 sm:max-w-48`} value={projectId ?? ""}
           onChange={(event) => selectProject(event.target.value || null)}>
@@ -346,9 +349,9 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
         {projectId && <button type="button" className={buttonClass} aria-expanded={showLibrary} aria-controls="local-storyboard-project-library"
           onClick={() => setShowLibrary((value) => !value)}>프로젝트 목록</button>}
         <button type="button" className={buttonClass} aria-expanded={showSetup} onClick={() => setShowSetup((value) => !value)}>연결 설정</button>
-        {projectId && <button type="button" className={`${buttonClass} !border-primary !bg-primary !text-primary-foreground`} onClick={() => selectProject(null)}>새 프로젝트</button>}
-      </div>}
-    />
+      </div>
+    </div>
+    <div className="min-w-0 p-3 pb-24 sm:p-4 sm:pb-6">
     {departureNotice && <p role="alert" className="mb-3 text-sm text-destructive">{departureNotice}</p>}
     {catalogError && projectId && !showLibrary && <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 text-sm text-destructive">
       <span>{catalogError}</span>
@@ -417,6 +420,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
         </section>}
       </aside>}
       {projectId && <SavedProjectWorkspace key={projectId} projectId={projectId} onProject={updateSummary} onDepartureChange={onDepartureChange} />}
+    </div>
     </div>
     </div>
   </section>;

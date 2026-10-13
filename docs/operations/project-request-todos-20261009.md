@@ -7,6 +7,35 @@
 
 상태 표기: **I 구현 / L 로컬 검증 / O 운영 반영 / R 실제 동작 확인**. `?`는 미확인이다. 검증 완료를 기록할 때 소스 SHA, 실제 실행 시각, 환경, 검증 결과와 증빙 경로를 함께 남긴다. 운영 대상이 없는 규칙·문서 항목은 이유를 적고 해당 칸을 적용 제외로 바꿀 수 있다. 과거 보고서는 탐색 근거이며 현재 운영 사실을 대신하지 않는다.
 
+## 2026-10-13 최신 실행 Todo
+
+이 표는 원문 274개 조항과 추가 요구 A001–A020을 대체하거나 완료율을 계산하기 위한 목록이 아니다. 현재 임계 경로를 실행 가능한 12개 묶음으로 정리한 색인이다. 체크박스 333개 중 체크된 항목 수는 제품 기능 수나 전체 완료율의 분모·분자가 아니다. 아래의 `부분`은 해당 단계의 증거가 있으나 요구 전체를 충족하지 못했다는 뜻이다.
+
+| 우선 | 실행 묶음 | I 구현 | L 로컬 검증 | O 운영 반영 | R 실제 동작 확인 | 다음 행동 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | DB successor·적용기 내구성 | 부분 — 최종 보완 `f489e438` 원격 반영; admission formatter·운영 capture module·새 runtime probe source는 있으나 관측 불가능한 writer fence 5개와 분리된 owner/Vercel 자격에서 fail-closed·launch held | 부분 — 영향 6개 모듈의 targeted run 합계 94 unique pass·0 unresolved failure·518 assertions; fresh PG17.6 rollback 12개 상태와 final-wrapper 만료 fault의 terminal readback 후 exact restore 확인; 새 컨테이너 ownership 6개 시나리오가 각각 CREATE 1회·cleanup 확인; runtime probe 구현은 실제 운영 증거가 아님 | 미적용 | 미확인 | rollback 증거는 실제 15분 lease 경과 측정이 아니라 명시적 만료 fault 검증이다. 관측 불가능한 5개 fence를 실제 근거로 결속하고 split credential을 합치지 않는 지원 실행기가 확인된 뒤에만 launch·운영 적용을 검증한다. |
+| 2 | 보호 승격·운영 SQL | PR #3196 head `f489e438b1c0d986510d1fc013f9c98459f9f622`가 develop `683f8975069ebd6d366112e6a1816959e751eb19`로 병합됨; 실제 검토 thread 0건 미해결 | 부분 — exact head의 원격 검사는 success/skipped terminal이며 미해결 review 0건; 영향 6개 모듈 94 unique pass·0 unresolved failure·518 assertions | develop 반영; data/main·운영 SQL 미적용 | 미확인 | 운영 capture의 5개 writer-fence와 실행기 자격을 해결한 뒤 `develop → data → main` 보호 순서와 writer fence를 지키며 additive SQL을 적용한다. owner DB credential은 GitHub Actions, Vercel OAuth는 로컬에 있어 단일 실행기 자격으로 간주하지 않는다. 기존 가짜 테스트 입력 탐지 #38128430만 승인된 Skip: test cred로 확인했다. |
+| 3 | 배포·rollback·live readback | PR #3195 head `bb6f9228209c9a4a8251ca2e182428f7021d6a3e`; CI는 모두 success/skipped이나 새 미해결 review 5건으로 merge BLOCKED, root/helper가 수정 중 | 부분 — pinned Next 16.3.8 production build와 native Chrome 390×844·1024×844·1440×900 합성 검증 완료; 현재 map 62파일·2,930,434bytes, hosted 기능·exact geometry 미검증 | 최신 UI 후보 미적용 | 기존 preflight의 production identity 확인; 최신 업무 검증 미완료 | 새 review 5건을 source에 반영하고 관련 로컬 검증·원격 CI·thread 해결을 결속한 뒤에만 PR #3195를 병합한다. 이후 DB 호환 순서에 맞춰 배포하고 새 SHA·alias·실제 인증 업무를 확인한다. |
+| 4 | 맛집 자동 분류·재검수·자동 승인 | 부분 — 정책·CAS·중지·이력 경로가 있으나 전체 운영 전이 미완료 | 부분 — 합성 정책·경합 검증과 실제 운영 자동 검수 OFF readback 존재 | 미적용 | 미확인 | 독립 정답 집합에서 Gemini 근거·필수 필드·위치·중복·identity·승인 한도를 검증하고 frozen target의 guarded apply·보류·중지·재개·이력을 운영 저장과 대조한다. |
+| 5 | 크롤링→평가→저장 최적화 | 부분 — 증분·캐시·쿼터·병렬·배치 source 존재 | 부분 — 일부 7쌍 및 합성 replay, cold/CPU/DB-write 악화 기록 존재 | 미적용 또는 미확인 | 실제 공급자·전체 운영 관측 미확인 | provider-admitted 대표 입력으로 중단·재개·bounded LAAJ와 누락·중복·관리자 보호를 확인하고 처리량·토큰·다운로드·CPU·RSS·DB·실패율을 동일 조건으로 재측정한다. |
+| 6 | 공개·관리자 전체 CMS/UI | 부분 — route census 27개와 관리자 합성 15모듈, 공통 헤더 보정 source 존재; PR #3195 head `bb6f9228`은 새 review 5건 수정 중 | 부분 — pinned Next 16.3.8 build와 native Chrome 3폭 합성 완료; 현재 map 62파일·2,930,434bytes; CI 모두 success/skipped이나 review 해결 전 | 최신 후보 미배포 | 실제 인증·데이터 업무 전수 미확인 | 27개 실제 경로와 모든 사이드바 업무 흐름을 source-bound로 유지 검증한다. 새 review 5건의 수정·재검증·원격 thread 해결 후 최신 map을 다시 결속하며, 합성 캡처를 hosted 기능·exact geometry 증거로 확대하지 않는다. |
+| 7 | 영수증 OCR | 부분 — Gemini helper/request와 durable 결과 재사용 v3 구현 source 존재; result revision·5MiB 경계 2건 수정 중 | 부분 — v3 관련 69 tests·796 assertions; 합성 영수증 실호출 1건은 일반 정확도 증거가 아니며 두 경계 수정 후 재검증 미완료 | 실제 저장·UI 미적용 또는 미확인 | 실제 사용자 흐름 미확인 | result revision과 5MiB 경계를 수정하고 관련 suite를 재검증한 뒤 정상·흐림·회전·잘림·중복 정답 집합에서 멱등성·개인정보·정정→저장→UI readback·호출 귀속을 확인한다. |
+| 8 | 스토리보드 Gemini-only | 부분 — Gemini-only 신규 실행 계약의 첫 3개 문제 수정 완료; cutover race 1건 수정 중 | 부분 — 제한된 canary·정적 정책과 첫 3개 수정 검증은 있으나 race 수정 후 worker/queue 전체 재검증 미완료 | worker·queue·Storage 운영 전환 미확인 | 생성→자산 저장→장면 연결→UI 표시 미확인 | cutover race를 수정하고 프런트·서버·worker·queue·retry·fallback inventory와 부분 재생성·복구를 다시 검증한다. 기존 archive·역사 증빙을 보존하고 허용 Gemini 외 신규 실행을 거부한다. |
+| 9 | 전체 롱폼·claude-video·OSK 지식 그래프 | 부분 — 1,071편/337.81시간 inventory와 30노드/88관계 materialization; caption pending 준비 v4 source `802cfffc...dd48` | 부분 — 작성자 테스트 25/25와 독립 마지막 재현 3/3 통과; coverage는 eligible 1,071·Shorts 81·caption 9·missing 1,062, 독립 전체 시각·음성 분석 0/1,071 | 운영 viewer 최신 후보 미배포 | 전체 영상 분석·운영 검색/근거 미확인 | v4 pending 준비는 분석 완료가 아니다. 고정 source와 coverage receipt를 보존하고 기존 4xx의 공식 payload를 진단한 뒤 소량 bounded claude-video→독립 검증→OSK CAS를 통과시켜 영상별 checkpoint로 확장한다. |
+| 10 | Sentry·GitHub CI 관측 | 부분 — SDK·관리자 메뉴·sanitizer와 읽기 전용 CI monitor 존재 | 부분 — 합성 오류 화면과 CI 기준선 검증; 실제 Sentry ingestion 없음 | Sentry 계정/프로젝트/region/DSN 미연결 또는 미확인 | synthetic event/group readback 미확인 | 최소 권한으로 실제 Sentry 대상에 결속해 synthetic event를 재조회하고, CI는 서로 다른 성공 source tree 7개 이상과 완결된 coverage를 확보하기 전 성능 개선으로 채택하지 않는다. |
+| 11 | Gemini 크레딧·한도·카드 0488 | 부분 — funded 계정·프로젝트와 자동충전 OFF 확인 | paid Tier1·prepay 10,000원·GCP 크레딧 표시 확인; paid map의 6개 phase-entry 불일치를 2개 고유 source path로 정정; 기존 provider receipt 불변·신규 paid call 0회 | OCR/스토리보드 운영 호출 귀속 미확인 | 0488 삭제 미완료 | 정정된 source map으로 기존 영수증을 다시 결속하고, 새 카드·추가 충전·계정 폐쇄 없이 OCR/스토리보드 호출의 모델·프로젝트·크레딧/현금 귀속을 확인한다. 0488은 유효 대체수단 제약이 해소된 정확한 프로필에서만 삭제하고 제거 readback을 남긴다. |
+| 12 | 스킬 정본·정량 최종 보고 | 부분 — 직접 관련된 일부 스킬과 공식 문서 대조·수정 이력 존재 | 부분 — 여러 로컬 수치와 CI가 있으나 전체 요구 집계 미완료 | 관리형 정본 업데이트·운영 관측 미완료 또는 미확인 | 최종 전체 기능 확인 미완료 | 설치본·프로젝트 pin·공식 문서·최소 실행을 다시 결속하고, 채택·악화·noise·미측정을 `전/후/절대 차이/변화율/95% CI/n/환경`으로 집계한다. 운영 DB·배포 SHA·live 결과와 rollback까지 확인한 뒤에만 전체 완료를 판정한다. |
+
+현재 실행의 임계 경로는 `운영 capture의 5개 writer-fence 관측 → 지원 실행기의 자격 결속 → data/main 보호 승격 → 운영 SQL readback → PR #3195 UI 승격·배포 → 실제 인증 업무 흐름 확인`이다. PR #3196은 develop `683f8975069ebd6d366112e6a1816959e751eb19`에 병합됐지만 data/main·운영 SQL은 미적용이고 launch는 held다. rollback 증거 `pg17-reviewed-boundaries-20261013.json`의 SHA-256은 `9c73b47c0841f2585d7ceee77423d27410a488e61080004cf227d4329dd88076`, 세 source helper와 6개 CREATE-once/cleanup 사례를 결속한 ownership 증거의 SHA-256은 `ad6917e416ff20e074eaedd523baa3f0366e3c865f62849a7df6793c2fbd758d`다. 이 순서는 다른 독립 구현·검증을 중단하라는 뜻이 아니며, 어느 한 단계의 성공도 뒤 단계의 완료 증거로 대체하지 않는다.
+
+### 2026-10-13 보호 병합·UI·기능 구현 현황
+
+PR #3196의 exact head `f489e438b1c0d986510d1fc013f9c98459f9f622`는 success/skipped terminal 검사와 미해결 review thread 0건을 확인한 뒤 develop `683f8975069ebd6d366112e6a1816959e751eb19`로 병합됐다. 이는 data/main 승격, 운영 SQL 적용, 배포나 실제 업무 readback을 뜻하지 않는다.
+
+PR #3195의 현재 head는 `bb6f9228209c9a4a8251ca2e182428f7021d6a3e`다. 원격 CI는 모두 success/skipped terminal이지만 새 미해결 review 5건 때문에 merge BLOCKED이며 root/helper가 수정 중이다. UI 로컬 증거는 pinned Next 16.3.8 production build, native Chrome의 emulated 390×844·1024×844·1440×900 합성 캡처와 62파일·2,930,434bytes의 현재 map이다. 이는 hosted 기능이나 exact geometry를 입증하지 않으며 성능 개선·유료 절감을 주장하지 않는다.
+
+새 managed worktree `/Users/twoimo/.codex/worktrees/feature-completion-20261013/tzudong`, branch `codex/feature-completion-20261013`의 세 구현은 아직 부분 상태다. OCR durable 결과 v3는 69 tests·796 assertions 이후 result revision과 5MiB 경계 2건을 수정 중이고, Gemini-only storyboard는 첫 3개 문제 수정 뒤 cutover race 1건을 수정 중이다. caption pending 준비 v4 `802cfffc...dd48`은 작성자 25/25와 독립 마지막 재현 3/3을 통과했으나 coverage는 eligible 1,071·Shorts 81·caption 9·missing 1,062이며 전체 시각·음성 분석은 0/1,071이다. 기존 source와 역사 증빙을 보존하고 어느 결과도 운영·전체 완료로 승격하지 않는다. 운영 capture module과 새 runtime probe는 존재하지만 관측 불가능한 writer fence 5개와 분리된 owner DB/Vercel 자격에서 fail-closed하므로 실제 운영 증거가 아니다. 저장된 goal의 paused 상태는 변경하지 않았다.
+
 ## 2026-10-10 운영 배포·적용기 검증 갱신
 
 - 새 관리자 UI가 운영 `dpl_CLEMRdaLUrai3Ph9J2czNRA64pyw` / source `8257581e`에 실제 배포됐고 두 production alias를 확인했다. 실제 로그인으로 15개 메뉴 navigation을 확인했지만 사용자 RPC·Sentry·전체 업무 쓰기/공급자 흐름은 미완료다.
@@ -96,7 +125,7 @@
 
 ## 추가 대화 요구와 구체적 후속 Todo
 
-- [x] A001 사용자 제공 레퍼런스 12개의 실제 탐색 증빙과 현재 채택 요소를 연결했다. 공개 홈 12개·채택 가능 캡처 20개, 기존 artifact map, 구현 source 12개의 현재 해시가 일치했다. Tremor의 표·필터와 shadcn/ui의 입력·메뉴를 주 기준으로 확인했다. 다른 10개는 현재 비교·제외 근거이며 과거 선택의 인과 증명으로 확대하지 않는다. 증빙: `continuity-recovery-20261009/design-reference-audit/README.md`. **[I:source 연결 L:공개 탐색·해시 확인 O:미확인 R:인증 화면 미확인]**
+- [x] A001 사용자 제공 레퍼런스 12개의 실제 탐색 증빙과 현재 채택 요소를 연결했다. 공개 홈 12개·채택 가능 캡처 20개, 기존 artifact map, 구현 source 12개의 현재 해시가 일치했다. Tremor의 표·필터와 shadcn/ui의 입력·메뉴를 주 기준으로 확인했다. 다른 10개는 현재 비교·제외 근거이며 과거 선택의 인과 증명으로 확대하지 않는다. 증빙: `continuity-recovery-20261009/design-reference-audit/README.md`. **[I:source 연결 L:공개 탐색·해시 확인 O:적용 제외—조사·연결 항목 R:적용 제외—조사·연결 항목]**
 - [ ] A002 공개 모든 경로 및 관리자 사이드바 모든 페이지·하위 경로를 실제 route inventory와 연결하고 CMS 리뉴얼 적용 여부를 페이지별로 확인한다. 대표 화면의 성공을 전체 완료로 확대하지 않는다. **[I:? L:? O:? R:?]**
 - [ ] A003 공개·관리자 공통 헤더의 제목/높이/정렬/간격/행동을 일관되게 구현하고 데스크톱·태블릿·모바일에서 캡처한다. **[I:? L:? O:? R:?]**
 - [ ] A004 KPI와 맛집 관리 헤더를 한 줄 구조로 통합하고 제목·건수·탭·뷰·자동 운영 행동을 보존한다. 좁은 화면에서는 핵심 행동을 숨기지 않는 접근 가능한 재배치를 검증한다. **[I:? L:? O:? R:?]**
@@ -748,3 +777,33 @@ root page server23개/231assertions 통과, agent의 범위 수정 전 관련27�
 - [x] 정정 소스의 관련32개 테스트·1,495 assertions, ESLint, typecheck parity 진단0과 합성 CUA 3개 폭·근거6개·그래프3개를 확인했다. 문서 가로 넘침·관측 예외·외부 요청·쓰기 요청·콘솔 오류는0이었다. 운영·공급자·전체 영상 검증으로 확대하지 않는다.
 - [x] 정정 전 develop `14ccd8775e52ab81143626515f850ee544907da9`의 READY Preview에서 기존 실제 관리자 세션으로 사용자 목록20행과 그래프30nodes/88edges를 읽었다. 이전 사용자 목록 오류 관측을 최신 상태로 간주하지 않는다. 저장·삭제·승인 검증은 수행하지 않았다.
 - [ ] 정정 소스의 보호 병합·배포 및 실제 화면 확인을 완료한다. 운영 읽기의 ledger86/latest20261009101645, 맛집1,659건, 신규 후속 SQL3개 미적용, 자동 검수OFF/version1/runs0/items0과 전체 목표의 남은 항목을 유지한다.
+
+## 2026-10-12 UI·Gemini source 전달 준비
+
+- develop `dd0c790be7ffc94a86f95126aa60019ded8ff9b7`, branch `codex/goal-delivery-20261012`에 웹 source·test 30개와 기존 candidate-local 증빙 261개를 원본 SHA 일치 상태로 이식했다. backend source와 롱폼 증빙은 원래 후보에 보존했고 이번 전달에는 포함하지 않았다. 기존 261개는 frozen source·환경의 역사적 증빙이며 현재 후보의 commit·PR·배포를 입증하지 않는다.
+- 세 UI 보정은 사용자 관리 데스크톱 77→57px(-20px, -25.97%), 배너 관리 모바일 163→113px(-50px, -30.67%), 맛집 관리 모바일 121→113px(-8px, -6.61%)다. 각 전후는 고정 module·viewport `n=1`이라 확률 표본 95% CI를 적용하지 않는다. 최신 build `HcJtq7WT9AGLOOijoRGrZ`의 Node 24.21.0·Next 16.3.8 webpack production·Chrome extension·합성 loopback에서 메뉴 15×3폭=45조합, desktop/tablet 57px, mobile focus 15/15와 제목·overflow·44px 위반 0건을 확인했다.
+- chart는 285.15625px→표→285.15625px로 복원되고 Escape는 trigger focus를 복원했다. 직전 S3 빌드에서 pointer scroll 이동은 관측하지 못했고 keyboard PageDown만 canvas 748px 이동을 확인했다. 최종 빌드의 pointer hiding 재검증으로 세지 않는다. 최초 직접 Turbopack build는 실패했고 이후 공식 webpack bundle만 성공했다. 이는 합성 UI 범위이며 CI는 source commit·PR 전이라 아직 적용하지 않았다.
+- 기존 Gemini canary 4회는 실제 provider 호출이지만 사용자 인증·운영 DB 저장·배포 UI를 검증하지 않았다. 누계는 HTTP 11회, generation 요청 8회, 결과 수신 5회(유효 canary 4 + strict 거절 pilot 1), 알려진 tokens 24,014이며 실패 3회의 usage·cost는 미확인이다. 신규 롱폼 완료는 0/1,071이고 일반 품질·지연·비용 절감을 주장하지 않는다.
+- `tsconfig.json` 원본 bytes를 복원했고 CLI 출력 부모 교체 경쟁 보완과 18개·103 assertions 경계 검증 및 parity 진단 0(3,149 입력)을 완료했다. 최종 build의 579개 source hash는 전후 일치한다. DB migration 11개 carrier 준비와 관련 PostgreSQL 17.6 검증 50/50은 완료했으며 원자적 successor 구현은 별도 격리 작업 트리에서 진행 중이다. commit·PR·필수 검사·운영 DB·배포·live readback은 아직 전달 단계이며 전체 목표는 active다.
+
+### 2026-10-13 현재 개인정보 화면 증빙 마감
+
+현재 read-state source의 실제 loopback UI에서 최초 실패는 미확인, 성공한 빈 응답은 0건, 갱신 실패는 마지막 3건·위험 2건과 갱신 실패, 지연 중은 조회 중·버튼 비활성, 완료는 3건으로 관측했다. 현재 artifact 61개·2,927,899bytes, source binding 18개, archived reproduction source 5개, 정상 종료 runtime 2쌍을 exact-byte SHA와 함께 검증했다. width24 실패 입력 캡처는 acceptance에서 제외했고 console·exact geometry·실기기·provider·운영 기능·성능 개선을 주장하지 않는다. 현재 map SHA는 `04df93f498ba0e37238e71c18087844154b7bec986e93dd52c4a2e65c4afa021`다. 원문 목표 상태 조회는 `paused`를 반환했으며, 최신 사용자의 즉시 작업 요청에 따라 이번 작업은 수행했다. 목표 상태를 도구로 변경하거나 자동 재개를 완료했다고 기록하지 않는다.
+
+운영 capture 신규 후보는 자동 검수 정책 OFF·queued/running 0을 owner 권한의 REPEATABLE READ READ ONLY 조회로 확인하는 collector를 구현했고 관련 3개 suite 65 pass·0 fail·169 assertions를 기록했다. 실제 운영 접속은 0회이며, 나머지 5개 writer-fence와 분리된 실행 자격은 여전히 해결되지 않았다. 롱폼 준비기는 독립 검토에서 발견한 5개 경계를 보완했고 기존 12-test receipt를 보존한 새 19-test receipt를 생성했다. 원래 실패 재현의 독립 재검토와 전체 영상 분석은 별도 미완료다.
+
+### 2026-10-13 원격 CI 이식성 정정
+
+PR #3195 head `bfea9d03853ab44db5e03bba85834a7ad4dd826b`에 UI 보완을 push하고 검토 6건을 해결했다. 해당 head의 Ubuntu npm 단위 테스트는 실제 HOME을 `<LOCAL_PATH>`로 익명화한 안전한 출력과 테스트가 고정한 `<USER_HOME>` 표식의 차이로 실패했다. 운영 sanitizer·실제 HOME·423개 앱 입력·렌더는 바꾸지 않고 안전한 표식을 정규화하되 원래 경로·사용자명 6개가 남지 않음을 강화 검증했다. fixture 델타는 18 pass·0 fail·149 assertions이며, 이전 47-test/419-assertion 영수증과 중복되는 검증이므로 합산하지 않는다. 새 source와 원격 CI 통과는 별도로 확인해야 한다. 현재 retained map은 62파일·2,930,434bytes·source 18개이고 SHA는 `335fb4abe8fdd3b6445ab334d3ded0f29377a2517640068add56485848249414`다.
+
+기능 후보의 독립 검토에서 OCR 경로 계약·Storage 객체 SHA 결속·hard-exit claim 복구 3건, storyboard 모델 가용성 전 claim·기존 v1 lease/archive·동일 worker 모델 쌍 3건을 발견해 보완 중이다. 이전 통과한 mock/fixture 수치를 실제 UI 저장·운영 동작 증거로 확대하지 않았다. 롱폼 준비기는 immutable snapshot으로 바꾼 23-test 영수증을 보존했고, source 작업량은 `O(N+C+K)`로 모델링하며 2-target fixture의 mutable source 13개 1회 읽기/재개 0회 읽기를 기록했다. 전후 시간 개선이나 전체 영상 분석은 아직 주장하지 않는다.
+
+### 2026-10-13 추가 검토의 최종 소스 보완
+
+PR #3195의 `bb6f9228209c9a4a8251ca2e182428f7021d6a3e` 원격 검사는 success/skipped였으나 새 검토 5건으로 병합이 차단됐다. 역사적 build/provider 증빙을 현재 실행으로 오인하지 않도록 두 패키지의 분류·동일 byte snapshot sidecar·선택된 current source reconciliation을 수정했다. Gemini 패키지 10개 artifact와 delivery 패키지 176개 artifact의 실제 bytes·SHA 및 sidecar가 일치한다. 과거 579개 manifest 전체를 현재 소스로 검증했다고 기록하지 않는다.
+
+모델 metadata 실패와 실제 generation admission을 분리하여 timeout/rejection/wrong identity는 generation admission 0·deliveryUnknown false, 생성 admission 뒤 응답 유실은 1·true가 된다. admission fsync 실패는 provider invocation 0이다. 관련 fake-provider 25 tests·134 assertions, parity 3,151 입력·진단 0, 제목 관련 46 tests·4,622 assertions가 통과했다. 현재 canonical 제목 15개는 모두 audit pattern에 일치하며 pipeline verifier는 heading level에 의존하지 않는 공통 title class를 사용한다. 이 델타에서 provider·브라우저 연결·배포·운영 쓰기는 0회이고 기존 3폭 렌더를 다시 수행한 것은 아니다. 새 증빙 map은 `performance/pr3195-review-followup-20261013/artifact-map.json`, SHA `39b1914d07c8bcb63d556ff2fd841c9eba3fa971bd0e14659c0bda4388258871`이다. 수정된 다음 head의 CI 및 review resolution은 별도 확인한다.
+
+기능 후보의 OCR 최종 v5는 72/72 tests·819 assertions 및 독립 재실행에서도 통과했으며, 두 탭의 stale result revision 거부와 ReviewModal의 5–8 MiB 압축 실패 시 quota/provider 각각 0회를 확인했다. 직접 OCR API의 8 MiB 한도와 S3 byte lock 부재·immutable key/atomic metadata revision 운영 전제는 유지한다. Storyboard는 6개 테이블 영구 archive guard로 구 RPC late resume를 막았고 exact PG17.6 두 체인 각각 30 assertions·storyboard 131 tests를 통과했다. 이 수치들은 중복 검증이므로 서로 합산하지 않는다. 두 새 additive migration의 actual-catalog integration replay와 마지막 storyboard 독립 재검토는 진행 중이다.
+
+운영 runtime hold probe는 현재 immutable deployment ID·commit·hold boolean을 관리자 인증으로 교차검증하는 source를 준비했고 관련 78 tests·206 assertions가 통과했다. in-flight 부재와 다른 4개 writer fence는 여전히 입증되지 않았다. 완전히 해소된 fence는 0개이고 미완료 fence는 여전히 5개다. 운영 DB·배포·credential 이동 없이 launch held를 유지한다. 롱폼 adapter v4는 작성자 25/25와 마지막 독립 재현 3/3을 통과했지만, 전체 시각·음성 분석은 0/1,071이며 caption 미검토 1,062개는 다음 실행 범위다.

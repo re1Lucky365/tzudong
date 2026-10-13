@@ -13,6 +13,7 @@ import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isAdminSentryResponse } from '../types/admin-sentry.ts';
 import { isKnowledgeGraphPage } from '../types/knowledge-graph.ts';
+import { getAdminModuleTitle } from '../lib/admin/admin-module-metadata.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const origin = 'http://127.0.0.1:18794';
@@ -20,23 +21,26 @@ const allowedOrigins = new Set([origin, 'http://127.0.0.1:18793']);
 const connection = process.argv[2];
 if (!/^ws:\/\/127\.0\.0\.1:\d+\/devtools\/browser\/[a-z0-9-]+$/i.test(connection ?? '')) throw new Error('OWNED_LOCAL_BROWSER_REQUIRED');
 const argument = (name: string) => process.argv.find(value => value.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
-const modules = [
-  ['overview', '대시보드 (KPI)', '대시보드 \\(KPI\\)|쯔양 성과 대시보드|Tzuyang KPI Dashboard'],
-  ['restaurants', '맛집 관리', '맛집 관리|관리자 데이터 검수|데이터 검수'],
-  ['submissions', '제보 관리', '제보 관리|사용자 제보'],
-  ['reviews', '리뷰 관리', '리뷰 관리|리뷰 검수'],
-  ['users', '사용자 관리', '사용자 관리'],
-  ['banners', '배너 관리', '배너 관리'],
-  ['insights', '영상 성과 분석', '영상 성과 분석'],
-  ['pipeline', '크롤러 파이프라인', '크롤러 파이프라인'],
-  ['sentry', '오류 모니터링', 'Sentry 오류 모니터링'],
-  ['youtube-thumbnail-generator', '유튜브 썸네일 생성', '유튜브 썸네일 생성'],
-  ['storyboard', '스토리보드 생성', '스토리보드'],
-  ['routes', '맛집 동선 추천', '맛집 동선 추천'],
-  ['llm', '운영 보조', '운영 보조'],
-  ['audit', '감사 로그', '감사 로그'],
-  ['knowledge-graph', '지식 그래프', '쯔양 지식 그래프'],
+const moduleIds = [
+  'overview', 'restaurants', 'submissions', 'reviews', 'users', 'banners',
+  'insights', 'pipeline', 'sentry', 'youtube-thumbnail-generator', 'storyboard',
+  'routes', 'llm', 'audit', 'knowledge-graph',
 ] as const;
+const legacyHeadingPatterns: Partial<Record<typeof moduleIds[number], string>> = {
+  overview: '쯔양 성과 대시보드|Tzuyang KPI Dashboard',
+  restaurants: '관리자 데이터 검수|데이터 검수',
+  submissions: '사용자 제보',
+  reviews: '리뷰 검수',
+  storyboard: '스토리보드',
+  sentry: 'Sentry 오류 모니터링',
+  'knowledge-graph': '쯔양 지식 그래프',
+};
+const modules = moduleIds.map(moduleId => {
+  const title = getAdminModuleTitle(moduleId);
+  const canonicalPattern = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const legacyPattern = legacyHeadingPatterns[moduleId];
+  return [moduleId, title, legacyPattern ? `${canonicalPattern}|(?:${legacyPattern})` : canonicalPattern] as const;
+});
 const requestedModules = argument('modules')?.split(',');
 if (requestedModules?.some(id => !modules.some(module => module[0] === id))) throw new Error('UNKNOWN_MODULE');
 const selectedModules = modules.filter(module => !requestedModules || requestedModules.includes(module[0]));
@@ -235,6 +239,8 @@ async function observation(pattern: string) {
     const headerSummary = pageHeader?.querySelector<HTMLElement>('.admin-page-header-summary');
     const headerGeometry = headerBox && titleBox && headerStyle ? {
       ...headerBox, title: titleBox, titleInset: titleBox.x - headerBox.x,
+      titlePreserved: title!.clientWidth > 0 && title!.scrollWidth <= title!.clientWidth + 1
+        && titleBox.x >= headerBox.x - 1 && titleBox.x + titleBox.width <= headerBox.x + headerBox.width + 1,
       padding: { top: headerStyle.paddingTop, right: headerStyle.paddingRight, bottom: headerStyle.paddingBottom, left: headerStyle.paddingLeft },
       summary: headerSummary && visible(headerSummary) ? bounds(headerSummary) : null,
       summaryGap: headerSummary && visible(headerSummary) ? bounds(headerSummary).x - titleBox.x - titleBox.width : null,
@@ -504,6 +510,7 @@ for (const width of widths) for (const colorScheme of colors) {
       const settled = await settle(titlePattern), state = settled.value;
       if (!state || state.activeModule !== moduleId) issues.push('wrong-route');
       if (!state?.titleMatched) issues.push('module-title-not-observed');
+      if (state?.headerGeometry && !state.headerGeometry.titlePreserved) issues.push('module-title-clipped');
       if (settled.readinessTimedOut) issues.push('readiness-timeout');
       if (state && (state.documentOverflow > 1 || state.bodyOverflow > 1)) issues.push('page-horizontal-overflow');
       if (state?.escapedControls) issues.push('horizontally-clipped-controls');

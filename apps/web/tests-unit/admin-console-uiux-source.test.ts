@@ -585,6 +585,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
   test("uses the shared compact embedded module shell instead of canvas-level generic headers", () => {
     const consoleSource = source("components/admin/AdminConsoleOverview.tsx");
     const routeSource = source("lib/admin/admin-module-routing.ts");
+    const metadataSource = source("lib/admin/admin-module-metadata.ts");
     const shellSource = source("components/admin/AdminEmbeddedModuleShell.tsx");
     const headerSource = source("components/admin/AdminPageHeader.tsx");
 
@@ -602,6 +603,16 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(shellSource).not.toContain("bg-gradient-primary bg-clip-text");
     expect(shellSource).toContain('"min-h-0 min-w-0 flex-1 overflow-hidden"');
     expect(shellSource).toContain('moduleId === "overview"');
+    expect(shellSource).toContain("const title = getAdminModuleTitle(moduleId)");
+    expect(shellSource).toContain('<span id={titleId} className="sr-only">{title}</span>');
+    expect(shellSource).not.toContain('titleAs="h2"');
+    expect(headerSource).toContain('titleAs: Title = "h1"');
+    expect(headerSource).toContain('className="admin-page-header-controls"');
+    expect(metadataSource).toContain(
+      "satisfies Record<AdminConsoleRouteModuleId, string>",
+    );
+    expect(metadataSource).toContain('overview: "대시보드 (KPI)"');
+    expect(metadataSource).toContain('"restaurant-refresh-history": "맛집 관리"');
 
     for (const moduleId of [
       "overview",
@@ -734,7 +745,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       'import("@/components/admin/AdminOverviewDashboard")',
     );
     expect(consoleSource).toContain('id: "routes"');
-    expect(consoleSource).toContain('title: "맛집 동선 추천"');
+    expect(consoleSource).toContain('title: getAdminModuleTitle("routes")');
     expect(consoleSource).toContain("AdminDashboardManagementPanel");
     expect(consoleSource).not.toContain("fetchAdminMapRestaurants");
 
@@ -980,7 +991,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       "isShellBootstrapping || !loadedModuleIds.has(activeModuleId)",
     );
     expect(consoleSource).toContain(
-      "getAdminConsoleModuleLoadingSkeleton(activeModuleId, activeModuleLabel)",
+      "getAdminConsoleModuleLoadingSkeleton(activeModuleId)",
     );
     expect(consoleSource).toContain(
       "function createInitialAdminConsoleLoadedModuleIds()",
@@ -998,7 +1009,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       (consoleSource.match(/loading: \(\) => null/g) ?? []).length,
     ).toBeGreaterThanOrEqual(7);
     expect(consoleSource).toContain(
-      "<AdminEvaluationModuleStaticShell />",
+      "<AdminEvaluationModuleStaticShell moduleId={moduleId} />",
     );
     expect(consoleSource).toContain(
       'data-admin-sidebar-module-loading-evaluation="viewport-table"',
@@ -1049,7 +1060,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       'data-storyboard-module-loading-grid="true"',
     );
     expect(consoleSource).toContain(
-      "flex h-full min-h-0 flex-col overflow-hidden bg-background p-2",
+      "flex h-full min-h-0 flex-col overflow-hidden bg-background",
     );
     expect(consoleSource).toContain(
       "rounded-2xl border border-border/70 bg-card/80 shadow-sm",
@@ -1230,7 +1241,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     );
     expect(consoleSource).toContain("<AdminDashboardManagementSkeleton />");
     expect(consoleSource).toContain(
-      "getAdminConsoleModuleLoadingSkeleton(activeModuleId, activeModuleLabel)",
+      "getAdminConsoleModuleLoadingSkeleton(activeModuleId)",
     );
     expect(consoleSource).toContain(
       'data-admin-dashboard-management-skeleton="true"',
@@ -1431,7 +1442,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).not.toContain("위로 이동");
     expect(consoleSource).not.toContain("아래로 이동");
     expect(consoleSource).not.toContain("기본 순서");
-    expect(consoleSource).toContain('title: "대시보드 (KPI)"');
+    expect(consoleSource).toContain('title: getAdminModuleTitle("overview")');
     expect(consoleSource).toContain('badge: "성과 요약"');
     const sidebarSectionsSource = consoleSource.slice(
       consoleSource.indexOf("const sidebarSections"),
@@ -1474,7 +1485,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(labSectionSource.indexOf('id: "llm"')).toBeLessThan(
       labSectionSource.indexOf('"audit"'),
     );
-    expect(consoleSource).toContain('title: "영상 성과 분석"');
+    expect(consoleSource).toContain('title: getAdminModuleTitle("insights")');
     expect(consoleSource).toContain("fetchAdminDashboardInsightSummary");
     expect(consoleSource).toContain("/api/insights/treemap");
     expect(consoleSource).toContain(
@@ -1504,7 +1515,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(appGlobalsSource).not.toContain('var(--font-noto-serif-kr, "Noto Serif KR")');
     expect(appGlobalsSource).not.toContain("serif !important;");
     expect(consoleSource).toContain(
-      "grid min-w-0 auto-rows-min grid-cols-2 gap-2 overflow-x-hidden overflow-y-visible lg:min-h-0 lg:flex-1 lg:grid-cols-10 lg:grid-rows-[auto_minmax(0,1.15fr)_minmax(0,1fr)] lg:overflow-visible",
+      "grid min-w-0 auto-rows-min grid-cols-2 gap-2 overflow-x-clip overflow-y-visible lg:min-h-0 lg:flex-1 lg:grid-cols-10 lg:grid-rows-[auto_minmax(0,1.15fr)_minmax(0,1fr)] lg:overflow-visible",
     );
     expect(consoleSource).toContain('activeModuleId === "overview"');
     expect(consoleSource).toContain('? "overflow-y-auto"');
@@ -1543,7 +1554,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).not.toContain(
       "bg-white p-3 shadow-[inset_0_0_0_1px_rgba(15,23,42",
     );
-    expect(consoleSource).toContain('<AdminPageHeader title="쯔양 성과 대시보드"');
+    expect(consoleSource).toContain('<AdminPageHeader title={getAdminModuleTitle("overview")}');
     expect(consoleSource).not.toMatch(/>\s*쯔양 KPI 대시보드\s*</);
     expect(consoleSource).not.toContain(
       "구독자·조회수·좋아요·댓글·영상 수를 1페이지 KPI 보드에서 한눈에 봅니다.",
@@ -1620,7 +1631,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).toContain("로컬 채널 스냅샷 없음 · KPI 수집 후 표시");
     expect(consoleSource).toContain("채널 통계 확인 필요");
     expect(consoleSource).not.toContain('<div className="hidden min-w-0 md:block">');
-    expect(consoleSource).toContain('<AdminPageHeader title="쯔양 성과 대시보드"');
+    expect(consoleSource).toContain('<AdminPageHeader title={getAdminModuleTitle("overview")}');
     expect(consoleSource).toContain("data-admin-dashboard-kpi-value-size=\"bounded\"");
     expect(consoleSource).toContain("text-xl font-semibold");
     expect(consoleSource).toContain("sm:text-2xl");
@@ -3374,6 +3385,15 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).toContain(
       "canvasRef.current?.focus({ preventScroll: true })",
     );
+    expect(consoleSource).toContain(
+      "const mobileMenuSelectionIntentRef = useRef(false)",
+    );
+    expect(consoleSource).toContain(
+      "onCloseAutoFocus={handleAdminMenuCloseAutoFocus}",
+    );
+    expect(consoleSource).toContain(
+      'getElementById("admin-console-canvas")',
+    );
     expect(source("app/app-globals.css")).toContain(
       "[data-admin-console-content]:focus-visible",
     );
@@ -3493,7 +3513,9 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     );
 
     expect(consoleSource).toContain('id: "youtube-thumbnail-generator"');
-    expect(consoleSource).toContain('title: "유튜브 썸네일 생성"');
+    expect(consoleSource).toContain(
+      'title: getAdminModuleTitle("youtube-thumbnail-generator")',
+    );
     expect(consoleSource).toContain("AdminYoutubeThumbnailGenerator");
     expect(componentSource).toContain("/api/admin/youtube-thumbnail-generator");
     expect(componentSource).toContain(
@@ -7916,6 +7938,32 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).toContain(
       "const handleAdminCanvasWheel = useCallback",
     );
+    expect(consoleSource).toContain(
+      "const activeDescendantScrollElementRef = useRef<Element | null>(null)",
+    );
+    expect(consoleSource).toContain("!descendantElement.isConnected");
+    expect(consoleSource).toContain("!canvasElement.contains(descendantElement)");
+    expect(consoleSource).toContain(
+      "previousMobileResetModuleIdRef.current === activeModuleId",
+    );
+    const canvasWheelSource = consoleSource.slice(
+      consoleSource.indexOf("const handleAdminCanvasWheel = useCallback"),
+      consoleSource.indexOf("const handleAdminWindowWheel = useCallback"),
+    );
+    expect(canvasWheelSource).toContain(
+      "mobileChromeHadDownScrollRef.current = true",
+    );
+    expect(canvasWheelSource).not.toContain("setAdminMobileChromeHidden(true)");
+    const canvasTouchMoveSource = consoleSource.slice(
+      consoleSource.indexOf("const handleAdminCanvasTouchMove = useCallback"),
+      consoleSource.indexOf("const handleAdminCapturedScroll = useCallback"),
+    );
+    expect(canvasTouchMoveSource).not.toContain(
+      "adminBottomNavAutoHide.onTouchMove",
+    );
+    expect(canvasTouchMoveSource).not.toContain(
+      "setAdminMobileChromeHidden(true)",
+    );
     expect(consoleSource).toContain("onWheel={handleAdminCanvasWheel}");
     expect(consoleSource).toContain("adminCanvasTouchStartYRef");
     expect(consoleSource).toContain("setAdminMobileChromeHidden(true)");
@@ -8476,6 +8524,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
   test("keeps admin pages dense without sacrificing responsive boundaries", () => {
     const consoleSource = source("components/admin/AdminConsoleOverview.tsx");
     const tailwindSource = source("app/app-globals.css");
+    const adminUiSource = source("styles/admin-ui.css");
     const usersSource = source("components/admin/AdminUsersPanel.tsx");
     const evaluationsSource = source("app/admin/evaluations/page.tsx");
     const bannersSource = source("app/admin/banners/page.tsx");
@@ -8502,6 +8551,22 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).not.toContain(
       "pb-[calc(env(safe-area-inset-bottom)+5.75rem)]",
     );
+    expect(adminUiSource).toContain(
+      ".admin-page-header:has(> .admin-page-header-controls) { grid-template-columns: minmax(min-content, 1fr) fit-content(66.6667%);",
+    );
+    expect(adminUiSource).toContain(
+      ".admin-page-header-identity { display: grid; grid-template-columns: max-content minmax(0, 1fr);",
+    );
+    expect(adminUiSource).toContain(
+      ".admin-page-header-controls { grid-column: 1 / -1; width: 100%; max-width: 100%; min-height: 2.75rem;",
+    );
+    expect(adminUiSource).toContain(
+      '.admin-page-header-actions :is(button, select, input, a[data-slot="button"]) { min-width: 2.75rem; min-height: 2.75rem; }',
+    );
+    expect(adminUiSource).toContain(
+      ".admin-page-header .admin-restaurant-header-automation, .admin-page-header .admin-review-automation-controls { flex: 0 0 auto; min-width: max-content; flex-wrap: nowrap; }",
+    );
+    expect(adminUiSource).not.toContain("admin-storyboard-page-header");
     expect(consoleSource).toContain("min-h-[360px] flex-1");
     expect(consoleSource).toContain("overflow-visible md:overflow-hidden");
     expect(consoleSource).toContain("md:h-full md:min-h-0");
@@ -8592,7 +8657,9 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).not.toContain("배너 관리 화면 준비 중");
     expect(consoleSource).not.toContain("공지사항 운영 화면 준비 중");
     expect(consoleSource).not.toContain("사용자 관리 화면 준비 중");
-    expect(bannersSource).toContain('<AdminPageHeader title="배너 관리"');
+    expect(bannersSource).toContain(
+      '<AdminPageHeader title={getAdminModuleTitle("banners")}',
+    );
     expect(bannersSource).toContain(
       'embedded ? "flex h-full min-h-0 flex-col overflow-hidden bg-background font-sans tracking-normal" : "min-h-screen bg-[#fdfbf7] font-sans"',
     );

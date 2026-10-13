@@ -1,0 +1,65 @@
+{
+  "kind": "live-funded-gemini-generation",
+  "measuredAt": "2026-10-11T15:49:14.078Z",
+  "environment": {
+    "sdk": "2.24.0"
+  },
+  "syntheticInput": true,
+  "operationalDatabaseWrites": 0,
+  "maximumGenerationCalls": 1,
+  "generationCallsStarted": 1,
+  "sdkAttempts": 1,
+  "usage": [
+    {
+      "model": "gemini-3-pro-image",
+      "promptTokens": 32,
+      "outputTokens": 1215,
+      "thoughtTokens": 213,
+      "totalTokens": 1460
+    }
+  ],
+  "credentialSourceName": "GEMINI_API_KEY",
+  "configuration": {
+    "proImage": true,
+    "sceneCount": 5,
+    "imageWidth": 1024,
+    "imageHeight": 576,
+    "textModel": "gemini-3.8-flash",
+    "imageModel": "gemini-3-pro-image",
+    "imageSize": "1K",
+    "sdkAttempts": 1
+  },
+  "configurationSha256": "163dcd015543e8daa2fdda1339cafe93f97b44e97dea9eabb5a40fd7d952a956",
+  "sourceBinding": {
+    "gitHead": "bd80988fb925e7c47d4fe202da8d929d119a6cca",
+    "gitTree": "998d3a5568190d2fc0ba3e3634c302313f3c5b9c",
+    "workingTreeDirty": true,
+    "workingTreeStatus": [
+      "M apps/web/scripts/verify-storyboard-gemini-live.ts",
+      "?? apps/web/scripts/gemini-live-verification-io.ts"
+    ],
+    "sourceHashes": {
+      "lib/admin/storyboard/gemini-client.ts": "6272b4f09ff0bcd760513f129d33606c3690217d8a4c1ce3384c9a8dfc47c654",
+      "lib/admin/storyboard/gemini-models.ts": "560c65361a7131ac7dc5a64a8dfb244de3030cf51aa5e4f7e9811cca0057b7fc",
+      "lib/admin/storyboard/production-contract.ts": "6eaaf879cd439e9ccbc421e6345950a663b87e624df0a43d4092cdd4546b4717",
+      "package-lock.json": "ce2e7d9dee5cb837a77f504028452b5e04f9f96a3413bfa2e9a005fa5de7531d",
+      "scripts/gemini-live-verification-io.ts": "d20727d9f964b9472d4bd7f3cce706b6a77cf8afc120883646649833631192d3",
+      "scripts/verify-storyboard-gemini-live.ts": "9586109f3ffe2fcab671350431c2fa98288419552326c27e3061b969cd7b5676"
+    }
+  },
+  "pending": null,
+  "limitations": [
+    "Single request per modality; no speed comparison or confidence interval.",
+    "Credit application and billed cost require a billing receipt."
+  ],
+  "image": {
+    "elapsedMs": 19022.027208,
+    "bytes": 728835,
+    "width": 1376,
+    "height": 768,
+    "sha256": "4c90ba26de03adbe9196216082b5299e9fa60e5b83377394235f8e9afad398cc",
+    "responseModel": "gemini-3-pro-image",
+    "verified": true
+  },
+  "passed": true
+}
