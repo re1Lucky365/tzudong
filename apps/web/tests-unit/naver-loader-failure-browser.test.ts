@@ -24,7 +24,8 @@ import {useNaverMaps} from './hooks/use-naver-maps';
 import {NaverMapLoadErrorState} from './components/map/map-view-status-panels';
 import {AdminMapLoadErrorState} from './components/admin/admin-map-load-error-state';
 function Consumer({id}) {
-  const {isLoaded,isLoading,loadError,load}=useNaverMaps({autoLoad:true});
+  const strategy=new URLSearchParams(location.search).get('strategy')==='lazyOnload'?'lazyOnload':'afterInteractive';
+  const {isLoaded,isLoading,loadError,load}=useNaverMaps({autoLoad:true,strategy});
   const admin=new URLSearchParams(location.search).get('ui')==='admin';
   return <section data-testid={'consumer-'+id}>
     <output data-testid={'state-'+id}>{loadError?'error':isLoaded?'ready':isLoading?'loading':'idle'}</output>
@@ -62,10 +63,23 @@ beforeAll(async () => {
 afterAll(async () => { await browser?.close(); });
 
 type Outcome = 'network-error' | 'missing-api' | 'success';
-async function run(outcomes: Outcome[], check: (page: Page, counts: { live: number; stub: number }) => Promise<void>, consumers = 1, mode = 'live', uiMode = 'public') {
+async function run(outcomes: Outcome[], check: (page: Page, counts: { live: number; stub: number }) => Promise<void>, consumers = 1, mode = 'live', uiMode = 'public', strategy = 'afterInteractive') {
   const context = await browser.newContext();
   const page = await context.newPage();
   const counts = { live: 0, stub: 0 };
+  if (strategy === 'lazyOnload') await page.addInitScript(() => {
+    let id = 0;
+    const callbacks = new Map<number, IdleRequestCallback>();
+    Object.assign(window, {
+      requestIdleCallback: (callback: IdleRequestCallback) => { callbacks.set(++id, callback); return id; },
+      cancelIdleCallback: (handle: number) => { callbacks.delete(handle); },
+      __idleCallbackCount: () => callbacks.size,
+      __flushIdle: () => {
+        const pending = [...callbacks.values()]; callbacks.clear();
+        pending.forEach(callback => callback({ didTimeout: false, timeRemaining: () => 50 }));
+      },
+    });
+  });
   await page.addInitScript(() => {
     const active = new Map<string, Set<EventListenerOrEventListenerObject>>();
     const add = document.addEventListener.bind(document);
@@ -97,7 +111,7 @@ async function run(outcomes: Outcome[], check: (page: Page, counts: { live: numb
     return route.abort();
   });
   try {
-    await page.goto(`http://naver-loader.fixture.test/?consumers=${consumers}&ui=${uiMode}`);
+    await page.goto(`http://naver-loader.fixture.test/?consumers=${consumers}&ui=${uiMode}&strategy=${strategy}`);
     await page.addScriptTag({ content: scripts[mode] });
     await check(page, counts);
   } finally { await context.close(); }
@@ -161,3 +175,25 @@ browserTest('unmount releases provider subscriptions and settled script callback
   await page.evaluate('window.__unmountNaverFixture()');
   expect(await page.evaluate('window.__documentScriptListenerCount()')).toBe(0);
 }));
+
+browserTest('lazy consumers share one deferred request and one explicit retry', async () => run(['network-error', 'success'], async (page, counts) => {
+  await page.waitForFunction('window.__idleCallbackCount() === 2');
+  await page.evaluate('window.__flushIdle()');
+  await ui(page.getByTestId('state-0')).toHaveText('error');
+  await ui(page.getByTestId('state-1')).toHaveText('error');
+  expect(counts).toEqual({ live: 1, stub: 0 });
+  await page.getByRole('button', { name: '다시 시도', exact: true }).first().click();
+  await page.waitForFunction('window.__idleCallbackCount() === 1');
+  await page.evaluate('window.__flushIdle()');
+  await ui(page.getByTestId('state-0')).toHaveText('ready');
+  await ui(page.getByTestId('state-1')).toHaveText('ready');
+  expect(counts).toEqual({ live: 2, stub: 0 });
+}, 2, 'live', 'public', 'lazyOnload'));
+
+browserTest('unmount cancels deferred provider work before script injection', async () => run(['success'], async (page, counts) => {
+  await page.waitForFunction('window.__idleCallbackCount() === 1');
+  await page.evaluate('window.__unmountNaverFixture()');
+  expect(await page.evaluate('window.__idleCallbackCount()')).toBe(0);
+  await page.evaluate('window.__flushIdle()');
+  expect(counts).toEqual({ live: 0, stub: 0 });
+}, 1, 'live', 'public', 'lazyOnload'));

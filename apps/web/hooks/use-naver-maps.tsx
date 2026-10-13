@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { NAVER_MAPS_CONFIG } from "@/config/maps";
 import {
     isLocalNaverStyleFallbackHost,
@@ -120,6 +120,7 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
     });
     const [loadError, setLoadError] = useState<Error | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const scheduledLoadRef = useRef<(() => void) | null>(null);
 
     // A retry belongs to the shared provider, not only to the consumer that
     // requested it. Capture script completion for every mounted consumer;
@@ -132,6 +133,8 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
                 ? 'script[data-local-naver-maps="true"]'
                 : 'script[src*="oapi.map.naver.com"]')) return;
 
+            scheduledLoadRef.current?.();
+            scheduledLoadRef.current = null;
             setIsLoading(false);
             if (event.type === 'load' && hasUsableNaverMaps()) {
                 installLocalNaverStyleHostFallback();
@@ -146,6 +149,8 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
         document.addEventListener('load', observeScript, true);
         document.addEventListener('error', observeScript, true);
         return () => {
+            scheduledLoadRef.current?.();
+            scheduledLoadRef.current = null;
             document.removeEventListener('load', observeScript, true);
             document.removeEventListener('error', observeScript, true);
         };
@@ -154,7 +159,7 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
     // 수동으로 스크립트 로드하는 함수
     const load = useCallback(() => {
         // 이미 로드되었거나 로딩 중이면 무시
-        if (isLoaded || isLoading) return;
+        if (isLoaded || isLoading || scheduledLoadRef.current) return;
 
         setLoadError(null);
 
@@ -184,6 +189,16 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
 
         // 스크립트 로드 실행 함수
         const injectScript = () => {
+            // Another consumer may have completed or injected the shared SDK
+            // while this consumer was waiting for an idle callback.
+            if (hasUsableNaverMaps()) {
+                setIsLoaded(true);
+                setIsLoading(false);
+                return;
+            }
+            if (document.querySelector(LOCAL_OFFLINE_MAP
+                ? 'script[data-local-naver-maps="true"]'
+                : 'script[src*="oapi.map.naver.com"]')) return;
             installLocalNaverStyleHostFallback();
             setIsLoading(true);
             const script = document.createElement("script");
@@ -225,14 +240,31 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
 
         // 전략에 따른 로드 실행
         if (strategy === 'lazyOnload') {
+            setIsLoading(true);
+            let cancelled = false;
+            const run = () => {
+                scheduledLoadRef.current = null;
+                if (!cancelled) injectScript();
+            };
             // 브라우저 유휴 상태일 때 로드하거나 2초 후 로드
             const idleWindow = window as Window & {
                 requestIdleCallback?: RequestIdleCallbackLike;
+                cancelIdleCallback?: (handle: IdleCallbackHandle) => void;
             };
             if (typeof idleWindow.requestIdleCallback === 'function') {
-                idleWindow.requestIdleCallback(() => injectScript(), { timeout: 2000 });
+                let handle: IdleCallbackHandle | undefined;
+                scheduledLoadRef.current = () => {
+                    cancelled = true;
+                    if (handle !== undefined) idleWindow.cancelIdleCallback?.(handle);
+                };
+                handle = idleWindow.requestIdleCallback(run, { timeout: 2000 });
             } else {
-                setTimeout(injectScript, 2000);
+                let handle: number | undefined;
+                scheduledLoadRef.current = () => {
+                    cancelled = true;
+                    if (handle !== undefined) window.clearTimeout(handle);
+                };
+                handle = window.setTimeout(run, 2000);
             }
         } else {
             // afterInteractive: 즉시 비동기 로드
