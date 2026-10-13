@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "retainedFailureSha256": "0a3b893331ff16732dd79c6bfca9f88689f7be3065777e62b0dcf3528cea05df",
+  "classification": "fault-injection expectation mismatch",
+  "correction": "The harness intentionally wraps the injected first-readback loss as LOCAL_REHEARSAL_FIXTURE_ROLE_READBACK_FAILED. The verifier must match that bounded result, not the injected implementation error.",
+  "productionClaim": false
+}

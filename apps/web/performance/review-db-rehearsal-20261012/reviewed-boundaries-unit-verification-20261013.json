@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-reviewed-successor-unit-verification",
+  "recordedAtUTC": "2026-10-13T08:32:39.695495+00:00",
+  "environment": {
+    "node": "24.21.0",
+    "bun": "1.4.0",
+    "platform": "macOS"
+  },
+  "finalAffectedModules": 6,
+  "finalUniqueTestsPassed": 94,
+  "finalUniqueAssertions": 518,
+  "unresolvedFailures": 0,
+  "verificationRuns": [
+    {
+      "modules": 5,
+      "passed": 80,
+      "failed": 0,
+      "assertions": 463
+    },
+    {
+      "modules": 6,
+      "passed": 93,
+      "failed": 1,
+      "assertions": 514,
+      "failure": "selector unit assertion still named prior immutable proof; corrected to verify authenticated selection independently of current filename"
+    },
+    {
+      "modules": 1,
+      "passed": 14,
+      "failed": 0,
+      "assertions": 55,
+      "afterCorrection": true
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": ".github/review-media-sql-successor.v1.json",
+      "sha256": "23bf7e7d7e9e5d7962021dd3ec860e87b47d07e119ba0e39de2e423a0a601f4e"
+    },
+    {
+      "path": "apps/web/scripts/review-media-sql-successor.mjs",
+      "sha256": "5d61808b45661d412937fbfdfd3bfb75b1cf92c7c285e4d8ad061a2f667c3c0b"
+    },
+    {
+      "path": "apps/web/scripts/review-media-operating-admission.mjs",
+      "sha256": "586847d5030cedc6575328cbe78b5eb9f1d9ff47d91e8d8f1aef40076b6d2277"
+    },
+    {
+      "path": "apps/web/performance/review-db-rehearsal-20261012/verify-review-media-sql-rehearsal.mjs",
+      "sha256": "f7321f607a5bf3a24ba099d51abc67254db52fcc385945692426d1b2dfa6e431"
+    },
+    {
+      "path": "apps/web/performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs",
+      "sha256": "768b8887a30c2b8f496a73a21d373b85a0b64fadaed3a1485034a729ee704d39"
+    },
+    {
+      "path": "apps/web/performance/review-db-successor-20261012/verify-fixture-ownership.mjs",
+      "sha256": "41972cf6c4ac2b819b42cf9f06b762d54fb9d161f4594192492fccf79cca7418"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-sql-successor.test.ts",
+      "sha256": "b9fbfa0fdc249e3c495043679c39a8a98cd14f8de6a225f20d926d83702fd196"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-migration-bundle.test.ts",
+      "sha256": "dc1f2594e629d5af16541db93e2e51f9b98d8282dd7fbeb802dd240fa6f522c0"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-sql-successor-harness.test.ts",
+      "sha256": "983a62a3f81973e18914835b2d483a7a05fef3fa9f7d129ffd7a60ed5cd4e551"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-sql-rehearsal-verifier.test.ts",
+      "sha256": "54a9560b77a3afb9eb70631224ba4f481caf82eb8b5d2cdc1a076d8831c1ec7e"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-operating-admission.test.ts",
+      "sha256": "184368546c3668da99449f3d7ec0f08b95e1c06f44ca85100a6d2dfa533bc84a"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-fixture-ownership-verifier.test.ts",
+      "sha256": "92651102154fd4d573ca841137bd31c319ef545b2527e7da17398bd2e6b97d47"
+    }
+  ],
+  "hostedWrites": false,
+  "providerCalls": 0,
+  "performanceClaim": false
+}
