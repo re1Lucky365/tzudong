@@ -141,6 +141,7 @@ function admission() {
     projectRef: manifest.projectRef,
     protectedMainReceiptSha256: '1'.repeat(64),
     purpose: manifest.purpose,
+    rehearsalAdmissionSha256: '6'.repeat(64),
     rehearsalJournalSha256: '5'.repeat(64),
     rehearsalReceiptSha256: '2'.repeat(64),
     rollback: { ...structuredClone(rollback), readbackSha256: '3'.repeat(64) },
@@ -172,7 +173,7 @@ function custodyFiles(document = admission()) {
     expiresAt: document.expiresAt,
   };
   const rehearsalAttemptId = '123e4567-e89b-42d3-a456-426614174001';
-  const rehearsalAdmissionSha256 = '5'.repeat(64);
+  let rehearsalAdmissionSha256 = '';
   const receipts: Record<string, any> = {
     'source-receipt.json': { ...common, kind: 'successor-source-receipt', sourceRoot: document.sourceRoot },
     'protected-main-receipt.json': {
@@ -261,14 +262,40 @@ function custodyFiles(document = admission()) {
     receipts[name] = { ...common, fence: key, kind: 'writer-fence-readback-receipt', state };
     document.writerFences[key].evidenceSha256 = sha256(canonicalBytes(receipts[name]));
   }
+  const storedRehearsalAdmission = {
+    ...rehearsalAdmission(),
+    attemptId: rehearsalAttemptId,
+    createdAt: new Date(Math.max(
+      Date.parse(document.createdAt) - 120_000, Date.parse(document.expiresAt) - 15 * 60_000,
+    )).toISOString(),
+    expiresAt: document.expiresAt,
+    journalPathSha256: sha256(rehearsalJournalPath),
+    receiptPathSha256: sha256(join(directory, 'rehearsal-receipt.json')),
+    protectedMainReceiptSha256: document.protectedMainReceiptSha256,
+    rollback: structuredClone(document.rollback),
+    sourceReceiptSha256: document.sourceReceiptSha256,
+    writerFences: structuredClone(document.writerFences),
+  };
+  const storedRehearsalBytes = canonicalBytes(storedRehearsalAdmission);
+  rehearsalAdmissionSha256 = sha256(storedRehearsalBytes);
+  document.rehearsalAdmissionSha256 = rehearsalAdmissionSha256;
+  receipts['rehearsal-receipt.json'].admissionSha256 = rehearsalAdmissionSha256;
+  document.rehearsalReceiptSha256 = sha256(canonicalBytes(receipts['rehearsal-receipt.json']));
+  for (const entry of rehearsalJournal) {
+    entry.admissionSha256 = rehearsalAdmissionSha256;
+    if ('receiptSha256' in entry) entry.receiptSha256 = document.rehearsalReceiptSha256;
+  }
+  const boundJournalBytes = Buffer.from(`${rehearsalJournal.map(entry => JSON.stringify(canonical(entry))).join('\n')}\n`);
+  document.rehearsalJournalSha256 = sha256(boundJournalBytes);
+  writeFileSync(join(directory, 'rehearsal-admission.json'), storedRehearsalBytes, { mode: 0o600 });
   for (const [name, receipt] of Object.entries(receipts)) {
     const path = join(directory, name);
     writeFileSync(path, canonicalBytes(receipt), { mode: 0o600 });
     chmodSync(path, 0o600);
   }
-  writeFileSync(rehearsalJournalPath, rehearsalJournalBytes, { mode: 0o600 });
+  writeFileSync(rehearsalJournalPath, boundJournalBytes, { mode: 0o600 });
   chmodSync(rehearsalJournalPath, 0o600);
-  writeFileSync(admissionPath, `${JSON.stringify(document)}\n`, { mode: 0o600 });
+  writeFileSync(admissionPath, canonicalBytes(document), { mode: 0o600 });
   chmodSync(admissionPath, 0o600);
   return { admissionPath, directory, document, journalPath, rehearsalJournalPath };
 }
@@ -303,6 +330,28 @@ function rewriteRehearsalTimeline(files: ReturnType<typeof custodyFiles>, {
   const journalBytes = Buffer.from(`${journal.map(entry => JSON.stringify(canonical(entry))).join('\n')}\n`);
   writeFileSync(files.rehearsalJournalPath, journalBytes, { mode: 0o600 });
   files.document.rehearsalJournalSha256 = sha256(journalBytes);
+}
+
+function rebindRehearsalEvidence(files: ReturnType<typeof custodyFiles>, stored: any) {
+  const admissionBytes = canonicalBytes(stored);
+  writeFileSync(join(files.directory, 'rehearsal-admission.json'), admissionBytes, { mode: 0o600 });
+  const digest = sha256(admissionBytes);
+  const receiptPath = join(files.directory, 'rehearsal-receipt.json');
+  const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+  Object.assign(receipt, { admissionSha256: digest, attemptId: stored.attemptId });
+  const receiptBytes = canonicalBytes(receipt);
+  writeFileSync(receiptPath, receiptBytes, { mode: 0o600 });
+  files.document.rehearsalReceiptSha256 = sha256(receiptBytes);
+  const journal = readFileSync(files.rehearsalJournalPath, 'utf8').trim().split('\n').map(JSON.parse);
+  for (const entry of journal) {
+    entry.admissionSha256 = digest;
+    entry.attemptId = stored.attemptId;
+    if ('receiptSha256' in entry) entry.receiptSha256 = files.document.rehearsalReceiptSha256;
+  }
+  const journalBytes = Buffer.from(`${journal.map(entry => JSON.stringify(canonical(entry))).join('\n')}\n`);
+  writeFileSync(files.rehearsalJournalPath, journalBytes, { mode: 0o600 });
+  files.document.rehearsalJournalSha256 = sha256(journalBytes);
+  return digest;
 }
 
 function rehearsalAdmission() {
@@ -389,7 +438,7 @@ function rehearsalCustodyFiles(document = rehearsalAdmission()) {
     writeFileSync(path, canonicalBytes(receipt), { mode: 0o600 });
     chmodSync(path, 0o600);
   }
-  writeFileSync(admissionPath, `${JSON.stringify(document)}\n`, { mode: 0o600 });
+  writeFileSync(admissionPath, canonicalBytes(document), { mode: 0o600 });
   chmodSync(admissionPath, 0o600);
   return { admissionPath, directory, document, journalPath, pendingReceiptPath, receiptPath };
 }
@@ -1411,6 +1460,107 @@ test('apply rejects orphan and semantically tampered rehearsal journals even whe
   }
 });
 
+test('apply pins the stored admission against a valid fully rehashed rehearsal from another attempt', () => {
+  const files = custodyFiles();
+  expect(validateSuccessorAdmission(files.document, executableRecord, {
+    now: fixedNow, receiptDirectory: files.directory,
+  }).expiresAt).toBe(Date.parse(files.document.expiresAt));
+  const storedPath = join(files.directory, 'rehearsal-admission.json');
+  const originalBytes = readFileSync(storedPath);
+  const other = JSON.parse(originalBytes.toString('utf8'));
+  other.attemptId = '123e4567-e89b-42d3-a456-426614174002';
+  const otherDigest = rebindRehearsalEvidence(files, other);
+  expect(otherDigest).not.toBe(files.document.rehearsalAdmissionSha256);
+  expect(validateSuccessorRehearsalAdmission(other, record, {
+    now: fixedNow, receiptDirectory: files.directory,
+  }).expiresAt).toBe(Date.parse(other.expiresAt));
+  expect(() => validateSuccessorAdmission(files.document, executableRecord, {
+    now: fixedNow, receiptDirectory: files.directory,
+  })).toThrow('SUCCESSOR_ADMISSION_INVALID');
+  // Restore the pinned file, leaving the internally consistent other receipt/journal.
+  writeFileSync(storedPath, originalBytes, { mode: 0o600 });
+  expect(() => validateSuccessorAdmission(files.document, executableRecord, {
+    now: fixedNow, receiptDirectory: files.directory,
+  })).toThrow('SUCCESSOR_ADMISSION_INVALID');
+});
+
+for (const changed of ['attempt', 'rollback', 'writerFence'] as const) {
+  test(`apply rejects a rehashed rehearsal with mismatched ${changed} binding`, () => {
+    const files = custodyFiles();
+    const stored = JSON.parse(readFileSync(join(files.directory, 'rehearsal-admission.json'), 'utf8'));
+    if (changed === 'attempt') {
+      // Receipt and all journal entries agree on B, but the actual admission is A.
+      const other = { ...stored, attemptId: '123e4567-e89b-42d3-a456-426614174002' };
+      rebindRehearsalEvidence(files, other);
+      const receiptPath = join(files.directory, 'rehearsal-receipt.json');
+      const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+      receipt.admissionSha256 = files.document.rehearsalAdmissionSha256;
+      writeFileSync(receiptPath, canonicalBytes(receipt), { mode: 0o600 });
+      files.document.rehearsalReceiptSha256 = sha256(readFileSync(receiptPath));
+      const journal = readFileSync(files.rehearsalJournalPath, 'utf8').trim().split('\n').map(JSON.parse);
+      for (const entry of journal) {
+        entry.admissionSha256 = files.document.rehearsalAdmissionSha256;
+        if ('receiptSha256' in entry) entry.receiptSha256 = files.document.rehearsalReceiptSha256;
+      }
+      const bytes = Buffer.from(`${journal.map(entry => JSON.stringify(canonical(entry))).join('\n')}\n`);
+      writeFileSync(files.rehearsalJournalPath, bytes, { mode: 0o600 });
+      files.document.rehearsalJournalSha256 = sha256(bytes);
+      writeFileSync(join(files.directory, 'rehearsal-admission.json'), canonicalBytes(stored), { mode: 0o600 });
+    } else {
+      stored.attemptId = '123e4567-e89b-42d3-a456-426614174002';
+      const fileName = changed === 'rollback' ? 'rollback-readback-receipt.json' : 'writer-fence-directSql.json';
+      const receiptPath = join(files.directory, fileName);
+      const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+      if (changed === 'rollback') {
+        receipt.deploymentSha = '2'.repeat(40);
+        stored.rollback.deploymentSha = receipt.deploymentSha;
+      } else receipt.observedAt = fixedNow.toISOString();
+      const bytes = canonicalBytes(receipt);
+      writeFileSync(receiptPath, bytes, { mode: 0o600 });
+      if (changed === 'rollback') stored.rollback.readbackSha256 = sha256(bytes);
+      else stored.writerFences.directSql.evidenceSha256 = sha256(bytes);
+      // Even rebinding the apply digest cannot mix B's rollback/fence with A's.
+      files.document.rehearsalAdmissionSha256 = rebindRehearsalEvidence(files, stored);
+    }
+    expect(validateSuccessorRehearsalAdmission(stored, record, {
+      now: fixedNow, receiptDirectory: files.directory,
+    }).expiresAt).toBe(Date.parse(stored.expiresAt));
+    expect(() => validateSuccessorAdmission(files.document, executableRecord, {
+      now: fixedNow, receiptDirectory: files.directory,
+    })).toThrow('SUCCESSOR_ADMISSION_INVALID');
+  });
+}
+
+test('apply requires the pinned private canonical rehearsal admission before any external read', () => {
+  for (const invalid of ['missing', 'public', 'noncanonical', 'wrongDigest'] as const) {
+    const files = custodyFiles();
+    const path = join(files.directory, 'rehearsal-admission.json');
+    if (invalid === 'missing') rmSync(path);
+    if (invalid === 'public') chmodSync(path, 0o644);
+    if (invalid === 'noncanonical') {
+      const stored = JSON.parse(readFileSync(path, 'utf8'));
+      writeFileSync(path, JSON.stringify(stored, null, 2), { mode: 0o600 });
+      files.document.rehearsalAdmissionSha256 = sha256(readFileSync(path));
+    }
+    if (invalid === 'wrongDigest') files.document.rehearsalAdmissionSha256 = '0'.repeat(64);
+    writeFileSync(files.admissionPath, canonicalBytes(files.document), { mode: 0o600 });
+    let externalCalls = 0;
+    const unexpected = () => { externalCalls += 1; throw new Error('unexpected external read'); };
+    expect(() => runReviewMediaSuccessor({
+      admissionPath: files.admissionPath, journalPath: files.journalPath, environment: {},
+    }, {
+      now: () => fixedNow,
+      loadManifestImpl: () => executableRecord,
+      gitFactsImpl: unexpected,
+      protectedMainReadbackImpl: unexpected,
+      rollbackReadbackImpl: unexpected,
+      runPsqlImpl: unexpected,
+    })).toThrow('SUCCESSOR_ADMISSION_INVALID');
+    expect(externalCalls).toBe(0);
+    expect(existsSync(files.journalPath)).toBe(false);
+  }
+});
+
 test('admission rejects wrong preimage and every wrong writer fence', () => {
   {
     const files = custodyFiles();
@@ -1465,6 +1615,83 @@ test('success path performs preflight, rechecks rollback and commits all eleven 
   expect(calls[0]).not.toMatch(/^INSERT INTO supabase_migrations\.schema_migrations/gm);
   expect(calls[1].match(/INSERT INTO supabase_migrations\.schema_migrations/g)).toHaveLength(11);
   expect(readFileSync(files.journalPath, 'utf8')).toContain('SUCCESSOR_COMMITTED');
+});
+
+for (const remainingMs of [600_000, 5_000]) {
+  for (const failure of ['clientStall', 'statementTimeout', 'lockTimeout', 'expiry'] as const) {
+    test(`bounded preflight ${failure} with ${remainingMs}ms left cannot journal or write`, () => {
+      const document = admission();
+      document.expiresAt = new Date(fixedNow.getTime() + remainingMs).toISOString();
+      const files = custodyFiles(document);
+      const plan = compileSuccessorPlan(executableRecord, files.document);
+      let spawnCalls = 0;
+      let rollbackReads = 0;
+      const runner = createSuccessorPsqlRunner(databaseUrl, {
+        environment: {}, psql: '/fixture/psql',
+        spawnImpl: (_command: string, args: string[], options: any) => {
+          spawnCalls += 1;
+          expect(args).toContain('--single-transaction');
+          expect(options.timeout).toBe(Math.min(30_000, remainingMs));
+          expect(options.killSignal).toBe('SIGKILL');
+          const sql = options.input;
+          const queryAt = sql.indexOf(plan.stateQuery);
+          for (const setting of [
+            'REPEATABLE READ READ ONLY', 'standard_conforming_strings=on',
+            "lock_timeout='2s'", "statement_timeout='15s'",
+            "idle_in_transaction_session_timeout='30s'", "set_config('transaction_timeout',least(30000",
+          ]) {
+            expect(sql.indexOf(setting)).toBeGreaterThanOrEqual(0);
+            expect(sql.indexOf(setting)).toBeLessThan(queryAt);
+          }
+          expect(sql).toContain('transaction_timestamp()');
+          expect(sql).toContain(`clock_timestamp() >= '${document.expiresAt}'::timestamptz`);
+          expect(sql.match(/SUCCESSOR_ADMISSION_EXPIRED/g)).toHaveLength(2);
+          expect(sql).not.toMatch(/INSERT INTO supabase_migrations\.schema_migrations/);
+          if (failure === 'clientStall') return {
+            error: Object.assign(new Error('private transport diagnostic'), { code: 'ETIMEDOUT' }),
+            status: null, stdout: '', stderr: 'private transport diagnostic',
+          };
+          const sqlstate = failure === 'statementTimeout' ? '57014' : failure === 'lockTimeout' ? '55P03' : 'P0001';
+          return { status: 1, stdout: '', stderr: `ERROR: ${sqlstate}: ${failure === 'expiry' ? 'SUCCESSOR_ADMISSION_EXPIRED' : 'private diagnostic'}\n` };
+        },
+      });
+      const expectedCode = failure === 'clientStall' ? 'MIGRATION_PSQL_EXECUTION_FAILED'
+        : failure === 'statementTimeout' ? 'MIGRATION_PSQL_FAILED_57014'
+          : failure === 'lockTimeout' ? 'MIGRATION_PSQL_FAILED_55P03' : 'SUCCESSOR_ADMISSION_EXPIRED';
+      expect(() => runReviewMediaSuccessor({
+        admissionPath: files.admissionPath, journalPath: files.journalPath,
+        environment: { SUPABASE_DB_URL: databaseUrl },
+      }, {
+        now: () => fixedNow,
+        gitFactsImpl: () => ({ clean: true, detached: true, revision }),
+        loadManifestImpl: () => executableRecord,
+        protectedMainReadbackImpl: () => protectedSourceReadbackBinding(manifest, revision),
+        rollbackReadbackImpl: () => { rollbackReads += 1; return rollbackReadback(); },
+        runPsqlImpl: runner,
+      })).toThrow(expectedCode);
+      expect(spawnCalls).toBe(1);
+      expect(rollbackReads).toBe(1);
+      expect(existsSync(files.journalPath)).toBe(false);
+    });
+  }
+}
+
+test('psql runner keeps a finite mutation/reconciliation cap and rejects unbounded overrides', () => {
+  let calls = 0;
+  const runner = createSuccessorPsqlRunner(databaseUrl, {
+    environment: {},
+    spawnImpl: (_command: string, _args: string[], options: any) => {
+      calls += 1;
+      expect(options.timeout).toBe(930_000);
+      expect(options.killSignal).toBe('SIGKILL');
+      return { status: 0, stdout: 'fixture', stderr: '' };
+    },
+  });
+  expect(runner(databaseUrl, 'SELECT 1;', true)).toBe('fixture');
+  for (const timeoutMs of [0, -1, Infinity, NaN, 930_001]) {
+    expect(() => runner(databaseUrl, 'SELECT 1;', true, { timeoutMs })).toThrow('SUCCESSOR_ARGUMENT_INVALID');
+  }
+  expect(calls).toBe(1);
 });
 
 for (const failureAt of ['fsync', 'close'] as const) {
@@ -1642,7 +1869,7 @@ test('lost apply acknowledgement reconciles once and never resends eleven mutati
   expect(readFileSync(files.journalPath, 'utf8')).toContain('MIGRATION_BUNDLE_OUTCOME_UNCONFIRMED');
 });
 
-for (const failureAt of [1, 2, 3, 4, 5]) {
+for (const failureAt of [1, 2, 3, 4, 5, 6]) {
   test(`apply fsync failure at custody/start boundary ${failureAt} prevents database mutation`, () => {
     const files = custodyFiles();
     const plan = compileSuccessorPlan(executableRecord, files.document);
@@ -1668,7 +1895,7 @@ for (const failureAt of [1, 2, 3, 4, 5]) {
         expect(sql).toStartWith('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;');
         return JSON.stringify(plan.priorReadback.expected);
       },
-    })).toThrow(failureAt <= 3 ? 'SUCCESSOR_ADMISSION_INVALID' : 'SUCCESSOR_JOURNAL_INVALID');
+    })).toThrow(failureAt <= 4 ? 'SUCCESSOR_ADMISSION_INVALID' : 'SUCCESSOR_JOURNAL_INVALID');
     expect(transports).toBe(1);
     expect(syncs).toBe(failureAt);
   });

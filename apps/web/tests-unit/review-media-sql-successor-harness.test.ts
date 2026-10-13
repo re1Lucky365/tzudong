@@ -11,10 +11,31 @@ import {
   dropFixtureMembership,
   dropOwnedDatabase,
   inspectRetainedProof,
+  waitForAdvisoryContention,
 } from '../performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs';
 
 const retainedProofRepositoryPath = 'apps/web/performance/review-db-successor-20261012/pg17-local-replay.json';
 const sha256 = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
+
+test('fixture observes delayed advisory contention before expiry without the old 700ms cutoff', async () => {
+  let time = 0;
+  const observed = await waitForAdvisoryContention(1500, {
+    nowMs: () => time,
+    readWaiting: () => time >= 950 ? '1' : '0',
+    delayImpl: async ms => { time += ms; },
+  });
+  expect(observed).toBe(960);
+  expect(observed).toBeLessThan(1500);
+});
+
+test('fixture rejects contention returned by a slow observation after expiry', async () => {
+  let time = 0;
+  await expect(waitForAdvisoryContention(1500, {
+    nowMs: () => time,
+    readWaiting: () => { time = 1600; return '1'; },
+    delayImpl: async () => {},
+  })).rejects.toThrow('LOCAL_REHEARSAL_CONTENTION_OBSERVED_AFTER_EXPIRY');
+});
 const fixtureParentRole = 'review_successor_fixture_parent_20261012';
 const fixtureMemberRole = 'review_successor_fixture_member_20261012';
 const fixtureOwnerPrefix = 'tzudong-review-successor-fixture';
@@ -235,7 +256,9 @@ test('retained proof with bytes not authorized by SHA256SUMS is rejected', () =>
       sourceRoot: '3'.repeat(64),
     })}\n`);
     writeFileSync(outputPath, proof);
-    writeFileSync(checksumsPath, `${sha256(proof)}  ${retainedProofRepositoryPath}\n`);
+    const checksumBytes = `${sha256(proof)}  ${retainedProofRepositoryPath}\n`;
+    writeFileSync(checksumsPath, checksumBytes);
+    writeFileSync(`${checksumsPath}.sha256`, `${sha256(checksumBytes)}\n`);
     writeFileSync(outputPath, Buffer.concat([proof, Buffer.from(' ')]));
 
     expect(() => inspectRetainedProof({
@@ -247,6 +270,28 @@ test('retained proof with bytes not authorized by SHA256SUMS is rejected', () =>
         sourceRoot: '3'.repeat(64),
       },
     })).toThrow('LOCAL_REHEARSAL_RETAINED_SHA256_MISMATCH');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('jointly altered retained proof and checksum map are rejected by the independent digest', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'tzudong-retained-map-tamper-'));
+  try {
+    const outputPath = join(directory, 'pg17-local-replay.json');
+    const checksumsPath = join(directory, 'SHA256SUMS');
+    const proof = { status: 'passed', temporaryDatabaseDropped: true, hostedWrites: false,
+      operatingWrites: false, manifestSha256: '1'.repeat(64),
+      rehearsalHarnessSha256: '2'.repeat(64), sourceRoot: '3'.repeat(64) };
+    const original = Buffer.from(`${JSON.stringify(proof)}\n`);
+    const originalMap = `${sha256(original)}  ${retainedProofRepositoryPath}\n`;
+    writeFileSync(`${checksumsPath}.sha256`, `${sha256(originalMap)}\n`);
+    const tampered = Buffer.from(`${JSON.stringify({ ...proof, sourceRoot: '4'.repeat(64) })}\n`);
+    writeFileSync(outputPath, tampered);
+    writeFileSync(checksumsPath, `${sha256(tampered)}  ${retainedProofRepositoryPath}\n`);
+    expect(() => inspectRetainedProof({ outputPath, checksumsPath, currentBindings: {
+      manifestSha256: '1'.repeat(64), rehearsalHarnessSha256: '2'.repeat(64), sourceRoot: '4'.repeat(64),
+    } })).toThrow('LOCAL_REHEARSAL_CHECKSUMS_SHA256_MISMATCH');
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

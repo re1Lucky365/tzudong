@@ -53,10 +53,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const PROJECT_REF = 'aqlcofblfxdrjhhdmarw';
 const PURPOSE = 'review-media-current-state-eleven-stage';
 const ADMISSION_MAX_AGE_MS = 15 * 60 * 1000;
+const PREFLIGHT_TIMEOUT_MS = 30_000;
+const PSQL_MAX_TIMEOUT_MS = ADMISSION_MAX_AGE_MS + 30_000;
 const GIT_REMOTE_READ_TIMEOUT_MS = 15_000;
 const PRIVATE_RECEIPT_FILES = Object.freeze({
   protectedMain: 'protected-main-receipt.json',
   rehearsal: 'rehearsal-receipt.json',
+  rehearsalAdmission: 'rehearsal-admission.json',
   rehearsalJournal: 'rehearsal-journal.jsonl',
   rollback: 'rollback-readback-receipt.json',
   source: 'source-receipt.json',
@@ -702,6 +705,27 @@ function validatePrivateReceipts(admission, manifestRecord, {
   assertReceiptWindow(protectedMain, admission, createdAt, expiresAt, nowMs);
 
   if (includeRehearsal) {
+    const rehearsalAdmission = readPrivateCanonicalReceipt(
+      receiptDirectory,
+      PRIVATE_RECEIPT_FILES.rehearsalAdmission,
+      admission.rehearsalAdmissionSha256,
+    );
+    const rehearsalWindow = validateSuccessorRehearsalAdmission(rehearsalAdmission, manifestRecord, {
+      now: new Date(nowMs),
+      receiptDirectory,
+    });
+    if (rehearsalWindow.createdAt > createdAt
+      || rehearsalWindow.expiresAt < expiresAt
+      || rehearsalAdmission.sourceReceiptSha256 !== admission.sourceReceiptSha256
+      || rehearsalAdmission.protectedMainReceiptSha256 !== admission.protectedMainReceiptSha256
+      || !equal(rehearsalAdmission.rollback, admission.rollback)
+      || !equal(rehearsalAdmission.writerFences, admission.writerFences)
+      || rehearsalAdmission.journalPathSha256 !== sha256(Buffer.from(resolve(
+        receiptDirectory, PRIVATE_RECEIPT_FILES.rehearsalJournal,
+      )))
+      || rehearsalAdmission.receiptPathSha256 !== sha256(Buffer.from(resolve(
+        receiptDirectory, PRIVATE_RECEIPT_FILES.rehearsal,
+      )))) fail('SUCCESSOR_ADMISSION_INVALID');
     const rehearsal = readPrivateCanonicalReceipt(
       receiptDirectory,
       PRIVATE_RECEIPT_FILES.rehearsal,
@@ -719,8 +743,9 @@ function validatePrivateReceipts(admission, manifestRecord, {
     if (!common(rehearsal)
       || rehearsal.kind !== 'successor-rehearsal-receipt'
       || rehearsal.passed !== true
-      || !UUID.test(rehearsal.attemptId)
-      || !HEX_SHA256.test(rehearsal.admissionSha256)
+      || rehearsal.attemptId !== rehearsalAdmission.attemptId
+      || rehearsal.admissionSha256 !== admission.rehearsalAdmissionSha256
+      || rehearsal.expiresAt !== rehearsalAdmission.expiresAt
       || rehearsal.journalPathSha256 !== sha256(Buffer.from(resolve(
         receiptDirectory,
         PRIVATE_RECEIPT_FILES.rehearsalJournal,
@@ -759,7 +784,7 @@ function validatePrivateReceipts(admission, manifestRecord, {
     const verifiedAt = Date.parse(verification.verifiedAt);
     const publishedAt = Date.parse(publication.publishedAt);
     const observedAt = Date.parse(rehearsal.observedAt);
-    const rehearsalLeaseStartedAt = Date.parse(rehearsal.expiresAt) - ADMISSION_MAX_AGE_MS;
+    const rehearsalLeaseStartedAt = rehearsalWindow.createdAt;
     if (started.event !== 'started'
       || verification.event !== 'verification'
       || verification.code !== 'SUCCESSOR_REHEARSAL_VERIFIED'
@@ -929,6 +954,7 @@ export function validateSuccessorAdmission(admission, manifestRecord, {
     'projectRef',
     'protectedMainReceiptSha256',
     'purpose',
+    'rehearsalAdmissionSha256',
     'rehearsalJournalSha256',
     'rehearsalReceiptSha256',
     'rollback',
@@ -945,6 +971,7 @@ export function validateSuccessorAdmission(admission, manifestRecord, {
     receiptDirectory,
     requiredReceiptHashes: [
       'protectedMainReceiptSha256',
+      'rehearsalAdmissionSha256',
       'rehearsalJournalSha256',
       'rehearsalReceiptSha256',
       'sourceReceiptSha256',
@@ -1052,10 +1079,13 @@ export function assertLaunchReady(manifest) {
   if (manifest.launchPolicy.state !== 'ready') fail('SUCCESSOR_LAUNCH_HELD');
 }
 
-function successorExpirySql(admission, suffix, { armTransactionTimeout = false } = {}) {
+function successorExpirySql(admission, suffix, {
+  armTransactionTimeout = false,
+  maxTransactionTimeoutMs = ADMISSION_MAX_AGE_MS,
+} = {}) {
   const tag = `$successor_expiry_${sha256(`${admission.expiresAt}:${suffix}`).slice(0, 18)}$`;
   const armTimeout = armTransactionTimeout
-    ? `\n PERFORM set_config('transaction_timeout',least(${ADMISSION_MAX_AGE_MS},greatest(1,ceil(extract(epoch FROM (${quote(admission.expiresAt)}::timestamptz-transaction_timestamp()))*1000)::bigint))::text,true);`
+    ? `\n PERFORM set_config('transaction_timeout',least(${maxTransactionTimeoutMs},greatest(1,ceil(extract(epoch FROM (${quote(admission.expiresAt)}::timestamptz-transaction_timestamp()))*1000)::bigint))::text,true);`
     : '';
   return `DO ${tag} BEGIN IF clock_timestamp() >= ${quote(admission.expiresAt)}::timestamptz THEN RAISE EXCEPTION 'SUCCESSOR_ADMISSION_EXPIRED'; END IF;${armTimeout} END ${tag};`;
 }
@@ -1280,6 +1310,7 @@ function assertDurableRehearsalArtifacts(directory, admission, fsyncImpl) {
       fail('SUCCESSOR_ADMISSION_INVALID');
     }
     for (const [fileName, expected] of [
+      [PRIVATE_RECEIPT_FILES.rehearsalAdmission, admission.rehearsalAdmissionSha256],
       [PRIVATE_RECEIPT_FILES.rehearsal, admission.rehearsalReceiptSha256],
       [PRIVATE_RECEIPT_FILES.rehearsalJournal, admission.rehearsalJournalSha256],
     ]) {
@@ -1418,7 +1449,10 @@ export function createSuccessorPsqlRunner(databaseUrl, {
   psql = environment.TZUDONG_SUCCESSOR_PSQL || 'psql',
   spawnImpl = spawnSync,
 } = {}) {
-  return (_databaseUrl, sql, singleTransaction) => {
+  return (_databaseUrl, sql, singleTransaction, { timeoutMs = PSQL_MAX_TIMEOUT_MS } = {}) => {
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > PSQL_MAX_TIMEOUT_MS) {
+      fail('SUCCESSOR_ARGUMENT_INVALID');
+    }
     const args = ['--no-psqlrc', '--set=ON_ERROR_STOP=1', '--quiet', '--tuples-only', '--no-align'];
     if (singleTransaction) args.splice(1, 0, '--single-transaction');
     args.push('--file=-');
@@ -1427,6 +1461,9 @@ export function createSuccessorPsqlRunner(databaseUrl, {
       env: psqlConnectionEnvironment(databaseUrl, environment),
       input: `\\set VERBOSITY verbose\n${sql}`,
       maxBuffer: 16 * 1024 * 1024,
+      timeout: timeoutMs,
+      // A stalled client must not keep spawnSync waiting after SIGTERM.
+      killSignal: 'SIGKILL',
     });
     if (result.error || result.status !== 0) throw transportError(result);
     return result.stdout || '';
@@ -2006,10 +2043,27 @@ export function runReviewMediaSuccessor({
 
   let observed;
   try {
+    const preflightAt = now();
+    assertAdmissionFresh(admissionWindow.expiresAt, preflightAt);
+    const timeoutMs = Math.min(PREFLIGHT_TIMEOUT_MS, admissionWindow.expiresAt - preflightAt.getTime());
+    const preflightSql = [
+      'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;',
+      'SET LOCAL standard_conforming_strings=on;',
+      "SET LOCAL lock_timeout='2s';",
+      "SET LOCAL statement_timeout='15s';",
+      "SET LOCAL idle_in_transaction_session_timeout='30s';",
+      successorExpirySql(admission, 'preflight', {
+        armTransactionTimeout: true,
+        maxTransactionTimeoutMs: PREFLIGHT_TIMEOUT_MS,
+      }),
+      `${plan.stateQuery};`,
+      successorExpirySql(admission, 'post-preflight'),
+    ].join('\n');
     observed = parseReadback(transport(
       databaseUrl,
-      `SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;\n${plan.stateQuery};`,
+      preflightSql,
       true,
+      { timeoutMs },
     ));
   } catch (error) {
     throw boundedSuccessorError(error);
