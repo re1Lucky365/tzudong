@@ -1,10 +1,10 @@
 {
   "schema": "tzudong-admin-route-consistency-artifact-map/v1",
   "baseHead": "5f17b5f7dfca60f4b75886052dcb6433e97acba0",
-  "scope": "Detached SHA-256 inventory for preserved v1 evidence and v2 mobile-summary correction evidence. Hash binding is not deployment or operating OAuth/DB proof.",
+  "scope": "Detached SHA-256 inventory for the 31 retained v1/v2 artifacts that exist in this Git tree. Four historical log entries whose source bytes are unavailable are excluded and recorded separately. Hash binding is not deployment or operating OAuth/DB proof.",
   "artifactRoot": "apps/web/performance/admin-route-consistency-20261012",
-  "artifactCount": 35,
-  "artifactBytes": 1042180,
+  "artifactCount": 31,
+  "artifactBytes": 1039081,
   "sourceBindings": [
     {
       "path": "apps/web/app/admin/privacy-incidents/page.tsx",
@@ -80,11 +80,6 @@
       "sha256": "05b24997c5716d19171b0049462775be00d3f0b5db34b3c7b3260bfb8ec58a2c"
     },
     {
-      "path": "privacy-build-output.log",
-      "bytes": 1204,
-      "sha256": "49ffded9997c5df7fbac0aaf0be5a4aeb777e49693322036be5460097ec2dbc6"
-    },
-    {
       "path": "privacy-build-receipt.json",
       "bytes": 2217,
       "sha256": "b8355ff194cff412a77d82adde1f82d4e118053b1f5bd0c88d3c7456a117c3b5"
@@ -140,11 +135,6 @@
       "sha256": "6e9e2c42d8b4a7787c9190d75c72f362c9e610379892556d9832b9d965281495"
     },
     {
-      "path": "privacy-runtime.log",
-      "bytes": 358,
-      "sha256": "5c024ae5b7d55700450f2528e2a99254c8e46894c4d517c58e109851de430fd3"
-    },
-    {
       "path": "route-census.json",
       "bytes": 26442,
       "sha256": "73f6125b9ce41058e59c67bc9b100c729b5973f32ad3fb25effcd2d30ff2f3e1"
@@ -168,11 +158,6 @@
       "path": "v2/fixture-server.mjs",
       "bytes": 9792,
       "sha256": "3b9684c3dda38715b788c564fbaed8f0e002edbf9a46821a65b574bb602d8e09"
-    },
-    {
-      "path": "v2/privacy-build-output.log",
-      "bytes": 1207,
-      "sha256": "bb222ca1365bfbe6ce41a7fcfc13d5ab79555fc37c2c4feca0364f14d77c8018"
     },
     {
       "path": "v2/privacy-build-receipt.json",
@@ -225,11 +210,6 @@
       "sha256": "52f8257701d46a803f1def2ca05e66e85e873735da91f0744f19ad7afe32c673"
     },
     {
-      "path": "v2/privacy-runtime.log",
-      "bytes": 330,
-      "sha256": "461ab57e6df8b36b0d28596c42223d7c70d44fbf244c0ac7c16c41f416172213"
-    },
-    {
       "path": "v2/route-census.json",
       "bytes": 26442,
       "sha256": "f5e769330d887b58aa5ff3d207aa732a091891807127b3555000520d21a6ffe1"
@@ -239,5 +219,7 @@
       "bytes": 6134,
       "sha256": "4974d2c55e1dd6b0270c525e61ce07c29ae5db5bc307d870ccf0fa6f5f5dc4d7"
     }
-  ]
+  ],
+  "historicalInventory": "artifact-map-35-historical.json",
+  "exclusionReceipt": "excluded-historical-artifacts.json"
 }
