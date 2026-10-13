@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "kind": "interrupted-local-rehearsal",
+  "recordedAtUTC": "2026-10-13T06:50:57.884Z",
+  "processAbsent": true,
+  "proofPresent": false,
+  "containerId": "b856aa37d9d1d3963b4b6a8a01591e80bff4cb98de4e89681d206d76fed643f3",
+  "containerName": "tzudong-review-rollback-rehearsal-59656-300e3940feb7",
+  "ownershipVerified": true,
+  "removed": true,
+  "mutationOutcome": "not-established",
+  "sourceContainerRemoved": false
+}
