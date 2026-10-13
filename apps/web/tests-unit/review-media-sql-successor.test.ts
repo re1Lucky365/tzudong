@@ -56,11 +56,11 @@ const executableRecord = Object.freeze({
 });
 const fixedNow = new Date('2026-10-12T08:00:00.000Z');
 const revision = '056a86600f412eb42df4304e3206841679012f3e';
-const databaseUrlFixture = new URL('postgresql://localhost/postgres');
-databaseUrlFixture.hostname = 'aws-0-ap-southeast-1.pooler.supabase.com';
-databaseUrlFixture.username = 'postgres.aqlcofblfxdrjhhdmarw';
-databaseUrlFixture.port = '6543';
-const databaseUrl = databaseUrlFixture.toString();
+// This injected transport has no credential. Keep its project/role/database
+// identity bound to the same manifest that the controller validates.
+const databaseUrl = new URL(
+  `postgresql://${record.manifest.executorRole}.${record.manifest.projectRef}@aws-0-ap-southeast-1.pooler.supabase.com:6543/${record.manifest.databaseName}`,
+).toString();
 const rollback = Object.freeze({
   deploymentId: 'dpl_EUxJnWmDDozCSMWb2sqNSPgKJLM5',
   deploymentSha: '1884f87e53c4567ead7c9a0fb394b09b91a70396',
