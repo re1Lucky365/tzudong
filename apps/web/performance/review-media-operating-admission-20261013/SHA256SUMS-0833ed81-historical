@@ -1,0 +1,5 @@
+d29f5fa8ddc27573b3ea2d2a144c9d9a1c24a6c5ac4d7aeef30e3bda514fc575  apps/web/performance/review-media-operating-admission-20261013/controller-reverification.json
+ad4d439f9609db73d5879e655380d640b3b52274dbfe80654f6d715bd7a68ab7  apps/web/performance/review-media-operating-admission-20261013/verification.json
+4ad55ed526b7af8c0ee1282057dbfa3706249deea04472a2749909af45492064  apps/web/scripts/review-media-operating-admission.mjs
+26d7fe68effda2813b3f9384dd2d7e4f9e8998447cd988b89820d93be7f6bdc7  apps/web/tests-unit/review-media-operating-admission.test.ts
+b4fbd520413f59e82743c545f521df5a8adde04970f610d4d06b432955f07518  docs/operations/review-media-operating-admission-20261013.md
