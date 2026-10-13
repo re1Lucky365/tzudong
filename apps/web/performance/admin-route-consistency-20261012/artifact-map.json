@@ -3,8 +3,8 @@
   "baseHead": "a45a6bb4989e588ddb02ac6c23ada44eb11cfdb0",
   "scope": "Current-source local production build, unit/parity receipts, native CUA observations, and synthetic loopback scenario evidence, with historical evidence and acceptance exclusions explicitly separated. No hosted, provider, deployment, exact-geometry, console, or performance proof.",
   "artifactRoot": "apps/web/performance/admin-route-consistency-20261012",
-  "artifactCount": 61,
-  "artifactBytes": 2927899,
+  "artifactCount": 62,
+  "artifactBytes": 2930434,
   "currentSourceCount": 18,
   "sourceBindings": [
     {
@@ -79,8 +79,8 @@
     },
     {
       "path": "apps/web/tests-unit/privacy-fixture-runtime.test.ts",
-      "bytes": 18278,
-      "sha256": "fccb91440bc760570b8a4acb16860dc213e6561491bf58794185388618f86a59"
+      "bytes": 18608,
+      "sha256": "a8b2c19e8ef64f46d934d9240317bbdeccf9bfe2b298b74379b1144f70f79ed0"
     },
     {
       "path": "apps/web/tests-unit/privacy-fixture-scenarios.test.ts",
@@ -124,13 +124,28 @@
     "consoleVerified": false,
     "performanceImprovementMeasured": false,
     "hostedOrProviderVerified": false,
-    "currentRuntimeLifecyclePairs": 2
+    "currentRuntimeLifecyclePairs": 2,
+    "portabilityDelta": {
+      "receipt": "privacy-fixture-portability-delta-20261013.json",
+      "receiptSha256": "573c1477dc615324ad25839be3886fa9cd60afd6b1108f50a90a5d52d233787e",
+      "parentHead": "bfea9d03853ab44db5e03bba85834a7ad4dd826b",
+      "fixtureRuntimeTestSha256": "a8b2c19e8ef64f46d934d9240317bbdeccf9bfe2b298b74379b1144f70f79ed0",
+      "representativeLinuxHomeTested": true,
+      "processEnvironmentHomeMutated": false,
+      "passed": 18,
+      "failed": 0,
+      "assertions": 149,
+      "helperSourceChanged": false,
+      "buildInputsChanged": false,
+      "fullBuildRepeated": false,
+      "uiRenderRepeated": false
+    }
   },
   "artifacts": [
     {
       "path": "README.md",
-      "bytes": 5698,
-      "sha256": "53245e1386cbf94cac62bb3b614da4c1b45a599bba2f44d65a2d50a7fd232afd",
+      "bytes": 6699,
+      "sha256": "0f4124d3563a090c71ca8e62ebe4588bd729a3d191bf757c69022bff6df712fe",
       "role": "current-evidence-guide"
     },
     {
@@ -492,6 +507,12 @@
       "bytes": 76,
       "sha256": "98a8fc4186d5d8c86d552ab20aad52b8fa134a67ea869474d190227739d32dbd",
       "role": "current-runtime-lifecycle"
+    },
+    {
+      "path": "privacy-fixture-portability-delta-20261013.json",
+      "bytes": 1534,
+      "sha256": "573c1477dc615324ad25839be3886fa9cd60afd6b1108f50a90a5d52d233787e",
+      "role": "immutable-current-portability-delta"
     }
   ],
   "historicalInventory": "artifact-map-31-historical.json",

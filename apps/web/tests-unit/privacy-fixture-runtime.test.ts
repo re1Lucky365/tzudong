@@ -398,12 +398,17 @@ describe('privacy fixture runtime ownership', () => {
   });
 
   test('redacts checkout, dependency, and user-home paths from future evidence output', () => {
+    const representativeLinuxHome = '/home/runner';
     const output = sanitizeFixtureOutput(
-      'failed at /private/worktree/apps/web and /Users/example/.cache plus /home/runner/project',
-      ['/private/worktree/apps/web'],
+      'failed at /private/worktree/apps/web and /Users/example/.cache plus /home/runner/project and /home/ci-user/cache',
+      ['/private/worktree/apps/web', representativeLinuxHome],
     );
-    expect(output).toBe('failed at <LOCAL_PATH> and <USER_HOME>/.cache plus <USER_HOME>/project');
-    expect(output).not.toContain('example');
-    expect(output).not.toContain('runner');
+    const normalized = output.replace(/<(?:LOCAL_PATH|USER_HOME)>/g, '<REDACTED_PATH>');
+    expect(normalized).toBe(
+      'failed at <REDACTED_PATH> and <REDACTED_PATH>/.cache plus <REDACTED_PATH>/project and <REDACTED_PATH>/cache',
+    );
+    for (const sensitiveFragment of ['/private/worktree', '/Users/', '/home/', 'example', 'runner', 'ci-user']) {
+      expect(output).not.toContain(sensitiveFragment);
+    }
   });
 });

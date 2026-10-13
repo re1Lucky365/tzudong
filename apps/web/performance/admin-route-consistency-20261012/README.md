@@ -45,6 +45,12 @@ v2 loopback gateway는 GET 진입으로 독립 시나리오 쿠키를 초기화�
 
 `privacy-cua-native-width24-failed-input.jpg`는 요청한 폭이 생성되지 않은 진단 캡처다. 바이트 보존을 위해 현재 맵에 포함하지만 viewport acceptance에서는 명시적으로 제외한다. 지연 대기 상태는 AX 관찰만 있고 스크린샷이 없다.
 
+## Ubuntu 테스트 이식성 델타
+
+PR #3195의 Ubuntu 실행에서 실제 HOME `/home/runner`가 일반 `/home/*` 규칙보다 먼저 명시 경로 규칙에 의해 `<LOCAL_PATH>`로 치환됐다. 두 값은 모두 안전한 redaction 결과이므로 production helper는 변경하지 않았다. 테스트는 실제 HOME을 변경하지 않고 합성 Linux HOME을 민감 경로 입력으로 전달한 뒤 `<LOCAL_PATH>`와 `<USER_HOME>`을 `<REDACTED_PATH>`로 정규화해 정확한 전체 메시지와 원본 경로·사용자명 부재를 함께 검증한다.
+
+`privacy-fixture-portability-delta-20261013.json`은 이전 맵 SHA-256, 변경 전후 테스트 SHA-256, helper 불변 SHA-256과 좁은 재검증 결과를 보존한다. fixture 테스트 18개와 149 assertions가 통과했고 대상 ESLint 경고·오류는 0건이다. 현재 423개 앱 빌드 입력과 기존 빌드·런타임·렌더 영수증은 변경되지 않아 전체 빌드와 UI 재캡처를 반복하지 않았다.
+
 ## 역사 자료
 
 루트와 `v2/` 바로 아래의 기존 PNG·JSON·README는 과거 소스와 frozen bundle에 대한 역사 자료다. 과거 페이지 SHA-256은 `572ac666db2f7f66a852557bacab63b64851056838ef11efa7dbd60a2db057a2`, 현재 페이지 SHA-256은 `e22616985864f9d19f9d16bc91dab114fb22d76de0e8f6dbd6c814a3d73df79b`로 서로 다르다. 과거 build manifest의 421개 소스, 과거 BUILD_ID, PNG와 소스 해시는 현재 렌더 증명이 아니다.

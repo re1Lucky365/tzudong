@@ -791,3 +791,9 @@ root page server23개/231assertions 통과, agent의 범위 수정 전 관련27�
 현재 read-state source의 실제 loopback UI에서 최초 실패는 미확인, 성공한 빈 응답은 0건, 갱신 실패는 마지막 3건·위험 2건과 갱신 실패, 지연 중은 조회 중·버튼 비활성, 완료는 3건으로 관측했다. 현재 artifact 61개·2,927,899bytes, source binding 18개, archived reproduction source 5개, 정상 종료 runtime 2쌍을 exact-byte SHA와 함께 검증했다. width24 실패 입력 캡처는 acceptance에서 제외했고 console·exact geometry·실기기·provider·운영 기능·성능 개선을 주장하지 않는다. 현재 map SHA는 `04df93f498ba0e37238e71c18087844154b7bec986e93dd52c4a2e65c4afa021`다. 원문 목표 상태 조회는 `paused`를 반환했으며, 최신 사용자의 즉시 작업 요청에 따라 이번 작업은 수행했다. 목표 상태를 도구로 변경하거나 자동 재개를 완료했다고 기록하지 않는다.
 
 운영 capture 신규 후보는 자동 검수 정책 OFF·queued/running 0을 owner 권한의 REPEATABLE READ READ ONLY 조회로 확인하는 collector를 구현했고 관련 3개 suite 65 pass·0 fail·169 assertions를 기록했다. 실제 운영 접속은 0회이며, 나머지 5개 writer-fence와 분리된 실행 자격은 여전히 해결되지 않았다. 롱폼 준비기는 독립 검토에서 발견한 5개 경계를 보완했고 기존 12-test receipt를 보존한 새 19-test receipt를 생성했다. 원래 실패 재현의 독립 재검토와 전체 영상 분석은 별도 미완료다.
+
+### 2026-10-13 원격 CI 이식성 정정
+
+PR #3195 head `bfea9d03853ab44db5e03bba85834a7ad4dd826b`에 UI 보완을 push하고 검토 6건을 해결했다. 해당 head의 Ubuntu npm 단위 테스트는 실제 HOME을 `<LOCAL_PATH>`로 익명화한 안전한 출력과 테스트가 고정한 `<USER_HOME>` 표식의 차이로 실패했다. 운영 sanitizer·실제 HOME·423개 앱 입력·렌더는 바꾸지 않고 안전한 표식을 정규화하되 원래 경로·사용자명 6개가 남지 않음을 강화 검증했다. fixture 델타는 18 pass·0 fail·149 assertions이며, 이전 47-test/419-assertion 영수증과 중복되는 검증이므로 합산하지 않는다. 새 source와 원격 CI 통과는 별도로 확인해야 한다. 현재 retained map은 62파일·2,930,434bytes·source 18개이고 SHA는 `335fb4abe8fdd3b6445ab334d3ded0f29377a2517640068add56485848249414`다.
+
+기능 후보의 독립 검토에서 OCR 경로 계약·Storage 객체 SHA 결속·hard-exit claim 복구 3건, storyboard 모델 가용성 전 claim·기존 v1 lease/archive·동일 worker 모델 쌍 3건을 발견해 보완 중이다. 이전 통과한 mock/fixture 수치를 실제 UI 저장·운영 동작 증거로 확대하지 않았다. 롱폼 준비기는 immutable snapshot으로 바꾼 23-test 영수증을 보존했고, source 작업량은 `O(N+C+K)`로 모델링하며 2-target fixture의 mutable source 13개 1회 읽기/재개 0회 읽기를 기록했다. 전후 시간 개선이나 전체 영상 분석은 아직 주장하지 않는다.
