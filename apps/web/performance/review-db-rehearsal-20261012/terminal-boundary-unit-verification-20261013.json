@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-branch-verification",
+  "recordedAtUTC": "2026-10-13T07:10:46.250689+00:00",
+  "environment": {
+    "node": "24.21.0",
+    "bun": "1.4.0",
+    "platform": "macOS"
+  },
+  "tests": {
+    "passed": 81,
+    "failed": 0,
+    "assertions": 450,
+    "files": 5
+  },
+  "sources": [
+    {
+      "path": "apps/web/scripts/review-media-sql-successor.mjs",
+      "sha256": "dcf552697251c2f10d859c7a2f56937a0f6e92ee9467e5b919807e498eff1d49"
+    },
+    {
+      "path": "apps/web/scripts/review-media-operating-admission.mjs",
+      "sha256": "4ad55ed526b7af8c0ee1282057dbfa3706249deea04472a2749909af45492064"
+    },
+    {
+      "path": "apps/web/performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs",
+      "sha256": "8c3d7df52c281a9df1d6a4bd2acefb59f9a23b60185559fc6a8298cd65fde370"
+    },
+    {
+      "path": ".github/review-media-sql-successor.v1.json",
+      "sha256": "ae764bb760102a6d7d066be669c85248feed1823eafded4bf8c246a062090a8c"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-sql-successor.test.ts",
+      "sha256": "7d32dccb70c6b1b79379ee69864d2c092d3a2e39863ab365494622a0effeba62"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-migration-bundle.test.ts",
+      "sha256": "dc1f2594e629d5af16541db93e2e51f9b98d8282dd7fbeb802dd240fa6f522c0"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-sql-successor-harness.test.ts",
+      "sha256": "31bd78568b7bff5196626d87cf7f0fe9b84d695da8cef597fa93e4d742f99845"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-sql-rehearsal-verifier.test.ts",
+      "sha256": "b25b5dcc6516435a1c74a038c20856cc5dd719b303d9c3f3e600dc314197c7cd"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-operating-admission.test.ts",
+      "sha256": "26d7fe68effda2813b3f9384dd2d7e4f9e8998447cd988b89820d93be7f6bdc7"
+    }
+  ],
+  "scope": [
+    "rehearsal filesystem expiry",
+    "committed outcome plus terminal audit failure",
+    "private admission formatting",
+    "database/role creation and cleanup acknowledgement loss",
+    "rollback verifier ownership"
+  ],
+  "performanceClaim": false,
+  "hostedClaim": false,
+  "confidenceInterval": {
+    "applicable": false,
+    "reason": "Deterministic branch checks; not a reliability or performance sample."
+  }
+}
