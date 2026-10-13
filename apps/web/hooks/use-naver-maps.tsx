@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { NAVER_MAPS_CONFIG } from "@/config/maps";
 import {
     isLocalNaverStyleFallbackHost,
-    LOCAL_NAVER_MAP_STUB_SCRIPT_URL,
     resolveNaverMapScriptUrl,
     rewriteNaverStyleUrlForLocalhost,
     shouldUseLocalNaverMapStub,
@@ -106,48 +105,6 @@ function hasUsableNaverMaps() {
         && maps.Event
     );
 }
-function loadLocalNaverStubFallback(
-    setIsLoaded: (value: boolean) => void,
-    setIsLoading: (value: boolean) => void,
-    setLoadError: (value: Error | null) => void,
-) {
-    if (hasUsableNaverMaps()) {
-        setIsLoaded(true);
-        setIsLoading(false);
-        return;
-    }
-
-    const existingStub = document.querySelector('script[data-local-naver-maps="true"]');
-    const attachStub = (script: HTMLScriptElement) => {
-        script.addEventListener('load', () => {
-            if (hasUsableNaverMaps()) {
-                setIsLoaded(true);
-                setLoadError(null);
-            } else {
-                setLoadError(new Error('네이버 지도 API 초기화 실패'));
-            }
-            setIsLoading(false);
-        });
-        script.addEventListener('error', () => {
-            setLoadError(new Error('네이버 지도 API 로딩 실패 - 네트워크 오류'));
-            setIsLoading(false);
-        });
-    };
-
-    if (existingStub instanceof HTMLScriptElement) {
-        attachStub(existingStub);
-        return;
-    }
-
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.dataset.localNaverMaps = 'true';
-    script.src = LOCAL_NAVER_MAP_STUB_SCRIPT_URL;
-    script.async = true;
-    attachStub(script);
-    document.head.appendChild(script);
-}
-
 const EFFECTIVE_SCRIPT_URL = resolveNaverMapScriptUrl({
     clientId: NAVER_MAPS_CONFIG.clientId,
     configuredScriptUrl: process.env.NEXT_PUBLIC_NAVER_MAPS_SCRIPT_URL,
@@ -168,6 +125,8 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
     const load = useCallback(() => {
         // 이미 로드되었거나 로딩 중이면 무시
         if (isLoaded || isLoading) return;
+
+        setLoadError(null);
 
         // Client ID 검증
         if (!NAVER_MAPS_CONFIG.clientId && !LOCAL_OFFLINE_MAP) {
@@ -224,19 +183,15 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
                     setIsLoading(false);
                     return;
                 }
-                if (!LOCAL_OFFLINE_MAP) {
-                    loadLocalNaverStubFallback(setIsLoaded, setIsLoading, setLoadError);
-                    return;
-                }
+                // A failed live provider must never become a test map. Remove
+                // this failed owned script so a user retry can request it again.
+                script.remove();
                 setLoadError(new Error("네이버 지도 API 초기화 실패"));
                 setIsLoading(false);
             };
 
             script.onerror = () => {
-                if (!LOCAL_OFFLINE_MAP) {
-                    loadLocalNaverStubFallback(setIsLoaded, setIsLoading, setLoadError);
-                    return;
-                }
+                script.remove();
                 setLoadError(
                     new Error(
                         "네이버 지도 API 스크립트 로드 실패 - Client ID 또는 웹 서비스 URL을 확인해주세요."
@@ -268,10 +223,12 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
 
     // autoLoad가 true면 로드 시도
     useEffect(() => {
-        if (autoLoad) {
+        // After a provider failure, wait for an explicit retry. A loading-state
+        // change must not create an unbounded automatic request loop.
+        if (autoLoad && !loadError) {
             load();
         }
-    }, [autoLoad, load]);
+    }, [autoLoad, load, loadError]);
 
     return { isLoaded, loadError, isLoading, load };
 }
