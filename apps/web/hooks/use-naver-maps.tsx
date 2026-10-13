@@ -110,6 +110,9 @@ const EFFECTIVE_SCRIPT_URL = resolveNaverMapScriptUrl({
     configuredScriptUrl: process.env.NEXT_PUBLIC_NAVER_MAPS_SCRIPT_URL,
     useLocalStub: LOCAL_OFFLINE_MAP,
 });
+const SHARED_SCRIPT_SELECTOR = LOCAL_OFFLINE_MAP
+    ? 'script[data-local-naver-maps="true"]'
+    : 'script[data-tzudong-naver-maps="true"], script[src*="oapi.map.naver.com"]';
 
 export function useNaverMaps(options: UseNaverMapsOptions = {}) {
     const { autoLoad = false, strategy = 'afterInteractive' } = options;
@@ -129,9 +132,7 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
         const observeScript = (event: Event) => {
             const script = event.target;
             if (!(script instanceof HTMLScriptElement)) return;
-            if (!script.matches(LOCAL_OFFLINE_MAP
-                ? 'script[data-local-naver-maps="true"]'
-                : 'script[src*="oapi.map.naver.com"]')) return;
+            if (!script.matches(SHARED_SCRIPT_SELECTOR)) return;
 
             scheduledLoadRef.current?.();
             scheduledLoadRef.current = null;
@@ -176,11 +177,7 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
         }
 
         // 이미 로딩 중인 스크립트가 있는지 확인
-        const existingScript = document.querySelector(
-            LOCAL_OFFLINE_MAP
-                ? 'script[data-local-naver-maps="true"]'
-                : 'script[src*="oapi.map.naver.com"]'
-        );
+        const existingScript = document.querySelector(SHARED_SCRIPT_SELECTOR);
 
         if (existingScript) {
             setIsLoading(true);
@@ -196,13 +193,12 @@ export function useNaverMaps(options: UseNaverMapsOptions = {}) {
                 setIsLoading(false);
                 return;
             }
-            if (document.querySelector(LOCAL_OFFLINE_MAP
-                ? 'script[data-local-naver-maps="true"]'
-                : 'script[src*="oapi.map.naver.com"]')) return;
+            if (document.querySelector(SHARED_SCRIPT_SELECTOR)) return;
             installLocalNaverStyleHostFallback();
             setIsLoading(true);
             const script = document.createElement("script");
             script.type = "text/javascript";
+            script.dataset.tzudongNaverMaps = "true";
             if (LOCAL_OFFLINE_MAP) script.dataset.localNaverMaps = "true";
             script.src = EFFECTIVE_SCRIPT_URL;
             script.async = true;

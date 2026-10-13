@@ -13,7 +13,9 @@ const chromeAvailable = [
 ].some(existsSync);
 const browserTest = chromeAvailable ? test : test.skip;
 const ui = browserExpect.configure({ timeout: 1500 });
-const baseline = process.env.NAVER_LOADER_BASELINE === '056a86600f412eb42df4304e3206841679012f3e';
+const baselineInput = process.env.NAVER_LOADER_BASELINE ?? '';
+const baseline = ['056a86600f412eb42df4304e3206841679012f3e', '7a9b19b19416ce098f2f1a6fa5d36c8674b409b0'].includes(baselineInput)
+  ? baselineInput : null;
 let browser: Browser;
 const scripts: Record<string, string> = {};
 const fakeSdk = 'window.naver={maps:{Map:function(){},LatLng:function(){},Point:function(){},Event:{}}};';
@@ -40,15 +42,15 @@ root.render(<>{Array.from({length:count},(_,i)=><Consumer id={i} key={i}/>)}</>)
 
 beforeAll(async () => {
   if (!chromeAvailable) return;
-  for (const mode of ['live', 'local']) {
+  for (const mode of ['live', 'local', 'configured']) {
     const bundle = await Bun.build({ entrypoints: ['naver-loader-fixture'], target: 'browser', format: 'iife', write: false,
-      define: { 'process.env': JSON.stringify({ NODE_ENV: 'production', NEXT_PUBLIC_NAVER_CLIENT_ID: mode === 'live' ? 'browser-fixture-client' : '', NEXT_PUBLIC_TZUDONG_LOCAL_RUNTIME: mode === 'local' ? '1' : '0' }) },
+      define: { 'process.env': JSON.stringify({ NODE_ENV: 'production', NEXT_PUBLIC_NAVER_CLIENT_ID: mode !== 'local' ? 'browser-fixture-client' : '', NEXT_PUBLIC_TZUDONG_LOCAL_RUNTIME: mode === 'local' ? '1' : '0', NEXT_PUBLIC_NAVER_MAPS_SCRIPT_URL: mode === 'configured' ? 'https://sdk.fixture.test/naver.js' : undefined }) },
       plugins: [{ name: 'naver-loader-fixture', setup(builder) {
         builder.onResolve({ filter: /^naver-loader-fixture$/ }, () => ({ path: 'fixture.tsx', namespace: 'fixture' }));
         builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: fixture, loader: 'tsx', resolveDir: app }));
         if (baseline) {
           builder.onResolve({ filter: /hooks\/use-naver-maps$/ }, () => ({ path: 'use-naver-maps.tsx', namespace: 'baseline' }));
-          builder.onLoad({ filter: /.*/, namespace: 'baseline' }, () => ({ contents: execFileSync('git', ['show', '056a86600f412eb42df4304e3206841679012f3e:apps/web/hooks/use-naver-maps.tsx'], { cwd: app, encoding: 'utf8' }), loader: 'tsx', resolveDir: app }));
+          builder.onLoad({ filter: /.*/, namespace: 'baseline' }, () => ({ contents: execFileSync('git', ['show', baseline + ':apps/web/hooks/use-naver-maps.tsx'], { cwd: app, encoding: 'utf8' }), loader: 'tsx', resolveDir: app }));
         }
         builder.onResolve({ filter: /^@\// }, ({ path }) => {
           const resolved = ['', '.ts', '.tsx'].map(suffix => join(app, path.slice(2)) + suffix).find(existsSync);
@@ -99,7 +101,8 @@ async function run(outcomes: Outcome[], check: (page: Page, counts: { live: numb
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (route.request().isNavigationRequest()) return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body><div id="root"></div></body></html>' });
-    if (url.hostname === 'oapi.map.naver.com' && url.pathname === '/openapi/v3/maps.js') {
+    if ((url.hostname === 'oapi.map.naver.com' && url.pathname === '/openapi/v3/maps.js')
+      || (url.hostname === 'sdk.fixture.test' && url.pathname === '/naver.js')) {
       const outcome = outcomes[Math.min(counts.live++, outcomes.length - 1)];
       if (outcome === 'network-error') return route.abort('failed');
       return route.fulfill({ contentType: 'application/javascript', body: outcome === 'success' ? fakeSdk : '/* provider loaded without an API */' });
@@ -114,6 +117,9 @@ async function run(outcomes: Outcome[], check: (page: Page, counts: { live: numb
     await page.goto(`http://naver-loader.fixture.test/?consumers=${consumers}&ui=${uiMode}&strategy=${strategy}`);
     await page.addScriptTag({ content: scripts[mode] });
     await check(page, counts);
+  } catch (error) {
+    console.error(JSON.stringify({ mode, consumers, strategy, uiMode, liveRequests: counts.live, stubRequests: counts.stub }));
+    throw error;
   } finally { await context.close(); }
 }
 
@@ -158,6 +164,16 @@ browserTest(`admin error control recovers after ${failure}`, async () => run([fa
   await ui(page.getByRole('alert')).toHaveCount(0);
   expect(counts).toEqual({ live: 2, stub: 0 });
 }, 1, 'live', 'admin'));
+
+browserTest(`configured SDK URL shares one retry after ${failure}`, async () => run([failure, 'success'], async (page, counts) => {
+  await ui(page.getByTestId('state-0')).toHaveText('error');
+  await ui(page.getByTestId('state-1')).toHaveText('error');
+  expect(counts).toEqual({ live: 1, stub: 0 });
+  await page.getByRole('button', { name: '다시 시도', exact: true }).first().click();
+  await ui(page.getByTestId('state-0')).toHaveText('ready');
+  await ui(page.getByTestId('state-1')).toHaveText('ready');
+  expect(counts).toEqual({ live: 2, stub: 0 });
+}, 2, 'configured'));
 }
 
 browserTest('explicit local offline mode still uses its deterministic stub', async () => run([], async (page, counts) => {
