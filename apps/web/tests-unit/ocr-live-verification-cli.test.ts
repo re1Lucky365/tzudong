@@ -18,6 +18,7 @@ import {
   recordGenerationCallStarted,
   recordModelMetadataRequest,
 } from '../scripts/ocr-gemini-live-attempt';
+import { resolveOcrVerificationConfiguration } from '../scripts/verify-ocr-gemini-live';
 
 const webRoot = resolve(import.meta.dir, '..');
 const scripts = {
@@ -26,13 +27,91 @@ const scripts = {
 };
 const nonexistentEnv = '/unused-gemini-verification-operator.env';
 
-function invoke(script: string, envFile: string, args: string[]) {
+function invoke(script: string, envFile: string, args: string[], env: Record<string, string> = {}) {
   return spawnSync(process.execPath, ['run', script, envFile, ...args], {
     cwd: webRoot,
     encoding: 'utf8',
     timeout: 15_000,
+    env: { ...process.env, ...env },
   });
 }
+
+test('historical OCR configuration fails closed and records only safe resolved provenance', () => {
+  const root = mkdtempSync(resolve(webRoot, 'performance/gemini-cli-historical-config-'));
+  try {
+    const missing = resolve(root, 'missing.env');
+    expect(() => resolveOcrVerificationConfiguration({
+      currentCandidate: false,
+      source: { GEMINI_API_KEY: 'not-returned' },
+      historicalConfigPath: missing,
+      historicalConfigPathExplicit: true,
+    })).toThrow('historical_ocr_configuration_required');
+
+    const insecure = resolve(root, 'insecure.env');
+    writeFileSync(insecure, 'GEMINI_OCR_MODEL=gemini-3.8-flash\n', { mode: 0o644 });
+    expect(() => resolveOcrVerificationConfiguration({
+      currentCandidate: false,
+      source: {},
+      historicalConfigPath: insecure,
+      historicalConfigPathExplicit: true,
+    })).toThrow('historical_ocr_configuration_invalid');
+
+    const unpinned = resolve(root, 'unpinned.env');
+    writeFileSync(unpinned, 'GEMINI_THINKING_LEVEL=MEDIUM\n', { mode: 0o600 });
+    expect(() => resolveOcrVerificationConfiguration({
+      currentCandidate: false,
+      source: {},
+      historicalConfigPath: unpinned,
+      historicalConfigPathExplicit: true,
+    })).toThrow('historical_ocr_model_required');
+
+    const pinned = resolve(root, 'pinned.env');
+    writeFileSync(pinned, [
+      'GEMINI_OCR_DEFAULT_MODEL=gemini-3.8-flash',
+      'GEMINI_THINKING_LEVEL=MEDIUM',
+      '',
+    ].join('\n'), { mode: 0o600 });
+    const resolved = resolveOcrVerificationConfiguration({
+      currentCandidate: false,
+      source: { GEMINI_API_KEY: 'not-returned' },
+      historicalConfigPath: pinned,
+      historicalConfigPathExplicit: true,
+    });
+    expect(resolved.config).toEqual({
+      GEMINI_OCR_DEFAULT_MODEL: 'gemini-3.8-flash',
+      GEMINI_THINKING_LEVEL: 'MEDIUM',
+    });
+    expect(resolved.provenance).toEqual({
+      settingsSource: 'historical-operating-snapshot',
+      snapshotLocator: 'explicit-secure-snapshot',
+      modelSettingSource: 'GEMINI_OCR_DEFAULT_MODEL',
+      thinkingSettingSource: 'GEMINI_THINKING_LEVEL',
+    });
+    expect(JSON.stringify(resolved.provenance)).not.toContain('not-returned');
+    expect(JSON.stringify(resolved.provenance)).not.toContain(root);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('OCR CLI rejects a missing historical snapshot before reserving evidence or accessing the provider', () => {
+  const root = mkdtempSync(resolve(webRoot, 'performance/gemini-cli-historical-missing-'));
+  try {
+    const envFile = resolve(root, 'operator.env');
+    const destination = resolve(root, 'run');
+    const secret = 'synthetic-test-only';
+    writeFileSync(envFile, `GEMINI_API_KEY=${secret}\n`, { mode: 0o600 });
+    const result = invoke(scripts.ocr, envFile, ['--output-dir', destination], {
+      TZUDONG_OCR_HISTORICAL_CONFIG_PATH: resolve(root, 'missing.env'),
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('historical_ocr_configuration_required');
+    expect(result.stderr).not.toContain(secret);
+    expect(() => readFileSync(resolve(destination, 'ocr-live-readback.json'))).toThrow();
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
 
 test('both live CLIs reject incomplete, duplicate, unknown, and excess options before reading credentials', () => {
   const cases = [

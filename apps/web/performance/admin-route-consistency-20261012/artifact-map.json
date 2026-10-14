@@ -3,9 +3,9 @@
   "baseHead": "a45a6bb4989e588ddb02ac6c23ada44eb11cfdb0",
   "scope": "Current source identity and source-only fixture-startup closure evidence, plus immutable historical execution evidence. Historical build, unit/parity, runtime, and render receipts were not rerun after the launcher changes and are not current-render proof.",
   "artifactRoot": "apps/web/performance/admin-route-consistency-20261012",
-  "artifactCount": 71,
-  "artifactBytes": 3010862,
-  "currentSourceCount": 18,
+  "artifactCount": 75,
+  "artifactBytes": 3052646,
+  "currentSourceCount": 21,
   "sourceBindings": [
     {
       "path": "apps/web/app/admin/layout.tsx",
@@ -39,13 +39,13 @@
     },
     {
       "path": "apps/web/performance/admin-route-consistency-20261012/privacy-fixture-runtime.mjs",
-      "bytes": 16000,
-      "sha256": "7f6e53dff7f27bbc99517af7e4757990f8e91e5e05a294eb6a8e91dee0ab4ba0"
+      "bytes": 19211,
+      "sha256": "bdfd6cff688a8ee99a6e9bdfcdcbad1f07774e457a6af86dcfbf120bc2be4a4c"
     },
     {
       "path": "apps/web/performance/admin-route-consistency-20261012/start-loopback.mjs",
-      "bytes": 8907,
-      "sha256": "fdcb45eca0d6b590fd04f82421c4ec4e6718ee7697938223c8394f1243973bb4"
+      "bytes": 12913,
+      "sha256": "01aa085b3b9c7eda6764ad6abb37a0c47cba6354c645f606ef54500bf69d67f5"
     },
     {
       "path": "apps/web/performance/admin-route-consistency-20261012/v2/build-privacy-fixture.mjs",
@@ -59,13 +59,18 @@
     },
     {
       "path": "apps/web/performance/admin-route-consistency-20261012/v2/start-loopback.mjs",
-      "bytes": 8932,
-      "sha256": "b6ea673b50fec876990b4cd140311962681624502fc028558ace2fbfc901a43b"
+      "bytes": 12938,
+      "sha256": "63a395f7c25388c11a527517bdd8c372639b5c41baee914c0176a7a7942c2a03"
     },
     {
       "path": "apps/web/scripts/gemini-live-verification-io.ts",
       "bytes": 25668,
       "sha256": "165cc1d223eb55b2dd54e8b3fbd2363cf138b401730caa7963e6615accb25dca"
+    },
+    {
+      "path": "apps/web/scripts/verify-ocr-gemini-live.ts",
+      "bytes": 11763,
+      "sha256": "89c3c076ea2a5b3e62a65730eb047766fe0c22acf6defa02fbb6ebc7464b9a17"
     },
     {
       "path": "apps/web/styles/admin-ui.css",
@@ -78,9 +83,14 @@
       "sha256": "49e4d6e487ddb86dd79ee757f6b71b9b6c8232d735f7f8555954466204691361"
     },
     {
+      "path": "apps/web/tests-unit/ocr-live-verification-cli.test.ts",
+      "bytes": 11764,
+      "sha256": "a9c6df39e94e5ddb683be272970f7833353e498c9513e5b15e4f3bcb10b4f9c4"
+    },
+    {
       "path": "apps/web/tests-unit/privacy-fixture-runtime.test.ts",
-      "bytes": 24292,
-      "sha256": "b5d67e0e043efd0ca2c84c5f53b8fa2e1014b3ed5ebf864eb80844a5e7719394"
+      "bytes": 29664,
+      "sha256": "f3d8342e97fc57c555223d59efe83b505b8fc5e176565f3e1d16b62287f965ec"
     },
     {
       "path": "apps/web/tests-unit/privacy-fixture-scenarios.test.ts",
@@ -93,9 +103,14 @@
       "sha256": "c4f699cb85472bc54b7021c08cc4e6b57fd6bc5e5df4e55d0f0347c1f62be71c"
     },
     {
+      "path": "apps/web/tests-unit/privacy-loopback-start-integrity.test.ts",
+      "bytes": 14020,
+      "sha256": "dc2b98c3317780ab673e9de883cd211adcfa91d98ff119042e15e3e9f75187c0"
+    },
+    {
       "path": "apps/web/tsconfig.json",
-      "bytes": 1260,
-      "sha256": "776471d5c093f02d7d3d24c3c1b61736c8d685a9ed1ef3d13c48f1f804396b17"
+      "bytes": 1298,
+      "sha256": "42fa4271abb1177f6c171d2740f71012247c8f75dd05fd58ffa288231d9f2bc6"
     }
   ],
   "consistencyChecks": {
@@ -134,7 +149,8 @@
       "assertions": 156,
       "sourceOnly": true,
       "fullBuildRepeated": false,
-      "uiRenderRepeated": false
+      "uiRenderRepeated": false,
+      "classification": "historical-source-delta-superseded-by-20261014-boundary-hardening"
     },
     "historicalPortabilityDelta": {
       "receipt": "privacy-fixture-portability-delta-20261013.json",
@@ -151,6 +167,15 @@
       "fullBuildRepeated": false,
       "uiRenderRepeated": false,
       "classification": "historical-source-delta-superseded-by-launcher-change"
+    },
+    "currentBoundaryReviewDelta": {
+      "path": "privacy-boundary-review-delta-20261014.json",
+      "sha256": "bc79bb5f77b2c57a1750653a703d81b58b983986a5cfc5f42e122625a1727470",
+      "passed": 53,
+      "failed": 0,
+      "assertions": 376,
+      "fullBuildRepeated": false,
+      "uiRenderRepeated": false
     }
   },
   "artifacts": [
@@ -201,6 +226,18 @@
       "bytes": 9789,
       "sha256": "05b24997c5716d19171b0049462775be00d3f0b5db34b3c7b3260bfb8ec58a2c",
       "role": "historical-receipt-or-contract"
+    },
+    {
+      "path": "historical-3777eca3-index/artifact-map.json",
+      "bytes": 27793,
+      "sha256": "f8ee56863632052c88e4369ebbbcd0de9abb10420e26f8ac2539b78b4303a7ea",
+      "role": "immutable-prior-index"
+    },
+    {
+      "path": "historical-3777eca3-index/artifact-map.sha256",
+      "bytes": 84,
+      "sha256": "d1555cf2fbc065d3474983fa23efcacc4e8341c5dc25ee66cac298301b59001c",
+      "role": "immutable-prior-index-checksum"
     },
     {
       "path": "historical-c503483d02c97c9a/artifact-map.json",
@@ -275,6 +312,18 @@
       "role": "archived-historical-reproduction-source"
     },
     {
+      "path": "privacy-boundary-review-delta-20261014.json",
+      "bytes": 2574,
+      "sha256": "bc79bb5f77b2c57a1750653a703d81b58b983986a5cfc5f42e122625a1727470",
+      "role": "current-local-boundary-regression"
+    },
+    {
+      "path": "privacy-boundary-review-delta-20261014.json.sha256",
+      "bytes": 110,
+      "sha256": "42c93f95b8127a68e3decccb7f0e5fb78a9561ffc8cb16c8baf430aa8e80f18f",
+      "role": "current-local-boundary-checksum"
+    },
+    {
       "path": "privacy-build-receipt.json",
       "bytes": 2217,
       "sha256": "b8355ff194cff412a77d82adde1f82d4e118053b1f5bd0c88d3c7456a117c3b5",
@@ -330,8 +379,8 @@
     },
     {
       "path": "privacy-fixture-runtime.mjs",
-      "bytes": 16000,
-      "sha256": "7f6e53dff7f27bbc99517af7e4757990f8e91e5e05a294eb6a8e91dee0ab4ba0",
+      "bytes": 19211,
+      "sha256": "bdfd6cff688a8ee99a6e9bdfcdcbad1f07774e457a6af86dcfbf120bc2be4a4c",
       "role": "historical-reproduction-helper"
     },
     {
@@ -372,8 +421,8 @@
     },
     {
       "path": "start-loopback.mjs",
-      "bytes": 8907,
-      "sha256": "fdcb45eca0d6b590fd04f82421c4ec4e6718ee7697938223c8394f1243973bb4",
+      "bytes": 12913,
+      "sha256": "01aa085b3b9c7eda6764ad6abb37a0c47cba6354c645f606ef54500bf69d67f5",
       "role": "current-reproduction-tool"
     },
     {
@@ -576,8 +625,8 @@
     },
     {
       "path": "v2/start-loopback.mjs",
-      "bytes": 8932,
-      "sha256": "b6ea673b50fec876990b4cd140311962681624502fc028558ace2fbfc901a43b",
+      "bytes": 12938,
+      "sha256": "63a395f7c25388c11a527517bdd8c372639b5c41baee914c0176a7a7942c2a03",
       "role": "current-reproduction-tool"
     }
   ],
@@ -627,14 +676,14 @@
     }
   ],
   "currentReproductionBindings": {
-    "helperSha256": "7f6e53dff7f27bbc99517af7e4757990f8e91e5e05a294eb6a8e91dee0ab4ba0",
+    "helperSha256": "bdfd6cff688a8ee99a6e9bdfcdcbad1f07774e457a6af86dcfbf120bc2be4a4c",
     "scenarioFixtureSha256": "7a7cc9cd4c028462d274ce874e52adb168cf244835871feed340d96f07eafbee",
     "archivedScenarioFixtureSha256": "3b9684c3dda38715b788c564fbaed8f0e002edbf9a46821a65b574bb602d8e09",
     "buildLauncherSha256": "a3b241db992172b5d0f97d6a59c000d9ca3d6ee8ccaa97a0e75888858f0635c7",
-    "startLauncherSha256": "fdcb45eca0d6b590fd04f82421c4ec4e6718ee7697938223c8394f1243973bb4",
+    "startLauncherSha256": "01aa085b3b9c7eda6764ad6abb37a0c47cba6354c645f606ef54500bf69d67f5",
     "v2BuildLauncherSha256": "802880be620366640f93e1c4f9e2fc3bb529a971e2f753c6bd9942a8f8c9344b",
-    "v2StartLauncherSha256": "b6ea673b50fec876990b4cd140311962681624502fc028558ace2fbfc901a43b",
-    "runtimeTestSha256": "b5d67e0e043efd0ca2c84c5f53b8fa2e1014b3ed5ebf864eb80844a5e7719394",
+    "v2StartLauncherSha256": "63a395f7c25388c11a527517bdd8c372639b5c41baee914c0176a7a7942c2a03",
+    "runtimeTestSha256": "f3d8342e97fc57c555223d59efe83b505b8fc5e176565f3e1d16b62287f965ec",
     "startupClosureDeltaSha256": "adf255f8240f7599911dc79bb71187548fc95d341344f2e40ac91c3648d4d661"
   },
   "exclusions": {
@@ -689,5 +738,10 @@
     "inventoryVectorSha256": "21af7414c026a8c80c72b3f642f7e76ebb8b02f4abebee390e07afa124b4a320",
     "inventoryVectorFormat": "UTF-8 lines: <sha256><two spaces><relative path><LF>, paths sorted lexicographically",
     "exactGitBlobMatch": true
+  },
+  "previousIndex": {
+    "path": "historical-3777eca3-index/artifact-map.json",
+    "sha256": "f8ee56863632052c88e4369ebbbcd0de9abb10420e26f8ac2539b78b4303a7ea",
+    "classification": "past byte snapshot; source labels describe its capture and are not current-source evidence"
   }
 }

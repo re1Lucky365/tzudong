@@ -827,3 +827,11 @@ PR #3195 a077a1f2의 run38403378099 attempt1은 역사 개인정보 테스트를
 Feature candidate는 Next route의 불허 helper export를 별도 server-only 모듈로 옮기고 한 라우트의 인증 위임 계약만 좁게 검증했다. 관련9 tests·1,193 assertions, parity3,148 입력·진단0, pinned Node24.21/npm11.6.2/Next16.3.8 production build 종료0·52 static pages·CSS 경계 통과를 확인했다. production 입력1,033개 전후 hash가 같고 tsconfig/generated file 원상 복구·소유 server 종료를 확인했다. 성공 receipt SHA는 cbd91c8b6ce762a350d8c84ed7c2bf9d217a9af9cd0f6bc03b142fa59dcedf0b이며 이전 실패 receipt를 보존했다. /privacy의 localhost HTTP200 렌더1회는 hosted·인증 업무·3폭·성능 개선의 증거가 아니다. 이전 전체 runner 3,637 pass/11 skip/0 fail과 이 영향 검증은 겹치므로 합산하지 않는다.
 
 운영 적용기 source audit는 capture의 전체 성공 경로와 admission input 변환, split authority를 받는 workflow runner가 없음을 확인했다. 기존 인간의 작업 중지 약속은 계속 유효하므로 재승인을 요구하지 않는다. 새 실행기는 현재 DB/GitHub 관측과 sanitized local Vercel 증거·인증된 owner custody provenance를 원래15분 창 안에 결속해야 하며, 미입증 fence나 외부/public producer를 cleared로 만들지 않는다. 지원 실행기를 구현·검증한 뒤 보호 main에서만 운영 작업을 실행한다. 현재 launch held·운영 적용 미완료다.
+
+### 2026-10-14 새 리뷰 경계 수정
+
+PR #3195 head3777eca3의 원격 검사는 성공18·의도된 Freshness skip1·실패0이었다. 새 리뷰6건은 CI 실패와 별개로 수정했다. fixture는 고정 lock과 설치 패키지 전체 및 파일 트리 bytes/hash를 검증하고, 실행 중 사용자 편집은 현 위치에 보존한다. launcher는 receipt/hash 예외 전에 child cleanup을 등록하고, build receipt에 결속된5개 bundle artifact를 첫 child 실행 전에 같은 byte snapshot으로 검증한다. OCR historical 설정 부재·손상·명시 모델 부재는 provider load/admission 전에 거부하며 실제 설정 provenance를 기록한다.
+
+현재 소스의 결합 회귀4파일은53 pass·0 fail·376 assertions, 한 번의 로컬 실행9.60초였다. 시간 개선 비교나 실제 공급자 검증은 아니다. 이전 map을 historical-3777eca3-index에 보존한 뒤 현재 artifact75개·source binding21개의 bytes/hash drift0을 확인했다. 새 route map SHA는 efef71b148ecb8ab5a9fc2f219de41fff3a0a6138894ee356313297b072eed2b이다. 기존 build/render/provider 영수증은 역사 증거이며 현재 화면 재검증으로 승격하지 않았다. 다음 source head의 필수 CI·review resolution·보호 병합을 별도로 확인한다.
+
+운영 실행기 감사는 rehearsal 뒤 machine fence/quiescence 재관측과 apply admission hash 결속, 실제 관측 timestamp 보존, Gemini runtime/DB 정책을 지키는 rollback proof가 추가로 필요함을 확인했다. 11개 review-media SQL은86→97, 별도4개 feature SQL은97→101이며 서로의 적용·terminal readback을 대신하지 않는다. launch held와 전체 운영 미완료 상태를 유지한다.
