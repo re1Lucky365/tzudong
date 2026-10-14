@@ -159,6 +159,7 @@ describe('Gemini-only execution and readable archive boundary', () => {
       'lib/admin/storyboard/production-store.ts',
       'lib/admin/storyboard/production-api.ts',
       'components/admin/storyboard/LocalStoryboardWorkspace.tsx',
+      'components/admin/storyboard/LegacyStoryboardReference.tsx',
       'scripts/storyboard-gemini-worker.ts',
       'app/api/admin/storyboard/production/[id]/images/route.ts',
     ];

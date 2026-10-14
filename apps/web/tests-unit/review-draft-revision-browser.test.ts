@@ -37,11 +37,12 @@ async function bundle(sourceRoot: string) {
         const prepareReceiptImage = async file => file, compressFoodImage = async file => file;
         let owner = 'fixture-owner', mode = 'normal', now = Date.now(), nextRestaurant = 0;
         Date.now = () => now;
-        const rows = new Map(), objects = new Set(), registry = new Map();
+        const rows = new Map(), objects = new Set(), objectMeta = new Map(), registry = new Map();
         const counts = { uploads: 0, inserts: 0, removes: 0, success: 0, closes: 0 };
         const storage = {
-            async upload(path) { counts.uploads++; if (mode === 'upload-denied') return { error: { statusCode: '403' } }; objects.add(path); return { error: null }; },
-            async remove(paths) { counts.removes++; paths.forEach(path => objects.delete(path)); return { error: null }; },
+            async upload(path, file) { counts.uploads++; if (mode === 'upload-denied') return { error: { statusCode: '403' } }; objects.add(path); objectMeta.set(path, { size: file.size, contentType: file.type }); return { error: null }; },
+            async info(path) { return objects.has(path) ? { data: objectMeta.get(path), error: null } : { data: null, error: null }; },
+            async remove(paths) { counts.removes++; paths.forEach(path => { objects.delete(path); objectMeta.delete(path); }); return { error: null }; },
             async list(directory, { search }) { return { data: objects.has(directory + '/' + search) ? [{ name: search }] : [], error: null }; },
         };
         const supabase = {
@@ -63,14 +64,15 @@ async function bundle(sourceRoot: string) {
             const [visitedTime, setVisitedTime] = useState('12:00');
             const [categories, setCategories] = useState(['한식']);
             const [content, setContent] = useState(initialContent);
-            const [verificationPhoto, replaceVerificationPhoto] = useState(() => new File(['synthetic'], 'receipt.jpg'));
-            const [foodPhotos, setFoodPhotos] = useState(() => [new File(['synthetic'], 'food.jpg')]);
+            const [verificationPhoto, replaceVerificationPhoto] = useState(() => new File(['synthetic'], 'receipt.jpg', { type: 'image/jpeg' }));
+            const [foodPhotos, setFoodPhotos] = useState(() => [new File(['synthetic'], 'food.webp', { type: 'image/webp' })]);
+            const ocrResultRef = null, ocrResultRevision = null;
             const [currentStep, setCurrentStep] = useState(3);
             const [, setIsSubmitting] = useState(false), [, setIsSaving] = useState(false), [, setLastSavedAt] = useState(null), [, setSaveRecovery] = useState(null);
             const saveOwnerRef = useRef(user.id), saveOperationRef = useRef(null), submitInFlightRef = useRef(false);
             const closeRequestedRef = useRef(false), composerOpenRef = useRef(isOpen), consumerNotifiedRef = useRef(false), autoSaveInFlightRef = useRef(null);
             const draftScopeRef = useRef({ ownerId: user.id, restaurantId: restaurant.id, revision: null });
-            const latestSaveInputsRef = useRef({ visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: restaurant.id });
+            const latestSaveInputsRef = useRef({ visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: restaurant.id, ocrResultRef, ocrResultRevision });
             ${lifecycle.join(';\n')};
             const onSuccess = () => { counts.success++; };
             const handleClose = async () => { counts.closes++; };

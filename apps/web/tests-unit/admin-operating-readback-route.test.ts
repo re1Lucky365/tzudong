@@ -1,7 +1,10 @@
-import { expect, test } from 'bun:test';
+import { expect, mock, test } from 'bun:test';
 
-import { createRecordMutationsHoldReadbackResponse } from
-  '../app/api/admin/operating-readback/record-mutations-hold/route';
+mock.module('server-only', () => ({}));
+
+const { createRecordMutationsHoldReadbackResponse } = await import(
+  '../app/api/admin/operating-readback/record-mutations-hold/readback-response'
+);
 
 const deploymentId = 'dpl_OperatingReadbackFixture123';
 const commit = 'a'.repeat(40);

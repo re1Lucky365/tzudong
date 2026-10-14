@@ -28,6 +28,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { LocalStoryboardWorkspace } from './components/admin/storyboard/LocalStoryboardWorkspace';
 import { STORYBOARD_WORKFLOW } from './lib/admin/storyboard/production-contract';
+import { storyboardGeminiDeclaredModels } from './lib/admin/storyboard/gemini-models';
 const now='2026-10-05T01:00:00.000Z', A='${A}', B='${B}';
 const titles={ [A]:'서울 시장 먹방', [B]:'부산 골목의 오래된 가게에서 만난 따뜻한 국밥과 반찬을 소개하는 촬영 기획' };
 const scene=n=>({sceneNo:n,title:'장면 '+n,durationSec:10,description:'촬영 내용',visualDirection:'가게 전경',narration:'음식 소개',caption:'오늘의 맛집',productionNotes:['고정 카메라'],imagePrompt:'Food',sourceIds:[],revision:1,image:null,imageError:null});
@@ -35,6 +36,7 @@ const summary=id=>({id,title:titles[id],revision:1,status:id===A?'partial':'fail
 const project=id=>({...summary(id),request:{workflow:STORYBOARD_WORKFLOW,requestId:id,prompt:'촬영 기획',sceneCount:5,retrieval:'none',sources:[],imageWidth:1024,imageHeight:576,providers:{externalAI:true,text:{id:'gemini-api',model:'gemini-3.8-flash'},image:{id:'gemini-api',model:'gemini-3.1-flash-image'}}},
  document:{schema:STORYBOARD_WORKFLOW,projectId:id,revision:1,generatedAt:now,title:titles[id],logline:'저장된 기획',
  textProvenance:{providerId:'gemini-api',model:'gemini-3.8-flash',verification:'official-api',generatedAt:now,requestId:id,responseId:'fixture',responseModel:'gemini-3.8-flash',modelEvidence:'response'},scenes:Array.from({length:5},(_,i)=>scene(i+1))}});
+const workers=[{id:'fixture-gemini-worker',online:true,lastHeartbeat:now,models:storyboardGeminiDeclaredModels()}];
 const fixture=window.storyboardLibraryFixture={mode:'normal',allowDeparture:false,calls:[],confirmations:[],release:()=>{}};
 window.confirm=text=>{fixture.confirmations.push(text);return fixture.allowDeparture;};
 window.fetch=async(url,init={})=>{
@@ -44,7 +46,7 @@ window.fetch=async(url,init={})=>{
  if(path==='/api/admin/storyboard/production'){
   if(fixture.mode==='pending')await new Promise(resolve=>{fixture.release=resolve;});
   if(fixture.mode==='failure')throw new TypeError('Fixture offline');
-  return new Response(JSON.stringify({ok:true,projects:fixture.mode==='empty'?[]:[summary(A),summary(B)],workers:[]}));
+  return new Response(JSON.stringify({ok:true,projects:fixture.mode==='empty'?[]:[summary(A),summary(B)],workers}));
  }
  const id=path.split('/').at(-1);
  if(id!==A&&id!==B)throw new Error('Unexpected fixture read');
@@ -96,7 +98,7 @@ async function run(check: (page: Page) => Promise<void>, width = 1423, id?: stri
     await page.goto(`http://storyboard-library.fixture.test/admin?module=storyboard${id ? `&storyboardProject=${id}` : ""}`);
     await page.addStyleTag({ content: css });
     await page.addScriptTag({ content: script });
-    await page.getByRole("heading", { name: "스토리보드", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "스토리보드 생성", exact: true }).waitFor();
     await browserExpect(page.getByLabel("프로젝트 선택", { exact: true }).locator("option")).toHaveCount(3);
     await check(page);
     expect(errors).toEqual([]); expect(blocked).toEqual([]);

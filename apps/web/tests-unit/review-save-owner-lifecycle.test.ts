@@ -68,10 +68,11 @@ const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
             const [verificationPhoto] = useState(() => new File(['receipt'], 'receipt.jpg'));
             const [foodPhotos] = useState(() => [new File(['food'], 'food.jpg')]);
             const reviewTargetRestaurant = { id: 'fixture-restaurant' };
+            const ocrResultRef = null, ocrResultRevision = null;
             const draftScopeRef = useRef({ ownerId: user?.id, restaurantId: reviewTargetRestaurant.id, revision: null });
             const saveOwnerRef = useRef(user?.id), saveOperationRef = useRef(null);
             const composerOpenRef = useRef(isOpen), closeRequestedRef = useRef(false), consumerNotifiedRef = useRef(false);
-            const latestSaveInputsRef = useRef(null);
+            const latestSaveInputsRef = useRef({ visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: reviewTargetRestaurant.id, ocrResultRef, ocrResultRevision });
             ${lifecycle.join(';\n')};
             const submit = async () => setResult(await saveOperationRef.current.submit({
                 ownerId: user.id, restaurantId: reviewTargetRestaurant.id, title: 'Fixture',
@@ -98,6 +99,8 @@ const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
         plugins: [{ name: 'offline-fixture', setup(builder) {
             builder.onResolve({ filter: /^review-owner-fixture$/ }, () => ({ path: 'fixture.tsx', namespace: 'fixture' }));
             builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: script, loader: 'tsx', resolveDir: join(import.meta.dir, '..') }));
+            builder.onResolve({ filter: /^@\/lib\/review-photo-url$/ }, () => ({ path: join(import.meta.dir, '../lib/review-photo-url.ts') }));
+            builder.onResolve({ filter: /^@\/lib\/profile-avatar-url$/ }, () => ({ path: join(import.meta.dir, '../lib/profile-avatar-url.ts') }));
         } }],
     });
     expect(bundle.success).toBe(true);
