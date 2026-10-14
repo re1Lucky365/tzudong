@@ -164,6 +164,29 @@ test('proxy emits a fresh nonce-bound enforcing CSP and forwards the nonce to re
   expect(secondPolicy).toContain(`'nonce-${secondNonce}'`);
   expect(secondNonce).not.toBe(firstNonce);
 });
+test('proxy admits only the configured Sentry ingestion origin without broadening CSP', async () => {
+  const before = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  const nodeEnv = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = 'production';
+    process.env.NEXT_PUBLIC_SENTRY_DSN = `https://${'a'.repeat(32)}@o1.ingest.us.sentry.io/123`;
+    const { proxy } = await loadProxy();
+    const policy = (await proxy(adminRequest('/'))).headers.get('content-security-policy')!;
+    expect(policy).toContain('https://o1.ingest.us.sentry.io');
+    expect(policy).not.toContain('https://*.sentry.io');
+    process.env.NEXT_PUBLIC_SENTRY_DSN = `https://${'a'.repeat(32)}@untrusted.example/123`;
+    const refused = (await proxy(adminRequest('/'))).headers.get('content-security-policy')!;
+    expect(refused).not.toContain('untrusted.example');
+    expect(refused).toContain("object-src 'none'");
+    expect(refused).toContain("'strict-dynamic'");
+  } finally {
+    if (before === undefined) delete process.env.NEXT_PUBLIC_SENTRY_DSN;
+    else process.env.NEXT_PUBLIC_SENTRY_DSN = before;
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = nodeEnv;
+  }
+});
+
 describe('password recovery proof', () => {
   test('is user-bound and can be consumed only once', () => {
     recordPasswordRecoveryProof('user-a');
