@@ -60,10 +60,28 @@
       "bytes": 19763,
       "sha256": "4b4ec65922be18b1fcbf32b9bb20005702022b65ab543171633cca3151a36a55",
       "classification": "current replay harness"
+    },
+    {
+      "path": "historical-61b4d002/review-media-sql-successor.v1.json",
+      "bytes": 150006,
+      "sha256": "23bf7e7d7e9e5d7962021dd3ec860e87b47d07e119ba0e39de2e423a0a601f4e",
+      "classification": "immutable acceptance snapshot/index"
+    },
+    {
+      "path": "historical-61b4d002/artifact-map.json",
+      "bytes": 8357,
+      "sha256": "14dce1421556397aed58a4632a31d54d7b3ecd884e5d9a3abf7f04536a92f4cf",
+      "classification": "immutable acceptance snapshot/index"
+    },
+    {
+      "path": "historical-61b4d002/artifact-map.json.sha256",
+      "bytes": 84,
+      "sha256": "3537fc83445d7515bd06468455e5b7abed00f5841302c613e9d1d2799dc77062",
+      "classification": "immutable acceptance snapshot/index"
     }
   ],
-  "artifactCount": 10,
-  "artifactBytes": 180621,
+  "artifactCount": 13,
+  "artifactBytes": 339068,
   "currentSourceBindings": [
     {
       "bytes": 15228,
@@ -174,23 +192,33 @@
       "bytes": 82530,
       "path": "apps/web/performance/feature-sql-integration-20261013/verify-feature-migrations.mjs",
       "sha256": "e597c17fee08a8d9cbbb3705b32931bcbec944e4ec308434dd5834b2a49bb4f3"
-    },
-    {
-      "bytes": 150006,
-      "path": ".github/review-media-sql-successor.v1.json",
-      "sha256": "23bf7e7d7e9e5d7962021dd3ec860e87b47d07e119ba0e39de2e423a0a601f4e"
     }
   ],
-  "currentSourceCount": 23,
+  "currentSourceCount": 22,
   "finalAcceptanceReceipt": {
     "path": "pg17-existing-catalog-replay-delete-races-success-20261013.json",
     "sha256": "4de818ec45f4a69c1fe714fc07dbea6180af5930edd42eacf124d6b05093f356"
   },
-  "classification": "Local PG17.6 synthetic catalog compatibility and rollback evidence. Earlier failures/intermediate proofs are retained unchanged.",
+  "classification": "Retained PG17 feature SQL acceptance with 22 matching current inputs and one exact historical operating-manifest snapshot; no current operating controller acceptance is inferred.",
   "limits": [
     "Historical receipt bindings are not automatically relabeled as current; older harness bytes may be unavailable.",
     "Every current source binding was checked against the exact final receipt.",
     "No hosted DB, Storage network, provider, production, monetary, or comparative timing claim.",
     "The map and detached checksum are excluded from their own inventory."
-  ]
+  ],
+  "historicalAcceptanceSourceBindings": [
+    {
+      "bytes": 150006,
+      "path": ".github/review-media-sql-successor.v1.json",
+      "sha256": "23bf7e7d7e9e5d7962021dd3ec860e87b47d07e119ba0e39de2e423a0a601f4e",
+      "snapshotPath": "historical-61b4d002/review-media-sql-successor.v1.json",
+      "classification": "exact manifest snapshot used by the retained PG17 acceptance; fresh operating-evidence schema is outside that replay"
+    }
+  ],
+  "postAcceptanceOperatingManifest": {
+    "path": ".github/review-media-sql-successor.v1.json",
+    "bytes": 150006,
+    "sha256": "2b3ac35059b8d407290af6eea3220df35aae57b9c803e61411617711db63eb2a",
+    "pgAcceptanceRerun": false
+  }
 }

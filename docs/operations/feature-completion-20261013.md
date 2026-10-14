@@ -38,3 +38,11 @@ Next의 route.ts가 HTTP handler 외 helper를 export해 production type 검사�
 Node24.21.0/npm11.6.2/Next16.3.8의 격리 production build는 exit0, static52페이지, CSS boundary 검증 통과다. `production-build-success-20261013.json` SHA `cbd91c8b6ce762a350d8c84ed7c2bf9d217a9af9cd0f6bc03b142fa59dcedf0b`, 입력 inventory SHA `7fbe352817f033ef119081996c5bfef0504f5ad4bea3abc2ce6968d7d9b76890`를 확인했고 이번 재개에서 1,033개 결속 소스의 내용/hash drift는0건이었다. 한 번의 로컬 `/privacy` 응답200은 인증된 관리자·Supabase·Gemini·배포 검증이 아니다. 최초 실패 영수증은 계속 보존한다.
 
 11개 review-media migration의 운영 실행기와 owner-only manual workflow가 소스로 준비됐고 일반 actionlint1.7.12 검사를 ignore 없이 통과했다. 원래15분 evidence window, 네 개 human custody commitment와 세 개 machine fence, DB에서 네 relation의 quiescence를 별도로 확인한다. 새4개 feature SQL은97→101 별도 보호된 후속 적용 경로가 필요하다. 현재 운영 적용·dispatch·provider 호출·배포는 수행하지 않았으며 launch held를 임의 해제하지 않았다.
+
+운영 실행기 독립 감사 뒤 rehearsal 이후 machine fence/quiescence를 다시 관측하고 apply 전용 exclusive receipt·map·관측 시각·배포/hash를 admission과 controller 양쪽에서 검증하도록 보완했다. 직접71 tests·428 assertions와 당시 workflow5 tests·65 assertions는 겹치는 로컬 검증으로 분리한다. 원래 owner commitment를 machine proof로 바꾸지 않으며11개 SQL bytes와 launch held를 유지한다.
+
+별도4단계 manifest/controller는97→101 전이와 원래15분 창·committed parent custody·7 fences를 결속한다. 작성자 검증은 연결된 controller80 tests와4개 기능계약30 tests·690 assertions였으나 후속11개 admission schema 및 최신UI source와의 통합·workflow 연결은 별도 검증해야 한다. 실제 적용은0회다.
+
+`/api/admin/operating-readback/storyboard-policy`는 requireAdmin 이후 정확한 production/main/deployment/commit에서 공용 선언·요청·worker admission 함수를 실행해 정책을 확인한다. provider와 text/image 허용 집합, legacy 실행 차단을 policy SHA `d4e644ac12e3489a5f8074cbab8ed154bafb846f47db147ca5a4163ec175a804`에 결속하며 실제 provider 접근과DB 컷오버는 미검증으로 표시한다. 관련11 tests·ESLint·native/compat parity3,150 입력·진단0이다. 기존52페이지 build는 이 새route를 포함하지 않는 앞선 build 증거다.
+
+PG17 SQL acceptance의23개 input 중22개는 현재bytes/hash와 일치한다. 운영 evidence schema가 바뀐 manifest1개는 acceptance 당시61b4d002의 정확한Git blob을historical-61b4d002에 보존했다. frozen SQL4개와PG acceptance를 현재 운영controller 검증으로 승격하지 않는다.
