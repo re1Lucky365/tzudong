@@ -1,4 +1,4 @@
-import { afterAll, expect, test } from 'bun:test';
+import { afterEach, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
@@ -45,8 +45,12 @@ const canonical = (value: any): any => Array.isArray(value)
     : value;
 const canonicalBytes = (value: any) => Buffer.from(`${JSON.stringify(canonical(value))}\n`);
 
-afterAll(() => {
-  for (const root of roots) rmSync(root, { recursive: true, force: true });
+afterEach(() => {
+  while (roots.length > 0) {
+    const root = roots[roots.length - 1];
+    rmSync(root, { recursive: true, force: true });
+    roots.pop();
+  }
 });
 
 function privateRoot() {
@@ -611,6 +615,10 @@ test('apply producer binds the verified rehearsal artifacts without extending th
   expect(published.receipt.attemptId).toBe(published.admission.attemptId);
   expect(admission.attemptId).toBe(applyInputDocument.attemptId);
   expect(admission.attemptId).not.toBe(published.admission.attemptId);
+  expect(admission.rehearsalAdmissionSha256).toBe(sha256(readFileSync(
+    join(prepared.custodyDirectory, 'rehearsal-admission.json'),
+  )));
+  expect(admission.rehearsalAdmissionSha256).toBe(published.receipt.admissionSha256);
   expect(admission.createdAt).toBe(createdAt);
   expect(admission.expiresAt).toBe(expiresAt);
   expect(admission.stageStates).toEqual(published.receipt.stageStates);

@@ -864,6 +864,7 @@ export function prepareReviewMediaApplyAdmission({
     projectRef: rehearsal.projectRef,
     protectedMainReceiptSha256: rehearsal.protectedMainReceiptSha256,
     purpose: rehearsal.purpose,
+    rehearsalAdmissionSha256: sha256(rehearsalAdmissionRecord.bytes),
     rehearsalJournalSha256: inputRecord.value.rehearsalJournalSha256,
     rehearsalReceiptSha256: inputRecord.value.rehearsalReceiptSha256,
     rollback: structuredClone(rehearsal.rollback),

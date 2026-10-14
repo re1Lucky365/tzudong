@@ -1,5 +1,7 @@
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parse } from 'dotenv';
 import {
   assertNewArtifactPath,
   buildSourceBinding,
@@ -21,7 +23,77 @@ import {
   recordModelMetadataRequest,
 } from './ocr-gemini-live-attempt';
 
+const DEFAULT_HISTORICAL_CONFIG_PATH = '/Users/twoimo/.codex/runtime-cache/tzudong-release-20261003/production-after.env';
+const HISTORICAL_CONFIG_PATH_ENV = 'TZUDONG_OCR_HISTORICAL_CONFIG_PATH';
+const OCR_CONFIGURATION_NAMES = [
+  'GEMINI_OCR_MODEL',
+  'GEMINI_OCR_DEFAULT_MODEL',
+  'GEMINI_OCR_THINKING_LEVEL',
+  'GEMINI_THINKING_LEVEL',
+] as const;
+
+type OcrConfigurationProvenance = {
+  settingsSource: 'current-candidate-operator-env' | 'historical-operating-snapshot';
+  snapshotLocator: 'operator-env' | 'dated-default' | 'explicit-secure-snapshot';
+  modelSettingSource: 'GEMINI_OCR_MODEL' | 'GEMINI_OCR_DEFAULT_MODEL' | 'current-code-default';
+  thinkingSettingSource: 'GEMINI_OCR_THINKING_LEVEL' | 'GEMINI_THINKING_LEVEL' | 'current-code-default';
+};
+
+export function resolveOcrVerificationConfiguration({
+  currentCandidate,
+  source,
+  historicalConfigPath = DEFAULT_HISTORICAL_CONFIG_PATH,
+  historicalConfigPathExplicit = false,
+}: {
+  currentCandidate: boolean;
+  source: Record<string, string>;
+  historicalConfigPath?: string;
+  historicalConfigPathExplicit?: boolean;
+}): { config: Record<string, string>; provenance: OcrConfigurationProvenance } {
+  let config = source;
+  if (!currentCandidate) {
+    if (!isAbsolute(historicalConfigPath) || !existsSync(historicalConfigPath)) {
+      throw new Error('historical_ocr_configuration_required');
+    }
+    let text: string;
+    try {
+      text = readSecureOperatorEnv(historicalConfigPath);
+    } catch {
+      throw new Error('historical_ocr_configuration_invalid');
+    }
+    config = parse(text);
+    if (!config.GEMINI_OCR_MODEL && !config.GEMINI_OCR_DEFAULT_MODEL) {
+      throw new Error('historical_ocr_model_required');
+    }
+  }
+
+  const modelSettingSource = config.GEMINI_OCR_MODEL
+    ? 'GEMINI_OCR_MODEL'
+    : config.GEMINI_OCR_DEFAULT_MODEL
+      ? 'GEMINI_OCR_DEFAULT_MODEL'
+      : 'current-code-default';
+  const thinkingSettingSource = config.GEMINI_OCR_THINKING_LEVEL
+    ? 'GEMINI_OCR_THINKING_LEVEL'
+    : config.GEMINI_THINKING_LEVEL
+      ? 'GEMINI_THINKING_LEVEL'
+      : 'current-code-default';
+  return {
+    config,
+    provenance: {
+      settingsSource: currentCandidate ? 'current-candidate-operator-env' : 'historical-operating-snapshot',
+      snapshotLocator: currentCandidate
+        ? 'operator-env'
+        : historicalConfigPathExplicit
+          ? 'explicit-secure-snapshot'
+          : 'dated-default',
+      modelSettingSource,
+      thinkingSettingSource,
+    },
+  };
+}
+
 // One provider generation attempt, synthetic text only, no raw OCR/image/credential output.
+async function main(): Promise<void> {
 const cli = parseLiveVerificationArguments(process.argv.slice(2), {
   allowCurrentCandidate: true,
   defaultOutputSubdirectory: 'ui-renewal-20261003',
@@ -31,16 +103,16 @@ const receiptPath = resolve(cli.outputDirectory, 'ocr-live-readback.json');
 assertNewArtifactPath(receiptPath);
 
 const envText = readSecureOperatorEnv(cli.envFile);
-const { parse } = await import('dotenv');
 const source = parse(envText);
-const production = '/Users/twoimo/.codex/runtime-cache/tzudong-release-20261003/production-after.env';
 // A dated operating snapshot is historical evidence, not current configuration.
 // The explicit candidate mode binds the existing vault copy and current defaults.
-const config = cli.currentCandidate
-  ? source
-  : existsSync(production)
-    ? parse(readSecureOperatorEnv(production))
-    : {};
+const historicalConfigPath = process.env[HISTORICAL_CONFIG_PATH_ENV] ?? DEFAULT_HISTORICAL_CONFIG_PATH;
+const { config, provenance: configurationProvenance } = resolveOcrVerificationConfiguration({
+  currentCandidate: cli.currentCandidate,
+  source,
+  historicalConfigPath,
+  historicalConfigPathExplicit: process.env[HISTORICAL_CONFIG_PATH_ENV] !== undefined,
+});
 
 const credentialNames = [
   'GEMINI_CREDITS_API_KEY',
@@ -55,7 +127,7 @@ const env: NodeJS.ProcessEnv = { NODE_ENV: 'production' };
 for (const name of credentialNames) {
   if (source[name]) env[name] = source[name];
 }
-for (const name of ['GEMINI_OCR_MODEL', 'GEMINI_OCR_DEFAULT_MODEL', 'GEMINI_OCR_THINKING_LEVEL', 'GEMINI_THINKING_LEVEL'] as const) {
+for (const name of OCR_CONFIGURATION_NAMES) {
   if (config[name]) env[name] = config[name];
 }
 
@@ -96,6 +168,7 @@ const report: Record<string, unknown> = {
   sdkAttempts: 1,
   environment: { sdk: readPackageVersion('node_modules/@google/genai/package.json') },
   configurationSource: cli.currentCandidate ? 'current-candidate-and-existing-vault-copy' : 'historical-operating-snapshot',
+  configurationProvenance,
   credentialSourceName: credential.sourceName ?? null,
   configuration: publicConfiguration,
   configurationSha256: hashPublicConfiguration(publicConfiguration),
@@ -220,3 +293,6 @@ try {
 } finally {
   receipt.close();
 }
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

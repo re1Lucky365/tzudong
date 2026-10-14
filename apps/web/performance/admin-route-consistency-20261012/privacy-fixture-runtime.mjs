@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import {
-  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
+  readdirSync,
+  readlinkSync,
   realpathSync,
   statSync,
   symlinkSync,
@@ -13,7 +13,6 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
 
 const GENERATED_NEXT_ENV_LINES = new Set([
   '',
@@ -195,16 +194,146 @@ export function fixtureServerInvocation({ sourcePath, evaluationRoot, defaultBas
   };
 }
 
+function dependencyFailure(code) {
+  return Object.assign(new Error(code), { code });
+}
+
+function dependencyPackageRows(document) {
+  if (document?.lockfileVersion !== 3 || document?.packages === null || typeof document?.packages !== 'object') {
+    throw dependencyFailure('PINNED_DEPENDENCY_LOCK_INVALID');
+  }
+  return Object.entries(document.packages)
+    .filter(([path, row]) => path.startsWith('node_modules/') && row !== null && typeof row === 'object' && typeof row.version === 'string')
+    .sort(([left], [right]) => left.localeCompare(right));
+}
+
+function packageLockIdentity(row) {
+  return JSON.stringify({
+    version: row.version,
+    integrity: typeof row.integrity === 'string' ? row.integrity : null,
+    resolved: typeof row.resolved === 'string' ? row.resolved : null,
+    link: row.link === true,
+  });
+}
+
+function installedDependencyIdentity(source) {
+  const hash = createHash('sha256');
+  let files = 0;
+  let bytes = 0;
+  function walk(directory, prefix = '') {
+    for (const name of readdirSync(directory).sort()) {
+      const absolute = join(directory, name);
+      const path = prefix ? `${prefix}/${name}` : name;
+      const entry = lstatSync(absolute);
+      const mode = entry.mode & 0o777;
+      if (entry.isDirectory()) {
+        hash.update(`directory\0${path}\0${mode.toString(8)}\0`);
+        walk(absolute, path);
+      } else if (entry.isFile()) {
+        const content = readFileSync(absolute);
+        hash.update(`file\0${path}\0${mode.toString(8)}\0${content.byteLength}\0`);
+        hash.update(content);
+        files += 1;
+        bytes += content.byteLength;
+      } else if (entry.isSymbolicLink()) {
+        const target = readlinkSync(absolute);
+        const resolvedTarget = resolve(dirname(absolute), target);
+        const relativeTarget = relative(source, resolvedTarget);
+        if (relativeTarget === '..' || relativeTarget.startsWith('../') || isAbsolute(relativeTarget)) {
+          throw dependencyFailure('PINNED_DEPENDENCY_LINK_OUTSIDE_ROOT');
+        }
+        hash.update(`symlink\0${path}\0${mode.toString(8)}\0${target}\0`);
+      } else {
+        throw dependencyFailure('PINNED_DEPENDENCY_ENTRY_INVALID');
+      }
+    }
+  }
+  walk(source);
+  return { sha256: hash.digest('hex'), files, bytes };
+}
+
+function verifyDependencyIdentity(plan) {
+  if (typeof plan.dependencyContentSha256 !== 'string') return { complete: true, code: null };
+  try {
+    const current = installedDependencyIdentity(plan.source);
+    if (current.sha256 !== plan.dependencyContentSha256) {
+      return { complete: false, code: 'PINNED_DEPENDENCIES_CHANGED' };
+    }
+    return { complete: true, code: null };
+  } catch (error) {
+    return { complete: false, code: boundedCode(error, 'PINNED_DEPENDENCY_IDENTITY_CHECK_FAILED') };
+  }
+}
+
 export function validateFixtureDependencies(plan, { expectedNextVersion }) {
-  const nextManifest = join(plan.source, 'next', 'package.json');
-  if (!existsSync(nextManifest) || !statSync(nextManifest).isFile()) {
-    throw Object.assign(new Error('PINNED_DEPENDENCIES_MISSING'), { code: 'PINNED_DEPENDENCIES_MISSING' });
+  const lockPath = join(dirname(plan.nodeModules), 'package-lock.json');
+  const installedLockPath = join(plan.source, '.package-lock.json');
+  if (!existsSync(lockPath) || !statSync(lockPath).isFile()
+    || !existsSync(installedLockPath) || !statSync(installedLockPath).isFile()) {
+    throw dependencyFailure('PINNED_DEPENDENCY_LOCK_MISSING');
   }
-  const next = JSON.parse(readFileSync(nextManifest, 'utf8'));
-  if (typeof next.version !== 'string' || next.version.length > 40 || next.version !== expectedNextVersion) {
-    throw Object.assign(new Error('PINNED_DEPENDENCIES_INVALID'), { code: 'PINNED_DEPENDENCIES_INVALID' });
+
+  let lock;
+  let installedLock;
+  try {
+    lock = JSON.parse(readFileSync(lockPath, 'utf8'));
+    installedLock = JSON.parse(readFileSync(installedLockPath, 'utf8'));
+  } catch {
+    throw dependencyFailure('PINNED_DEPENDENCY_LOCK_INVALID');
   }
-  return next.version;
+  const expectedRows = dependencyPackageRows(lock);
+  const installedRows = dependencyPackageRows(installedLock);
+  const expected = new Map(expectedRows);
+  const installed = new Map(installedRows);
+  const lockedNext = expected.get('node_modules/next');
+  if (typeof expectedNextVersion !== 'string' || lockedNext?.version !== expectedNextVersion) {
+    throw dependencyFailure('PINNED_DEPENDENCIES_INVALID');
+  }
+
+  for (const [path, row] of expectedRows) {
+    if (!installed.has(path) && row.optional !== true) {
+      throw dependencyFailure('PINNED_DEPENDENCIES_MISSING');
+    }
+  }
+  for (const [path, installedRow] of installedRows) {
+    const expectedRow = expected.get(path);
+    if (!expectedRow || packageLockIdentity(installedRow) !== packageLockIdentity(expectedRow)) {
+      throw dependencyFailure('PINNED_DEPENDENCIES_INVALID');
+    }
+    const manifestPath = join(plan.source, path.slice('node_modules/'.length), 'package.json');
+    if (!existsSync(manifestPath) || !statSync(manifestPath).isFile()) {
+      throw dependencyFailure('PINNED_DEPENDENCIES_MISSING');
+    }
+    let manifest;
+    try {
+      manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    } catch {
+      throw dependencyFailure('PINNED_DEPENDENCIES_INVALID');
+    }
+    if (manifest.version !== expectedRow.version) {
+      throw dependencyFailure('PINNED_DEPENDENCIES_INVALID');
+    }
+  }
+
+  let identity;
+  try {
+    identity = installedDependencyIdentity(plan.source);
+  } catch (error) {
+    if (typeof error?.code === 'string' && error.code.startsWith('PINNED_DEPENDENCY_')) throw error;
+    throw dependencyFailure('PINNED_DEPENDENCY_IDENTITY_INVALID');
+  }
+  if (typeof plan.dependencyContentSha256 === 'string' && plan.dependencyContentSha256 !== identity.sha256) {
+    throw dependencyFailure('PINNED_DEPENDENCIES_CHANGED');
+  }
+  const receiptLabel = typeof plan.dependencyReceiptLabel === 'string'
+    ? plan.dependencyReceiptLabel
+    : plan.receiptPath;
+  plan.dependencyReceiptLabel = receiptLabel;
+  plan.dependencyContentSha256 = identity.sha256;
+  plan.dependencyFileCount = identity.files;
+  plan.dependencyBytes = identity.bytes;
+  plan.receiptPath = `${receiptLabel}@sha256:${identity.sha256}`;
+  return expectedNextVersion;
 }
 
 export function prepareFixtureDependencies(plan) {
@@ -233,71 +362,18 @@ export function cleanupFixtureDependencies(plan) {
   }
 }
 
-function createRecoveryWriter(recoveryRoot) {
-  let directory = null;
-  const rows = [];
-  return {
-    preserve(name, bytes) {
-      if (directory === null) {
-        mkdirSync(recoveryRoot, { recursive: true, mode: 0o700 });
-        directory = mkdtempSync(join(recoveryRoot, 'tzudong-privacy-fixture-recovery-'));
-        chmodSync(directory, 0o700);
-      }
-      const recoveryFile = `${name}.unexpected`;
-      writeFileSync(join(directory, recoveryFile), bytes, { flag: 'wx', mode: 0o600 });
-      rows.push({
-        target: name,
-        recoveryFile,
-        bytes: bytes.byteLength,
-        sha256: createHash('sha256').update(bytes).digest('hex'),
-      });
-    },
-    finish() {
-      if (directory === null) return null;
-      const receiptPath = join(directory, 'receipt.json');
-      writeFileSync(receiptPath, `${JSON.stringify({
-        schema: 'tzudong-privacy-fixture-local-recovery/v1',
-        files: rows,
-      }, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
-      return receiptPath;
-    },
-  };
-}
-
-function restoreUnexpected({ path, before, current, recovery, name, code, remove = false }) {
-  try {
-    recovery.preserve(name, current);
-  } catch {
-    return `${name.toUpperCase().replaceAll('-', '_')}_RECOVERY_FAILED`;
-  }
-  try {
-    if (remove) unlinkSync(path);
-    else writeFileSync(path, before);
-  } catch {
-    return `${name.toUpperCase().replaceAll('-', '_')}_RESTORE_FAILED`;
-  }
-  return code;
-}
-
-function restoreTsconfig({ path, before, generatedIncludes, recovery }) {
+function restoreTsconfig({ path, before, generatedIncludes }) {
   let currentBytes;
   try {
     currentBytes = readFileSync(path);
   } catch {
-    try {
-      writeFileSync(path, before);
-    } catch {
-      return 'TSCONFIG_RESTORE_FAILED';
-    }
     return 'TSCONFIG_MISSING';
   }
   try {
     const original = JSON.parse(before.toString('utf8'));
     const current = JSON.parse(currentBytes.toString('utf8'));
     if (!Array.isArray(current.include) || !Array.isArray(original.include)) {
-      return restoreUnexpected({
-        path, before, current: currentBytes, recovery, name: 'tsconfig', code: 'TSCONFIG_SHAPE_CHANGED',
-      });
+      return 'TSCONFIG_SHAPE_CHANGED';
     }
     const generated = new Set(generatedIncludes);
     current.include = current.include.filter((entry) => !generated.has(entry));
@@ -305,47 +381,42 @@ function restoreTsconfig({ path, before, generatedIncludes, recovery }) {
       writeFileSync(path, before);
       return null;
     }
-    return restoreUnexpected({
-      path, before, current: currentBytes, recovery, name: 'tsconfig', code: 'UNEXPECTED_TSCONFIG_CHANGE',
-    });
+    return 'UNEXPECTED_TSCONFIG_CHANGE';
   } catch {
-    return restoreUnexpected({
-      path, before, current: currentBytes, recovery, name: 'tsconfig', code: 'TSCONFIG_PARSE_FAILED',
-    });
+    return 'TSCONFIG_PARSE_FAILED';
   }
 }
 
-function restoreNextEnv({ path, before, recovery }) {
+function restoreNextEnv({ path, before }) {
   try {
     const normalizeGenerated = (bytes) => {
-      const lines = bytes.toString('utf8').split(/\r?\n/);
+      const text = bytes.toString('utf8');
+      const withoutWindowsNewlines = text.replaceAll('\r\n', '');
+      if (withoutWindowsNewlines.includes('\r') || withoutWindowsNewlines.includes('\n')) {
+        const hasWindowsNewlines = text.includes('\r\n');
+        const hasUnixNewlines = withoutWindowsNewlines.includes('\n');
+        if (hasWindowsNewlines && hasUnixNewlines) return null;
+      }
+      const newline = text.includes('\r\n') ? '\r\n' : '\n';
+      const lines = text.split(newline);
       if (!lines.every((line) => GENERATED_NEXT_ENV_LINES.has(line) || GENERATED_NEXT_ENV_IMPORT.test(line))) return null;
-      return lines.filter((line) => !GENERATED_NEXT_ENV_IMPORT.test(line)).join('\n');
+      return lines.filter((line) => !GENERATED_NEXT_ENV_IMPORT.test(line)).join(newline);
     };
     if (before !== null) {
-      if (!existsSync(path)) {
-        writeFileSync(path, before);
-        return 'NEXT_ENV_MISSING';
-      }
+      if (!existsSync(path)) return 'NEXT_ENV_MISSING';
       const current = readFileSync(path);
       if (current.equals(before)) return null;
       const originalBase = normalizeGenerated(before);
       const currentBase = normalizeGenerated(current);
       if (originalBase === null || currentBase === null || originalBase !== currentBase) {
-        return restoreUnexpected({
-          path, before, current, recovery, name: 'next-env', code: 'UNEXPECTED_NEXT_ENV_CHANGE',
-        });
+        return 'UNEXPECTED_NEXT_ENV_CHANGE';
       }
       writeFileSync(path, before);
       return null;
     }
     if (!existsSync(path)) return null;
     const current = readFileSync(path);
-    if (normalizeGenerated(current) === null) {
-      return restoreUnexpected({
-        path, before: Buffer.alloc(0), current, recovery, name: 'next-env', code: 'UNEXPECTED_NEXT_ENV_CHANGE', remove: true,
-      });
-    }
+    if (normalizeGenerated(current) === null) return 'UNEXPECTED_NEXT_ENV_CHANGE';
     unlinkSync(path);
     return null;
   } catch (error) {
@@ -359,31 +430,24 @@ export function cleanupPrivacyFixtureBuild({
   tsconfigBefore,
   nextEnvBefore,
   dependencyPlan,
-  recoveryRoot = tmpdir(),
 }) {
   const failures = [];
-  const recovery = createRecoveryWriter(recoveryRoot);
   const generatedIncludes = [`${dist}/types/**/*.ts`, `${dist}/dev/types/**/*.ts`];
   const tsconfigCode = restoreTsconfig({
     path: join(webRoot, 'tsconfig.json'),
     before: tsconfigBefore,
     generatedIncludes,
-    recovery,
   });
   if (tsconfigCode) failures.push(tsconfigCode);
 
-  const nextEnvCode = restoreNextEnv({ path: join(webRoot, 'next-env.d.ts'), before: nextEnvBefore, recovery });
+  const nextEnvCode = restoreNextEnv({ path: join(webRoot, 'next-env.d.ts'), before: nextEnvBefore });
   if (nextEnvCode) failures.push(nextEnvCode);
 
+  const dependencyIdentity = verifyDependencyIdentity(dependencyPlan);
+  if (!dependencyIdentity.complete) failures.push(dependencyIdentity.code);
   const dependency = cleanupFixtureDependencies(dependencyPlan);
   if (!dependency.complete) failures.push(dependency.code);
-  let recoveryReceiptPath = null;
-  try {
-    recoveryReceiptPath = recovery.finish();
-  } catch {
-    failures.push('RECOVERY_RECEIPT_FAILED');
-  }
-  return { failures: [...new Set(failures)].sort(), recoveryReceiptPath };
+  return { failures: [...new Set(failures)].sort(), recoveryReceiptPath: null };
 }
 
 export function cleanupFailure(cleanup, primaryError = null) {

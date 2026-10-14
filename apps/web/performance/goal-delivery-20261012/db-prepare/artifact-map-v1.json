@@ -1,41 +1,138 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "sourceCommit": "056a86600f412eb42df4304e3206841679012f3e",
+  "packageSourceHead": "c503483d02c97c9abe6a19eddd8cd3f5715ebc42",
+  "scope": "Current db-prepare source identity plus immutable historical c503 evidence. Historical replay receipts are preserved and were not rerun by this inventory reconciliation.",
+  "artifactRoot": "apps/web/performance/goal-delivery-20261012/db-prepare",
+  "artifactCount": 16,
+  "artifactBytes": 94682,
+  "historicalInventory": {
+    "path": "historical-c503483d02c97c9a/artifact-map-v1.json",
+    "sha256": "312ec242a66cd8b17df93edeb865ad19a8f3477bc143cf5379401687a321a77a",
+    "sidecar": "historical-c503483d02c97c9a/artifact-map-v1.sha256",
+    "sourceHead": "c503483d02c97c9abe6a19eddd8cd3f5715ebc42"
+  },
+  "currentEvidence": {
+    "carrierVerifierDelta": {
+      "path": "carrier-verifier-delta-20261013.json",
+      "sha256": "fb383035265fb7ed33544f5d19c71ff7b02b423bb66980a3ca38b8f8c0d95d39",
+      "tests": 7,
+      "failures": 0
+    },
+    "localReplayHardeningDelta": {
+      "path": "run-local-replay-hardening-delta-20261013.json",
+      "sha256": "522a1684a445a3f17d8299481e4f5ddc4cc33df3049cc56257b4c57d8b32142d",
+      "tests": 7,
+      "failures": 0
+    },
+    "operatingDatabaseApplied": false,
+    "hostedOrProviderVerified": false,
+    "historicalReceiptsRerun": false
+  },
   "artifacts": [
     {
       "path": "README.md",
       "bytes": 5439,
-      "sha256": "afbd96f4d149c89314e215906dbf5334b7c33eecf1d7813b80ddea24ded9a3b6"
+      "sha256": "afbd96f4d149c89314e215906dbf5334b7c33eecf1d7813b80ddea24ded9a3b6",
+      "role": "package-guide"
     },
     {
       "path": "build_artifact_map.py",
       "bytes": 1124,
-      "sha256": "eedbaca05ccce255b9477b530c319bd752b52574ea8e657dcc54c0c68ea56e95"
+      "sha256": "eedbaca05ccce255b9477b530c319bd752b52574ea8e657dcc54c0c68ea56e95",
+      "role": "historical-map-builder-not-rerun"
     },
     {
       "path": "build_carrier.py",
       "bytes": 13317,
-      "sha256": "cebc35b4b7fb9856a0e23c0249acb8f0eb1248c73d10aa5d40bd6c27c92cc2d6"
+      "sha256": "cebc35b4b7fb9856a0e23c0249acb8f0eb1248c73d10aa5d40bd6c27c92cc2d6",
+      "role": "current-reproduction-tool"
+    },
+    {
+      "path": "carrier-verifier-delta-20261013.json",
+      "bytes": 2668,
+      "sha256": "fb383035265fb7ed33544f5d19c71ff7b02b423bb66980a3ca38b8f8c0d95d39",
+      "role": "current-regression-receipt"
+    },
+    {
+      "path": "historical-c503483d02c97c9a/artifact-map-v1.json",
+      "bytes": 1179,
+      "sha256": "312ec242a66cd8b17df93edeb865ad19a8f3477bc143cf5379401687a321a77a",
+      "role": "immutable-historical-inventory"
+    },
+    {
+      "path": "historical-c503483d02c97c9a/artifact-map-v1.sha256",
+      "bytes": 87,
+      "sha256": "3fdde00266b6a205e168fbf24da8f0b7a5a7e800ec4119cba450848a77049ae7",
+      "role": "immutable-historical-inventory-sidecar"
+    },
+    {
+      "path": "historical-c503483d02c97c9a/run_local_replay.py",
+      "bytes": 4484,
+      "sha256": "22b457af353db43914e0b35b04647278b359fa3827af033d630394ab526a3787",
+      "role": "archived-historical-executable"
+    },
+    {
+      "path": "historical-c503483d02c97c9a/verify_carrier.py",
+      "bytes": 3637,
+      "sha256": "4bd5f7d9d357cd2ec379bc2ff0c111f7bfa564b9e8f1d4dc312e23c4d8739a65",
+      "role": "archived-historical-executable"
     },
     {
       "path": "local-replay-v1.json",
       "bytes": 1549,
-      "sha256": "44ee007b4d0a3896eda7afffd75f65154fbfa32838451bd9d8e3b9b59b99aaf4"
+      "sha256": "44ee007b4d0a3896eda7afffd75f65154fbfa32838451bd9d8e3b9b59b99aaf4",
+      "role": "historical-receipt-or-contract"
     },
     {
       "path": "review-carrier-v1.json",
       "bytes": 14880,
-      "sha256": "ddc64738652c7a4a2da7aa294a4d8aaac4dcb945e6ec963a3ac855eb5e78551a"
+      "sha256": "ddc64738652c7a4a2da7aa294a4d8aaac4dcb945e6ec963a3ac855eb5e78551a",
+      "role": "historical-receipt-or-contract"
+    },
+    {
+      "path": "run-local-replay-hardening-delta-20261013.json",
+      "bytes": 3762,
+      "sha256": "522a1684a445a3f17d8299481e4f5ddc4cc33df3049cc56257b4c57d8b32142d",
+      "role": "current-regression-receipt"
+    },
+    {
+      "path": "run-local-replay-hardening-delta-20261013.sha256",
+      "bytes": 113,
+      "sha256": "6d4bf9ec9408eb6b2548eb063de9476ad014b5507e82958842058f6104bc2243",
+      "role": "current-regression-receipt-sidecar"
     },
     {
       "path": "run_local_replay.py",
-      "bytes": 4484,
-      "sha256": "22b457af353db43914e0b35b04647278b359fa3827af033d630394ab526a3787"
+      "bytes": 19305,
+      "sha256": "e2dfc3a8b266b5adb8f6570915a2f79a3cc6d686d4596121979529bdc0f5701a",
+      "role": "current-executable-source"
+    },
+    {
+      "path": "test_run_local_replay.py",
+      "bytes": 10454,
+      "sha256": "6a8bda809c0b54464edc6c8b484712eac7ec6dcab77a37cb360d37b1eff97130",
+      "role": "current-regression-source"
+    },
+    {
+      "path": "test_verify_carrier.py",
+      "bytes": 8507,
+      "sha256": "c087eb8fd77fc9733371902df73da8222b9adeb6dba9db0dc88a731b943fe3aa",
+      "role": "current-regression-source"
     },
     {
       "path": "verify_carrier.py",
-      "bytes": 3637,
-      "sha256": "4bd5f7d9d357cd2ec379bc2ff0c111f7bfa564b9e8f1d4dc312e23c4d8739a65"
+      "bytes": 4177,
+      "sha256": "81983d82440b1ca6b388c75ea2b8eb7a8916276f6b66c2aff7fc9f3cfcbbe9e6",
+      "role": "current-executable-source"
     }
-  ]
+  ],
+  "exclusions": {
+    "mapSelfReference": [
+      "artifact-map-v1.json",
+      "artifact-map-v1.sha256"
+    ],
+    "logs": [],
+    "credentialsAndSecrets": []
+  }
 }

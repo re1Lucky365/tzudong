@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   lstatSync,
@@ -33,11 +34,59 @@ function nextDependencies(root: string) {
   return dependencies;
 }
 
+function lockedDependencies(webRoot: string, dependencies: string) {
+  const packages = {
+    'node_modules/next': { version: '16.3.8', resolved: 'https://registry.npmjs.org/next/-/next-16.3.8.tgz', integrity: 'sha512-next' },
+    'node_modules/react': { version: '19.3.0', resolved: 'https://registry.npmjs.org/react/-/react-19.3.0.tgz', integrity: 'sha512-react' },
+    'node_modules/optional-platform': { version: '1.0.0', optional: true },
+  };
+  writeFileSync(path.join(webRoot, 'package-lock.json'), `${JSON.stringify({
+    name: 'fixture',
+    version: '1.0.0',
+    lockfileVersion: 3,
+    packages: { '': { name: 'fixture', version: '1.0.0' }, ...packages },
+  })}\n`);
+  writeFileSync(path.join(dependencies, '.package-lock.json'), `${JSON.stringify({
+    name: 'fixture',
+    version: '1.0.0',
+    lockfileVersion: 3,
+    packages: {
+      'node_modules/next': packages['node_modules/next'],
+      'node_modules/react': packages['node_modules/react'],
+    },
+  })}\n`);
+  for (const [name, version] of [['next', '16.3.8'], ['react', '19.3.0']]) {
+    mkdirSync(path.join(dependencies, name), { recursive: true });
+    writeFileSync(path.join(dependencies, name, 'package.json'), `${JSON.stringify({ name, version })}\n`);
+    writeFileSync(path.join(dependencies, name, 'index.js'), `export const packageName = ${JSON.stringify(name)};\n`);
+  }
+}
+
+function materializeInstalledLock(sourceWebRoot: string, dependencies: string) {
+  const installedLock = JSON.parse(readFileSync(path.join(sourceWebRoot, 'node_modules', '.package-lock.json'), 'utf8'));
+  writeFileSync(path.join(dependencies, '.package-lock.json'), `${JSON.stringify(installedLock)}\n`);
+  for (const [lockedPath, row] of Object.entries(installedLock.packages) as Array<[string, { version?: string }]>) {
+    if (!lockedPath.startsWith('node_modules/') || typeof row.version !== 'string') continue;
+    const packageRoot = path.join(dependencies, lockedPath.slice('node_modules/'.length));
+    mkdirSync(packageRoot, { recursive: true });
+    writeFileSync(path.join(packageRoot, 'package.json'), `${JSON.stringify({ version: row.version })}\n`);
+  }
+}
+
 function fixtureRoot() {
   const root = mkdtempSync(path.join(os.tmpdir(), 'tzudong-privacy-fixture-'));
   const webRoot = path.join(root, 'apps', 'web');
   mkdirSync(webRoot, { recursive: true });
   return { root, webRoot };
+}
+
+function node24Binary() {
+  const candidates = [...new Set([process.env.TZUDONG_NODE24_BIN, 'node'].filter(Boolean))] as string[];
+  for (const candidate of candidates) {
+    const probe = spawnSync(candidate, ['-p', 'process.versions.node'], { encoding: 'utf8' });
+    if (probe.status === 0 && probe.stdout.trim().startsWith('24.')) return candidate;
+  }
+  throw new Error('NODE_24_REQUIRED_FOR_PRIVACY_FIXTURE_LAUNCHER_TEST');
 }
 
 describe('privacy fixture runtime ownership', () => {
@@ -63,9 +112,26 @@ describe('privacy fixture runtime ownership', () => {
         expect(source).toContain('prepareRuntimeOutput');
         expect(source).toContain("join(BUILD_OUT, 'privacy-build-receipt.json')");
         expect(source).toContain('writeFileSync(join(RUNTIME_OUT, name)');
+        expect(source).toContain("join(RUNTIME_OUT, 'privacy-runtime-start.json')");
         expect(source).toContain("join(RUNTIME_OUT, 'privacy-runtime.log')");
+        expect(source).toContain("openSync(startPath, 'wx', 0o600)");
+        expect(source).toContain("openSync(logPath, 'wx', 0o600)");
+        const reserveIndex = source.indexOf('const runtimeEvidence = reserveRuntimeEvidence()');
+        const dependenciesIndex = source.indexOf('prepareFixtureDependencies(dependencyPlan)', reserveIndex);
+        const spawnIndex = source.indexOf('const next = spawn(', reserveIndex);
+        expect(reserveIndex).toBeGreaterThan(-1);
+        expect(dependenciesIndex).toBeGreaterThan(reserveIndex);
+        expect(spawnIndex).toBeGreaterThan(dependenciesIndex);
+        expect(source).not.toContain("save('privacy-runtime-start.json'");
       } else {
         expect(source).not.toContain('allowRuntimeAttempt: true');
+        expect(source).toContain("const excludedBuildInputRoots = new Set([");
+        expect(source).toContain("const excludedBuildInputPaths = new Set(['supabase/.temp'])");
+        expect(source).toContain("entry.name === '.next'");
+        expect(source).toContain("entry.name.startsWith('.next-')");
+        expect(source).toContain("function walk(path = '')");
+        expect(source).not.toContain("const roots = ['app/admin'");
+        expect(source).not.toContain("const extra = ['app/layout.tsx'");
       }
     }
   });
@@ -188,6 +254,86 @@ describe('privacy fixture runtime ownership', () => {
     }
   });
 
+  test('reserves an existing start receipt before borrowing dependencies or spawning either server', () => {
+    const { root, webRoot } = fixtureRoot();
+    try {
+      const webSource = path.resolve(import.meta.dir, '..');
+      const evidenceRoot = path.join(webRoot, 'performance', 'admin-route-consistency-20261012');
+      const launcherDirectory = path.join(evidenceRoot, 'v2');
+      const runOut = path.join(launcherDirectory, 'runs', 'collision');
+      const dist = '.next-privacy-incidents-v2-20261012-collision';
+      const dependencies = path.join(root, 'dependencies');
+      const nextMarker = path.join(root, 'next-spawned');
+      const gatewayMarker = path.join(root, 'gateway-spawned');
+      mkdirSync(path.join(dependencies, 'next', 'dist', 'bin'), { recursive: true });
+      mkdirSync(runOut, { recursive: true });
+      mkdirSync(path.join(webRoot, dist), { recursive: true });
+      mkdirSync(path.join(webRoot, 'performance', 'admin-header-consistency-20261011'), { recursive: true });
+      writeFileSync(
+        path.join(evidenceRoot, 'privacy-fixture-runtime.mjs'),
+        readFileSync(path.join(webSource, 'performance/admin-route-consistency-20261012/privacy-fixture-runtime.mjs')),
+      );
+      writeFileSync(
+        path.join(launcherDirectory, 'start-loopback.mjs'),
+        readFileSync(path.join(webSource, 'performance/admin-route-consistency-20261012/v2/start-loopback.mjs')),
+      );
+      writeFileSync(path.join(webRoot, 'package-lock.json'), readFileSync(path.join(webSource, 'package-lock.json')));
+      materializeInstalledLock(webSource, dependencies);
+      writeFileSync(path.join(webRoot, dist, 'BUILD_ID'), 'fixture-build-id\n');
+      writeFileSync(path.join(dependencies, 'next', 'package.json'), '{"version":"16.3.8"}\n');
+      writeFileSync(
+        path.join(dependencies, 'next', 'dist', 'bin', 'next'),
+        `require('node:fs').writeFileSync(${JSON.stringify(nextMarker)}, 'spawned');\n`,
+      );
+      writeFileSync(
+        path.join(launcherDirectory, 'fixture-server.mjs'),
+        [
+          "import { writeFileSync } from 'node:fs';",
+          "import {} from '../../admin-header-consistency-20261011/fixture-data.mjs';",
+          'const NEXT_PORT = 18950;',
+          'const SUPABASE_PORT = 18951;',
+          'const GATEWAY_PORT = 18952;',
+          `writeFileSync(${JSON.stringify(gatewayMarker)}, 'spawned');`,
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        path.join(webRoot, 'performance', 'admin-header-consistency-20261011', 'fixture-data.mjs'),
+        'export {};\n',
+      );
+      writeFileSync(path.join(runOut, 'privacy-build-receipt.json'), `${JSON.stringify({
+        status: 0,
+        distDir: dist,
+        buildId: 'fixture-build-id',
+        sourceUnchanged: true,
+        tsconfigRestored: true,
+        runId: 'collision',
+        basePort: 31900,
+      })}\n`);
+      const existingStart = Buffer.from('{"owned":"existing-start"}\n');
+      const existingLog = Buffer.from('existing log bytes\n');
+      writeFileSync(path.join(runOut, 'privacy-runtime-start.json'), existingStart);
+      writeFileSync(path.join(runOut, 'privacy-runtime.log'), existingLog);
+
+      const result = spawnSync(node24Binary(), [
+        path.join(launcherDirectory, 'start-loopback.mjs'),
+        '--run-id', 'collision',
+        '--base-port', '31900',
+        '--dependencies', dependencies,
+      ], { cwd: webRoot, encoding: 'utf8' });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('EEXIST');
+      expect(readFileSync(path.join(runOut, 'privacy-runtime-start.json'))).toEqual(existingStart);
+      expect(readFileSync(path.join(runOut, 'privacy-runtime.log'))).toEqual(existingLog);
+      expect(existsSync(path.join(webRoot, 'node_modules'))).toBe(false);
+      expect(existsSync(nextMarker)).toBe(false);
+      expect(existsSync(gatewayMarker)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('creates a source-bound dynamic-port fixture invocation without checkout paths', () => {
     const webRoot = path.resolve(import.meta.dir, '..');
     const sourcePath = path.join(webRoot, 'performance/admin-route-consistency-20261012/v2/fixture-server.mjs');
@@ -215,16 +361,33 @@ describe('privacy fixture runtime ownership', () => {
     const { root, webRoot } = fixtureRoot();
     try {
       const dependencies = path.join(webRoot, 'node_modules');
-      mkdirSync(path.join(dependencies, 'next'), { recursive: true });
-      writeFileSync(path.join(dependencies, 'next', 'package.json'), '{"version":"16.3.8"}\n');
+      mkdirSync(dependencies, { recursive: true });
+      lockedDependencies(webRoot, dependencies);
       const plan = resolveFixtureDependencies({ webRoot });
       expect(plan.mode).toBe('workspace');
       expect(plan.receiptPath).toBe('node_modules');
       expect(plan.receiptPath).not.toContain(root);
       expect(validateFixtureDependencies(plan, { expectedNextVersion: '16.3.8' })).toBe('16.3.8');
+      expect(plan.receiptPath).toMatch(/^node_modules@sha256:[a-f0-9]{64}$/);
+      expect(plan.dependencyFileCount).toBe(5);
+      expect(plan.dependencyBytes).toBeGreaterThan(0);
       expect(() => validateFixtureDependencies(plan, { expectedNextVersion: '16.3.7' })).toThrow(
         'PINNED_DEPENDENCIES_INVALID',
       );
+      const reactManifest = path.join(dependencies, 'react', 'package.json');
+      const reactBefore = readFileSync(reactManifest);
+      writeFileSync(reactManifest, '{"name":"react","version":"18.0.0"}\n');
+      expect(() => validateFixtureDependencies(plan, { expectedNextVersion: '16.3.8' })).toThrow(
+        'PINNED_DEPENDENCIES_INVALID',
+      );
+      writeFileSync(reactManifest, reactBefore);
+      const reactSource = path.join(dependencies, 'react', 'index.js');
+      const reactSourceBefore = readFileSync(reactSource);
+      writeFileSync(reactSource, 'export const packageName = "changed";\n');
+      expect(() => validateFixtureDependencies(plan, { expectedNextVersion: '16.3.8' })).toThrow(
+        'PINNED_DEPENDENCIES_CHANGED',
+      );
+      writeFileSync(reactSource, reactSourceBefore);
       prepareFixtureDependencies(plan);
       expect(cleanupFixtureDependencies(plan)).toEqual({ complete: true, code: null });
       expect(existsSync(dependencies)).toBe(true);
@@ -248,6 +411,33 @@ describe('privacy fixture runtime ownership', () => {
       expect(lstatSync(path.join(webRoot, 'node_modules')).isSymbolicLink()).toBe(true);
       expect(cleanupFixtureDependencies(plan)).toEqual({ complete: true, code: null });
       expect(existsSync(path.join(webRoot, 'node_modules'))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('binds complete installed bytes and reports dependency drift without removing the edit', () => {
+    const { root, webRoot } = fixtureRoot();
+    try {
+      const dependencies = path.join(webRoot, 'node_modules');
+      mkdirSync(dependencies, { recursive: true });
+      lockedDependencies(webRoot, dependencies);
+      const originalTsconfig = Buffer.from('{"compilerOptions":{},"include":["source/**/*.ts"]}\n');
+      writeFileSync(path.join(webRoot, 'tsconfig.json'), originalTsconfig);
+      const plan = resolveFixtureDependencies({ webRoot });
+      validateFixtureDependencies(plan, { expectedNextVersion: '16.3.8' });
+      const reactSource = path.join(dependencies, 'react', 'index.js');
+      writeFileSync(reactSource, 'export const packageName = "live-user-edit";\n');
+
+      expect(cleanupPrivacyFixtureBuild({
+        webRoot,
+        dist: '.next-fixture',
+        tsconfigBefore: originalTsconfig,
+        nextEnvBefore: null,
+        dependencyPlan: plan,
+      })).toEqual({ failures: ['PINNED_DEPENDENCIES_CHANGED'], recoveryReceiptPath: null });
+      expect(readFileSync(reactSource, 'utf8')).toContain('live-user-edit');
+      expect(existsSync(dependencies)).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -287,16 +477,12 @@ describe('privacy fixture runtime ownership', () => {
         recoveryRoot: path.join(root, 'recovery'),
       });
       expect(cleanup.failures).toEqual(['UNEXPECTED_TSCONFIG_CHANGE']);
-      expect(readFileSync(path.join(webRoot, 'tsconfig.json'))).toEqual(originalTsconfig);
-      const recoveryReceipt = JSON.parse(readFileSync(cleanup.recoveryReceiptPath!, 'utf8'));
-      expect(recoveryReceipt.files).toHaveLength(1);
-      const recoveredTsconfig = JSON.parse(readFileSync(
-        path.join(path.dirname(cleanup.recoveryReceiptPath!), recoveryReceipt.files[0].recoveryFile),
-        'utf8',
-      ));
-      expect(recoveredTsconfig.userEdit).toBe('preserved');
-      expect(recoveredTsconfig.include).toContain('.next-fixture/types/**/*.ts');
+      expect(cleanup.recoveryReceiptPath).toBeNull();
+      const liveTsconfig = JSON.parse(readFileSync(path.join(webRoot, 'tsconfig.json'), 'utf8'));
+      expect(liveTsconfig.userEdit).toBe('preserved');
+      expect(liveTsconfig.include).toContain('.next-fixture/types/**/*.ts');
       expect(readFileSync(path.join(webRoot, 'next-env.d.ts'))).toEqual(originalNextEnv);
+      expect(existsSync(path.join(root, 'recovery'))).toBe(false);
       expect(existsSync(path.join(webRoot, 'node_modules'))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -357,13 +543,37 @@ describe('privacy fixture runtime ownership', () => {
         recoveryRoot: path.join(root, 'recovery'),
       });
       expect(cleanup.failures).toEqual(['UNEXPECTED_NEXT_ENV_CHANGE']);
-      expect(readFileSync(path.join(webRoot, 'next-env.d.ts'))).toEqual(originalNextEnv);
-      const recoveryReceipt = JSON.parse(readFileSync(cleanup.recoveryReceiptPath!, 'utf8'));
-      const recoveredNextEnv = readFileSync(
-        path.join(path.dirname(cleanup.recoveryReceiptPath!), recoveryReceipt.files[0].recoveryFile),
-        'utf8',
-      );
-      expect(recoveredNextEnv).toContain('// user edit');
+      expect(cleanup.recoveryReceiptPath).toBeNull();
+      expect(readFileSync(path.join(webRoot, 'next-env.d.ts'), 'utf8')).toContain('// user edit');
+      expect(existsSync(path.join(root, 'recovery'))).toBe(false);
+      expect(existsSync(path.join(webRoot, 'node_modules'))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('does not recreate tracked or generated files deleted during the build', () => {
+    const { root, webRoot } = fixtureRoot();
+    try {
+      const dependencies = nextDependencies(root);
+      const originalTsconfig = Buffer.from('{"compilerOptions":{},"include":["source/**/*.ts"]}\n');
+      const originalNextEnv = Buffer.from('/// <reference types="next" />\n');
+      writeFileSync(path.join(webRoot, 'tsconfig.json'), originalTsconfig);
+      writeFileSync(path.join(webRoot, 'next-env.d.ts'), originalNextEnv);
+      const plan = resolveFixtureDependencies({ webRoot, argv: ['--dependencies', dependencies] });
+      prepareFixtureDependencies(plan);
+      rmSync(path.join(webRoot, 'tsconfig.json'));
+      rmSync(path.join(webRoot, 'next-env.d.ts'));
+
+      expect(cleanupPrivacyFixtureBuild({
+        webRoot,
+        dist: '.next-fixture',
+        tsconfigBefore: originalTsconfig,
+        nextEnvBefore: originalNextEnv,
+        dependencyPlan: plan,
+      })).toEqual({ failures: ['NEXT_ENV_MISSING', 'TSCONFIG_MISSING'], recoveryReceiptPath: null });
+      expect(existsSync(path.join(webRoot, 'tsconfig.json'))).toBe(false);
+      expect(existsSync(path.join(webRoot, 'next-env.d.ts'))).toBe(false);
       expect(existsSync(path.join(webRoot, 'node_modules'))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });

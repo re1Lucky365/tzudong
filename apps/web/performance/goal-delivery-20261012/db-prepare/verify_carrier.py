@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Fail closed when the review carrier drifts from protected main."""
+"""Fail closed unless the checked carrier is the canonical frozen-source build."""
 
 from __future__ import annotations
 
-import hashlib
+import contextlib
+import io
 import json
-import re
+import os
+import stat
 import subprocess
 import tempfile
 from pathlib import Path
@@ -13,79 +15,124 @@ from pathlib import Path
 import build_carrier
 
 
-ROOT = Path(__file__).resolve().parents[5]
 HERE = Path(__file__).resolve().parent
 CARRIER = HERE / "review-carrier-v1.json"
+FIXED_MISMATCH_ERROR = "carrier verification failed: canonical carrier mismatch"
 
 
-def git(*args: str, binary: bool = False) -> str | bytes:
-    value = subprocess.check_output(["git", *args], cwd=ROOT)
-    return value if binary else value.decode().strip()
+class _PrivateSubprocess:
+    @staticmethod
+    def check_output(*args: object, **kwargs: object) -> str | bytes:
+        kwargs.setdefault("stderr", subprocess.DEVNULL)
+        return subprocess.check_output(*args, **kwargs)
 
 
 def fail(message: str) -> None:
     raise SystemExit(f"carrier verification failed: {message}")
 
 
-def main() -> None:
-    carrier = json.loads(CARRIER.read_text())
-    protected = carrier["protectedSource"]
-    if git("rev-parse", "origin/main") != protected["commit"]:
-        fail("origin/main moved")
-    if git("rev-parse", f"{protected['commit']}^{{tree}}") != protected["tree"]:
-        fail("tree mismatch")
+def read_regular_bytes(path: Path) -> bytes:
+    """Read one stable regular file without following a replacement symlink."""
 
-    versions: list[str] = []
-    paths: set[str] = set()
-    with tempfile.TemporaryDirectory(prefix="tzudong-db-carrier-verify-") as temporary:
-        temp_root = Path(temporary)
-        parser = temp_root / Path(build_carrier.PARSER_PATH).name
-        parser.write_bytes(git("show", f"{protected['commit']}:{build_carrier.PARSER_PATH}", binary=True))
-        for migration in carrier["migrations"]:
-            path = migration["path"]
-            raw = git("show", f"{protected['commit']}:{path}", binary=True)
-            if path in paths:
-                fail("duplicate migration path")
-            paths.add(path)
-            if len(raw) != migration["bytes"]:
-                fail(f"size mismatch: {path}")
-            if hashlib.sha256(raw).hexdigest() != migration["sha256"]:
-                fail(f"source hash mismatch: {path}")
-            if git("rev-parse", f"{protected['commit']}:{path}") != migration["gitBlob"]:
-                fail(f"blob mismatch: {path}")
-            match = re.fullmatch(
-                r"backend/supabase/migrations/(\d{14})_([a-z0-9_]+)\.sql",
-                path,
+    try:
+        before = path.lstat()
+    except OSError:
+        fail("carrier unavailable")
+    if not stat.S_ISREG(before.st_mode):
+        fail("carrier unavailable")
+
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError:
+        fail("carrier unavailable")
+    try:
+        after = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(after.st_mode)
+            or (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino)
+        ):
+            fail("carrier unavailable")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        value = b"".join(chunks)
+        finished = os.fstat(descriptor)
+        if (
+            (
+                after.st_dev,
+                after.st_ino,
+                after.st_size,
+                after.st_mtime_ns,
+                after.st_ctime_ns,
             )
-            if not match or [match.group(1), match.group(2)] != [
-                migration["version"],
-                migration["name"],
-            ]:
-                fail(f"path identity mismatch: {path}")
-            observed = build_carrier.source_metadata(parser, path, temp_root)
-            for key in (
-                "statementCount",
-                "statementVectorSha256",
-                "transactionControls",
-            ):
-                if observed[key] != migration[key]:
-                    fail(f"{key} mismatch: {path}")
-            versions.append(migration["version"])
+            != (
+                finished.st_dev,
+                finished.st_ino,
+                finished.st_size,
+                finished.st_mtime_ns,
+                finished.st_ctime_ns,
+            )
+            or len(value) != finished.st_size
+        ):
+            fail("carrier unavailable")
+        return value
+    finally:
+        os.close(descriptor)
 
-    if versions != sorted(versions) or len(versions) != 11:
-        fail("ordered target set mismatch")
-    transition = carrier["transition"]
-    if transition["targetCount"] != 11 or transition["migrationOrder"] != versions:
-        fail("transition binding mismatch")
-    if carrier["existingExecutorCompatibility"]["adminRecordSqlSuccessor"]["targetCoverageCount"] != 0:
-        fail("successor compatibility changed")
-    if carrier["existingExecutorCompatibility"]["genericReleaseManifest"]["targetCoverageCount"] != 0:
-        fail("generic manifest compatibility changed")
-    if carrier["mode"] != "review_only_non_executable":
-        fail("carrier became executable")
-    if carrier["requiredExecutionHolds"]["currentTaskAuthorizesExecution"] is not False:
-        fail("authorization boundary changed")
-    print(json.dumps({"status": "passed", "migrations": 11, "remoteReads": 0, "writes": 0}))
+
+def canonical_carrier_bytes() -> bytes:
+    """Regenerate the complete carrier from the builder's frozen Git inputs."""
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="tzudong-db-carrier-verify-") as temporary:
+            temporary_root = Path(temporary)
+            previous_output = build_carrier.OUT
+            previous_subprocess = build_carrier.subprocess
+            try:
+                build_carrier.OUT = temporary_root
+                build_carrier.subprocess = _PrivateSubprocess
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build_carrier.main()
+                return read_regular_bytes(temporary_root / CARRIER.name)
+            finally:
+                build_carrier.OUT = previous_output
+                build_carrier.subprocess = previous_subprocess
+    except SystemExit:
+        raise
+    except Exception:
+        fail("canonical regeneration failed")
+
+
+def assert_canonical_carrier_bytes(candidate: bytes, canonical: bytes) -> None:
+    """Bind every key, value, list order, and serialized byte to the canonical build."""
+
+    if candidate != canonical:
+        raise SystemExit(FIXED_MISMATCH_ERROR)
+
+
+def verify_carrier(path: Path = CARRIER) -> dict[str, int | str]:
+    canonical = canonical_carrier_bytes()
+    candidate = read_regular_bytes(path)
+    assert_canonical_carrier_bytes(candidate, canonical)
+    try:
+        document = json.loads(canonical)
+        migration_count = len(document["migrations"])
+    except (json.JSONDecodeError, KeyError, TypeError):
+        fail("canonical regeneration failed")
+    return {
+        "status": "passed",
+        "migrations": migration_count,
+        "remoteReads": 0,
+        "writes": 0,
+    }
+
+
+def main() -> None:
+    print(json.dumps(verify_carrier(), separators=(",", ":")))
 
 
 if __name__ == "__main__":

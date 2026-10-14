@@ -1,0 +1,65 @@
+{
+  "schema": "tzudong-pr3195-boundary-review-delta/v1",
+  "recordedAt": "2026-10-14T03:39:31.592495+00:00",
+  "evidenceClass": "local executable regression and source readback",
+  "parentHead": "b85a10fca76eb65f1ce0447a8c46f89cb3acb6f9",
+  "changes": [
+    "pinned install tree closure",
+    "preserve concurrent checkout edits in place",
+    "register cleanup before start receipt writes",
+    "validate fixed bundle artifacts before child start",
+    "require explicit historical OCR configuration before provider module/admission"
+  ],
+  "rootVerification": {
+    "command": "bun test privacy-fixture-runtime,privacy-loopback-start-integrity,ocr-live-verification-cli,gemini-live-verification-boundary",
+    "files": 4,
+    "passed": 53,
+    "failed": 0,
+    "assertions": 376,
+    "runnerExitCode": 0,
+    "observedSeconds": 9.6,
+    "sampleInterpretation": "one local regression invocation; not performance evidence"
+  },
+  "sourceBindings": [
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/privacy-fixture-runtime.mjs",
+      "bytes": 19211,
+      "sha256": "bdfd6cff688a8ee99a6e9bdfcdcbad1f07774e457a6af86dcfbf120bc2be4a4c"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/start-loopback.mjs",
+      "bytes": 12913,
+      "sha256": "01aa085b3b9c7eda6764ad6abb37a0c47cba6354c645f606ef54500bf69d67f5"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/v2/start-loopback.mjs",
+      "bytes": 12938,
+      "sha256": "63a395f7c25388c11a527517bdd8c372639b5c41baee914c0176a7a7942c2a03"
+    },
+    {
+      "path": "apps/web/scripts/verify-ocr-gemini-live.ts",
+      "bytes": 11763,
+      "sha256": "89c3c076ea2a5b3e62a65730eb047766fe0c22acf6defa02fbb6ebc7464b9a17"
+    },
+    {
+      "path": "apps/web/tests-unit/privacy-fixture-runtime.test.ts",
+      "bytes": 29664,
+      "sha256": "f3d8342e97fc57c555223d59efe83b505b8fc5e176565f3e1d16b62287f965ec"
+    },
+    {
+      "path": "apps/web/tests-unit/privacy-loopback-start-integrity.test.ts",
+      "bytes": 14020,
+      "sha256": "dc2b98c3317780ab673e9de883cd211adcfa91d98ff119042e15e3e9f75187c0"
+    },
+    {
+      "path": "apps/web/tests-unit/ocr-live-verification-cli.test.ts",
+      "bytes": 11764,
+      "sha256": "a9c6df39e94e5ddb683be272970f7833353e498c9513e5b15e4f3bcb10b4f9c4"
+    }
+  ],
+  "limits": [
+    "No full production fixture rebuild or render after these changes.",
+    "No provider, hosted, payment, deployment or performance claim.",
+    "Targeted and earlier test counts overlap and must not be summed."
+  ]
+}

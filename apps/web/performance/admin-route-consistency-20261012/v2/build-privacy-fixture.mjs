@@ -34,8 +34,14 @@ const OUT = run.out;
 const DIST = run.dist;
 const NODE_MODULES = join(WEB_ROOT, 'node_modules');
 const EXPECTED_LOCK_SHA256 = '607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4';
-const roots = ['app/admin', 'app/api/admin/privacy-incidents', 'components/admin', 'components/home', 'integrations', 'lib', 'styles'];
-const extra = ['app/layout.tsx', 'app/app-runtime-layout.tsx', 'next.config.mjs', 'next-env.d.ts', 'package.json', 'package-lock.json', 'proxy.ts', 'tsconfig.json'];
+const excludedBuildInputRoots = new Set([
+  '.lazyweb',
+  '.omx',
+  '.vercel',
+  'node_modules',
+  'performance',
+]);
+const excludedBuildInputPaths = new Set(['supabase/.temp']);
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const relativePath = (path) => relative(WEB_ROOT, path).replaceAll('\\', '/');
@@ -45,23 +51,25 @@ function save(name, value) {
 }
 
 function manifest() {
-  const paths = new Set(extra.filter((path) => existsSync(join(WEB_ROOT, path))));
-  function walk(path) {
-    const absolute = join(WEB_ROOT, path);
-    if (!existsSync(absolute)) return;
+  const paths = [];
+  function walk(path = '') {
+    const absolute = path ? join(WEB_ROOT, path) : WEB_ROOT;
     for (const entry of readdirSync(absolute, { withFileTypes: true })) {
-      const child = `${path}/${entry.name}`;
+      const child = path ? `${path}/${entry.name}` : entry.name;
+      if (
+        (!path && (excludedBuildInputRoots.has(entry.name) || entry.name === '.next' || entry.name.startsWith('.next-')))
+        || excludedBuildInputPaths.has(child)
+      ) continue;
       if (entry.isDirectory()) walk(child);
-      else if (entry.isFile()) paths.add(child);
+      else if (entry.isFile()) paths.push(child);
       else throw new Error(`SOURCE_SYMLINK_NOT_ADMITTED:${child}`);
     }
   }
-  roots.forEach(walk);
-  return [...paths].sort().map((path) => ({
-    path,
-    bytes: readFileSync(join(WEB_ROOT, path)).byteLength,
-    sha256: sha256(readFileSync(join(WEB_ROOT, path))),
-  }));
+  walk();
+  return paths.sort().map((path) => {
+    const bytes = readFileSync(join(WEB_ROOT, path));
+    return { path, bytes: bytes.byteLength, sha256: sha256(bytes) };
+  });
 }
 
 function safeEnvironment() {

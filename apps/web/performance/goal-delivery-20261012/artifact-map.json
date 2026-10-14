@@ -1,5 +1,5 @@
 {
-  "schema": "tzudong-delivery-artifact-map/v1",
+  "schema": "tzudong-delivery-artifact-map/v2",
   "baseSha": "dd0c790be7ffc94a86f95126aa60019ded8ff9b7",
   "buildId": "HcJtq7WT9AGLOOijoRGrZ",
   "sourceManifestSha256": "2cc2a16f055ce9bbcb3cd1c75ac05c90cc0cbd36d29661d1967260ccf8dc3cfa",
@@ -408,29 +408,19 @@
       "sha256": "34dfa92b5de17b274cb972dc5f8f485d5846784a7ef9645cc552616726819252"
     },
     {
-      "path": "build-log-container.json",
-      "bytes": 503,
-      "sha256": "b83fecbadbb332490108e03716ed531095d8072f28ac173e98d7937dc3dc23ad"
-    },
-    {
-      "path": "build-turbopack-failed.json",
-      "bytes": 613,
-      "sha256": "3e5184f7484a38cb0b910e04e1ec8338224334e0bac492730979fdd24df8edd6"
-    },
-    {
       "path": "db-prepare/README.md",
       "bytes": 5439,
       "sha256": "afbd96f4d149c89314e215906dbf5334b7c33eecf1d7813b80ddea24ded9a3b6"
     },
     {
       "path": "db-prepare/artifact-map-v1.json",
-      "bytes": 1179,
-      "sha256": "312ec242a66cd8b17df93edeb865ad19a8f3477bc143cf5379401687a321a77a"
+      "bytes": 4924,
+      "sha256": "37a35393d91d197dbb03096edda6a56b38170fac3c3e1931ec115854252b9640"
     },
     {
       "path": "db-prepare/artifact-map-v1.sha256",
       "bytes": 87,
-      "sha256": "3fdde00266b6a205e168fbf24da8f0b7a5a7e800ec4119cba450848a77049ae7"
+      "sha256": "46a70ef7e973a31b4f87ba76c1ef48e7ac6987a412d47e6b63bb396ed7af07be"
     },
     {
       "path": "db-prepare/build_artifact_map.py",
@@ -443,6 +433,31 @@
       "sha256": "cebc35b4b7fb9856a0e23c0249acb8f0eb1248c73d10aa5d40bd6c27c92cc2d6"
     },
     {
+      "path": "db-prepare/carrier-verifier-delta-20261013.json",
+      "bytes": 2668,
+      "sha256": "fb383035265fb7ed33544f5d19c71ff7b02b423bb66980a3ca38b8f8c0d95d39"
+    },
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a/artifact-map-v1.json",
+      "bytes": 1179,
+      "sha256": "312ec242a66cd8b17df93edeb865ad19a8f3477bc143cf5379401687a321a77a"
+    },
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a/artifact-map-v1.sha256",
+      "bytes": 87,
+      "sha256": "3fdde00266b6a205e168fbf24da8f0b7a5a7e800ec4119cba450848a77049ae7"
+    },
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a/run_local_replay.py",
+      "bytes": 4484,
+      "sha256": "22b457af353db43914e0b35b04647278b359fa3827af033d630394ab526a3787"
+    },
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a/verify_carrier.py",
+      "bytes": 3637,
+      "sha256": "4bd5f7d9d357cd2ec379bc2ff0c111f7bfa564b9e8f1d4dc312e23c4d8739a65"
+    },
+    {
       "path": "db-prepare/local-replay-v1.json",
       "bytes": 1549,
       "sha256": "44ee007b4d0a3896eda7afffd75f65154fbfa32838451bd9d8e3b9b59b99aaf4"
@@ -453,14 +468,34 @@
       "sha256": "ddc64738652c7a4a2da7aa294a4d8aaac4dcb945e6ec963a3ac855eb5e78551a"
     },
     {
+      "path": "db-prepare/run-local-replay-hardening-delta-20261013.json",
+      "bytes": 3762,
+      "sha256": "522a1684a445a3f17d8299481e4f5ddc4cc33df3049cc56257b4c57d8b32142d"
+    },
+    {
+      "path": "db-prepare/run-local-replay-hardening-delta-20261013.sha256",
+      "bytes": 113,
+      "sha256": "6d4bf9ec9408eb6b2548eb063de9476ad014b5507e82958842058f6104bc2243"
+    },
+    {
       "path": "db-prepare/run_local_replay.py",
-      "bytes": 4484,
-      "sha256": "22b457af353db43914e0b35b04647278b359fa3827af033d630394ab526a3787"
+      "bytes": 19305,
+      "sha256": "e2dfc3a8b266b5adb8f6570915a2f79a3cc6d686d4596121979529bdc0f5701a"
+    },
+    {
+      "path": "db-prepare/test_run_local_replay.py",
+      "bytes": 10454,
+      "sha256": "6a8bda809c0b54464edc6c8b484712eac7ec6dcab77a37cb360d37b1eff97130"
+    },
+    {
+      "path": "db-prepare/test_verify_carrier.py",
+      "bytes": 8507,
+      "sha256": "c087eb8fd77fc9733371902df73da8222b9adeb6dba9db0dc88a731b943fe3aa"
     },
     {
       "path": "db-prepare/verify_carrier.py",
-      "bytes": 3637,
-      "sha256": "4bd5f7d9d357cd2ec379bc2ff0c111f7bfa564b9e8f1d4dc312e23c4d8739a65"
+      "bytes": 4177,
+      "sha256": "81983d82440b1ca6b388c75ea2b8eb7a8916276f6b66c2aff7fc9f3cfcbbe9e6"
     },
     {
       "path": "desktop-audit.jpg",
@@ -538,9 +573,9 @@
       "sha256": "2ce283946732f52fc4f9db98aa20552a5c2b84b9ce88d98201739b4db0e1bbef"
     },
     {
-      "path": "final-build-output.txt.gz",
-      "bytes": 579,
-      "sha256": "da3332c3e096c9e658959a0b6c2fd901997f4aa4c9fbeedc814707be6c59d102"
+      "path": "evidence-package-reconciliation-20261013.json",
+      "bytes": 3453,
+      "sha256": "b63bb07a4e19dc5eced0060b42f9d216e46537ad79de6dcf12983d87ba64d15a"
     },
     {
       "path": "final-build-receipt.json",
@@ -788,6 +823,16 @@
       "sha256": "af7183d7ebafd5f2e62aef210853f5ae00e165ef687320f08921c9a5fe6ab984"
     },
     {
+      "path": "historical-c503483d02c97c9a/artifact-map.json",
+      "bytes": 37564,
+      "sha256": "adb3918fbf6d55efe6b3a712ead47170b5a495a5da7dfd167eb4a64887d53385"
+    },
+    {
+      "path": "historical-c503483d02c97c9a/artifact-map.json.sha256",
+      "bytes": 84,
+      "sha256": "0a4d60cb71af7e8e7587b63cf4a7ac723d707e3d313a5560fe394de5ca1d15c3"
+    },
+    {
       "path": "initial-desktop-render.json",
       "bytes": 10426,
       "sha256": "73eddd45d2f7d28aefbfd3c10277f4c3a8bcf347af6d43ca925dce2279a38bc5"
@@ -1023,9 +1068,10 @@
       "sha256": "adab8aa5f3aded104c68678e08dd756a348ce66ed5322a9f62b09b83802de88c"
     },
     {
-      "path": "third-build-header-render.json",
-      "bytes": 33341,
-      "sha256": "0fe3c495538d0dd9d0cfe695bab0ee64fe4c88c4d9d7d9f94c303647d96818ba"
+      "path": "source-reconciliation-delta-20261013-v2.json",
+      "bytes": 3962,
+      "sha256": "4f5dd32c69dcb3d285448aea6b8f9013fb27259b9553bacf99468fc4ad23d8ac",
+      "role": "current-selected-source-reconciliation-delta"
     },
     {
       "path": "source-reconciliation-delta-20261013.json",
@@ -1034,10 +1080,9 @@
       "role": "pre-final-selected-source-reconciliation-delta"
     },
     {
-      "path": "source-reconciliation-delta-20261013-v2.json",
-      "bytes": 3962,
-      "sha256": "4f5dd32c69dcb3d285448aea6b8f9013fb27259b9553bacf99468fc4ad23d8ac",
-      "role": "current-selected-source-reconciliation-delta"
+      "path": "third-build-header-render.json",
+      "bytes": 33341,
+      "sha256": "0fe3c495538d0dd9d0cfe695bab0ee64fe4c88c4d9d7d9f94c303647d96818ba"
     }
   ],
   "historicalPackages": [
@@ -1051,12 +1096,32 @@
       "sha256": "251afc906a6493ced159430ff72b55d56b63ee6c62afbc0e10a218ab4e116114",
       "verifiedArtifacts": 6,
       "classification": "historical-paid-provider-package"
+    },
+    {
+      "path": "historical-c503483d02c97c9a/artifact-map.json",
+      "sha256": "adb3918fbf6d55efe6b3a712ead47170b5a495a5da7dfd167eb4a64887d53385",
+      "verifiedArtifacts": 176,
+      "classification": "immutable-c503-parent-inventory"
+    },
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a/artifact-map-v1.json",
+      "sha256": "312ec242a66cd8b17df93edeb865ad19a8f3477bc143cf5379401687a321a77a",
+      "verifiedArtifacts": 8,
+      "classification": "immutable-c503-db-prepare-inventory"
+    },
+    {
+      "path": "../admin-route-consistency-20261012/historical-c503483d02c97c9a/artifact-map.json",
+      "sha256": "335fb4abe8fdd3b6445ab334d3ded0f29377a2517640068add56485848249414",
+      "verifiedArtifacts": 62,
+      "classification": "immutable-c503-admin-route-inventory"
     }
   ],
   "limits": [
     "Source, local synthetic rendering, provider canaries and operating deployment remain separate evidence classes.",
     "No production DB, Storage, provider, billing or deployment mutation in this delivery.",
-    "Whole goal remains active; provider/DB/UI end-to-end, card removal and 1071 long-form completion are not proven."
+    "Whole goal remains active; provider/DB/UI end-to-end, card removal and 1071 long-form completion are not proven.",
+    "This map reconciliation verifies file identity only; existing build, render, runtime, database, provider and browser receipts were not rerun.",
+    "Diagnostic logs, interpreter caches, credentials and secrets are excluded from the current inventory."
   ],
   "changedSourcesClassification": {
     "status": "historical-build-source-bindings",
@@ -1096,5 +1161,63 @@
     ],
     "historicalBuildReplayed": false,
     "historicalReadbackReplayed": false
+  },
+  "packageSourceHead": "c503483d02c97c9abe6a19eddd8cd3f5715ebc42",
+  "scope": "Current source-only hardening evidence and complete current db-prepare byte inventory, with pre-existing build/render/runtime/provider receipts retained as historical evidence. No historical execution receipt was rerun by this reconciliation.",
+  "artifactCount": 185,
+  "artifactBytes": 10197400,
+  "currentPackageBindings": [
+    {
+      "path": "db-prepare/artifact-map-v1.json",
+      "sha256": "37a35393d91d197dbb03096edda6a56b38170fac3c3e1931ec115854252b9640",
+      "artifactCount": 16,
+      "classification": "current-source-plus-historical-db-inventory"
+    },
+    {
+      "path": "../admin-route-consistency-20261012/artifact-map.json",
+      "sha256": "f8ee56863632052c88e4369ebbbcd0de9abb10420e26f8ac2539b78b4303a7ea",
+      "artifactCount": 71,
+      "classification": "current-source-plus-historical-ui-evidence-inventory"
+    },
+    {
+      "path": "evidence-package-reconciliation-20261013.json",
+      "sha256": "b63bb07a4e19dc5eced0060b42f9d216e46537ad79de6dcf12983d87ba64d15a",
+      "classification": "current-reconciliation-receipt"
+    }
+  ],
+  "evidenceClassification": {
+    "currentSourceOnlyReceipts": [
+      "db-prepare/carrier-verifier-delta-20261013.json",
+      "db-prepare/run-local-replay-hardening-delta-20261013.json",
+      "../admin-route-consistency-20261012/privacy-fixture-startup-closure-delta-20261013.json"
+    ],
+    "historicalExecutionEvidence": "All pre-existing build, render, runtime, database replay, provider, and browser receipts remain historical unless separately named as current source-only evidence.",
+    "historicalReceiptsRerun": false,
+    "currentProductionBuildClaim": false,
+    "currentUiRenderClaim": false,
+    "currentDatabaseClaim": false,
+    "currentProviderClaim": false
+  },
+  "exclusions": {
+    "mapSelfReference": [
+      "artifact-map.json",
+      "artifact-map.json.sha256"
+    ],
+    "diagnosticLogsNotIndexed": [
+      "build-log-container.json",
+      "build-turbopack-failed.json",
+      "final-build-output.txt.gz"
+    ],
+    "generatedInterpreterCachesNotIndexed": [
+      "db-prepare/__pycache__/**",
+      "db-prepare/**/*.pyc"
+    ],
+    "credentialsAndSecretsNotIndexed": [
+      ".env*",
+      "*credential*",
+      "*secret*",
+      "session tokens",
+      "raw request or response bodies"
+    ]
   }
 }

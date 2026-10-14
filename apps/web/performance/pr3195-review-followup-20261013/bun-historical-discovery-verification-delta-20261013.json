@@ -1,0 +1,83 @@
+{
+  "schema": "tzudong-bun-historical-discovery-verification-delta/v1",
+  "evidenceClass": "local-bounded-runtime-regression",
+  "candidate": {
+    "head": "a077a1f211e0494a98d9d9a0564b4aba37686d45",
+    "bun": "1.4.0"
+  },
+  "priorEvidence": {
+    "path": "apps/web/performance/pr3195-review-followup-20261013/ci-typecheck-historical-input-delta-20261013.json",
+    "sha256": "a1e997ce5a045338af4f41ebf89695cc0ea7986b5167b653fd2dd7f42ab0a257",
+    "classification": "Frozen source, compiler, parity, and targeted-discovery proof. It did not independently construct an active performance test beside a deliberately failing historical test; this delta adds that behavior coverage without changing the prior receipt."
+  },
+  "fixture": {
+    "ownership": "One mkdtempSync directory under the platform temporary directory; only that directory is removed in finally.",
+    "bunfig": "Exact byte copy of apps/web/bunfig.toml.",
+    "invocation": "Absolute current Bun executable with the single argument test and the owned fixture as cwd.",
+    "activeInputs": [
+      "tests-unit/active-unit.test.ts",
+      "performance/active-performance.test.ts"
+    ],
+    "excludedInput": "performance/fixture/historical-deadbeef/archived-failure.test.ts",
+    "excludedInputBehaviorIfLoaded": "Creates archive.marker and fails an assertion.",
+    "environment": "Bounded CI/NO_COLOR plus present PATH, platform system root, and temporary-directory variables; no project or provider credentials are copied."
+  },
+  "runtimeReadback": {
+    "automaticDiscovery": true,
+    "filePatternArguments": 0,
+    "activeMarkers": 2,
+    "archiveMarkers": 0,
+    "childTestsPassed": 2,
+    "childTestsFailed": 0,
+    "childFilesRun": 2,
+    "outerRegressionTestsPassed": 1,
+    "outerRegressionTestsFailed": 0,
+    "outerAssertions": 9
+  },
+  "sourceBindings": [
+    {
+      "path": "apps/web/bunfig.toml",
+      "bytes": 63,
+      "sha256": "3b49f3e9081826d620c036167072a9dbaf5b7eb4316e43b71dd7823671d22ccf"
+    },
+    {
+      "path": "apps/web/tsconfig.json",
+      "bytes": 1298,
+      "sha256": "42fa4271abb1177f6c171d2740f71012247c8f75dd05fd58ffa288231d9f2bc6"
+    },
+    {
+      "path": "apps/web/tests-unit/typescript-toolchain-source.test.ts",
+      "bytes": 8803,
+      "sha256": "294b043f83c8aba726b29279002d79c7d1b93a45050aa8c98cc473d3c5c9aa57"
+    },
+    {
+      "path": "apps/web/tests-unit/bun-historical-discovery-contract.test.ts",
+      "bytes": 3315,
+      "sha256": "e290b22b1e1bdcd856a11110b0dc57b62cfb483fc959abeb4ad28fb55f3b3610"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/historical-c503483d02c97c9a/tests-unit/privacy-fixture-runtime.test.ts",
+      "bytes": 18608,
+      "sha256": "a8b2c19e8ef64f46d934d9240317bbdeccf9bfe2b298b74379b1144f70f79ed0"
+    }
+  ],
+  "verification": {
+    "combinedAffectedTests": {
+      "files": 3,
+      "testsPassed": 21,
+      "testsFailed": 0,
+      "assertions": 514
+    },
+    "targetedEslint": "passed",
+    "historicalSourceBytesChanged": false,
+    "officialBunReference": "https://bun.com/docs/test/configuration#path-ignore-patterns"
+  },
+  "limits": {
+    "githubCiRerun": false,
+    "windowsLocalExecution": false,
+    "hostedWrites": 0,
+    "deployments": 0,
+    "performanceClaim": null,
+    "confidenceIntervalApplicable": false
+  }
+}
