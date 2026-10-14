@@ -2,13 +2,17 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import {
   closeSync,
+  constants,
   createWriteStream,
   existsSync,
+  fstatSync,
+  lstatSync,
   openSync,
   readFileSync,
+  realpathSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   cleanupFixtureDependencies,
@@ -38,7 +42,62 @@ const DIST = run.dist;
 const FIXTURE_SERVER = resolve(EVIDENCE_ROOT, 'v2/fixture-server.mjs');
 const BUILD_RECEIPT = join(BUILD_OUT, 'privacy-build-receipt.json');
 const EXPECTED_LOCK_SHA256 = '607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4';
+const EXPECTED_BUILD_ARTIFACTS = Object.freeze([
+  'BUILD_ID',
+  'build-manifest.json',
+  'app-build-manifest.json',
+  'routes-manifest.json',
+  'required-server-files.json',
+]);
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+
+function revalidateBuildArtifacts(receipt) {
+  const buildDirectory = resolve(WEB_ROOT, DIST);
+  if (buildDirectory === WEB_ROOT || !buildDirectory.startsWith(`${WEB_ROOT}${sep}`)) {
+    throw new Error('BUILD_ARTIFACT_ROOT_INVALID');
+  }
+  const buildDirectoryStat = lstatSync(buildDirectory);
+  if (!buildDirectoryStat.isDirectory() || buildDirectoryStat.isSymbolicLink()) {
+    throw new Error('BUILD_ARTIFACT_ROOT_INVALID');
+  }
+  if (!Array.isArray(receipt.artifacts)
+    || receipt.artifacts.length !== EXPECTED_BUILD_ARTIFACTS.length
+    || receipt.artifacts.some((entry, index) => entry?.path !== EXPECTED_BUILD_ARTIFACTS[index])) {
+    throw new Error('BUILD_ARTIFACT_LIST_INVALID');
+  }
+
+  const realBuildDirectory = realpathSync(buildDirectory);
+  const snapshots = receipt.artifacts.map((entry) => {
+    if (typeof entry.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(entry.sha256)) {
+      throw new Error('BUILD_ARTIFACT_HASH_INVALID');
+    }
+    const artifactPath = resolve(buildDirectory, entry.path);
+    if (!artifactPath.startsWith(`${buildDirectory}${sep}`)) throw new Error('BUILD_ARTIFACT_PATH_INVALID');
+    const realArtifactPath = realpathSync(artifactPath);
+    if (!realArtifactPath.startsWith(`${realBuildDirectory}${sep}`)) throw new Error('BUILD_ARTIFACT_PATH_INVALID');
+    const artifactFd = openSync(artifactPath, constants.O_RDONLY | constants.O_NOFOLLOW);
+    let bytes;
+    try {
+      if (!fstatSync(artifactFd).isFile()) throw new Error('BUILD_ARTIFACT_PATH_INVALID');
+      bytes = readFileSync(artifactFd);
+    } finally {
+      closeSync(artifactFd);
+    }
+    const actualSha256 = sha256(bytes);
+    if (actualSha256 !== entry.sha256) throw new Error('BUILD_ARTIFACT_HASH_MISMATCH');
+    return { path: entry.path, sha256: actualSha256, size: bytes.length, bytes };
+  });
+  const buildId = snapshots.find((entry) => entry.path === 'BUILD_ID')?.bytes.toString('utf8').trim() ?? '';
+  if (!buildId || receipt.buildId !== buildId) throw new Error('BUILD_RECEIPT_INVALID');
+  return {
+    buildId,
+    artifacts: snapshots.map(({ path, sha256: artifactSha256, size }) => ({
+      path,
+      sha256: artifactSha256,
+      size,
+    })),
+  };
+}
 
 function save(name, value) {
   writeFileSync(join(RUNTIME_OUT, name), `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
@@ -93,9 +152,9 @@ function safeEnvironment() {
 
 if (Number.parseInt(process.versions.node.split('.')[0] ?? '', 10) !== 24) throw new Error('NODE_24_REQUIRED');
 if (!existsSync(BUILD_RECEIPT)) throw new Error('BUILD_RECEIPT_MISSING');
-const receipt = JSON.parse(readFileSync(BUILD_RECEIPT, 'utf8'));
-const buildId = readFileSync(join(WEB_ROOT, DIST, 'BUILD_ID'), 'utf8').trim();
-if (receipt.status !== 0 || receipt.distDir !== DIST || receipt.buildId !== buildId || !receipt.sourceUnchanged || !receipt.tsconfigRestored
+const buildReceiptBytes = readFileSync(BUILD_RECEIPT);
+const receipt = JSON.parse(buildReceiptBytes.toString('utf8'));
+if (receipt.status !== 0 || receipt.distDir !== DIST || !receipt.sourceUnchanged || !receipt.tsconfigRestored
   || (receipt.runId ?? null) !== run.runId || (receipt.basePort ?? DEFAULT_BASE_PORT) !== run.basePort) {
   throw new Error('BUILD_RECEIPT_INVALID');
 }
@@ -117,7 +176,6 @@ const runtimeLog = createWriteStream(runtimeEvidence.logPath, {
   fd: runtimeEvidence.logFd,
   autoClose: true,
 });
-prepareFixtureDependencies(dependencyPlan);
 function mirror(name, stream, target) {
   let pending = '';
   stream.on('data', (chunk) => {
@@ -139,76 +197,61 @@ function mirror(name, stream, target) {
   });
 }
 
-const next = spawn(NODE, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(run.ports.next)], {
-  cwd: WEB_ROOT,
-  env: safeEnvironment(),
-  shell: false,
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
-const gateway = spawn(NODE, fixtureInvocation.args, {
-  cwd: WEB_ROOT,
-  env: safeEnvironment(),
-  shell: false,
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
-mirror('next:stdout', next.stdout, process.stdout);
-mirror('next:stderr', next.stderr, process.stderr);
-mirror('gateway:stdout', gateway.stdout, process.stdout);
-mirror('gateway:stderr', gateway.stderr, process.stderr);
-
-commitRuntimeStart(runtimeEvidence.startFd, {
-  schema: 'tzudong-privacy-incidents-loopback/v2',
-  node: process.versions.node,
-  ...(run.runId !== null || run.basePort !== DEFAULT_BASE_PORT ? { runId: run.runId, basePort: run.basePort } : {}),
-  ...(run.runtimeAttempt !== null ? { runtimeAttempt: run.runtimeAttempt } : {}),
-  buildId,
-  distDir: DIST,
-  launcherPid: process.pid,
-  nextPid: next.pid,
-  gatewayPid: gateway.pid,
-  origins: {
-    next: `http://127.0.0.1:${run.ports.next}`,
-    supabase: `http://127.0.0.1:${run.ports.supabase}`,
-    gateway: `http://127.0.0.1:${run.ports.gateway}`,
-    visibleStart: `http://127.0.0.1:${run.ports.gateway}/__fixture/start`,
-  },
-  source: {
-    fixtureServerSha256: fixtureInvocation.sourceSha256,
-    runtimeFixtureServerSha256: fixtureInvocation.runtimeSha256,
-    fixtureServerPortsPatched: fixtureInvocation.portsPatched,
-    launcherSha256: sha256(readFileSync(fileURLToPath(import.meta.url))),
-    buildReceiptSha256: sha256(readFileSync(BUILD_RECEIPT)),
-  },
-  boundaries: {
-    loopbackOnly: true,
-    syntheticDataOnly: true,
-    browserMutationMethodsAllowed: false,
-    hostedCredentialsAdmitted: false,
-    dependencyMode: dependencyPlan.mode,
-  },
-});
-
-process.stdout.write(`build_id=${buildId}\nfixture_start=http://127.0.0.1:${run.ports.gateway}/__fixture/start\n`);
-
 let closing = false;
 let exitCode = 0;
+let launchSettled = false;
+let finalized = false;
+let runtimeStartOpen = true;
+let shutdownTimer = null;
+const children = [];
+const closedChildren = new Set();
+
+function closeRuntimeStartReservation() {
+  if (!runtimeStartOpen) return;
+  runtimeStartOpen = false;
+  try {
+    closeSync(runtimeEvidence.startFd);
+  } catch {
+    // Preserve the original launch error; cleanup continues below.
+  }
+}
+
+function finalize() {
+  if (finalized || !launchSettled || closedChildren.size !== children.length) return;
+  finalized = true;
+  if (shutdownTimer !== null) clearTimeout(shutdownTimer);
+  closeRuntimeStartReservation();
+  const dependencyCleanup = cleanupFixtureDependencies(dependencyPlan);
+  runtimeLog.end(() => {
+    save('privacy-runtime-stop.json', {
+      exitCode: dependencyCleanup.complete ? exitCode : 1,
+      dependencyLinkRemoved: dependencyCleanup.complete,
+      cleanupCode: dependencyCleanup.code,
+    });
+    process.exit(dependencyCleanup.complete ? exitCode : 1);
+  });
+}
+
 function shutdown(code = 0) {
   if (closing) return;
   closing = true;
   exitCode = code;
-  for (const child of [gateway, next]) {
+  for (const { child } of children) {
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
   }
-  const timeout = setTimeout(() => {
-    for (const child of [gateway, next]) {
-      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-    }
-  }, 5_000);
-  timeout.unref();
+  if (children.some(({ child }) => child.exitCode === null && child.signalCode === null)) {
+    shutdownTimer = setTimeout(() => {
+      for (const { child } of children) {
+        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      }
+    }, 5_000);
+    shutdownTimer.unref();
+  }
+  finalize();
 }
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => shutdown(0));
-const closedChildren = new Set();
-for (const [name, child] of [['next', next], ['gateway', gateway]]) {
+
+function registerChild(name, child) {
+  children.push({ name, child });
   child.on('error', (error) => {
     runtimeLog.write(`[${name}:error] ${error.name}\n`);
     shutdown(1);
@@ -217,16 +260,86 @@ for (const [name, child] of [['next', next], ['gateway', gateway]]) {
     closedChildren.add(name);
     runtimeLog.write(`[${name}:close] code=${code} signal=${signal}\n`);
     if (!closing) shutdown(code || 1);
-    if (closedChildren.size === 2) {
-      const dependencyCleanup = cleanupFixtureDependencies(dependencyPlan);
-      runtimeLog.end(() => {
-        save('privacy-runtime-stop.json', {
-          exitCode: dependencyCleanup.complete ? exitCode : 1,
-          dependencyLinkRemoved: dependencyCleanup.complete,
-          cleanupCode: dependencyCleanup.code,
-        });
-        process.exit(dependencyCleanup.complete ? exitCode : 1);
-      });
-    }
+    finalize();
   });
+}
+
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => shutdown(0));
+process.on('uncaughtException', (error) => {
+  runtimeLog.write(`[launcher:uncaughtException] ${error.name}\n`);
+  launchSettled = true;
+  closeRuntimeStartReservation();
+  shutdown(1);
+});
+process.on('unhandledRejection', (reason) => {
+  runtimeLog.write(`[launcher:unhandledRejection] ${reason instanceof Error ? reason.name : 'Error'}\n`);
+  launchSettled = true;
+  closeRuntimeStartReservation();
+  shutdown(1);
+});
+
+try {
+  prepareFixtureDependencies(dependencyPlan);
+  const buildSnapshot = revalidateBuildArtifacts(receipt);
+  const next = spawn(NODE, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(run.ports.next)], {
+    cwd: WEB_ROOT,
+    env: safeEnvironment(),
+    shell: false,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  registerChild('next', next);
+  const gateway = spawn(NODE, fixtureInvocation.args, {
+    cwd: WEB_ROOT,
+    env: safeEnvironment(),
+    shell: false,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  registerChild('gateway', gateway);
+  mirror('next:stdout', next.stdout, process.stdout);
+  mirror('next:stderr', next.stderr, process.stderr);
+  mirror('gateway:stdout', gateway.stdout, process.stdout);
+  mirror('gateway:stderr', gateway.stderr, process.stderr);
+
+  commitRuntimeStart(runtimeEvidence.startFd, {
+    schema: 'tzudong-privacy-incidents-loopback/v2',
+    node: process.versions.node,
+    ...(run.runId !== null || run.basePort !== DEFAULT_BASE_PORT ? { runId: run.runId, basePort: run.basePort } : {}),
+    ...(run.runtimeAttempt !== null ? { runtimeAttempt: run.runtimeAttempt } : {}),
+    buildId: buildSnapshot.buildId,
+    distDir: DIST,
+    launcherPid: process.pid,
+    nextPid: next.pid,
+    gatewayPid: gateway.pid,
+    origins: {
+      next: `http://127.0.0.1:${run.ports.next}`,
+      supabase: `http://127.0.0.1:${run.ports.supabase}`,
+      gateway: `http://127.0.0.1:${run.ports.gateway}`,
+      visibleStart: `http://127.0.0.1:${run.ports.gateway}/__fixture/start`,
+    },
+    source: {
+      fixtureServerSha256: fixtureInvocation.sourceSha256,
+      runtimeFixtureServerSha256: fixtureInvocation.runtimeSha256,
+      fixtureServerPortsPatched: fixtureInvocation.portsPatched,
+      launcherSha256: sha256(readFileSync(fileURLToPath(import.meta.url))),
+      buildReceiptSha256: sha256(buildReceiptBytes),
+      buildArtifacts: buildSnapshot.artifacts,
+    },
+    boundaries: {
+      loopbackOnly: true,
+      syntheticDataOnly: true,
+      browserMutationMethodsAllowed: false,
+      hostedCredentialsAdmitted: false,
+      dependencyMode: dependencyPlan.mode,
+    },
+  });
+  runtimeStartOpen = false;
+  launchSettled = true;
+  process.stdout.write(`build_id=${buildSnapshot.buildId}\nfixture_start=http://127.0.0.1:${run.ports.gateway}/__fixture/start\n`);
+  finalize();
+} catch (error) {
+  launchSettled = true;
+  closeRuntimeStartReservation();
+  runtimeLog.write(`[launcher:error] ${error instanceof Error ? error.name : 'Error'}\n`);
+  shutdown(1);
+  finalize();
 }
