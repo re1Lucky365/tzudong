@@ -550,6 +550,7 @@ function cleanupOwnedFixtures(ownership) {
 export function inspectRetainedProof({
   outputPath = OUTPUT_PATH,
   checksumsPath = CHECKSUMS_PATH,
+  checksumsDigestPath = `${checksumsPath}.sha256`,
   currentBindings,
   existsImpl = existsSync,
   readFileImpl = readFileSync,
@@ -558,7 +559,12 @@ export function inspectRetainedProof({
   if (!currentBindings || typeof currentBindings !== 'object') {
     fail('LOCAL_REHEARSAL_CURRENT_BINDINGS_INVALID');
   }
-  const checksumLines = readFileImpl(checksumsPath, 'utf8').split(/\r?\n/).filter(Boolean);
+  if (!existsImpl(checksumsDigestPath)) fail('LOCAL_REHEARSAL_CHECKSUMS_DIGEST_MISSING');
+  const checksumBytes = readFileImpl(checksumsPath);
+  const checksumDigest = readFileImpl(checksumsDigestPath, 'utf8').trim();
+  if (!/^[a-f0-9]{64}$/.test(checksumDigest)) fail('LOCAL_REHEARSAL_CHECKSUMS_DIGEST_INVALID');
+  if (sha256(checksumBytes) !== checksumDigest) fail('LOCAL_REHEARSAL_CHECKSUMS_SHA256_MISMATCH');
+  const checksumLines = checksumBytes.toString('utf8').split(/\r?\n/).filter(Boolean);
   const matchingLines = checksumLines.filter(line => line.endsWith(`  ${RETAINED_PROOF_REPOSITORY_PATH}`));
   if (matchingLines.length !== 1) fail('LOCAL_REHEARSAL_RETAINED_CHECKSUM_MISSING');
   const checksumMatch = matchingLines[0].match(/^([0-9a-f]{64})  (.+)$/);
@@ -599,6 +605,7 @@ export function inspectRetainedProof({
     repositoryPath: RETAINED_PROOF_REPOSITORY_PATH,
     expectedSha256: checksumMatch[1],
     actualSha256,
+    checksumMapSha256: checksumDigest,
     bindings: Object.freeze(retainedBindings),
     currentSourceMatch: bindingDifferences.length === 0,
     bindingDifferences: Object.freeze(bindingDifferences),
@@ -766,8 +773,15 @@ function startAdvisoryLockHolder() {
       else rejectCompletion(new Error(`LOCAL_REHEARSAL_LOCK_HOLDER_FAILED:${code}:${stderr.replace(/\s+/g, ' ').slice(0, 120)}`));
     });
   });
-  child.stdin.end(`BEGIN;\nSELECT pg_advisory_xact_lock(7311754282260211::bigint);\nSELECT 'LOCK_HELD';\nSELECT pg_sleep(1.55);\nCOMMIT;\n`);
-  return { child, completion, ready };
+  child.stdin.write(`BEGIN;\nSET LOCAL statement_timeout='10s';\nSET LOCAL idle_in_transaction_session_timeout='10s';\nSELECT pg_advisory_xact_lock(7311754282260211::bigint);\nSELECT 'LOCK_HELD';\n`);
+  let released = false;
+  const release = () => {
+    if (!released) {
+      released = true;
+      child.stdin.end('COMMIT;\n');
+    }
+  };
+  return { child, completion, ready, release };
 }
 
 function startPsqlProcess(database, sql, { applicationName, singleTransaction = false } = {}) {
@@ -802,16 +816,23 @@ function startPsqlProcess(database, sql, { applicationName, singleTransaction = 
   return { child, completion };
 }
 
-async function waitForAdvisoryContention(expiresAt) {
-  const deadline = Math.min(expiresAt - 25, Date.now() + 700);
-  while (Date.now() < deadline) {
-    const waiting = scalar(DATABASE, `SELECT count(*) FROM pg_stat_activity a
+export async function waitForAdvisoryContention(expiresAt, {
+  nowMs = Date.now,
+  readWaiting = () => scalar(DATABASE, `SELECT count(*) FROM pg_stat_activity a
       JOIN pg_locks l ON l.pid=a.pid
       WHERE a.application_name=${quote(EXPIRY_APPLICATION_NAME)}
-        AND l.locktype='advisory' AND NOT l.granted;`, 'supabase_admin');
-    if (waiting === '1') return Date.now();
+        AND l.locktype='advisory' AND NOT l.granted;`, 'supabase_admin'),
+  delayImpl = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms)),
+} = {}) {
+  const deadline = Math.min(expiresAt - 25, nowMs() + 2000);
+  while (nowMs() < deadline) {
+    const waiting = readWaiting();
+    if (waiting === '1') {
+      if (nowMs() >= expiresAt) fail('LOCAL_REHEARSAL_CONTENTION_OBSERVED_AFTER_EXPIRY');
+      return nowMs();
+    }
     if (waiting !== '0') fail('LOCAL_REHEARSAL_CONTENTION_CARDINALITY_INVALID');
-    await new Promise(resolveDelay => setTimeout(resolveDelay, 20));
+    await delayImpl(20);
   }
   fail('LOCAL_REHEARSAL_ADVISORY_CONTENTION_NOT_OBSERVED');
 }
@@ -820,13 +841,14 @@ async function assertContendedExpiryRejected(record, stages, stateQuery, ownersh
   resetOwnedDatabase(ownership);
   const baseline = readState(DATABASE, stateQuery);
   if (!equal(baseline, stages[0])) fail('LOCAL_REHEARSAL_EXPIRY_BASELINE_INVALID');
-  const expiresAt = Date.now() + 1500;
-  const expiry = new Date(expiresAt).toISOString();
-  const expiringPlan = compileSuccessorPlan(record, { expiresAt: expiry, stageStates: stages });
   const holder = startAdvisoryLockHolder();
   let apply = null;
   try {
     await holder.ready;
+    // Fixture setup and Docker startup must not consume the admitted lock-wait window.
+    const expiresAt = Date.now() + 1500;
+    const expiry = new Date(expiresAt).toISOString();
+    const expiringPlan = compileSuccessorPlan(record, { expiresAt: expiry, stageStates: stages });
     if (Date.now() >= expiresAt) fail('LOCAL_REHEARSAL_EXPIRY_WINDOW_TOO_SHORT');
     apply = startPsqlProcess(DATABASE, expiringPlan.sql, {
       applicationName: EXPIRY_APPLICATION_NAME,
@@ -834,6 +856,8 @@ async function assertContendedExpiryRejected(record, stages, stateQuery, ownersh
     });
     const contentionObservedAt = await waitForAdvisoryContention(expiresAt);
     if (contentionObservedAt >= expiresAt) fail('LOCAL_REHEARSAL_CONTENTION_OBSERVED_AFTER_EXPIRY');
+    await new Promise(resolveDelay => setTimeout(resolveDelay, Math.max(0, expiresAt - Date.now() + 25)));
+    holder.release();
     const [rejected] = await Promise.all([apply.completion, holder.completion]);
     if (rejected.status === 0
       || !/SUCCESSOR_ADMISSION_EXPIRED/.test(rejected.stderr)

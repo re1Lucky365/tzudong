@@ -81,3 +81,20 @@ is reconciled only by an exact read-only baseline/terminal-state read; it never
 performs a diagnostic mutation replay. Two injected outcome cases cover terminal
 commit acknowledgement loss and a rolled-back baseline. This change has local
 fault tests; no fresh forward-harness replay is claimed.
+
+## Current review-fix replay — 2026-10-14
+
+`pg17-current-review-fixes-20261014-v2.json` binds the current manifest and harness.
+It passed the 11-stage PG17.6 atomic commit, exact rollback, wrong preimage,
+view/column ACL/membership drift, and real advisory-wait expiry rejection. The
+per-run database and fixture roles were removed. The template still records
+1,963 manifest rows and zero profiles/reviews; no hosted state was accessed.
+
+The v1 attempt failed to observe contention in its 700ms observation window.
+Its stdout and stderr are retained. The local fixture now confirms the holder
+is ready before starting the same 1.5-second expiry window, observes an actual
+wait before expiry, and releases the lock just after expiry. Production timeouts
+are unchanged; this is a fixture-order correction, not a performance result.
+The historical proof and old checksum indexes remain available. The current
+retained-proof reader verifies the independently pinned checksum map before
+accepting any entry and still classifies old source bindings as historical.
