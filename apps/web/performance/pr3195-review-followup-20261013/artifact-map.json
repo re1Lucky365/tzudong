@@ -32,6 +32,18 @@
       "classification": "current CI/discovery delta"
     },
     {
+      "path": "historical-7c2ad0c8-index/artifact-map.json",
+      "bytes": 3570,
+      "sha256": "158f53d225b9b4e9cb8b089b0f816f67d9c96969f7b5daf1a42f1b39e7cb37f4",
+      "classification": "historical index bytes"
+    },
+    {
+      "path": "historical-7c2ad0c8-index/artifact-map.sha256",
+      "bytes": 84,
+      "sha256": "a76c0e4a1c2f1d996da895b1acd8e3f61b4771e5b1e3c0bd9a2e34d0b8f95942",
+      "classification": "historical index checksum"
+    },
+    {
       "path": "historical-a077a1f2/artifact-map.json",
       "bytes": 535,
       "sha256": "39b1914d07c8bcb63d556ff2fd841c9eba3fa971bd0e14659c0bda4388258871",
@@ -42,6 +54,18 @@
       "bytes": 84,
       "sha256": "19c04034273fa92036eff0213473b2b04bdf2f4e334cb141ddcd58bf330c01eb",
       "classification": "historical index bytes"
+    },
+    {
+      "path": "merged-controller-verification-20261014.json",
+      "bytes": 1808,
+      "sha256": "054a51ec6c2d906acbe38a257e5473b02d5e98fe6c7125295168ab12c87ae934",
+      "classification": "current merged-controller local validation"
+    },
+    {
+      "path": "merged-controller-verification-20261014.json.sha256",
+      "bytes": 111,
+      "sha256": "ac79f2174e890740fda26401d2c9307834c4d12b100c676e1ef550f85b506842",
+      "classification": "current merged-controller checksum"
     },
     {
       "path": "review-followup-delta.json",
@@ -56,8 +80,8 @@
       "classification": "retained earlier local delta"
     }
   ],
-  "artifactCount": 9,
-  "artifactBytes": 12359,
+  "artifactCount": 13,
+  "artifactBytes": 17932,
   "currentCIInputBindings": [
     {
       "path": "apps/web/bunfig.toml",
@@ -78,10 +102,20 @@
       "path": "apps/web/tests-unit/bun-historical-discovery-contract.test.ts",
       "bytes": 3315,
       "sha256": "e290b22b1e1bdcd856a11110b0dc57b62cfb483fc959abeb4ad28fb55f3b3610"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-operating-admission.test.ts",
+      "bytes": 22546,
+      "sha256": "fe831093e75071ec8851d1647a0cc6e9d1f8117ee189a0bf68671d7816c7bc42"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-sql-successor.test.ts",
+      "bytes": 87270,
+      "sha256": "2d29f4fc5385965bc572339d5dbcf64f25718194b7bb6e287bfcb5ed7e03b12c"
     }
   ],
-  "previousIndexSha256": "39b1914d07c8bcb63d556ff2fd841c9eba3fa971bd0e14659c0bda4388258871",
-  "previousIndexClassification": "preserved historical bytes; this index does not rerun old build/provider evidence",
+  "previousIndexSha256": "158f53d225b9b4e9cb8b089b0f816f67d9c96969f7b5daf1a42f1b39e7cb37f4",
+  "previousIndexClassification": "historical-7c2ad0c8-index preserves the exact prior map bytes",
   "officialSource": "https://bun.com/docs/runtime/bunfig#testpathignorepatterns",
   "limits": [
     "Compiler and runtime discovery checks are local evidence; GitHub CI and Windows readback remain separate.",

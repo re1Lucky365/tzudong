@@ -835,3 +835,5 @@ PR #3195 head3777eca3의 원격 검사는 성공18·의도된 Freshness skip1·�
 현재 소스의 결합 회귀4파일은53 pass·0 fail·376 assertions, 한 번의 로컬 실행9.60초였다. 시간 개선 비교나 실제 공급자 검증은 아니다. 이전 map을 historical-3777eca3-index에 보존한 뒤 현재 artifact75개·source binding21개의 bytes/hash drift0을 확인했다. 새 route map SHA는 efef71b148ecb8ab5a9fc2f219de41fff3a0a6138894ee356313297b072eed2b이다. 기존 build/render/provider 영수증은 역사 증거이며 현재 화면 재검증으로 승격하지 않았다. 다음 source head의 필수 CI·review resolution·보호 병합을 별도로 확인한다.
 
 운영 실행기 감사는 rehearsal 뒤 machine fence/quiescence 재관측과 apply admission hash 결속, 실제 관측 timestamp 보존, Gemini runtime/DB 정책을 지키는 rollback proof가 추가로 필요함을 확인했다. 11개 review-media SQL은86→97, 별도4개 feature SQL은97→101이며 서로의 적용·terminal readback을 대신하지 않는다. launch held와 전체 운영 미완료 상태를 유지한다.
+
+develop eecea96e의 controller 수정과 합친 뒤 관련3파일의 본문89개·659 assertions는 통과했으나 afterAll 정리 hook가5초를 넘어 최초 실행은 실패했다. 모든 테스트 본문과 기본 제한을 유지하고 fixture를 테스트별 종료 시 정리하도록 바꿨으며 실패한 삭제 경로는 등록 상태에 남긴다. 후속89/89·659 assertions는 종료0, native/compat parity3,152 입력·진단0이었다. 관측68.09초와47.57초는 다른 부하의 단일 실행이므로 개선율·95%CI·RSS 절감으로 해석하지 않는다. 최초 실패와 CLI의 잘못된 flag 호출도 장부에 남기고 실제 저장·배포 성공으로 확대하지 않는다.
