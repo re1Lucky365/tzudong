@@ -244,6 +244,7 @@ def database(path):
     db.execute("CREATE TABLE IF NOT EXISTS runs (run_id INTEGER, attempt INTEGER, fingerprint TEXT, terminal INTEGER, record TEXT, PRIMARY KEY(run_id,attempt))")
     db.execute("CREATE TABLE IF NOT EXISTS sources (sha TEXT PRIMARY KEY, tree_sha TEXT, workflow_revision TEXT)")
     db.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
+    db.execute("CREATE TABLE IF NOT EXISTS bootstrap_inventory (run_id INTEGER PRIMARY KEY)")
     db.execute("CREATE TABLE IF NOT EXISTS terminal_refresh_cycle (run_id INTEGER PRIMARY KEY)")
     db.commit()
     return db
@@ -297,16 +298,42 @@ def collect(
         ).fetchone()
         history_inventory_complete = bool(inventory and inventory[0] == "1")
         fields = {"per_page": limit}
+        first_page = 1
         if watermark:
             since = COLLECTOR.parse_timestamp(watermark[0]) - timedelta(hours=overlap_hours)
             fields["created"] = ">=" + since.isoformat().replace("+00:00", "Z")
+        else:
+            upper_row = db.execute(
+                "SELECT value FROM meta WHERE key='bootstrap_created_upper_bound'"
+            ).fetchone()
+            bootstrap_upper_bound = (
+                upper_row[0]
+                if upper_row
+                else now.isoformat().replace("+00:00", "Z")
+            )
+            if not upper_row:
+                db.execute(
+                    "INSERT INTO meta VALUES('bootstrap_created_upper_bound',?)",
+                    (bootstrap_upper_bound,),
+                )
+            fields["created"] = "<=" + bootstrap_upper_bound
+            page_row = db.execute(
+                "SELECT value FROM meta WHERE key='bootstrap_next_page'"
+            ).fetchone()
+            try:
+                first_page = int(page_row[0]) if page_row else 1
+            except (TypeError, ValueError):
+                raise ReadError("CACHE_BOOTSTRAP_CURSOR_INVALID") from None
+            if not 1 <= first_page <= 100_000:
+                raise ReadError("CACHE_BOOTSTRAP_CURSOR_INVALID")
         source_runs = []
         listed_run_ids = set()
         reported_totals = []
         duplicate_list_items = 0
-        page_bound = max_pages if watermark else 1
         list_pages = 0
-        for page in range(1, page_bound + 1):
+        last_page = first_page
+        last_page_size = 0
+        for page in range(first_page, first_page + max_pages):
             page_fields = {**fields, "page": page}
             payload = reader.get(
                 f"repos/{repository}/actions/workflows/{workflow}/runs", page_fields
@@ -325,6 +352,8 @@ def collect(
             ):
                 raise ReadError("INVALID_RUN_LIST")
             list_pages += 1
+            last_page = page
+            last_page_size = len(page_runs)
             reported_totals.append(total_count)
             for raw in page_runs:
                 run_id = raw.get("id") if isinstance(raw, dict) else None
@@ -344,22 +373,75 @@ def collect(
             and duplicate_list_items == 0
             and len(listed_run_ids) >= reported_total
         )
-        bootstrap_inventory_complete = bool(
-            not watermark
-            and not total_changed
-            and duplicate_list_items == 0
-            and len(listed_run_ids) >= reported_total
-        )
+        bootstrap_inventory_count = 0
+        bootstrap_inventory_complete = False
+        bootstrap_boundary_changed = False
+        if not watermark:
+            total_row = db.execute(
+                "SELECT value FROM meta WHERE key='bootstrap_total_count'"
+            ).fetchone()
+            try:
+                prior_total = int(total_row[0]) if total_row else None
+            except (TypeError, ValueError):
+                raise ReadError("CACHE_BOOTSTRAP_TOTAL_INVALID") from None
+            if prior_total is not None and prior_total != reported_total:
+                total_changed = True
+            prior_ids = {
+                row[0] for row in db.execute("SELECT run_id FROM bootstrap_inventory")
+            }
+            duplicate_list_items += len(prior_ids & listed_run_ids)
+            prospective_count = len(prior_ids | listed_run_ids)
+            short_page_before_total = bool(
+                last_page_size < limit and prospective_count < reported_total
+            )
+            bootstrap_boundary_changed = bool(
+                total_changed or duplicate_list_items or short_page_before_total
+            )
+            if bootstrap_boundary_changed:
+                db.execute("DELETE FROM bootstrap_inventory")
+                db.execute(
+                    "INSERT OR REPLACE INTO meta VALUES('bootstrap_next_page','1')"
+                )
+                db.execute(
+                    "INSERT OR REPLACE INTO meta VALUES('bootstrap_total_count',?)",
+                    (str(reported_total),),
+                )
+                db.execute(
+                    "DELETE FROM meta WHERE key='bootstrap_newest_created_at'"
+                )
+            else:
+                db.executemany(
+                    "INSERT OR IGNORE INTO bootstrap_inventory VALUES(?)",
+                    [(run_id,) for run_id in sorted(listed_run_ids)],
+                )
+                bootstrap_inventory_count = db.execute(
+                    "SELECT count(*) FROM bootstrap_inventory"
+                ).fetchone()[0]
+                bootstrap_inventory_complete = bool(
+                    bootstrap_inventory_count == reported_total
+                )
+                if not bootstrap_inventory_complete:
+                    db.execute(
+                        "INSERT OR REPLACE INTO meta VALUES('bootstrap_next_page',?)",
+                        (str(last_page + 1),),
+                    )
+                    db.execute(
+                        "INSERT OR REPLACE INTO meta VALUES('bootstrap_total_count',?)",
+                        (str(reported_total),),
+                    )
         if bootstrap_inventory_complete and not history_inventory_complete:
             db.execute(
                 "INSERT OR REPLACE INTO meta VALUES('history_inventory_complete','1')"
             )
             history_inventory_complete = True
-        if not watermark and reported_total > len(listed_run_ids):
+        if not watermark and not bootstrap_inventory_complete:
             alerts.append("BOUNDED_RECENT_WINDOW")
         if watermark and not created_window_complete:
             alerts.append("RECENT_WINDOW_TRUNCATED")
-        if total_changed or duplicate_list_items:
+        if total_changed or duplicate_list_items or (
+            not watermark and last_page_size < limit
+            and bootstrap_inventory_count < reported_total
+        ):
             alerts.append("LIST_BOUNDARY_CHANGED")
         if not history_inventory_complete:
             alerts.append("HISTORICAL_RUN_INVENTORY_INCOMPLETE")
@@ -489,7 +571,15 @@ def collect(
             and history_inventory_complete
             and known_terminal_refresh_complete
         )
-        newest = watermark[0] if watermark else None
+        if watermark:
+            newest = watermark[0]
+        elif bootstrap_boundary_changed:
+            newest = None
+        else:
+            bootstrap_newest_row = db.execute(
+                "SELECT value FROM meta WHERE key='bootstrap_newest_created_at'"
+            ).fetchone()
+            newest = bootstrap_newest_row[0] if bootstrap_newest_row else None
         seen = set()
         for raw in source_runs:
             latest = safe_run(raw)
@@ -560,11 +650,17 @@ def collect(
                 if len(canonical(record)) > 1024 * 1024: raise ReadError("RECORD_BYTE_BOUND")
                 db.execute("INSERT OR REPLACE INTO runs VALUES(?,?,?,?,?)", (run["id"], attempt, fingerprint, int(terminal), canonical(record).decode()))
                 export.append(record); refreshed_sets += 1
+        if not watermark and not bootstrap_boundary_changed and newest:
+            db.execute(
+                "INSERT OR REPLACE INTO meta VALUES('bootstrap_newest_created_at',?)",
+                (newest,),
+            )
         watermark_advanced = bool(
             newest
             and (
-                not watermark
-                or created_window_complete
+                created_window_complete
+                if watermark
+                else bootstrap_inventory_complete
             )
             and newest != watermark_before
         )
@@ -588,6 +684,7 @@ def collect(
                 created_window_complete or bootstrap_inventory_complete
             ),
             "historyInventoryComplete": history_inventory_complete,
+            "bootstrapInventoryRunCount": bootstrap_inventory_count,
             "unlistedHistoricalRerunDiscoveryComplete": history_inventory_complete,
             "knownTerminalRerunRefreshComplete": known_terminal_refresh_complete,
             "knownTerminalRunCount": len(known_terminal_ids),

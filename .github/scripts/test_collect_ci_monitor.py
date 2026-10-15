@@ -74,6 +74,9 @@ class PagingReader(Reader):
             run_id = int(endpoint.split("/actions/runs/", 1)[1].split("/", 1)[0])
             source = next(item for item in self.runs if item["id"] == run_id)
             self.job_payload = jobs(source["created_at"])
+        elif "/actions/runs/" in endpoint and "/attempts/" not in endpoint:
+            run_id = int(endpoint.rsplit("/", 1)[1])
+            return next(item for item in self.runs if item["id"] == run_id)
         return super().get(endpoint, fields)
 
 
@@ -380,10 +383,13 @@ class CollectorTests(unittest.TestCase):
         all_runs = [run(run_id=100 + index, minute=44 - index) for index in range(45)]
         reader = PagingReader(all_runs)
         first = M.collect(
-            "twoimo/tzudong", "web-admin-ci.yml", self.cache, reader, limit=20, max_pages=3
+            "twoimo/tzudong", "web-admin-ci.yml", self.cache, reader,
+            limit=20, max_pages=1,
         )
         self.assertIn("BOUNDED_RECENT_WINDOW", first["coverage"]["alerts"])
         self.assertEqual(first["coverage"]["listPages"], 1)
+        self.assertEqual(first["coverage"]["bootstrapInventoryRunCount"], 20)
+        self.assertFalse(first["coverage"]["watermarkAdvanced"])
 
         second_reader = PagingReader(all_runs)
         second = M.collect(
@@ -392,26 +398,50 @@ class CollectorTests(unittest.TestCase):
             self.cache,
             second_reader,
             limit=20,
-            max_pages=3,
+            max_pages=1,
         )
-        self.assertEqual(second["coverage"]["listPages"], 3)
-        self.assertEqual(second["coverage"]["uniqueListedRunCount"], 45)
-        self.assertTrue(second["coverage"]["createdWindowComplete"])
+        self.assertEqual(second["coverage"]["listPages"], 1)
+        self.assertEqual(second["coverage"]["uniqueListedRunCount"], 20)
+        self.assertEqual(second["coverage"]["bootstrapInventoryRunCount"], 40)
         self.assertFalse(second["coverage"]["incrementalWindowComplete"])
         self.assertFalse(second["coverage"]["historyInventoryComplete"])
+        self.assertFalse(second["coverage"]["watermarkAdvanced"])
         self.assertIn(
             "HISTORICAL_RUN_INVENTORY_INCOMPLETE",
             second["coverage"]["alerts"],
         )
-        self.assertNotIn("RECENT_WINDOW_TRUNCATED", second["coverage"]["alerts"])
         pages = [fields["page"] for endpoint, fields in second_reader.calls if endpoint.endswith("/runs") and "workflows" in endpoint]
-        self.assertEqual(pages, [1, 2, 3])
+        self.assertEqual(pages, [2])
         list_fields = [
             fields
             for endpoint, fields in second_reader.calls
             if endpoint.endswith("/runs") and "workflows" in endpoint
         ]
-        self.assertTrue(all(fields["created"].startswith(">=2026-10-09T") for fields in list_fields))
+        self.assertTrue(all(fields["created"].startswith("<=") for fields in list_fields))
+
+        third = M.collect(
+            "twoimo/tzudong", "web-admin-ci.yml", self.cache,
+            PagingReader(all_runs), limit=20, max_pages=1,
+        )
+        self.assertEqual(third["coverage"]["bootstrapInventoryRunCount"], 45)
+        self.assertTrue(third["coverage"]["historyInventoryComplete"])
+        self.assertTrue(third["coverage"]["createdWindowComplete"])
+        self.assertTrue(third["coverage"]["watermarkAdvanced"])
+        self.assertEqual(third["coverage"]["watermarkAfter"], all_runs[0]["created_at"])
+
+        incremental_reader = PagingReader(all_runs)
+        incremental = M.collect(
+            "twoimo/tzudong", "web-admin-ci.yml", self.cache,
+            incremental_reader, limit=20, max_pages=3,
+        )
+        self.assertTrue(incremental["coverage"]["incrementalWindowComplete"])
+        incremental_fields = [
+            fields for endpoint, fields in incremental_reader.calls
+            if endpoint.endswith("/runs") and "workflows" in endpoint
+        ]
+        self.assertTrue(
+            all(fields["created"].startswith(">=2026-10-09T") for fields in incremental_fields)
+        )
 
     def test_old_known_terminal_rerun_is_found_by_bounded_direct_refresh(self):
         original = run(run_id=1, minute=0)

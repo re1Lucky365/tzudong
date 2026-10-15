@@ -157,13 +157,19 @@ def prior_candidate(
     return candidate, digest, candidate_payload
 
 
-def load_checkpoint(path: Path) -> dict:
-    checkpoint = MONITOR.load_json(path)
+def authenticated_checkpoint(path: Path) -> tuple[dict, str]:
+    checkpoint, digest = authenticated_json(path)
+    if not isinstance(checkpoint, dict):
+        raise ReferenceError("INVALID_CHECKPOINT_SCHEMA")
     if checkpoint.get("schema") != f"{MONITOR.SCHEMA_VERSION}/checkpoint":
         raise ReferenceError("INVALID_CHECKPOINT_SCHEMA")
     if not isinstance(checkpoint.get("runs"), dict):
         raise ReferenceError("INVALID_CHECKPOINT_RUNS")
-    return checkpoint
+    return checkpoint, digest
+
+
+def load_checkpoint(path: Path) -> dict:
+    return authenticated_checkpoint(path)[0]
 
 
 def select_tick_directory(state_dir: Path, tick_id: str | None) -> Path:
@@ -190,12 +196,17 @@ def select_tick_directory(state_dir: Path, tick_id: str | None) -> Path:
     return max(ticks, key=lambda path: path.name)
 
 
-def authenticated_export(directory: Path) -> tuple[dict, list[dict], str]:
+def authenticated_tick(directory: Path) -> dict:
     tick, _ = authenticated_json(directory / "tick.json")
     if not isinstance(tick, dict):
         raise ReferenceError("INVALID_TICK_SCHEMA")
     if tick.get("schema") != "tzudong-ci-monitor-tick/v1":
         raise ReferenceError("INVALID_TICK_SCHEMA")
+    return tick
+
+
+def authenticated_export(directory: Path) -> tuple[dict, list[dict], str]:
+    tick = authenticated_tick(directory)
     export_path = directory / "export.json"
     if not export_path.is_file():
         raise ReferenceError("RETAINED_EXPORT_HASH_MISMATCH")
@@ -408,8 +419,16 @@ def assess_without_target(observation: dict) -> dict:
 
 
 def evaluate_reference(state_dir: Path, checkpoint_path: Path, tick_id: str | None = None) -> dict:
-    checkpoint = load_checkpoint(checkpoint_path)
+    checkpoint, current_checkpoint_digest = authenticated_checkpoint(checkpoint_path)
     latest_directory = select_tick_directory(state_dir, tick_id)
+    latest_tick = authenticated_tick(latest_directory)
+    checkpoint_digest = latest_tick.get("checkpointSha256")
+    if (
+        not isinstance(checkpoint_digest, str)
+        or len(checkpoint_digest) != 64
+        or current_checkpoint_digest != checkpoint_digest
+    ):
+        raise ReferenceError("REFERENCE_CHECKPOINT_MISMATCH")
     latest_export, _, latest_workflow = authenticated_export(latest_directory)
     latest_tick_id = latest_directory.name
     # A rollover reference is grown only from this window's after phase. The

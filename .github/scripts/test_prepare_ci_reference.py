@@ -87,6 +87,7 @@ class CiReferenceTests(unittest.TestCase):
         REFERENCE.MONITOR.atomic_write_json(directory / "tick.json", {
             "schema": "tzudong-ci-monitor-tick/v1",
             "exportSha256": REFERENCE.MONITOR.sha256_file(export_path),
+            "checkpointSha256": REFERENCE.MONITOR.sha256_file(self.checkpoint),
         })
         return export_path
 
@@ -152,7 +153,12 @@ class CiReferenceTests(unittest.TestCase):
         self.write_tick("001", runs)
         pending_result = REFERENCE.evaluate_reference(self.state, self.checkpoint, "001")
         self.assertEqual(pending_result["status"], "collecting_reference")
-        self.assertEqual(pending_result["pendingSameCohortCount"], 1)
+        self.assertEqual(pending_result["pendingSameCohortCount"], 0)
+        self.assertEqual(pending_result["potentialSameCohortPendingCount"], 1)
+        self.assertEqual(
+            pending_result["pendingReasonCounts"],
+            {"potential_same_cohort_execution_mode_unverified": 1},
+        )
 
         self.write_checkpoint(successes)
         self.write_tick("002", successes, complete=False, alerts=["RECENT_WINDOW_TRUNCATED"])
@@ -173,7 +179,8 @@ class CiReferenceTests(unittest.TestCase):
         selected = REFERENCE.select_current_observation(
             [completed, pending, tombstone]
         )
-        self.assertEqual((selected["runId"], selected["attempt"]), (490, 1))
+        self.assertEqual((selected["runId"], selected["attempt"]), (480, 1))
+        self.assertFalse(pending["cohortMetadataVerified"])
         self.assertFalse(REFERENCE.attempt_resolved(pending))
         self.assertTrue(REFERENCE.attempt_resolved(tombstone))
 
@@ -282,10 +289,11 @@ class CiReferenceTests(unittest.TestCase):
     def test_verified_different_cohort_pending_is_distinct_but_still_blocks_cutoff(self):
         successes = self.successes(start=900)
         pending = FIXTURE.make_run(
-            899, 50, status="in_progress", conclusion="success", incomplete_step=True
+            899, 50, status="in_progress", conclusion="success"
         )
+        for job in pending["jobs"]:
+            job["steps"][0]["name"] = "Run npm run typecheck:parity"
         pending["executionMode"] = "diagnostic"
-        pending["jobTopology"] = "c" * 64
         runs = [pending] + successes
         self.write_checkpoint(runs)
         self.write_tick("001", runs)
@@ -384,6 +392,7 @@ class CiReferenceTests(unittest.TestCase):
 
     def test_collecting_reference_reads_latest_tick_only(self):
         old = self.successes(start=450, count=1)
+        self.write_checkpoint(old)
         old_export = self.write_tick("001", old)
         latest = self.successes(start=451, count=1)
         self.write_checkpoint(latest)
@@ -393,6 +402,19 @@ class CiReferenceTests(unittest.TestCase):
         result = REFERENCE.evaluate_reference(self.state, self.checkpoint, "002")
         self.assertEqual(result["status"], "collecting_reference")
         self.assertEqual(result["successCount"], 1)
+
+    def test_explicit_historical_tick_must_match_supplied_checkpoint(self):
+        old = self.successes(start=452, count=1)
+        self.write_checkpoint(old)
+        self.write_tick("001", old)
+        latest = self.successes(start=453, count=1)
+        self.write_checkpoint(latest)
+        self.write_tick("002", latest)
+
+        with self.assertRaisesRegex(
+            REFERENCE.ReferenceError, "REFERENCE_CHECKPOINT_MISMATCH"
+        ):
+            REFERENCE.evaluate_reference(self.state, self.checkpoint, "001")
 
     def test_duplicate_attempts_collapse_and_failures_are_preserved(self):
         successes = self.successes(start=500)
@@ -434,6 +456,7 @@ class CiReferenceTests(unittest.TestCase):
 
     def test_authenticated_export_parses_the_verified_byte_snapshot_once(self):
         runs = self.successes(start=625, count=1)
+        self.write_checkpoint(runs)
         export_path = self.write_tick("001", runs)
         directory = export_path.parent
         original_read_bytes = Path.read_bytes

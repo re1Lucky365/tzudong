@@ -55,6 +55,15 @@ VERIFIED_WORKFLOW_EVENTS = {
     "schedule",
     "workflow_dispatch",
 }
+MONITORED_JOB_NAMES = {
+    "Admin",
+    "Install",
+    "Ubuntu Bun",
+    "Ubuntu npm",
+    "Windows Bun",
+    "Windows npm",
+}
+PLATFORM_JOB_NAMES = {"Ubuntu Bun", "Ubuntu npm", "Windows Bun", "Windows npm"}
 VALID_CONCLUSIONS = {
     "success",
     "failure",
@@ -286,7 +295,9 @@ def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
         raise MonitorError("job steps must be a list")
     if any(not isinstance(step, dict) for step in steps):
         raise MonitorError("job steps must contain only objects")
+    raw_name = str(get_first(job, "name") or "")
     return {
+        "name": raw_name if raw_name in MONITORED_JOB_NAMES else "Other job",
         "status": str(get_first(job, "status") or "missing"),
         "conclusion": str(get_first(job, "conclusion") or "missing"),
         "createdAt": get_first(job, "createdAt", "created_at"),
@@ -295,6 +306,40 @@ def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
         "runnerFamily": runner_family(labels),
         "steps": [normalize_step(step) for step in steps],
     }
+
+
+def incremental_digest(value: Any) -> str:
+    payload = (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    return sha256_bytes(payload)
+
+
+def derived_execution_mode(jobs: list[dict[str, Any]]) -> str:
+    platform_jobs = [job for job in jobs if job["name"] in PLATFORM_JOB_NAMES]
+    if {job["name"] for job in platform_jobs} != PLATFORM_JOB_NAMES:
+        return "unknown"
+    benchmark_jobs = {
+        job["name"]
+        for job in platform_jobs
+        if any(
+            COLLECTOR.classify_step(step["name"]) == "benchmark_report"
+            and step["conclusion"] not in {"missing", "skipped"}
+            for step in job["steps"]
+        )
+    }
+    diagnostic_jobs = {
+        job["name"]
+        for job in platform_jobs
+        if any(
+            COLLECTOR.classify_step(step["name"]) == "typecheck"
+            and step["conclusion"] not in {"missing", "skipped"}
+            for step in job["steps"]
+        )
+    }
+    if benchmark_jobs == PLATFORM_JOB_NAMES:
+        return "full_benchmark"
+    if not benchmark_jobs and diagnostic_jobs == PLATFORM_JOB_NAMES:
+        return "diagnostic"
+    return "unknown"
 
 
 def require_object_list(value: Any, context: str) -> list[dict[str, Any]]:
@@ -369,12 +414,14 @@ def analyze_record(
     workflow_revision = safe_git_object_id(
         get_first(record, "workflowRevision", "workflow_revision")
     )
-    job_topology = safe_sha256(get_first(record, "jobTopology", "job_topology"))
-    execution_mode = str(
+    claimed_job_topology = safe_sha256(
+        get_first(record, "jobTopology", "job_topology")
+    )
+    claimed_execution_mode = str(
         get_first(record, "executionMode", "execution_mode") or "unknown"
     )
-    if execution_mode not in {"full_benchmark", "diagnostic", "unknown"}:
-        execution_mode = "unknown"
+    if claimed_execution_mode not in {"full_benchmark", "diagnostic", "unknown"}:
+        claimed_execution_mode = "unknown"
     tombstone = bool(get_first(record, "tombstone"))
     jobs_container = get_first(record, "jobs")
     jobs_total_count = get_first(record, "jobsTotalCount", "jobs_total_count")
@@ -395,6 +442,18 @@ def analyze_record(
         and jobs_attempt == attempt
     )
     jobs = [normalize_job(job) for job in jobs_raw]
+    derived_job_topology = incremental_digest(
+        sorted(job["name"] for job in jobs)
+    )
+    derived_mode = derived_execution_mode(jobs)
+    job_topology = (
+        derived_job_topology
+        if claimed_job_topology == derived_job_topology
+        else None
+    )
+    execution_mode = (
+        derived_mode if claimed_execution_mode == derived_mode else "unknown"
+    )
     attempt_boundary_verified = get_first(
         record, "attemptBoundaryVerified", "attempt_boundary_verified"
     )

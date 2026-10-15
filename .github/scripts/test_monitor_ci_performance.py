@@ -41,43 +41,60 @@ def make_run(
     )
     started = base + timedelta(seconds=2)
     completed = started + timedelta(seconds=duration)
-    step_completed = None if incomplete_step else timestamp(completed)
+    platform_names = ("Ubuntu Bun", "Ubuntu npm", "Windows Bun", "Windows npm")
+    jobs = []
+    for index, name in enumerate(platform_names):
+        primary = index == 0
+        job_status = status if primary else "completed"
+        job_conclusion = conclusion if primary else "success"
+        step_incomplete = incomplete_step and primary
+        jobs.append(
+            {
+                "name": name,
+                "status": job_status,
+                "conclusion": job_conclusion,
+                "createdAt": timestamp(base),
+                "startedAt": timestamp(started),
+                "completedAt": timestamp(completed),
+                "runnerLabels": [
+                    "windows-latest" if name.startswith("Windows") else "ubuntu-latest"
+                ],
+                "steps": [
+                    {
+                        "number": 1,
+                        "name": (
+                            unsafe_step_name
+                            if primary and unsafe_step_name
+                            else "Run npm run typecheck:benchmark"
+                        ),
+                        "status": "in_progress" if step_incomplete else "completed",
+                        "conclusion": None if step_incomplete else job_conclusion,
+                        "startedAt": timestamp(started),
+                        "completedAt": (
+                            None if step_incomplete else timestamp(completed)
+                        ),
+                    }
+                ],
+            }
+        )
+    job_topology = MONITOR.incremental_digest(sorted(platform_names))
     return {
         "id": run_id,
         "attempt": attempt,
         "event": event,
         "status": status,
         "conclusion": conclusion,
-        "jobsTotalCount": 1,
+        "jobsTotalCount": len(jobs),
         "jobsAttempt": attempt,
         "headSha": f"{run_id:040x}"[-40:],
         "sourceTree": f"{run_id + 10_000:040x}"[-40:],
         "workflowRevision": "a" * 64,
         "executionMode": "full_benchmark",
-        "jobTopology": "b" * 64,
+        "jobTopology": job_topology,
         "createdAt": "not-a-time" if malformed else timestamp(base),
         "startedAt": "not-a-time" if malformed else timestamp(base),
         "updatedAt": timestamp(completed),
-        "jobs": [
-            {
-                "status": status,
-                "conclusion": conclusion,
-                "createdAt": timestamp(base),
-                "startedAt": timestamp(started),
-                "completedAt": timestamp(completed),
-                "runnerLabels": ["ubuntu-latest"],
-                "steps": [
-                    {
-                        "number": 1,
-                        "name": unsafe_step_name or "Run npm ci",
-                        "status": "completed" if not incomplete_step else "in_progress",
-                        "conclusion": conclusion if not incomplete_step else None,
-                        "startedAt": timestamp(started),
-                        "completedAt": step_completed,
-                    }
-                ],
-            }
-        ],
+        "jobs": jobs,
     }
 
 
@@ -744,6 +761,31 @@ class MonitorCiPerformanceTests(unittest.TestCase):
                 )
                 self.assertTrue(observation["cohortMetadataVerified"])
 
+    def test_claimed_topology_and_execution_mode_must_match_retained_jobs(self) -> None:
+        wrong_topology = make_run(1_052, 20)
+        wrong_topology["jobTopology"] = "f" * 64
+        topology_observation = MONITOR.analyze_record(
+            wrong_topology,
+            "after",
+            ".github/workflows/web-admin-ci.yml",
+            True,
+            "d" * 64,
+        )
+        self.assertIsNone(topology_observation["jobTopology"])
+        self.assertFalse(topology_observation["cohortMetadataVerified"])
+
+        wrong_mode = make_run(1_053, 20)
+        wrong_mode["executionMode"] = "diagnostic"
+        mode_observation = MONITOR.analyze_record(
+            wrong_mode,
+            "after",
+            ".github/workflows/web-admin-ci.yml",
+            True,
+            "e" * 64,
+        )
+        self.assertEqual(mode_observation["executionMode"], "unknown")
+        self.assertFalse(mode_observation["cohortMetadataVerified"])
+
     def test_unverified_attempt_boundary_stays_out_of_failure_rate_signals(self) -> None:
         before_runs = [make_run(1_060 + index, 20) for index in range(7)]
         after_runs = [make_run(1_070 + index, 20) for index in range(7)]
@@ -790,7 +832,7 @@ class MonitorCiPerformanceTests(unittest.TestCase):
             True,
             "1" * 64,
         )
-        self.assertEqual(observation["runnerFamilies"], ["unknown"])
+        self.assertIn("unknown", observation["runnerFamilies"])
         self.assertFalse(observation["cohortMetadataVerified"])
 
     def test_scalar_or_null_steps_are_rejected_instead_of_dropped(self) -> None:

@@ -198,7 +198,9 @@ def tick(args):
         config = {
             "baselineSha256": args.baseline_sha256,
             "repository": "twoimo/tzudong", "workflow": "web-admin-ci.yml",
-            "limit": 20, "maximumPages": 5, "maximumInputAttempts": 2100,
+            "limit": 20, "maximumPages": 5,
+            "maximumKnownTerminalRunRefreshes": 20,
+            "maximumInputAttempts": 2300,
             "maximumBaselineAttempts": 100,
             "sourceSha256": {
                 name: MONITOR.sha256_file(HERE / name) for name in (
@@ -238,7 +240,7 @@ def tick(args):
             "--before-input", str(baseline_snapshot_path),
             "--after-input", str(current_path),
             "--checkpoint", str(args.state_dir / "analysis-state.json"),
-            "--receipt", str(receipt_path), "--max-input-runs", "2100",
+            "--receipt", str(receipt_path), "--max-input-runs", "2300",
         ], 60, "ANALYSIS_FAILED")
         receipt = MONITOR.load_json(receipt_path)
         checkpoint = MONITOR.load_json(args.state_dir / "analysis-state.json")
@@ -282,6 +284,9 @@ def tick(args):
             "configSha256": MONITOR.sha256_bytes(MONITOR.canonical_json(config)),
             "exportSha256": MONITOR.sha256_file(export_path),
             "analysisSha256": MONITOR.sha256_file(receipt_path),
+            "checkpointSha256": MONITOR.sha256_file(
+                args.state_dir / "analysis-state.json"
+            ),
             "receiptPath": state_receipt_ref(args.state_dir, receipt_path),
         }
         # The provisional receipt lets the reference evaluator authenticate the

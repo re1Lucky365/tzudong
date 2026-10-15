@@ -516,10 +516,17 @@ class CiMonitorTickTests(unittest.TestCase):
         self.assertEqual(analysis["timingUsableRunCount"], 1)  # frozen baseline only
         self.assertEqual(analysis["runConclusionCounts"]["stale"], 1)
 
-    def test_driver_budget_covers_two_thousand_collector_attempts_and_baseline(self):
+    def test_driver_budget_covers_listed_active_terminal_and_baseline_attempts(self):
         TICK.tick(self.args)
         config = TICK.MONITOR.load_json(self.args.state_dir / "monitor-config.json")
-        self.assertGreaterEqual(config["maximumInputAttempts"], (20 * 5 + 100) * 10 + config["maximumBaselineAttempts"])
+        self.assertGreaterEqual(
+            config["maximumInputAttempts"],
+            (
+                20 * 5
+                + 100
+                + config["maximumKnownTerminalRunRefreshes"]
+            ) * 10 + config["maximumBaselineAttempts"],
+        )
         self.assertLessEqual(config["maximumInputAttempts"], TICK.MONITOR.MAX_INPUT_RUNS)
 
 
