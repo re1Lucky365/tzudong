@@ -7,10 +7,10 @@
       "sha256": "8b1fb27ed3899db4ea8c9a5db5d39af95e4443846da34550c54bc1938c209cd1"
     },
     {
-      "bytes": 7581,
+      "bytes": 16407,
       "path": "validate-evidence.py",
       "role": "deterministic evidence validator",
-      "sha256": "94c74ae2559230022b9e5b88c214429d603ff3622e4d5c0a79322197f082a135"
+      "sha256": "a4afbeece83e037f3f7b4be4716efef0cb69175a1485d809542eb37fdf7d7394"
     },
     {
       "bytes": 3476,
@@ -55,10 +55,10 @@
       "sha256": "914a1dfcaac1c68c9a61f794b92aba2f5aaac0402a79771c953a80ee94dcc831"
     },
     {
-      "bytes": 801,
+      "bytes": 1244,
       "path": "validation.json",
       "role": "deterministic validation result",
-      "sha256": "b339d2853e7e9c5be39d8c21a9ddf39c789c7af9eade579b55c9728b0e4eebee"
+      "sha256": "ce2295d24cbd3f9e31db9abb179fd202881ef97046dca82e46c026d5f1cc460f"
     }
   ],
   "schema": "tzudong-ci-performance/v1/artifact-map"

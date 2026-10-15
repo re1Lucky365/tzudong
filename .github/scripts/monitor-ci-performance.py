@@ -773,7 +773,7 @@ def load_thresholds(path: Path | None) -> tuple[dict[str, Any], str]:
             isinstance(absolute, bool)
             or not isinstance(absolute, (int, float))
             or not absolute_finite
-            or absolute < 0
+            or absolute <= 0
         ):
             raise MonitorError(f"invalid absolute threshold for {metric}")
         try:
@@ -784,7 +784,7 @@ def load_thresholds(path: Path | None) -> tuple[dict[str, Any], str]:
             isinstance(relative, bool)
             or not isinstance(relative, (int, float))
             or not relative_finite
-            or relative < 0
+            or relative <= 0
         ):
             raise MonitorError(f"invalid relative threshold for {metric}")
         validated[metric] = {

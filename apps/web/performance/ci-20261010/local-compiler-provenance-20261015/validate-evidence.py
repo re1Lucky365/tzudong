@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,10 @@ BENCHMARK_PATH = ROOT.parent / "local-compiler" / "benchmark.py"
 
 def canonical_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def compact_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
 def sha256_bytes(value: bytes) -> str:
@@ -46,6 +51,215 @@ def require(condition: bool, message: str) -> None:
         raise RuntimeError(message)
 
 
+def is_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and re.fullmatch(r"[0-9a-f]{64}", value) is not None
+    )
+
+
+def validate_retained_input_manifests(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Recompute every digest supported by the retained non-library inputs."""
+
+    coverage = manifest.get("sourceCoverage")
+    compiler_digests = manifest.get("logicalInputDigests")
+    require(isinstance(coverage, dict), "source coverage is malformed")
+    require(
+        isinstance(compiler_digests, dict)
+        and set(compiler_digests) == {"native", "compat"},
+        "logical input digests are malformed",
+    )
+
+    retained_inputs: list[dict[str, str]] = []
+    seen_names: set[str] = set()
+    for manifest_key, origin, count_key in (
+        ("appInputManifest", "app", "appInputs"),
+        ("dependencyInputManifest", "dependency", "dependencyInputs"),
+    ):
+        entries = manifest.get(manifest_key)
+        expected_count = coverage.get(count_key)
+        require(isinstance(entries, list), f"{origin} input manifest is malformed")
+        require(
+            isinstance(expected_count, int)
+            and not isinstance(expected_count, bool)
+            and expected_count >= 0,
+            f"{origin} input count is malformed",
+        )
+        require(len(entries) == expected_count, f"{origin} input count mismatch")
+        names: list[str] = []
+        for entry in entries:
+            require(
+                isinstance(entry, dict)
+                and set(entry) == {"name", "contentHash"},
+                f"{origin} input entry is malformed",
+            )
+            name = entry["name"]
+            content_hash = entry["contentHash"]
+            require(
+                isinstance(name, str) and name and not name.startswith("lib:"),
+                f"{origin} logical input name is malformed",
+            )
+            require(is_sha256(content_hash), f"{origin} content hash is malformed")
+            require(name not in seen_names, f"duplicate logical input name: {name}")
+            seen_names.add(name)
+            names.append(name)
+            retained_inputs.append({"name": name, "contentHash": content_hash})
+        require(names == sorted(names), f"{origin} input manifest is not sorted")
+
+    retained_inputs.sort(key=lambda item: item["name"])
+    non_library_pairs = [
+        [item["name"], item["contentHash"]] for item in retained_inputs
+    ]
+    recalculated = {
+        "logicalInputs": len(retained_inputs),
+        "nonLibraryContentSha256": sha256_bytes(
+            compact_json(non_library_pairs).encode("utf-8")
+        ),
+    }
+    native_digest = compiler_digests.get("native")
+    compat_digest = compiler_digests.get("compat")
+    expected_digest_keys = {
+        "logicalInputs",
+        "logicalInputNamesSha256",
+        "nonLibraryContentSha256",
+        "standardLibraryContentSha256",
+    }
+    for compiler, digest, count_key in (
+        ("native", native_digest, "nativeStandardLibraryInputs"),
+        ("compat", compat_digest, "compatStandardLibraryInputs"),
+    ):
+        require(
+            isinstance(digest, dict) and set(digest) == expected_digest_keys,
+            f"{compiler} logical input digest is malformed",
+        )
+        library_count = coverage.get(count_key)
+        require(
+            isinstance(library_count, int)
+            and not isinstance(library_count, bool)
+            and library_count >= 0,
+            f"{compiler} standard library input count is malformed",
+        )
+        require(
+            digest["logicalInputs"] == len(retained_inputs) + library_count,
+            f"{compiler} logical input count mismatch",
+        )
+        require(
+            digest["nonLibraryContentSha256"]
+            == recalculated["nonLibraryContentSha256"],
+            "retained logical input name/content digest mismatch",
+        )
+        require(
+            is_sha256(digest["logicalInputNamesSha256"])
+            and is_sha256(digest["standardLibraryContentSha256"]),
+            f"{compiler} logical input hash is malformed",
+        )
+    require(
+        native_digest["logicalInputNamesSha256"]
+        == compat_digest["logicalInputNamesSha256"],
+        "compiler logical input name digests differ",
+    )
+    require(
+        native_digest["logicalInputs"] == compat_digest["logicalInputs"],
+        "compiler logical input counts differ",
+    )
+    return recalculated
+
+
+def validate_measured_parity_outputs(
+    raw: dict[str, Any], manifest: dict[str, Any]
+) -> dict[str, Any]:
+    """Bind the retained manifest payload to all 28 measured parity commands."""
+
+    parity_commands: list[dict[str, Any]] = []
+    for group in ("measuredPairs", "aaPairs"):
+        pairs = raw.get(group)
+        require(isinstance(pairs, list), f"{group} is malformed")
+        for pair in pairs:
+            require(isinstance(pair, dict), f"{group} pair is malformed")
+            runs = pair.get("runs")
+            require(isinstance(runs, list), f"{group} runs are malformed")
+            for sequence in runs:
+                require(isinstance(sequence, dict), f"{group} sequence is malformed")
+                commands = sequence.get("commands")
+                require(isinstance(commands, list), f"{group} commands are malformed")
+                for command in commands:
+                    require(isinstance(command, dict), f"{group} command is malformed")
+                    if command.get("command") == "parity":
+                        parity_commands.append(command)
+
+    measured = manifest.get("measuredParityOutput")
+    require(
+        isinstance(measured, dict)
+        and set(measured)
+        == {"commands", "uniqueOutputs", "stdoutSha256", "stdoutBytes"},
+        "measured parity output is malformed",
+    )
+    require(
+        measured["commands"] == len(parity_commands) == 28,
+        "measured parity command count mismatch",
+    )
+    require(
+        measured["uniqueOutputs"] == 1
+        and is_sha256(measured["stdoutSha256"])
+        and isinstance(measured["stdoutBytes"], int)
+        and not isinstance(measured["stdoutBytes"], bool)
+        and measured["stdoutBytes"] > 0,
+        "measured parity output contract is malformed",
+    )
+    outputs = {
+        (command.get("stdoutSha256"), command.get("stdoutBytes"))
+        for command in parity_commands
+    }
+    require(
+        len(outputs) == measured["uniqueOutputs"] == 1,
+        "measured parity commands have divergent outputs",
+    )
+    require(
+        all(
+            command.get("success") is True
+            and command.get("stdoutSha256") == measured["stdoutSha256"]
+            and command.get("stdoutBytes") == measured["stdoutBytes"]
+            for command in parity_commands
+        ),
+        "retained parity command output mismatch",
+    )
+
+    compiler_digests = manifest["logicalInputDigests"]
+    native_digest = compiler_digests["native"]
+    compat_digest = compiler_digests["compat"]
+    expected_payload = {
+        "status": "passed",
+        "diagnostics": 0,
+        "logicalInputs": native_digest["logicalInputs"],
+        "logicalInputNamesSha256": native_digest["logicalInputNamesSha256"],
+        "nonLibraryContentSha256": native_digest["nonLibraryContentSha256"],
+        "standardLibraryContentSha256": {
+            "native": native_digest["standardLibraryContentSha256"],
+            "compat": compat_digest["standardLibraryContentSha256"],
+        },
+    }
+    require(
+        manifest.get("postMeasurementParityPayload") == expected_payload,
+        "post-measurement parity payload does not match logical input digests",
+    )
+    stdout = f"{compact_json(expected_payload)}\n".encode("utf-8")
+    stdout_sha256 = sha256_bytes(stdout)
+    require(
+        manifest.get("postMeasurementParityStdoutSha256") == stdout_sha256,
+        "post-measurement parity stdout hash mismatch",
+    )
+    require(
+        measured["stdoutSha256"] == stdout_sha256
+        and measured["stdoutBytes"] == len(stdout),
+        "measured parity output does not match retained parity payload",
+    )
+    return {
+        "commands": len(parity_commands),
+        "stdoutBytes": len(stdout),
+        "stdoutSha256": stdout_sha256,
+    }
+
+
 def main() -> int:
     names = (
         "configuration.json",
@@ -71,6 +285,8 @@ def main() -> int:
         paths["sanitization-receipt.json"].read_text(encoding="utf-8")
     )
     benchmark = load_benchmark()
+    retained_input_digest = validate_retained_input_manifests(manifest)
+    measured_parity = validate_measured_parity_outputs(raw, manifest)
     checks = {
         "embeddedConfigMatches": raw["metadata"]["experimentConfig"] == config,
         "benchmarkScriptHashMatches": (
@@ -100,8 +316,12 @@ def main() -> int:
             == receipt["privateHashes"]["raw.json"]
             and manifest["gitHead"] == raw["metadata"]["gitHead"]
             and manifest["sourceTreeSha"] == raw["metadata"]["sourceTreeSha"]
-            and manifest["measuredParityOutput"]["commands"] == 28
+            and sha256_file(paths["input-manifest.json"])
+            == receipt["privateHashes"]["input-manifest.json"]
+            == receipt["publicHashes"]["input-manifest.json"]
         ),
+        "retainedInputEntriesRecomputeNameContentDigest": True,
+        "allMeasuredParityOutputsBoundToRetainedPayload": True,
     }
     expected_hashes = config["expectedDependencyHashes"]
     checks["dependencyHashesStable"] = (
@@ -151,6 +371,8 @@ def main() -> int:
         "provenanceInventorySha256": inventory["inventorySha256"],
         "sampleCountPaired": summary["sampleCountPaired"],
         "sampleCountAaPaired": summary["sampleCountAaPaired"],
+        "retainedInputManifest": retained_input_digest,
+        "measuredParityOutput": measured_parity,
         "admitted": summary["evidenceAdmission"]["admitted"],
         "failedBudgetChecks": sorted(
             key

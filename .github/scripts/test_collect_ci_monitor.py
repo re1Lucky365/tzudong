@@ -77,6 +77,48 @@ class PagingReader(Reader):
         return super().get(endpoint, fields)
 
 
+class DiscoveryReader(Reader):
+    """Model the documented created-time list independently of per-run reads."""
+
+    def __init__(self, listed_runs, latest_by_id):
+        super().__init__()
+        self.listed_runs = list(listed_runs)
+        self.latest_by_id = dict(latest_by_id)
+
+    def get(self, endpoint, fields=None):
+        self.requests += 1
+        self.endpoints.append(endpoint)
+        self.calls.append((endpoint, dict(fields or {})))
+        if endpoint.endswith("/web-admin-ci.yml/runs"):
+            page = int((fields or {}).get("page", 1))
+            per_page = int((fields or {}).get("per_page", 20))
+            start = (page - 1) * per_page
+            return {
+                "total_count": len(self.listed_runs),
+                "workflow_runs": self.listed_runs[start : start + per_page],
+            }
+        if "/git/commits/" in endpoint:
+            return {"tree": {"sha": TREE}}
+        if "/contents/" in endpoint:
+            return {"sha": REVISION}
+        if endpoint.endswith("/jobs"):
+            run_id = int(endpoint.split("/actions/runs/", 1)[1].split("/", 1)[0])
+            source = self.latest_by_id[run_id]
+            return jobs(source["created_at"])
+        if "/attempts/" in endpoint:
+            run_id = int(endpoint.split("/actions/runs/", 1)[1].split("/", 1)[0])
+            attempt = int(endpoint.rsplit("/", 1)[1])
+            result = dict(self.latest_by_id[run_id])
+            result["run_attempt"] = attempt
+            return result
+        if "/actions/runs/" in endpoint:
+            run_id = int(endpoint.rsplit("/", 1)[1])
+            if run_id not in self.latest_by_id:
+                raise M.ReadError("NOT_FOUND")
+            return self.latest_by_id[run_id]
+        raise AssertionError(endpoint)
+
+
 class CollectorTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -131,6 +173,21 @@ class CollectorTests(unittest.TestCase):
         serialized = json.dumps(second)
         for value in ["private owner", "private-host", "secret-value"]: self.assertNotIn(value, serialized)
         self.assertEqual(second["runs"][0]["sourceTree"], TREE)
+
+    def test_existing_positional_now_argument_remains_compatible(self):
+        captured = datetime(2026, 10, 15, 9, 30, tzinfo=timezone.utc)
+        result = M.collect(
+            "twoimo/tzudong",
+            "web-admin-ci.yml",
+            self.cache,
+            Reader(),
+            20,
+            5,
+            48,
+            captured,
+        )
+        self.assertEqual(result["capturedAtUtc"], "2026-10-15T09:30:00Z")
+        self.assertEqual(result["collection"]["maximumKnownTerminalRunRefreshes"], 20)
 
     def test_attempt_specific_reads_preserve_prior_failure(self):
         reader = Reader(run(2))
@@ -339,7 +396,13 @@ class CollectorTests(unittest.TestCase):
         )
         self.assertEqual(second["coverage"]["listPages"], 3)
         self.assertEqual(second["coverage"]["uniqueListedRunCount"], 45)
-        self.assertTrue(second["coverage"]["incrementalWindowComplete"])
+        self.assertTrue(second["coverage"]["createdWindowComplete"])
+        self.assertFalse(second["coverage"]["incrementalWindowComplete"])
+        self.assertFalse(second["coverage"]["historyInventoryComplete"])
+        self.assertIn(
+            "HISTORICAL_RUN_INVENTORY_INCOMPLETE",
+            second["coverage"]["alerts"],
+        )
         self.assertNotIn("RECENT_WINDOW_TRUNCATED", second["coverage"]["alerts"])
         pages = [fields["page"] for endpoint, fields in second_reader.calls if endpoint.endswith("/runs") and "workflows" in endpoint]
         self.assertEqual(pages, [1, 2, 3])
@@ -349,6 +412,148 @@ class CollectorTests(unittest.TestCase):
             if endpoint.endswith("/runs") and "workflows" in endpoint
         ]
         self.assertTrue(all(fields["created"].startswith(">=2026-10-09T") for fields in list_fields))
+
+    def test_old_known_terminal_rerun_is_found_by_bounded_direct_refresh(self):
+        original = run(run_id=1, minute=0)
+        first = self.collect(Reader(original))
+        self.assertTrue(first["coverage"]["historyInventoryComplete"])
+
+        rerun = dict(original)
+        rerun.update(
+            run_attempt=2,
+            run_started_at="2026-10-15T08:00:00Z",
+            updated_at="2026-10-15T08:01:00Z",
+        )
+        recent = run(run_id=2, minute=60)
+        reader = DiscoveryReader([recent], {1: rerun, 2: recent})
+        result = M.collect(
+            "twoimo/tzudong",
+            "web-admin-ci.yml",
+            self.cache,
+            reader,
+            terminal_probe_limit=1,
+        )
+
+        attempts = {(item["id"], item["attempt"]): item for item in result["runs"]}
+        self.assertIn((1, 2), attempts)
+        self.assertEqual(attempts[(1, 2)]["createdAt"], original["created_at"])
+        self.assertEqual(attempts[(1, 2)]["updatedAt"], rerun["updated_at"])
+        self.assertIn("repos/twoimo/tzudong/actions/runs/1", reader.endpoints)
+        self.assertTrue(result["coverage"]["createdWindowComplete"])
+        self.assertTrue(result["coverage"]["knownTerminalRerunRefreshComplete"])
+        self.assertTrue(result["coverage"]["incrementalWindowComplete"])
+
+    def test_terminal_refresh_round_robin_has_exact_tick_and_read_bounds(self):
+        originals = [run(run_id=10), run(run_id=20, minute=1)]
+        M.collect(
+            "twoimo/tzudong",
+            "web-admin-ci.yml",
+            self.cache,
+            PagingReader(originals),
+            limit=2,
+            terminal_probe_limit=1,
+        )
+
+        first_reader = DiscoveryReader([], {10: originals[0], 20: originals[1]})
+        first = M.collect(
+            "twoimo/tzudong",
+            "web-admin-ci.yml",
+            self.cache,
+            first_reader,
+            terminal_probe_limit=1,
+        )
+        second_reader = DiscoveryReader([], {10: originals[0], 20: originals[1]})
+        second = M.collect(
+            "twoimo/tzudong",
+            "web-admin-ci.yml",
+            self.cache,
+            second_reader,
+            terminal_probe_limit=1,
+        )
+
+        self.assertEqual(first["coverage"]["knownTerminalRunCount"], 2)
+        self.assertEqual(first["coverage"]["knownTerminalRunsExamined"], 1)
+        self.assertEqual(first["coverage"]["knownTerminalRunApiReads"], 1)
+        self.assertEqual(first["coverage"]["knownTerminalRerunMaxDiscoveryTicks"], 2)
+        self.assertFalse(first["coverage"]["incrementalWindowComplete"])
+        self.assertIn(
+            "KNOWN_TERMINAL_RERUN_REFRESH_INCOMPLETE",
+            first["coverage"]["alerts"],
+        )
+        direct_first = [
+            endpoint
+            for endpoint in first_reader.endpoints
+            if endpoint.endswith("/actions/runs/10")
+            or endpoint.endswith("/actions/runs/20")
+        ]
+        direct_second = [
+            endpoint
+            for endpoint in second_reader.endpoints
+            if endpoint.endswith("/actions/runs/10")
+            or endpoint.endswith("/actions/runs/20")
+        ]
+        self.assertEqual(direct_first, ["repos/twoimo/tzudong/actions/runs/10"])
+        self.assertEqual(direct_second, ["repos/twoimo/tzudong/actions/runs/20"])
+
+    def test_created_window_list_can_cover_terminal_ids_beyond_probe_slice(self):
+        originals = [run(run_id=21), run(run_id=22, minute=1)]
+        M.collect(
+            "twoimo/tzudong",
+            "web-admin-ci.yml",
+            self.cache,
+            PagingReader(originals),
+            limit=2,
+            terminal_probe_limit=1,
+        )
+
+        reader = DiscoveryReader(originals, {item["id"]: item for item in originals})
+        result = M.collect(
+            "twoimo/tzudong",
+            "web-admin-ci.yml",
+            self.cache,
+            reader,
+            limit=2,
+            terminal_probe_limit=1,
+        )
+
+        self.assertEqual(result["coverage"]["knownTerminalRunCount"], 2)
+        self.assertEqual(result["coverage"]["knownTerminalRunsExamined"], 2)
+        self.assertEqual(result["coverage"]["knownTerminalRunApiReads"], 0)
+        self.assertTrue(result["coverage"]["knownTerminalRerunRefreshComplete"])
+        self.assertTrue(result["coverage"]["incrementalWindowComplete"])
+
+    def test_never_inventoried_old_rerun_keeps_coverage_incomplete(self):
+        visible = run(run_id=30)
+        hidden = run(attempt=2, run_id=99, minute=-10_000)
+        M.collect(
+            "twoimo/tzudong",
+            "web-admin-ci.yml",
+            self.cache,
+            PagingReader([visible, run(run_id=31, minute=-1)]),
+            limit=1,
+            max_pages=1,
+        )
+
+        reader = DiscoveryReader([], {30: visible, 99: hidden})
+        result = M.collect(
+            "twoimo/tzudong",
+            "web-admin-ci.yml",
+            self.cache,
+            reader,
+            terminal_probe_limit=1,
+        )
+
+        self.assertNotIn(99, {item["id"] for item in result["runs"]})
+        self.assertNotIn("repos/twoimo/tzudong/actions/runs/99", reader.endpoints)
+        self.assertFalse(result["coverage"]["historyInventoryComplete"])
+        self.assertFalse(
+            result["coverage"]["unlistedHistoricalRerunDiscoveryComplete"]
+        )
+        self.assertFalse(result["coverage"]["incrementalWindowComplete"])
+        self.assertIn(
+            "HISTORICAL_RUN_INVENTORY_INCOMPLETE",
+            result["coverage"]["alerts"],
+        )
 
     def test_truncated_incremental_window_does_not_advance_watermark(self):
         initial_runs = [run(run_id=200 + index, minute=19 - index) for index in range(20)]
@@ -368,7 +573,10 @@ class CollectorTests(unittest.TestCase):
             "twoimo/tzudong",
             "web-admin-ci.yml",
             self.cache,
-            PagingReader(expanded_runs),
+            DiscoveryReader(
+                expanded_runs,
+                {item["id"]: item for item in initial_runs + expanded_runs},
+            ),
             limit=20,
             max_pages=2,
         )
@@ -399,6 +607,14 @@ class CollectorTests(unittest.TestCase):
                 self.cache,
                 Reader(),
                 overlap_hours=0,
+            )
+        with self.assertRaisesRegex(M.ReadError, "INVALID_TERMINAL_PROBE_BOUND"):
+            M.collect(
+                "twoimo/tzudong",
+                "web-admin-ci.yml",
+                self.cache,
+                Reader(),
+                terminal_probe_limit=101,
             )
 
     def test_list_total_smaller_than_page_fails_closed(self):

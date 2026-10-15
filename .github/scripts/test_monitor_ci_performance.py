@@ -359,7 +359,16 @@ class MonitorCiPerformanceTests(unittest.TestCase):
         )
 
     def test_thresholds_reject_boolean_nonfinite_negative_and_overflow_values(self) -> None:
-        malformed = (True, False, -0.01, float("nan"), float("inf"), 10**1000)
+        malformed = (
+            True,
+            False,
+            0,
+            0.0,
+            -0.01,
+            float("nan"),
+            float("inf"),
+            10**1000,
+        )
         for field in ("absoluteSeconds", "relativePercent"):
             for value in malformed:
                 with self.subTest(field=field, value=value):
@@ -371,6 +380,34 @@ class MonitorCiPerformanceTests(unittest.TestCase):
                     path = self.write("thresholds.json", {"thresholds": thresholds})
                     with self.assertRaisesRegex(MONITOR.MonitorError, "threshold"):
                         MONITOR.load_thresholds(path)
+
+    def test_signal_boundaries_keep_unchanged_inconclusive(self) -> None:
+        threshold = {"absoluteSeconds": 1.0, "relativePercent": 1.0}
+        unchanged = {
+            "absoluteReductionSeconds95Ci": [0.0, 0.0],
+            "relativeReductionPercent95Ci": [0.0, 0.0],
+        }
+        better = {
+            "absoluteReductionSeconds95Ci": [1.0, 1.0],
+            "relativeReductionPercent95Ci": [1.0, 1.0],
+        }
+        worse = {
+            "absoluteReductionSeconds95Ci": [-1.0, -1.0],
+            "relativeReductionPercent95Ci": [-1.0, -1.0],
+        }
+
+        self.assertEqual(
+            MONITOR.classify_signal([10.0] * 7, [10.0] * 7, unchanged, threshold),
+            "inconclusive",
+        )
+        self.assertEqual(
+            MONITOR.classify_signal([10.0] * 7, [9.0] * 7, better, threshold),
+            "improvement_signal",
+        )
+        self.assertEqual(
+            MONITOR.classify_signal([9.0] * 7, [10.0] * 7, worse, threshold),
+            "regression_signal",
+        )
 
     def test_incomplete_completed_attempt_can_be_replaced_when_evidence_completes(self) -> None:
         incomplete = self.write(

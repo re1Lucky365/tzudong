@@ -104,3 +104,13 @@ run `38617798185`, attempt `2`는 attempt별 job 응답 6개 중 5개에서 `sta
 `offline-replay/`와 `final-offline-replay/`의 당시 `export.json`을 각 tick의 `exportSha256`과 같은 원본 byte로 보존했다. 이 replay·raw·analysis·admission은 당시 소스와 입력에서 생성된 historical receipt이며 현재 analyzer 또는 현재 성능 개선의 증명으로 재라벨하지 않는다. PR head `73a439d4`에 있던 artifact map과 sidecar는 `historical-artifact-map-73a439d4/`에 byte-exact로 보존했다. 현재 artifact map은 76개 경로의 현재 bytes/hash를 검증하며, historical map 두 파일도 별도 entry로 결속한다. 이 map 갱신은 과거 scorer 결과나 `formalPerformanceAdmittedSlices=0`을 바꾸지 않는다.
 
 후보를 `origin/develop` `ab9196b30f469ce34e9bda6e36db90098059a822`와 병합한 뒤 reconciliation 207개 entry의 현재 bytes에서 candidate content hash를 다시 계산했다. CI Python 82개, source classifier 6개, reconciliation 7개와 관련 workflow 3개의 actionlint 1.7.12가 통과했다. 저장소 전체 actionlint는 이 후보가 바꾸지 않은 `daily-crawler.yml`, `g035-hosted-recovery.yml`, `ts7-release-evidence.yml`의 기존 오류 4건으로 실패하므로 전체 workflow 무결성을 주장하지 않는다.
+
+## 2026-10-15 오래된 재실행 발견과 판정 경계
+
+[GitHub workflow runs 공식 API](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-workflow)의 `created`는 원래 run 생성시각 필터다. 따라서 생성시각 overlap만으로 오래된 terminal run의 새 attempt를 모두 찾는다고 주장할 수 없다. 새 collector는 알려진 terminal run ID를 순환하며 tick마다 기본 최대 20개를 per-run GET으로 확인한다. 추가 원격 조회는 R≤20이고 전체 네트워크 상한은 O(P+A+R+S)다. 로컬 SQLite는 PK scan과 correlated indexed MAX lookup이므로 보수 상한을 O(H log H)로 기록한다.
+
+안정적인 알려진 terminal 집합 H와 모든 tick의 성공을 전제로 최대 발견 지연은 ceil(H/R) ticks다. 수정 시점 v8 cache의 H=172, R=20에서는 9 ticks, 기존 6시간 주기에서는 최대 54시간이다. 이는 현재 코드의 상한 모델이지 실제 발견시간 개선 측정이 아니다. 목록에 없던 과거 run의 재실행은 이 방식으로 보장하지 않는다. 전체 과거 inventory가 확인되지 않으면 `HISTORICAL_RUN_INVENTORY_INCOMPLETE`, 현재 tick에 알려진 terminal 전부를 확인하지 않았으면 `KNOWN_TERMINAL_RERUN_REFRESH_INCOMPLETE`를 보존한다. 생성시각 창·과거 inventory·현재 terminal 확인이 모두 완결돼야 `incrementalWindowComplete=true`가 되므로 불완전 coverage로 reference를 전환하지 않는다.
+
+운영자 지정 절대·상대 threshold는 이제 모두 유한한 양수여야 한다. 0 threshold는 입력 검증에서 거부하며, 동일 결과의 [0,0] 구간은 inconclusive다. 양·음 경계의 improvement/regression은 별도 fixture로 검증했다. compiler 증빙 validator는 보존된 앱 입력 835개와 의존성 입력 2,227개의 이름·내용 결합 digest를 재계산하고, 28개 실제 보존 parity 명령의 성공·stdout SHA·428 bytes를 manifest payload와 결속한다. 원시 측정·표본 수·기존 noise budget과 `admitted=false`는 변경하지 않았다.
+
+자동 감시는 아직 기존 v8 상태를 사용한다. v9 후보에서 과거 immutable success 4건이 빠진 것을 발견해 활성화를 거부했고, v10을 위해 원시 입력 합집합 82키를 준비했다. 새 source 동결·빈 checkpoint 재분석·첫 tick·전체 설정 readback 전에는 기존 상태나 기준선을 덮지 않는다. 이는 감시 정확성 보완이며 실제 CI 시간·비용 개선이나 공식 scorer 승인을 뜻하지 않는다.

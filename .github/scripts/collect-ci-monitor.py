@@ -8,6 +8,7 @@ Recent-list coverage is bounded and explicitly marked when it has gaps.
 from __future__ import annotations
 
 import argparse
+import bisect
 import hashlib
 import importlib.util
 import json
@@ -269,12 +270,15 @@ def collect(
     max_pages=5,
     overlap_hours=48,
     now=None,
+    terminal_probe_limit=20,
 ):
     if not SAFE_REPOSITORY.fullmatch(repository): raise ReadError("INVALID_REPOSITORY")
     if not re.fullmatch(r"[A-Za-z0-9_-]+\.yml", workflow): raise ReadError("INVALID_WORKFLOW")
     if not 1 <= limit <= 100: raise ReadError("INVALID_RUN_BOUND")
     if not 1 <= max_pages <= 10: raise ReadError("INVALID_PAGE_BOUND")
     if not 1 <= overlap_hours <= 168: raise ReadError("INVALID_OVERLAP_BOUND")
+    if not 1 <= terminal_probe_limit <= 100:
+        raise ReadError("INVALID_TERMINAL_PROBE_BOUND")
     now = now or datetime.now(timezone.utc)
     started = time.monotonic()
     db = database(cache)
@@ -287,6 +291,10 @@ def collect(
         if not scope: db.execute("INSERT INTO scope VALUES(1,?,?)", (repository, workflow))
         watermark = db.execute("SELECT value FROM meta WHERE key='watermark'").fetchone()
         watermark_before = watermark[0] if watermark else None
+        inventory = db.execute(
+            "SELECT value FROM meta WHERE key='history_inventory_complete'"
+        ).fetchone()
+        history_inventory_complete = bool(inventory and inventory[0] == "1")
         fields = {"per_page": limit}
         if watermark:
             since = COLLECTOR.parse_timestamp(watermark[0]) - timedelta(hours=overlap_hours)
@@ -329,23 +337,38 @@ def collect(
 
         total_changed = len(set(reported_totals)) > 1
         reported_total = max(reported_totals, default=0)
-        incremental_window_complete = bool(
+        created_window_complete = bool(
             watermark
             and not total_changed
             and duplicate_list_items == 0
             and len(listed_run_ids) >= reported_total
         )
+        bootstrap_inventory_complete = bool(
+            not watermark
+            and not total_changed
+            and duplicate_list_items == 0
+            and len(listed_run_ids) >= reported_total
+        )
+        if bootstrap_inventory_complete and not history_inventory_complete:
+            db.execute(
+                "INSERT OR REPLACE INTO meta VALUES('history_inventory_complete','1')"
+            )
+            history_inventory_complete = True
         if not watermark and reported_total > len(listed_run_ids):
             alerts.append("BOUNDED_RECENT_WINDOW")
-        if watermark and not incremental_window_complete:
+        if watermark and not created_window_complete:
             alerts.append("RECENT_WINDOW_TRUNCATED")
         if total_changed or duplicate_list_items:
             alerts.append("LIST_BOUNDARY_CHANGED")
+        if not history_inventory_complete:
+            alerts.append("HISTORICAL_RUN_INVENTORY_INCOMPLETE")
         listed = {raw.get("id") for raw in source_runs}
+        checked_run_ids = set(listed)
         active = db.execute("SELECT DISTINCT run_id FROM runs WHERE terminal=0 LIMIT 101").fetchall()
         if len(active) > 100: raise ReadError("ACTIVE_RUN_BOUND")
         for (run_id,) in active:
             if run_id in listed: continue
+            checked_run_ids.add(run_id)
             try: source_runs.append(reader.get(f"repos/{repository}/actions/runs/{run_id}"))
             except ReadError as error:
                 if error.code != "NOT_FOUND": raise
@@ -372,6 +395,72 @@ def collect(
                             (canonical(record).decode(), run_id, record["attempt"]),
                         )
                     export.append(record)
+        # GitHub's documented list filter is keyed to the original run creation
+        # time. A rerun keeps that time, so a created-time overlap cannot find a
+        # new attempt of an older terminal run. Recheck a deterministic slice of
+        # known terminal run IDs through the per-run endpoint. This bounds remote
+        # reads while making the maximum discovery delay explicit. Runs that were
+        # never inventoried remain an acknowledged coverage gap.
+        terminal_rows = db.execute(
+            """
+            SELECT current.run_id
+            FROM runs AS current
+            WHERE current.terminal=1
+              AND current.attempt=(
+                SELECT MAX(candidate.attempt)
+                FROM runs AS candidate
+                WHERE candidate.run_id=current.run_id
+              )
+            ORDER BY current.run_id
+            """
+        ).fetchall()
+        known_terminal_ids = [row[0] for row in terminal_rows]
+        cursor_row = db.execute(
+            "SELECT value FROM meta WHERE key='terminal_probe_cursor'"
+        ).fetchone()
+        try:
+            terminal_cursor = int(cursor_row[0]) if cursor_row else 0
+        except (TypeError, ValueError):
+            raise ReadError("CACHE_TERMINAL_CURSOR_INVALID") from None
+        start_index = bisect.bisect(known_terminal_ids, terminal_cursor)
+        ordered_terminal_ids = (
+            known_terminal_ids[start_index:] + known_terminal_ids[:start_index]
+        )
+        probed_terminal_ids = ordered_terminal_ids[:terminal_probe_limit]
+        terminal_probe_not_found = 0
+        terminal_probe_api_reads = 0
+        for run_id in probed_terminal_ids:
+            if run_id in checked_run_ids:
+                continue
+            terminal_probe_api_reads += 1
+            try:
+                source_runs.append(
+                    reader.get(f"repos/{repository}/actions/runs/{run_id}")
+                )
+            except ReadError as error:
+                if error.code != "NOT_FOUND":
+                    raise
+                terminal_probe_not_found += 1
+                alerts.append("KNOWN_TERMINAL_REFRESH_NOT_FOUND")
+        if probed_terminal_ids:
+            db.execute(
+                "INSERT OR REPLACE INTO meta VALUES('terminal_probe_cursor',?)",
+                (str(probed_terminal_ids[-1]),),
+            )
+        terminal_ids_observed = set(known_terminal_ids) & (
+            checked_run_ids | set(probed_terminal_ids)
+        )
+        known_terminal_refresh_complete = bool(
+            len(terminal_ids_observed) == len(known_terminal_ids)
+            and terminal_probe_not_found == 0
+        )
+        if not known_terminal_refresh_complete:
+            alerts.append("KNOWN_TERMINAL_RERUN_REFRESH_INCOMPLETE")
+        incremental_window_complete = bool(
+            (created_window_complete or bootstrap_inventory_complete)
+            and history_inventory_complete
+            and known_terminal_refresh_complete
+        )
         newest = watermark[0] if watermark else None
         seen = set()
         for raw in source_runs:
@@ -447,7 +536,7 @@ def collect(
             newest
             and (
                 not watermark
-                or incremental_window_complete
+                or created_window_complete
             )
             and newest != watermark_before
         )
@@ -463,10 +552,29 @@ def collect(
         "schema": SCHEMA, "repository": repository, "workflow": workflow_path,
         "capturedAtUtc": now.isoformat().replace("+00:00", "Z"), "runs": export,
         "coverage": {
-            "scope": "bounded_recent_window_plus_known_active_runs",
+            "scope": "created_window_plus_known_active_and_bounded_terminal_refresh",
             "alerts": sorted(set(alerts)),
             "completeHistoryClaimed": False,
             "incrementalWindowComplete": incremental_window_complete,
+            "createdWindowComplete": (
+                created_window_complete or bootstrap_inventory_complete
+            ),
+            "historyInventoryComplete": history_inventory_complete,
+            "unlistedHistoricalRerunDiscoveryComplete": history_inventory_complete,
+            "knownTerminalRerunRefreshComplete": known_terminal_refresh_complete,
+            "knownTerminalRunCount": len(known_terminal_ids),
+            "knownTerminalRunsExamined": len(terminal_ids_observed),
+            "knownTerminalRunApiReads": terminal_probe_api_reads,
+            "knownTerminalRefreshNotFoundCount": terminal_probe_not_found,
+            "knownTerminalRerunMaxDiscoveryTicks": (
+                (len(known_terminal_ids) + terminal_probe_limit - 1)
+                // terminal_probe_limit
+                if known_terminal_ids
+                else 0
+            ),
+            "knownTerminalRerunMaxDiscoveryTickBasis": (
+                "stable_known_terminal_inventory_and_successful_ticks"
+            ),
             "bootstrapOnly": not bool(watermark_before),
             "watermarkBefore": watermark_before,
             "watermarkAfter": watermark_after,
@@ -484,8 +592,9 @@ def collect(
             "maximumListedRunsPerPage": limit,
             "maximumListPages": max_pages,
             "maximumIncrementalListedRuns": limit * max_pages,
-            "asymptoticApiReads": "O(P + A + S), bounded by configured pages, active attempts, and uncached sources",
-            "sqliteLookupCost": "O(log H) per keyed run or source lookup",
+            "maximumKnownTerminalRunRefreshes": terminal_probe_limit,
+            "asymptoticApiReads": "O(P + A + R + S), bounded by configured pages, active attempts, terminal refreshes, and uncached sources",
+            "sqliteLookupCost": "O(H log H) worst-case for the local latest-terminal scan with indexed attempt lookups; O(log H) per keyed run or source lookup",
             "llmCalls": 0,
             "remoteMutations": 0,
         },
@@ -501,6 +610,7 @@ def main(argv=None):
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--max-pages", type=int, default=5)
     parser.add_argument("--overlap-hours", type=int, default=48)
+    parser.add_argument("--terminal-probe-limit", type=int, default=20)
     args = parser.parse_args(argv)
     try:
         result = collect(
@@ -508,9 +618,10 @@ def main(argv=None):
             args.workflow,
             args.cache,
             GitHubReader(),
-            args.limit,
-            args.max_pages,
-            args.overlap_hours,
+            limit=args.limit,
+            max_pages=args.max_pages,
+            overlap_hours=args.overlap_hours,
+            terminal_probe_limit=args.terminal_probe_limit,
         )
         atomic_json(args.output, result)
         print(json.dumps({"status": "collected", **result["collection"], "coverage": result["coverage"]}, sort_keys=True))
