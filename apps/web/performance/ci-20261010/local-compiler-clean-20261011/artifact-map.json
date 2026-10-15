@@ -67,20 +67,26 @@
     },
     {
       "path": "validate-evidence.py",
-      "sha256": "5de77a653beee1255a5104ec0e3a4895655310b4aef6e59ea3c9afa585417c95",
-      "bytes": 8497,
+      "sha256": "b3710c2facb98698c066dbf3f083c4ea66a8a5f1544fd05d3002a048bbd26145",
+      "bytes": 12971,
       "role": "reproduction or negative verification source"
     },
     {
+      "path": "test_validate_evidence.py",
+      "sha256": "a4d4a0635f2aa795af4b7e0f9a939ae3fd657eeb94cc0d34fe84a4d5e0fabf17",
+      "bytes": 3908,
+      "role": "retained input omission, duplicate, name, and content tamper regressions"
+    },
+    {
       "path": "validation.json",
-      "sha256": "ae0cc3702dfab76120fa31e077b0a1ef0f9a4965e25a0f294a251aec0287e35b",
-      "bytes": 1175,
-      "role": "13 structural integrity checks; confirms not admitted"
+      "sha256": "763e1613c4d3af418ea8ed1ff7625749fa97de6a848a8e926b8f24b7c7439ae9",
+      "bytes": 1493,
+      "role": "14 structural integrity checks; confirms not admitted"
     }
   ],
   "sourceFiles": [
     {
-      "path": "apps/web/performance/ci-20261010/local-compiler/benchmark.py",
+      "path": "apps/web/performance/ci-20261010/local-compiler/historical-scorer-7f9df77e.py",
       "sha256": "7f9df77e63482b7db9b0e41c7db3277bc8b47ba0434a7099f0bf2c0885db0719",
       "bytes": 31911
     }

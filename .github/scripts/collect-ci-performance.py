@@ -445,6 +445,15 @@ def validate_replay_inputs(
     for observation in observations:
         if not isinstance(observation, dict) or not isinstance(observation.get("run"), dict):
             raise CollectionError("replay excluded observation is malformed")
+        reason_codes = observation.get("reasonCodes")
+        if (
+            not isinstance(reason_codes, list)
+            or not reason_codes
+            or any(not isinstance(reason, str) or not reason for reason in reason_codes)
+        ):
+            raise CollectionError("replay excluded observation reasonCodes are malformed")
+        if not isinstance(observation.get("censored"), bool):
+            raise CollectionError("replay excluded observation censored flag is malformed")
         excluded_runs.append(observation["run"])
 
     all_runs = list(runs) + excluded_runs
@@ -481,6 +490,25 @@ def validate_replay_inputs(
         if reasons:
             raise CollectionError(
                 f"successful run {run.get('id')} is incomplete: {', '.join(reasons)}"
+            )
+    for observation in observations:
+        run = observation["run"]
+        try:
+            expected_reasons = exclusion_reasons(run)
+            expected_censored = is_censored(run)
+        except (AttributeError, TypeError, ValueError) as error:
+            raise CollectionError("replay excluded observation run is malformed") from error
+        if not expected_reasons:
+            raise CollectionError(
+                f"excluded run {run.get('id')} has no exclusion reason"
+            )
+        if observation["reasonCodes"] != expected_reasons:
+            raise CollectionError(
+                f"excluded run {run.get('id')} reasonCodes do not match run"
+            )
+        if observation["censored"] != expected_censored:
+            raise CollectionError(
+                f"excluded run {run.get('id')} censored flag does not match run"
             )
 
 

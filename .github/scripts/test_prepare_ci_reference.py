@@ -153,7 +153,23 @@ class CiReferenceTests(unittest.TestCase):
         self.assertFalse(incomplete["collectionComplete"])
         self.assertEqual(incomplete["blockingCoverageAlerts"], ["RECENT_WINDOW_TRUNCATED"])
 
-    def test_chronology_invalid_success_is_pending_and_never_enters_candidate(self):
+    def test_target_selector_skips_highest_tombstone_without_hiding_pending(self):
+        completed = self.observation(FIXTURE.make_run(480, 50))
+        pending_run = FIXTURE.make_run(
+            490, 50, status="in_progress", conclusion="success", incomplete_step=True
+        )
+        pending = self.observation(pending_run)
+        tombstone = dict(self.observation(FIXTURE.make_run(999, 50)))
+        tombstone.update(status="missing", conclusion="stale", tombstone=True)
+
+        selected = REFERENCE.select_current_observation(
+            [completed, pending, tombstone]
+        )
+        self.assertEqual((selected["runId"], selected["attempt"]), (490, 1))
+        self.assertFalse(REFERENCE.attempt_resolved(pending))
+        self.assertTrue(REFERENCE.attempt_resolved(tombstone))
+
+    def test_chronology_invalid_success_is_resolved_but_never_enters_candidate(self):
         successes = self.successes(start=400)
         defective = FIXTURE.make_run(499, 50, attempt=2)
         defective["jobs"][0]["createdAt"] = FIXTURE.timestamp(
@@ -168,27 +184,26 @@ class CiReferenceTests(unittest.TestCase):
         result = REFERENCE.evaluate_reference(
             self.state, self.checkpoint, "001"
         )
-        self.assertEqual(result["status"], "collecting_reference")
+        self.assertEqual(result["status"], "reference_candidate_ready")
         self.assertEqual(result["successCount"], 7)
         self.assertEqual(result["distinctSourceTreeCount"], 7)
         self.assertEqual(result["candidateAttemptCount"], 7)
-        self.assertEqual(result["blockingPendingCount"], 1)
+        self.assertEqual(result["blockingPendingCount"], 0)
+        self.assertEqual(result["pendingReasonCounts"], {})
+        self.assertEqual(result["timingExcludedTerminalCount"], 1)
         self.assertEqual(
-            result["pendingReasonCounts"],
-            {"chronology_invalid_attempt": 1},
+            result["timingExclusionReasonCounts"],
+            {"invalid_timing_order": 1},
         )
         self.assertEqual(result["chronologyInvalidAttemptCount"], 1)
         self.assertEqual(
             result["chronologyIssueCodeCounts"],
             {"JOB_START_PRECEDES_JOB_CREATION": 1},
         )
-        self.assertEqual(
-            result["pendingAssessments"][0]["chronologyIssueCodes"],
-            ["JOB_START_PRECEDES_JOB_CREATION"],
-        )
-        self.assertFalse((self.state / "reference-candidates").exists())
+        self.assertEqual(result["pendingAssessments"], [])
+        self.assertTrue((self.state / "reference-candidates").exists())
 
-    def test_later_chronology_pending_blocks_a_prepared_candidate(self):
+    def test_later_terminal_chronology_defect_does_not_replace_or_block_candidate(self):
         successes = self.successes(start=420)
         self.write_checkpoint(successes)
         self.write_tick("001", successes)
@@ -210,13 +225,14 @@ class CiReferenceTests(unittest.TestCase):
             self.state, self.checkpoint, "002"
         )
 
-        self.assertEqual(blocked["status"], "collecting_reference")
-        self.assertEqual(blocked["blockingPendingCount"], 1)
+        self.assertEqual(blocked["status"], "reference_candidate_ready")
+        self.assertEqual(blocked["blockingPendingCount"], 0)
+        self.assertEqual(blocked["timingExcludedTerminalCount"], 1)
         self.assertEqual(
             blocked["candidateBaselineSha256"],
             ready["candidateBaselineSha256"],
         )
-        self.assertNotIn("notificationKey", blocked)
+        self.assertIn("notificationKey", blocked)
 
     def test_unverified_shape_or_revision_pending_blocks_reference(self):
         successes = self.successes(start=800)

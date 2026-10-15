@@ -70,11 +70,19 @@ def atomic_json(path: Path, value):
 
 
 def safe_run(raw):
+    if not isinstance(raw, dict):
+        raise ReadError("INVALID_RUN")
+    attempt = raw["run_attempt"] if "run_attempt" in raw else 1
+    if (
+        not isinstance(attempt, int)
+        or isinstance(attempt, bool)
+        or not 1 <= attempt <= 1000
+    ):
+        raise ReadError("INVALID_ATTEMPT")
     result = COLLECTOR.sanitize_run(raw, [])
+    result["attempt"] = attempt
     if not isinstance(result["id"], int) or isinstance(result["id"], bool) or result["id"] < 1:
         raise ReadError("INVALID_RUN_ID")
-    if not isinstance(result["attempt"], int) or not 1 <= result["attempt"] <= 1000:
-        raise ReadError("INVALID_ATTEMPT")
     if not SAFE_SHA.fullmatch(str(result["headSha"])):
         raise ReadError("INVALID_SOURCE_SHA")
     # The source event is a fixed API enum, not a run title.
@@ -92,6 +100,14 @@ def safe_run(raw):
 
 
 def safe_job(raw):
+    if not isinstance(raw, dict):
+        raise ReadError("INVALID_JOB")
+    raw_steps = raw.get("steps") or []
+    if (
+        not isinstance(raw_steps, list)
+        or any(not isinstance(step, dict) for step in raw_steps)
+    ):
+        raise ReadError("INVALID_JOB_STEPS")
     result = COLLECTOR.sanitize_job(raw)
     result["name"] = result["name"] if result["name"] in KNOWN_JOBS else "Other job"
     labels = " ".join(result["runnerLabels"]).lower()
@@ -113,6 +129,28 @@ def safe_job(raw):
                 except (ValueError, TypeError, COLLECTOR.CollectionError):
                     raise ReadError("INVALID_JOB_TIME") from None
     return result
+
+
+def terminal_outcome_complete(run, jobs, job_set_complete):
+    """Return whether GitHub supplied a complete terminal outcome, not timing."""
+    if (
+        run["status"] != "completed"
+        or run["conclusion"] not in CONCLUSIONS
+        or not job_set_complete
+    ):
+        return False
+    if not jobs:
+        return run["conclusion"] != "success"
+    return all(
+        job["status"] == "completed"
+        and job["conclusion"] in CONCLUSIONS
+        and all(
+            step["status"] == "completed"
+            and step["conclusion"] in CONCLUSIONS
+            for step in job["steps"]
+        )
+        for job in jobs
+    )
 
 
 class GitHubReader:
@@ -258,7 +296,15 @@ def collect(
                 for terminal, text in cached_attempts:
                     record = json.loads(text)
                     if not terminal:
-                        record.update(status="missing", conclusion="stale", tombstone=True, jobs=[])
+                        record.update(
+                            status="missing",
+                            conclusion="stale",
+                            tombstone=True,
+                            jobs=[],
+                            terminalOutcomeComplete=False,
+                            timingUsable=False,
+                            timingExclusionReasons=["no_jobs"],
+                        )
                         record.update(jobsTotalCount=0, jobsAttempt=record["attempt"])
                         db.execute(
                             "UPDATE runs SET terminal=1,record=? WHERE run_id=? AND attempt=?",
@@ -309,11 +355,25 @@ def collect(
                 timing_reasons = COLLECTOR.timing_exclusion_reasons(record)
                 if count == 0 and run["conclusion"] != "success":
                     timing_reasons = [reason for reason in timing_reasons if reason != "no_jobs"]
-                terminal = bool(
-                    run["status"] == "completed"
-                    and run["conclusion"] in CONCLUSIONS
-                    and complete
+                outcome_complete = terminal_outcome_complete(
+                    run, record["jobs"], complete
+                )
+                timing_usable = bool(
+                    run["conclusion"] == "success"
+                    and outcome_complete
                     and not timing_reasons
+                )
+                record.update(
+                    terminalOutcomeComplete=outcome_complete,
+                    timingUsable=timing_usable,
+                    timingExclusionReasons=sorted(set(timing_reasons)),
+                )
+                # Successful records with unusable timing remain refreshable so
+                # a corrected GitHub snapshot can replace them. Non-success
+                # terminal outcomes are immutable even when timing is absent.
+                terminal = bool(
+                    outcome_complete
+                    and (run["conclusion"] != "success" or timing_usable)
                 )
                 if len(canonical(record)) > 1024 * 1024: raise ReadError("RECORD_BYTE_BOUND")
                 db.execute("INSERT OR REPLACE INTO runs VALUES(?,?,?,?,?)", (run["id"], attempt, fingerprint, int(terminal), canonical(record).decode()))

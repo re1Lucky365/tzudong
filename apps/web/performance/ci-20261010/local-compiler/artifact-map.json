@@ -3,8 +3,15 @@
   "artifacts": [
     {
       "path": "benchmark.py",
+      "sha256": "262de388f2af276efd34612efeb240f6cd4c6f933e224314a040ada45c345046",
+      "bytes": 32213,
+      "role": "current benchmark and replay scorer with strict acceptance-budget validation"
+    },
+    {
+      "path": "historical-scorer-7f9df77e.py",
       "sha256": "7f9df77e63482b7db9b0e41c7db3277bc8b47ba0434a7099f0bf2c0885db0719",
-      "role": "current frozen-input benchmark and reproducible scorer"
+      "bytes": 31911,
+      "role": "exact scorer bound by retained historical raw evidence"
     },
     {
       "path": "raw.json",
@@ -44,8 +51,8 @@
     },
     {
       "path": "test_benchmark.py",
-      "sha256": "2ceb502b187293535de4b14ffa3861f0e749cc38665d05316c62e3b7ea2052d8",
-      "bytes": 6358,
+      "sha256": "8b9bd6192a04ac33c78e01362dcc5b14d4fa30855b463375a60775d0cb7b5551",
+      "bytes": 7313,
       "role": "frozen-input and budget negative tests"
     }
   ],

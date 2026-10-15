@@ -78,9 +78,6 @@ def validate_frozen_baseline(payload) -> list[dict]:
         conclusion = str(MONITOR.get_first(record, "conclusion") or "missing").lower()
         if status != "completed" or conclusion not in BASELINE_TERMINAL_CONCLUSIONS:
             raise TickError("BASELINE_TERMINAL_EVIDENCE_INCOMPLETE")
-        if conclusion != "success":
-            # Failure-rate evidence remains valid without complete timing data.
-            continue
         try:
             observation = MONITOR.analyze_record(
                 record,
@@ -91,7 +88,9 @@ def validate_frozen_baseline(payload) -> list[dict]:
             )
         except (MONITOR.MonitorError, KeyError, TypeError, ValueError):
             raise TickError("BASELINE_TERMINAL_EVIDENCE_INCOMPLETE") from None
-        if not observation.get("timingUsable"):
+        if not observation.get("terminalOutcomeComplete"):
+            raise TickError("BASELINE_TERMINAL_EVIDENCE_INCOMPLETE")
+        if conclusion == "success" and not observation.get("timingUsable"):
             raise TickError("BASELINE_TERMINAL_EVIDENCE_INCOMPLETE")
     return records
 
@@ -267,6 +266,7 @@ def tick(args):
                     "potentialSameCohortPendingCount", "blockingPendingCount",
                     "verifiedDifferentPendingCount", "pendingReasonCounts",
                     "chronologyInvalidAttemptCount", "chronologyIssueCodeCounts",
+                    "timingExcludedTerminalCount", "timingExclusionReasonCounts",
                     "collectionComplete", "candidateBaselineSha256",
                     "candidateBaselinePath", "readinessReceiptPath",
                 )

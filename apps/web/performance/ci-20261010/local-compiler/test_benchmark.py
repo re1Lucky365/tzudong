@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import math
 import shutil
 import subprocess
 import tempfile
@@ -151,6 +152,25 @@ class CleanSourceAdmissionTests(unittest.TestCase):
         summary = BENCHMARK.analyze(self.synthetic_raw(2_000))
         self.assertFalse(summary["evidenceAdmission"]["admitted"])
         self.assertFalse(summary["evidenceAdmission"]["budgetChecks"]["noiseP95"])
+
+    def test_analysis_rejects_non_finite_negative_and_boolean_numeric_budgets(self) -> None:
+        numeric_budgets = (
+            "absoluteMeanReductionBootstrap95CiLowerBoundMs",
+            "relativeMeanReductionBootstrap95CiLowerBoundPercent",
+            "noiseAaP95AbsoluteRelativeDifferencePercentMaximum",
+        )
+        malformed_values = (True, -0.01, math.nan, math.inf, -math.inf, 10**1000)
+        for budget in numeric_budgets:
+            for value in malformed_values:
+                with self.subTest(budget=budget, value=value):
+                    raw = self.synthetic_raw(10)
+                    raw["metadata"]["experimentConfig"]["acceptanceBudgets"][
+                        budget
+                    ] = value
+                    with self.assertRaisesRegex(
+                        RuntimeError, f"acceptance budget is malformed: {budget}"
+                    ):
+                        BENCHMARK.analyze(raw)
 
 
 if __name__ == "__main__":

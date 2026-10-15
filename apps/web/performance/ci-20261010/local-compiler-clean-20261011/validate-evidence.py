@@ -7,8 +7,9 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 def canonical_json(value: Any) -> str:
@@ -28,13 +29,104 @@ def require(condition: bool, message: str) -> None:
         raise RuntimeError(message)
 
 
-def load_benchmark(path: Path) -> Any:
-    spec = importlib.util.spec_from_file_location("frozen_compiler_benchmark", path)
+def load_module(name: str, path: Path) -> Any:
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise RuntimeError("cannot import benchmark scorer")
+        raise RuntimeError(f"cannot import evidence helper: {path.name}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def validate_retained_input_manifests(
+    manifest: dict[str, Any],
+    digest_inputs: Callable[[list[dict[str, str]]], dict[str, Any]],
+) -> dict[str, Any]:
+    coverage = manifest.get("sourceCoverage")
+    compiler_digests = manifest.get("logicalInputDigests")
+    require(isinstance(coverage, dict), "source coverage is malformed")
+    require(isinstance(compiler_digests, dict), "logical input digests are malformed")
+
+    retained_inputs: list[dict[str, str]] = []
+    seen_names: set[str] = set()
+    groups = (
+        ("appInputManifest", "app", "appInputs"),
+        ("dependencyInputManifest", "dependency", "dependencyInputs"),
+    )
+    for manifest_key, origin, count_key in groups:
+        entries = manifest.get(manifest_key)
+        expected_count = coverage.get(count_key)
+        require(isinstance(entries, list), f"{origin} input manifest is malformed")
+        require(
+            isinstance(expected_count, int)
+            and not isinstance(expected_count, bool)
+            and expected_count >= 0,
+            f"{origin} input count is malformed",
+        )
+        require(
+            len(entries) == expected_count,
+            f"{origin} input count mismatch",
+        )
+        names: list[str] = []
+        for entry in entries:
+            require(
+                isinstance(entry, dict)
+                and set(entry) == {"name", "contentHash"},
+                f"{origin} input entry is malformed",
+            )
+            name = entry["name"]
+            content_hash = entry["contentHash"]
+            require(
+                isinstance(name, str) and name and not name.startswith("lib:"),
+                f"{origin} logical input name is malformed",
+            )
+            require(
+                isinstance(content_hash, str)
+                and re.fullmatch(r"[0-9a-f]{64}", content_hash) is not None,
+                f"{origin} content hash is malformed",
+            )
+            require(name not in seen_names, f"duplicate logical input name: {name}")
+            seen_names.add(name)
+            names.append(name)
+            retained_inputs.append(
+                {"name": name, "contentHash": content_hash, "origin": origin}
+            )
+        require(names == sorted(names), f"{origin} input manifest is not sorted")
+
+    retained_inputs.sort(key=lambda item: item["name"])
+    recalculated = digest_inputs(retained_inputs)
+    native_digest = compiler_digests.get("native")
+    compat_digest = compiler_digests.get("compat")
+    require(isinstance(native_digest, dict), "native logical input digest is malformed")
+    require(isinstance(compat_digest, dict), "compat logical input digest is malformed")
+    require(
+        recalculated["nonLibraryContentSha256"]
+        == native_digest.get("nonLibraryContentSha256")
+        == compat_digest.get("nonLibraryContentSha256"),
+        "retained logical input name/content digest mismatch",
+    )
+    require(
+        native_digest.get("logicalInputNamesSha256")
+        == compat_digest.get("logicalInputNamesSha256"),
+        "compiler logical input name digests differ",
+    )
+    for compiler, digest, count_key in (
+        ("native", native_digest, "nativeStandardLibraryInputs"),
+        ("compat", compat_digest, "compatStandardLibraryInputs"),
+    ):
+        library_count = coverage.get(count_key)
+        require(
+            isinstance(library_count, int)
+            and not isinstance(library_count, bool)
+            and library_count >= 0,
+            f"{compiler} standard library input count is malformed",
+        )
+        require(
+            digest.get("logicalInputs")
+            == recalculated["logicalInputs"] + library_count,
+            f"{compiler} logical input count mismatch",
+        )
+    return recalculated
 
 
 def main() -> int:
@@ -78,7 +170,15 @@ def main() -> int:
         == config["expectedBenchmarkScriptSha256"]
         == raw["metadata"]["benchmarkScriptSha256"]
     )
-    benchmark = load_benchmark(benchmark_path)
+    benchmark = load_module("frozen_compiler_benchmark", benchmark_path)
+    capture = load_module(
+        "compiler_input_manifest",
+        Path(__file__).resolve().with_name("capture-input-manifest.py"),
+    )
+    retained_input_digest = validate_retained_input_manifests(
+        manifest, capture.digest_inputs
+    )
+    checks["retainedInputEntriesRecomputeNameContentDigest"] = True
     checks["scorerRegenerationEqualsSummary"] = benchmark.analyze(raw) == summary
     checks["sampleCountsPreserved"] = (
         len(raw["measuredPairs"]) == config["pairs"] == 7
@@ -185,6 +285,15 @@ def main() -> int:
                 canonical_json(benchmark.analyze(raw)).encode("utf-8")
             ).hexdigest(),
             "retainedSummarySha256": sha256_file(paths["summary.json"]),
+        },
+        "retainedInputManifest": {
+            "logicalInputs": retained_input_digest["logicalInputs"],
+            "logicalInputNamesSha256": retained_input_digest[
+                "logicalInputNamesSha256"
+            ],
+            "nonLibraryContentSha256": retained_input_digest[
+                "nonLibraryContentSha256"
+            ],
         },
         "decision": {
             "admitted": False,

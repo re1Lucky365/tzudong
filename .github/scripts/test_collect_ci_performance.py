@@ -173,6 +173,51 @@ class CollectorAdmissionTests(unittest.TestCase):
         with self.assertRaises(M.CollectionError):
             M.validate_replay_inputs(collection, different_capture, excluded)
 
+    def test_replay_rejects_excluded_observation_semantic_tampering(self):
+        collection, successful, excluded = replay_payloads()
+        cases = []
+
+        successful_as_excluded = copy.deepcopy(excluded)
+        successful_as_excluded["observations"][0].update(
+            run=complete_run(8, 12), reasonCodes=[], censored=False
+        )
+        cases.append(("successful_run", successful_as_excluded))
+
+        missing_reasons = copy.deepcopy(excluded)
+        missing_reasons["observations"][0].pop("reasonCodes")
+        cases.append(("missing_reason_codes", missing_reasons))
+
+        empty_reasons = copy.deepcopy(excluded)
+        empty_reasons["observations"][0]["reasonCodes"] = []
+        cases.append(("empty_reason_codes", empty_reasons))
+
+        wrong_reason_type = copy.deepcopy(excluded)
+        wrong_reason_type["observations"][0]["reasonCodes"] = "run_conclusion_failure"
+        cases.append(("reason_codes_wrong_type", wrong_reason_type))
+
+        fabricated_reason = copy.deepcopy(excluded)
+        fabricated_reason["observations"][0]["reasonCodes"] = [
+            "run_conclusion_cancelled"
+        ]
+        cases.append(("fabricated_reason", fabricated_reason))
+
+        stale_reason = copy.deepcopy(excluded)
+        stale_reason["observations"][0]["run"]["conclusion"] = "cancelled"
+        cases.append(("stale_cross_copied_reason", stale_reason))
+
+        wrong_censored_type = copy.deepcopy(excluded)
+        wrong_censored_type["observations"][0]["censored"] = 1
+        cases.append(("censored_wrong_type", wrong_censored_type))
+
+        fabricated_censored = copy.deepcopy(excluded)
+        fabricated_censored["observations"][0]["censored"] = False
+        cases.append(("fabricated_censored", fabricated_censored))
+
+        for name, changed in cases:
+            with self.subTest(name=name):
+                with self.assertRaises(M.CollectionError):
+                    M.validate_replay_inputs(collection, successful, changed)
+
 
 if __name__ == "__main__":
     unittest.main()

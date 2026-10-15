@@ -240,7 +240,17 @@ def retained_records_for_candidate(state_dir: Path) -> list[dict]:
 
 
 def select_current_observation(observations: list[dict]) -> dict | None:
-    verified = [item for item in observations if item.get("cohortMetadataVerified")]
+    verified = [
+        item
+        for item in observations
+        if item.get("cohortMetadataVerified")
+        and not item.get("tombstone")
+        and not (
+            attempt_resolved(item)
+            and item.get("status") != "completed"
+        )
+        and item.get("status") != "missing"
+    ]
     if not verified:
         return None
     return max(verified, key=lambda item: (item["runId"], item["attempt"]))
@@ -254,30 +264,28 @@ def select_current_cohort(observations: list[dict]) -> str | None:
 def attempt_resolved(observation: dict) -> bool:
     if observation.get("tombstone"):
         return True
-    conclusion = observation.get("conclusion")
-    if (
-        observation.get("status") != "completed"
-        or conclusion not in REFERENCE_TERMINAL_CONCLUSIONS
-    ):
-        return False
-    return conclusion != "success" or bool(
-        observation.get("terminalEvidenceComplete")
-        and observation.get("chronologyValid", True)
+    return bool(
+        observation.get(
+            "terminalOutcomeComplete",
+            observation.get("terminalEvidenceComplete", False),
+        )
     )
 
 
 def reference_terminal(observation: dict) -> bool:
+    outcome_complete = observation.get(
+        "terminalOutcomeComplete",
+        observation.get("terminalEvidenceComplete", False),
+    )
     return bool(
         not observation.get("tombstone")
         and observation.get("status") == "completed"
         and observation.get("conclusion") in REFERENCE_TERMINAL_CONCLUSIONS
         and observation.get("cohortMetadataVerified")
+        and outcome_complete
         and (
             observation.get("conclusion") != "success"
-            or (
-                observation.get("terminalEvidenceComplete")
-                and observation.get("chronologyValid", True)
-            )
+            or observation.get("timingUsable")
         )
     )
 
@@ -397,6 +405,17 @@ def evaluate_reference(state_dir: Path, checkpoint_path: Path, tick_id: str | No
         item for item in cohort
         if reference_terminal(item)
     ]
+    timing_excluded_terminal = [
+        item
+        for item in observations
+        if not item.get("tombstone")
+        and item.get(
+            "terminalOutcomeComplete",
+            item.get("terminalEvidenceComplete", False),
+        )
+        and item.get("conclusion") == "success"
+        and not item.get("timingUsable")
+    ]
     candidate_within_bound = len(terminal) <= MAXIMUM_CANDIDATE_ATTEMPTS
     ready_now = bool(
         cohort_key
@@ -440,6 +459,12 @@ def evaluate_reference(state_dir: Path, checkpoint_path: Path, tick_id: str | No
             code
             for item in observations
             for code in item.get("chronologyIssueCodes", [])
+        ).items())),
+        "timingExcludedTerminalCount": len(timing_excluded_terminal),
+        "timingExclusionReasonCounts": dict(sorted(Counter(
+            reason
+            for item in timing_excluded_terminal
+            for reason in item.get("timingExclusionReasons", [])
         ).items())),
         "pendingAssessments": pending_assessments,
         "collectionComplete": collection_complete,

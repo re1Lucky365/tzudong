@@ -84,7 +84,12 @@ CHRONOLOGY_CODES = {
     "JOB_COMPLETION_PRECEDES_JOB_CREATION",
     "JOB_COMPLETION_PRECEDES_JOB_START",
     "JOB_START_PRECEDES_JOB_CREATION",
+    "JOB_START_PRECEDES_RUN_START",
+    "JOB_COMPLETION_FOLLOWS_RUN_UPDATE",
     "JOB_TIMESTAMP_PRECEDES_RUN_CREATION",
+    "RUN_START_PRECEDES_RUN_CREATION",
+    "RUN_UPDATE_PRECEDES_RUN_CREATION",
+    "RUN_UPDATE_PRECEDES_RUN_START",
     "STEP_COMPLETION_PRECEDES_STEP_START",
     "STEP_TIMESTAMP_FOLLOWS_JOB_COMPLETION",
     "STEP_TIMESTAMP_PRECEDES_JOB_START",
@@ -175,6 +180,19 @@ def get_first(mapping: dict[str, Any], *names: str) -> Any:
     return None
 
 
+def run_attempt(mapping: dict[str, Any]) -> int:
+    """Default an absent attempt to one, but reject an invalid supplied value."""
+    for name in ("attempt", "run_attempt", "runAttempt"):
+        if name in mapping:
+            attempt = mapping[name]
+            break
+    else:
+        attempt = 1
+    if not isinstance(attempt, int) or isinstance(attempt, bool) or attempt < 1:
+        raise MonitorError("run attempt must be a positive integer")
+    return attempt
+
+
 def safe_workflow(value: Any, fallback: str) -> str:
     candidate = str(value or fallback)
     if not SAFE_WORKFLOW_PATH.fullmatch(candidate) or ".." in candidate.split("/"):
@@ -252,6 +270,8 @@ def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
     steps = get_first(job, "steps") or []
     if not isinstance(steps, list):
         raise MonitorError("job steps must be a list")
+    if any(not isinstance(step, dict) for step in steps):
+        raise MonitorError("job steps must contain only objects")
     return {
         "status": str(get_first(job, "status") or "missing"),
         "conclusion": str(get_first(job, "conclusion") or "missing"),
@@ -259,7 +279,7 @@ def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
         "startedAt": get_first(job, "startedAt", "started_at"),
         "completedAt": get_first(job, "completedAt", "completed_at"),
         "runnerFamily": runner_family(labels),
-        "steps": [normalize_step(step) for step in steps if isinstance(step, dict)],
+        "steps": [normalize_step(step) for step in steps],
     }
 
 
@@ -328,9 +348,7 @@ def analyze_record(
     if conclusion not in VALID_CONCLUSIONS:
         conclusion = "missing"
     status = str(get_first(record, "status") or "missing").lower()
-    attempt = get_first(record, "attempt", "run_attempt", "runAttempt") or 1
-    if not isinstance(attempt, int) or isinstance(attempt, bool) or attempt < 1:
-        raise MonitorError("run attempt must be a positive integer")
+    attempt = run_attempt(record)
     event = safe_event(get_first(record, "event"))
     head_sha = safe_sha(get_first(record, "headSha", "head_sha", "headShaOid"))
     source_tree = safe_digest(get_first(record, "sourceTree", "source_tree"))
@@ -361,6 +379,18 @@ def analyze_record(
     )
     jobs = [normalize_job(job) for job in jobs_raw]
 
+    collector_timing_record = {
+        "createdAt": get_first(record, "createdAt", "created_at"),
+        "startedAt": get_first(record, "startedAt", "started_at", "run_started_at"),
+        "updatedAt": get_first(record, "updatedAt", "updated_at"),
+        "jobs": jobs,
+    }
+    timing_exclusion_reasons = set(
+        COLLECTOR.timing_exclusion_reasons(collector_timing_record)
+    )
+    if not jobs_complete:
+        timing_exclusion_reasons.add("incomplete_job_set")
+
     malformed_timestamp = False
     incomplete_job_count = 0
     incomplete_step_count = 0
@@ -374,6 +404,22 @@ def analyze_record(
 
     try:
         created_at = parse_timestamp(get_first(record, "createdAt", "created_at"))
+        started_at = parse_timestamp(
+            get_first(record, "startedAt", "started_at", "run_started_at")
+        )
+        updated_at = parse_timestamp(get_first(record, "updatedAt", "updated_at"))
+        if created_at is not None and started_at is not None and started_at < created_at:
+            record_chronology_issue(
+                chronology_issue_codes, phase, "RUN_START_PRECEDES_RUN_CREATION"
+            )
+        if created_at is not None and updated_at is not None and updated_at < created_at:
+            record_chronology_issue(
+                chronology_issue_codes, phase, "RUN_UPDATE_PRECEDES_RUN_CREATION"
+            )
+        if started_at is not None and updated_at is not None and updated_at < started_at:
+            record_chronology_issue(
+                chronology_issue_codes, phase, "RUN_UPDATE_PRECEDES_RUN_START"
+            )
         for job in jobs:
             job_chronology_valid = True
             if job["conclusion"] in FAILURE_CONCLUSIONS:
@@ -390,6 +436,28 @@ def analyze_record(
                             "JOB_TIMESTAMP_PRECEDES_RUN_CREATION",
                         )
                         job_chronology_valid = False
+            if (
+                started_at is not None
+                and job_started_at is not None
+                and job_started_at < started_at
+            ):
+                record_chronology_issue(
+                    chronology_issue_codes,
+                    phase,
+                    "JOB_START_PRECEDES_RUN_START",
+                )
+                job_chronology_valid = False
+            if (
+                updated_at is not None
+                and job_completed_at is not None
+                and job_completed_at > updated_at
+            ):
+                record_chronology_issue(
+                    chronology_issue_codes,
+                    phase,
+                    "JOB_COMPLETION_FOLLOWS_RUN_UPDATE",
+                )
+                job_chronology_valid = False
             if (
                 job_created_at is not None
                 and job_started_at is not None
@@ -513,23 +581,39 @@ def analyze_record(
     except MonitorError:
         malformed_timestamp = True
         created_at = None
+        timing_exclusion_reasons.add("malformed_timing")
 
     chronology_valid = not chronology_issue_codes
-    terminal_evidence_complete = bool(
+    run_outcome_terminal = bool(
         status == "completed"
-        and jobs
+        and conclusion in TERMINAL_CONCLUSIONS
+    )
+    job_outcomes_terminal = all(
+        job["status"] == "completed"
+        and job["conclusion"] in TERMINAL_CONCLUSIONS
+        for job in jobs
+    )
+    step_outcomes_terminal = all(
+        step["status"] == "completed"
+        and step["conclusion"] in TERMINAL_CONCLUSIONS
+        for job in jobs
+        for step in job["steps"]
+    )
+    terminal_outcome_complete = bool(
+        run_outcome_terminal
         and jobs_complete
-        and all(job["status"] == "completed" for job in jobs)
-        and incomplete_job_count == 0
-        and incomplete_step_count == 0
-        and not malformed_timestamp
-        and chronology_valid
+        and (
+            (jobs and job_outcomes_terminal and step_outcomes_terminal)
+            or (not jobs and conclusion != "success")
+        )
     )
     timing_usable = bool(
         conclusion == "success"
         and not tombstone
-        and terminal_evidence_complete
+        and terminal_outcome_complete
         and chronology_valid
+        and not timing_exclusion_reasons
+        and not malformed_timestamp
         and created_at is not None
         and job_completion_times
     )
@@ -543,8 +627,8 @@ def analyze_record(
             chronology_issue_codes, phase, "CRITICAL_PATH_NEGATIVE"
         )
         chronology_valid = False
-        terminal_evidence_complete = False
         timing_usable = False
+        timing_exclusion_reasons.add("invalid_timing_order")
         critical_path = None
     families = sorted({job["runnerFamily"] for job in jobs})
     cohort_metadata_verified = bool(
@@ -553,6 +637,8 @@ def analyze_record(
         and workflow_revision
         and job_topology
         and execution_mode != "unknown"
+        and families
+        and "unknown" not in families
     )
     cohort_key = "|".join(
         [
@@ -582,10 +668,21 @@ def analyze_record(
         "sourceFingerprint": source_fingerprint,
         "runnerFamilies": families,
         "timingUsable": timing_usable,
+        "timingExclusionReasons": sorted(timing_exclusion_reasons),
         "chronologyValid": chronology_valid,
         "chronologyIssueCodes": sorted(chronology_issue_codes),
         "attemptJobSetComplete": jobs_complete,
-        "terminalEvidenceComplete": terminal_evidence_complete,
+        "terminalOutcomeComplete": terminal_outcome_complete,
+        # Compatibility field for existing checkpoint readers. Timing
+        # eligibility is represented only by timingUsable.
+        "terminalEvidenceComplete": terminal_outcome_complete,
+        "snapshotImmutable": bool(
+            tombstone
+            or (
+                terminal_outcome_complete
+                and (conclusion != "success" or timing_usable)
+            )
+        ),
         "tombstone": tombstone,
         "malformedTimestamp": malformed_timestamp,
         "jobCount": len(jobs),
@@ -600,7 +697,7 @@ def analyze_record(
         "maxQueueSeconds": round(max(queue_durations), 6) if timing_usable else None,
         "stageSeconds": (
             {key: round(value, 6) for key, value in sorted(stage_seconds.items())}
-            if chronology_valid
+            if timing_usable
             else {}
         ),
     }
@@ -1032,9 +1129,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 run_id = get_first(record, "id", "databaseId", "runId")
                 if not isinstance(run_id, int) or isinstance(run_id, bool) or run_id < 1:
                     raise MonitorError("run id must be a positive integer")
-                attempt = get_first(record, "attempt", "run_attempt", "runAttempt") or 1
-                if not isinstance(attempt, int) or isinstance(attempt, bool) or attempt < 1:
-                    raise MonitorError("run attempt must be a positive integer")
+                attempt = run_attempt(record)
                 key = f"{run_id}:{attempt}"
                 source_fingerprint = sha256_bytes(canonical_json(record))
                 if key in run_index:
@@ -1043,7 +1138,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     if run_index[key].get("sourceFingerprint") == source_fingerprint:
                         duplicate_count += 1
                         continue
-                    if run_index[key].get("terminalEvidenceComplete") is True:
+                    immutable = run_index[key].get("snapshotImmutable")
+                    if immutable is None:
+                        # Backward-compatible read of checkpoints written before
+                        # outcome and timing eligibility were split.
+                        immutable = run_index[key].get("terminalEvidenceComplete") is True
+                    if immutable:
                         raise MonitorError("completed run attempt changed after becoming immutable")
                 observation = analyze_record(
                     record,

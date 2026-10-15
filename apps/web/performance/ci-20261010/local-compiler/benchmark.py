@@ -338,6 +338,33 @@ def verify_file_hashes(root: Path, expected: dict[str, Any], label: str) -> dict
     return actual
 
 
+def validate_acceptance_budgets(config: dict[str, Any]) -> dict[str, Any]:
+    budgets = config.get("acceptanceBudgets")
+    numeric_budgets = (
+        "absoluteMeanReductionBootstrap95CiLowerBoundMs",
+        "relativeMeanReductionBootstrap95CiLowerBoundPercent",
+        "noiseAaP95AbsoluteRelativeDifferencePercentMaximum",
+    )
+    if not isinstance(budgets, dict):
+        raise RuntimeError("acceptance budgets are missing")
+    for key in numeric_budgets:
+        value = budgets.get(key)
+        try:
+            finite = math.isfinite(float(value))
+        except (OverflowError, TypeError, ValueError):
+            finite = False
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not finite
+            or value < 0
+        ):
+            raise RuntimeError(f"acceptance budget is malformed: {key}")
+    if budgets.get("noiseAaMeanDifference95CiMustIncludeZero") is not True:
+        raise RuntimeError("A/A mean-difference interval budget must require zero")
+    return budgets
+
+
 def validate_experiment_contract(
     config: dict[str, Any],
     repository: Path,
@@ -367,20 +394,7 @@ def validate_experiment_contract(
         if config.get(key) != actual:
             raise RuntimeError(f"experiment configuration mismatch: {key}")
 
-    budgets = config.get("acceptanceBudgets")
-    required_budgets = {
-        "absoluteMeanReductionBootstrap95CiLowerBoundMs": (int, float),
-        "relativeMeanReductionBootstrap95CiLowerBoundPercent": (int, float),
-        "noiseAaP95AbsoluteRelativeDifferencePercentMaximum": (int, float),
-        "noiseAaMeanDifference95CiMustIncludeZero": bool,
-    }
-    if not isinstance(budgets, dict):
-        raise RuntimeError("acceptance budgets are missing")
-    for key, expected_type in required_budgets.items():
-        if not isinstance(budgets.get(key), expected_type):
-            raise RuntimeError(f"acceptance budget is malformed: {key}")
-    if budgets["noiseAaMeanDifference95CiMustIncludeZero"] is not True:
-        raise RuntimeError("A/A mean-difference interval budget must require zero")
+    validate_acceptance_budgets(config)
 
     source_hashes = verify_file_hashes(
         source, config.get("expectedSourceHashes"), "source"
@@ -404,6 +418,7 @@ def validate_experiment_contract(
 
 
 def analyze(raw: dict[str, Any]) -> dict[str, Any]:
+    budgets = validate_acceptance_budgets(raw["metadata"]["experimentConfig"])
     measured = raw["measuredPairs"]
     aa_pairs = raw["aaPairs"]
     all_sequences = [
@@ -455,7 +470,6 @@ def analyze(raw: dict[str, Any]) -> dict[str, Any]:
     relative_ci = bootstrap_interval(paired_relative, "mean")
     aa_mean_ci = bootstrap_interval(aa_signed_ms, "mean")
     aa_relative = describe(aa_absolute_relative_percent)
-    budgets = raw["metadata"]["experimentConfig"]["acceptanceBudgets"]
     budget_checks = {
         "absolute": (
             absolute_ci[0]

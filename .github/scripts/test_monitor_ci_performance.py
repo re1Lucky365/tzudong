@@ -56,6 +56,7 @@ def make_run(
         "executionMode": "full_benchmark",
         "jobTopology": "b" * 64,
         "createdAt": "not-a-time" if malformed else timestamp(base),
+        "startedAt": "not-a-time" if malformed else timestamp(base),
         "updatedAt": timestamp(completed),
         "jobs": [
             {
@@ -474,8 +475,11 @@ class MonitorCiPerformanceTests(unittest.TestCase):
             observation["chronologyIssueCodes"],
             ["JOB_START_PRECEDES_JOB_CREATION"],
         )
-        self.assertFalse(observation["terminalEvidenceComplete"])
+        self.assertTrue(observation["terminalOutcomeComplete"])
+        self.assertTrue(observation["terminalEvidenceComplete"])
+        self.assertFalse(observation["snapshotImmutable"])
         self.assertFalse(observation["timingUsable"])
+        self.assertIn("invalid_timing_order", observation["timingExclusionReasons"])
         self.assertIsNone(observation["criticalPathSeconds"])
         self.assertIsNone(observation["runnerOccupiedSeconds"])
         self.assertIsNone(observation["totalQueueSeconds"])
@@ -518,6 +522,138 @@ class MonitorCiPerformanceTests(unittest.TestCase):
         self.assert_input_rejected(
             payload([changed]), name="changed-immutable-chronology-defect.json"
         )
+
+    def test_partial_rerun_outcome_is_terminal_but_inherited_timing_is_excluded(self) -> None:
+        run = make_run(1_037, 80, attempt=2)
+        run_started = MONITOR.parse_timestamp(run["startedAt"])
+        inherited_started = run_started - timedelta(minutes=15)
+        inherited_completed = inherited_started + timedelta(minutes=10)
+        job = run["jobs"][0]
+        job.update(
+            createdAt=timestamp(run_started + timedelta(seconds=1)),
+            startedAt=timestamp(inherited_started),
+            completedAt=timestamp(inherited_completed),
+        )
+        job["steps"][0].update(
+            startedAt=timestamp(inherited_started),
+            completedAt=timestamp(inherited_completed),
+        )
+        source = self.write("partial-rerun.json", payload([run]))
+        self.invoke(after=source)
+        observation = MONITOR.load_json(self.checkpoint)["runs"]["1037:2"]
+
+        self.assertTrue(observation["terminalOutcomeComplete"])
+        self.assertFalse(observation["timingUsable"])
+        self.assertFalse(observation["snapshotImmutable"])
+        self.assertIn("JOB_START_PRECEDES_JOB_CREATION", observation["chronologyIssueCodes"])
+        self.assertIn("JOB_START_PRECEDES_RUN_START", observation["chronologyIssueCodes"])
+        self.assertEqual(observation["stageSeconds"], {})
+
+    def test_terminal_outcome_requires_job_and_step_conclusions(self) -> None:
+        for target in ("job", "step"):
+            with self.subTest(target=target):
+                run = make_run(1_038 if target == "job" else 1_039, 20)
+                if target == "job":
+                    run["jobs"][0]["conclusion"] = None
+                else:
+                    run["jobs"][0]["steps"][0]["conclusion"] = None
+                observation = MONITOR.analyze_record(
+                    run,
+                    "after",
+                    ".github/workflows/web-admin-ci.yml",
+                    True,
+                    "e" * 64,
+                )
+                self.assertFalse(observation["terminalOutcomeComplete"])
+                self.assertFalse(observation["timingUsable"])
+
+    def test_terminal_failure_outcome_does_not_require_timing(self) -> None:
+        run = make_run(1_040, 20, conclusion="failure")
+        run["startedAt"] = None
+        run["updatedAt"] = None
+        job = run["jobs"][0]
+        job.update(startedAt=None, completedAt=None)
+        job["steps"][0].update(startedAt=None, completedAt=None)
+        observation = MONITOR.analyze_record(
+            run,
+            "after",
+            ".github/workflows/web-admin-ci.yml",
+            True,
+            "f" * 64,
+        )
+        self.assertTrue(observation["terminalOutcomeComplete"])
+        self.assertFalse(observation["timingUsable"])
+        self.assertTrue(observation["snapshotImmutable"])
+
+    def test_unknown_runner_family_invalidates_cohort_metadata(self) -> None:
+        run = make_run(1_041, 20)
+        run["jobs"][0]["runnerLabels"] = ["mystery-runner"]
+        observation = MONITOR.analyze_record(
+            run,
+            "after",
+            ".github/workflows/web-admin-ci.yml",
+            True,
+            "1" * 64,
+        )
+        self.assertEqual(observation["runnerFamilies"], ["unknown"])
+        self.assertFalse(observation["cohortMetadataVerified"])
+
+    def test_scalar_or_null_steps_are_rejected_instead_of_dropped(self) -> None:
+        for invalid in (None, "scalar", 3):
+            with self.subTest(invalid=invalid):
+                run = make_run(1_042, 20)
+                run["jobs"][0]["steps"].append(invalid)
+                self.assert_input_rejected(payload([run]), name=f"bad-step-{invalid!s}.json")
+
+    def test_attempt_defaults_only_when_absent(self) -> None:
+        absent = make_run(1_043, 20)
+        absent.pop("attempt")
+        absent["jobsAttempt"] = 1
+        observation = MONITOR.analyze_record(
+            absent,
+            "after",
+            ".github/workflows/web-admin-ci.yml",
+            True,
+            "2" * 64,
+        )
+        self.assertEqual(observation["attempt"], 1)
+        for invalid in (0, False, None):
+            with self.subTest(invalid=invalid):
+                run = make_run(1_044, 20)
+                run["attempt"] = invalid
+                self.assert_input_rejected(payload([run]), name=f"bad-attempt-{invalid!s}.json")
+
+    def test_run_envelope_violations_are_fixed_codes(self) -> None:
+        cases = {
+            "start": ("startedAt", -1, "RUN_START_PRECEDES_RUN_CREATION"),
+            "update": ("updatedAt", 200, "JOB_COMPLETION_FOLLOWS_RUN_UPDATE"),
+        }
+        for name, (field, offset, code) in cases.items():
+            with self.subTest(name=name):
+                run = make_run(1_045, 20)
+                base = MONITOR.parse_timestamp(run["createdAt"])
+                if field == "startedAt":
+                    run[field] = timestamp(base + timedelta(seconds=offset))
+                else:
+                    # Put the run update before the completed job.
+                    run[field] = timestamp(base + timedelta(seconds=2))
+                observation = MONITOR.analyze_record(
+                    run,
+                    "after",
+                    ".github/workflows/web-admin-ci.yml",
+                    True,
+                    "3" * 64,
+                )
+                self.assertIn(code, observation["chronologyIssueCodes"])
+                self.assertFalse(observation["timingUsable"])
+                with self.assertRaises(MONITOR.ChronologyError):
+                    MONITOR.analyze_record(
+                        run,
+                        "before",
+                        ".github/workflows/web-admin-ci.yml",
+                        True,
+                        "3" * 64,
+                    )
 
     def test_completed_skipped_step_may_omit_timing(self) -> None:
         run = make_run(1_026, 80)

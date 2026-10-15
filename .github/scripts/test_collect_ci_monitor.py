@@ -159,6 +159,24 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(second["collection"]["refreshedJobSets"], 0)
         self.assertEqual(second["collection"]["reusedJobSets"], 1)
 
+    def test_completed_failure_without_timing_remains_cached(self):
+        latest = run(conclusion="failure")
+        latest.update(run_started_at=None, updated_at=None)
+        payload = jobs(latest["created_at"])
+        job = payload["jobs"][0]
+        job.update(conclusion="failure", started_at=None, completed_at=None)
+        job["steps"][0].update(
+            conclusion="failure", started_at=None, completed_at=None
+        )
+
+        first = self.collect(Reader(latest, payload))
+        second = self.collect(Reader(latest, payload))
+
+        self.assertTrue(first["runs"][0]["terminalOutcomeComplete"])
+        self.assertFalse(first["runs"][0]["timingUsable"])
+        self.assertEqual(second["collection"]["refreshedJobSets"], 0)
+        self.assertEqual(second["collection"]["reusedJobSets"], 1)
+
     def test_completed_cancelled_without_jobs_remains_cached(self):
         payload = {"total_count": 0, "jobs": []}
         first = self.collect(Reader(run(conclusion="cancelled"), payload))

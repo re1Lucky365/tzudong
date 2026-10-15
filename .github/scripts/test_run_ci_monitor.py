@@ -71,7 +71,7 @@ class CiMonitorTickTests(unittest.TestCase):
         self.assertEqual(second["apiRequestsThisTick"], 0)
         self.assertEqual(second["referenceReadiness"]["status"], "collecting_reference")
 
-    def test_chronology_defect_alerts_blocks_reference_and_allows_new_runs(self):
+    def test_terminal_chronology_defect_alerts_but_does_not_remain_pending(self):
         defective = FIXTURE.make_run(2, 10, attempt=2)
         defective["jobs"][0]["createdAt"] = FIXTURE.timestamp(
             TICK.MONITOR.parse_timestamp(defective["jobs"][0]["startedAt"])
@@ -94,10 +94,12 @@ class CiMonitorTickTests(unittest.TestCase):
         readiness = first["referenceReadiness"]
         self.assertEqual(readiness["status"], "collecting_reference")
         self.assertEqual(readiness["successCount"], 0)
-        self.assertEqual(readiness["blockingPendingCount"], 1)
+        self.assertEqual(readiness["blockingPendingCount"], 0)
+        self.assertEqual(readiness["pendingReasonCounts"], {})
+        self.assertEqual(readiness["timingExcludedTerminalCount"], 1)
         self.assertEqual(
-            readiness["pendingReasonCounts"],
-            {"chronology_invalid_attempt": 1},
+            readiness["timingExclusionReasonCounts"],
+            {"invalid_timing_order": 1},
         )
         self.assertEqual(readiness["chronologyInvalidAttemptCount"], 1)
 
@@ -113,7 +115,10 @@ class CiMonitorTickTests(unittest.TestCase):
         self.assertEqual(continued["admittedAttemptCount"], 1)
         self.assertEqual(continued["chronologyInvalidAttemptCount"], 1)
         self.assertEqual(
-            continued["referenceReadiness"]["blockingPendingCount"], 1
+            continued["referenceReadiness"]["blockingPendingCount"], 0
+        )
+        self.assertEqual(
+            continued["referenceReadiness"]["timingExcludedTerminalCount"], 1
         )
 
     def test_receipts_use_only_state_relative_opaque_paths(self):
