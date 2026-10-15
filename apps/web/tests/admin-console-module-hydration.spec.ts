@@ -9,6 +9,7 @@ import {
 } from '../lib/e2e-admin-route-bypass';
 import { gotoAndHidePopup } from './helpers';
 import { ADMIN_SIDEBAR_ITEM_IDS } from '../lib/admin/sidebar-order';
+import { getAdminModuleTitle } from '../lib/admin/admin-module-metadata';
 
 const ADMIN_MODULE_SMOKE_TARGETS = [
   {
@@ -246,6 +247,9 @@ test.describe('admin console module hydration smoke', () => {
       const headerSelector = target.headerSelector;
       await expect(page.locator(headerSelector)).toBeVisible({ timeout: 30_000 });
       await expect(page.locator(target.readySelector)).toBeVisible({ timeout: 30_000 });
+      const rootHeadings = page.locator('#admin-console-canvas h1:visible');
+      await expect(rootHeadings).toHaveCount(1);
+      await expect(rootHeadings).toHaveText(getAdminModuleTitle(target.moduleId));
       if (target.moduleId === 'restaurant-refresh-history') {
         await expect(page).toHaveURL(/module=restaurants.*restaurantView=refresh/);
         await expect(page.getByRole('tab', { name: '최신화·이력' })).toHaveAttribute('aria-selected', 'true');
@@ -311,13 +315,33 @@ test.describe('admin console module hydration smoke', () => {
     });
     await gotoAndHidePopup(page, '/admin');
 
-    const trendChart = page.locator('[data-admin-dashboard-line-chart="recharts"]');
+    const trendCard = page.locator('[data-admin-dashboard-widget-card="trend"]');
+    const trendChart = trendCard.locator('[data-admin-dashboard-line-chart="recharts"]');
+    const bubbleChart = page.locator('[data-admin-dashboard-bubble-chart="recharts"]');
+    const trendChartSizeGate = trendChart.locator(
+      '[data-admin-dashboard-chart-size-ready="true"]',
+    );
+    const bubbleChartSizeGate = bubbleChart.locator(
+      '[data-admin-dashboard-chart-size-ready="true"]',
+    );
     const legend = page.getByLabel('영상별 성과 분포 지표 숨김/보임');
     await expect(trendChart).toBeVisible({ timeout: 30_000 });
+    await expect(bubbleChart).toBeVisible({ timeout: 30_000 });
+    await expect(trendChartSizeGate).toBeVisible();
+    await expect(bubbleChartSizeGate).toBeVisible();
     await expect(legend).toBeVisible();
     await expect(legend.getByRole('button', { name: '조회수 숨기기' })).toBeVisible();
     await expect(trendChart.locator('.recharts-line-curve')).toHaveCount(3);
     await expect(trendChart.locator('.recharts-line-dots circle')).toHaveCount(9);
+
+    const initialTrendHeight = await trendChartSizeGate.evaluate(
+      (element) => element.getBoundingClientRect().height,
+    );
+    const initialBubbleHeight = await bubbleChartSizeGate.evaluate(
+      (element) => element.getBoundingClientRect().height,
+    );
+    expect(initialTrendHeight).toBeGreaterThan(0);
+    expect(initialBubbleHeight).toBeGreaterThan(0);
 
     const zeroValueDot = trendChart.locator('.recharts-line-dots').last().locator('circle').nth(1);
     await zeroValueDot.hover();
@@ -325,9 +349,38 @@ test.describe('admin console module hydration smoke', () => {
     await expect(tooltip).toBeVisible();
     await expect(tooltip).toContainText('0점');
 
-    await legend.getByRole('button', { name: '참여율 숨기기' }).click();
-    await expect(legend.getByRole('button', { name: '참여율 보이기' })).toBeVisible();
+    await legend.getByRole('button', { name: '조회수 숨기기' }).click();
+    await expect(legend.getByRole('button', { name: '조회수 보이기' })).toBeVisible();
     await expect(trendChart.locator('.recharts-line-curve')).toHaveCount(2);
+
+    const trendViewToggle = trendCard.locator(
+      '[data-admin-dashboard-card-view-toggle="true"]',
+    );
+    await trendViewToggle.getByRole('button', { name: '표' }).click();
+    await expect(trendCard.locator('[data-admin-dashboard-table-view="true"]')).toBeVisible();
+    await expect(trendChart).toHaveCount(0);
+    await expect(bubbleChart).toBeVisible();
+
+    await trendViewToggle.getByRole('button', { name: '그래프' }).click();
+    await expect(trendChart).toBeVisible();
+    await expect(trendChart.locator('.recharts-line-curve')).toHaveCount(2);
+    await expect(legend.getByRole('button', { name: '조회수 보이기' })).toBeVisible();
+    await expect
+      .poll(async () => {
+        const recoveredHeight = await trendChartSizeGate.evaluate(
+          (element) => element.getBoundingClientRect().height,
+        );
+        return Math.abs(recoveredHeight - initialTrendHeight);
+      })
+      .toBeLessThanOrEqual(2);
+    await expect
+      .poll(async () => {
+        const recoveredHeight = await bubbleChartSizeGate.evaluate(
+          (element) => element.getBoundingClientRect().height,
+        );
+        return Math.abs(recoveredHeight - initialBubbleHeight);
+      })
+      .toBeLessThanOrEqual(2);
     expect(runtimeErrors).toEqual([]);
   });
 
@@ -355,6 +408,14 @@ test.describe('admin console module hydration smoke', () => {
 
     await expect(page.locator('[data-admin-dashboard-management="true"]')).toBeVisible({
       timeout: 30_000,
+    });
+    await expect(mobileHeader).toHaveAttribute(
+      'data-admin-console-mobile-header-visible',
+      'true',
+    );
+    await canvas.evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 48 }));
     });
     await expect(mobileHeader).toHaveAttribute(
       'data-admin-console-mobile-header-visible',
@@ -512,6 +573,45 @@ test.describe('admin console module hydration smoke', () => {
 
     await page.keyboard.press('Escape');
     await expect(dropdown).toHaveCount(0);
+    await expect(menuTrigger).toBeFocused();
+
+    await menuTrigger.click();
+    const thumbnailMenuItem = page.locator(
+      `[data-admin-console-menu-item-mode="mobile-dropdown"][aria-label="${getAdminModuleTitle('youtube-thumbnail-generator')}"]`,
+    );
+    await expect(thumbnailMenuItem).toBeVisible();
+    await thumbnailMenuItem.click();
+    await expect(page).toHaveURL(/\/admin\?module=youtube-thumbnail-generator$/);
+    await expect(canvas).toHaveAttribute(
+      'data-admin-console-active-module',
+      'youtube-thumbnail-generator',
+      { timeout: 30_000 },
+    );
+    await expect(page.locator('[data-admin-youtube-thumbnail-generator="true"]')).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect
+      .poll(() => canvas.evaluate((element) => element.scrollTop))
+      .toBe(0);
+    await expect
+      .poll(() => canvas.evaluate((element) => document.activeElement === element))
+      .toBe(true);
+    await expect(mobileHeader).toHaveAttribute(
+      'data-admin-console-mobile-header-visible',
+      'true',
+    );
+    await expect(menuTrigger).toBeVisible();
+    const restoredTriggerGeometry = await menuTrigger.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return {
+        height: bounds.height,
+        pointerEvents: window.getComputedStyle(element).pointerEvents,
+        y: bounds.y,
+      };
+    });
+    expect(restoredTriggerGeometry.pointerEvents).not.toBe('none');
+    expect(restoredTriggerGeometry.y).toBeGreaterThanOrEqual(0);
+    expect(restoredTriggerGeometry.height).toBeGreaterThanOrEqual(44);
     expect(runtimeErrors).toEqual([]);
   });
 

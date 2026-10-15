@@ -1,4 +1,4 @@
-import { afterAll, expect, test } from 'bun:test';
+import { afterEach, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
@@ -88,8 +88,12 @@ const writeCanonicalLine = (descriptor: number, entry: any, { sync = true } = {}
   if (sync) fsyncSync(descriptor);
 };
 
-afterAll(() => {
-  for (const directory of directories) rmSync(directory, { recursive: true, force: true });
+afterEach(() => {
+  while (directories.length > 0) {
+    const directory = directories[directories.length - 1];
+    rmSync(directory, { recursive: true, force: true });
+    directories.pop();
+  }
 });
 
 function stageStates() {

@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  getIncidentListPresentation,
+  nextIncidentListReadState,
+  type IncidentListReadState,
+} from '../lib/privacy/incident-list-read-state';
 import { getIncidentDeadlineReadback } from '../lib/privacy/incident-deadline';
 
 const webRoot = join(import.meta.dir, '..');
@@ -223,8 +228,18 @@ describe('privacy incident workflow contract', () => {
   test('Korean operator UI distinguishes drafts, decisions, deadline, and unverified external receipts', () => {
     const page = source('app/admin/privacy-incidents/page.tsx');
     const adminOverview = source('components/admin/AdminConsoleOverview.tsx');
+    const adminLayout = source('app/admin/layout.tsx');
+    const adminUi = source('styles/admin-ui.css');
 
-    expect(page).toContain('개인정보 사고 담당 관리자 전용');
+    expect(page).toContain("import { AdminPageHeader } from '@/components/admin/AdminPageHeader';");
+    expect(page).toContain('title="개인정보 사고 대응"');
+    expect(page).toContain('titleId="admin-privacy-incidents-title"');
+    expect(page).toContain('data-admin-module-header-module="privacy-incidents"');
+    expect(page).toContain('aria-label="개인정보 사고 목록 새로고침"');
+    expect(page).toContain('data-privacy-incident-operator-boundary="true"');
+    expect(page).not.toContain('<header className="space-y-2">');
+    expect(page).toContain('summary={incidentListPresentation.summary}');
+    expect(page).not.toContain('개인정보 사고 담당 관리자 전용');
     expect(page).toContain('운영자 결정 입력');
     expect(page).toContain('마감은 이 시각 + 72시간으로만 계산됩니다. 탐지 시각은 사용하지 않습니다.');
     expect(page).toContain('통지 초안은 외부 제출이 아닙니다.');
@@ -239,9 +254,53 @@ describe('privacy incident workflow contract', () => {
     expect(page).toContain('data-privacy-incident-detection-intake="true"');
     expect(page).toContain('data-privacy-incident-detection-readback="true"');
     expect(page).toContain('idempotencyKey: preview.idempotencyKey');
+    expect(adminLayout).toContain("import '../../styles/admin-ui.css';");
+    expect(adminUi).toContain('.admin-page-header-actions :is(button, select, input, a[data-slot="button"]) { min-width: 2.75rem; min-height: 2.75rem; }');
     expect(adminOverview).toContain('href="/admin/privacy-incidents"');
     expect(adminOverview).toContain('data-admin-privacy-incidents-link="true"');
     expect(adminOverview).toContain('자동 신고나 수리 완료를 주장하지 않습니다.');
+  });
+  test('list read state distinguishes unknown, successful empty, refreshing, and stale counts', () => {
+    let state: IncidentListReadState = 'pending';
+    expect(getIncidentListPresentation(state, 0, 0)).toEqual({
+      emptyMessage: null,
+      hasKnownData: false,
+      statusMessage: '사고 목록을 불러오는 중입니다.',
+      summary: '사고 현황 조회 중',
+    });
+
+    state = nextIncidentListReadState(state, 'failure');
+    expect(getIncidentListPresentation(state, 0, 0)).toEqual({
+      emptyMessage: null,
+      hasKnownData: false,
+      statusMessage: '사고 목록을 불러오지 못했습니다. 새로고침하여 다시 확인하세요.',
+      summary: '사고 현황 미확인',
+    });
+
+    state = nextIncidentListReadState(state, 'start');
+    state = nextIncidentListReadState(state, 'success');
+    expect(getIncidentListPresentation(state, 0, 0)).toEqual({
+      emptyMessage: '표시할 사고가 없습니다. 위 탐지 등록으로 첫 사고를 기록한 뒤 상태 전환을 진행하세요.',
+      hasKnownData: true,
+      statusMessage: null,
+      summary: '0건',
+    });
+
+    state = nextIncidentListReadState(state, 'start');
+    expect(getIncidentListPresentation(state, 4, 1)).toEqual({
+      emptyMessage: null,
+      hasKnownData: true,
+      statusMessage: '사고 목록을 갱신하는 동안 마지막 확인 결과를 표시합니다.',
+      summary: '4건 · 기한 위험 1건 · 갱신 중',
+    });
+
+    state = nextIncidentListReadState(state, 'failure');
+    expect(getIncidentListPresentation(state, 4, 1)).toEqual({
+      emptyMessage: null,
+      hasKnownData: true,
+      statusMessage: '새로고침에 실패해 마지막 확인 결과를 표시합니다.',
+      summary: '4건 · 기한 위험 1건 · 갱신 실패',
+    });
   });
   test('server-derived deadline readback handles boundaries, terminal states, and invalid timestamps fail-closed', () => {
     const awarenessAt = '2026-07-01T00:00:00.000Z';

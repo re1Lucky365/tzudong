@@ -15,6 +15,7 @@ import {
   useState,
   type CSSProperties,
   type DragEventHandler,
+  type ReactElement,
   type ReactNode,
   type TouchEventHandler,
   type WheelEventHandler,
@@ -136,6 +137,7 @@ import {
   getAdminModuleStateWarning,
   type AdminConsoleRouteModuleId,
 } from "@/lib/admin/admin-module-routing";
+import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 import { AdminEmbeddedModuleShell } from "@/components/admin/AdminEmbeddedModuleShell";
 import { RestaurantManagementWorkspace } from "@/components/admin/RestaurantManagementWorkspace";
 import { AdminPipelineDashboard } from "@/components/admin/pipeline/AdminPipelineDashboard";
@@ -175,7 +177,7 @@ type SidebarSection = {
 const consoleModules: ConsoleModule[] = [
   {
     id: "knowledge-graph",
-    title: "지식 그래프",
+    title: getAdminModuleTitle("knowledge-graph"),
     description: "쯔양 영상·맛집·메뉴 근거",
     href: "/admin?module=knowledge-graph",
     icon: Network,
@@ -184,7 +186,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "sentry",
-    title: "오류 모니터링",
+    title: getAdminModuleTitle("sentry"),
     description: "Sentry 오류 현황",
     href: "/admin?module=sentry",
     icon: Bug,
@@ -193,7 +195,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "restaurants",
-    title: "맛집 관리",
+    title: getAdminModuleTitle("restaurants"),
     description:
       "승인된 맛집, 삭제/복구, 지도 좌표 오류 후보를 한 흐름에서 점검합니다.",
     href: "/admin?module=restaurants",
@@ -204,7 +206,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "restaurant-refresh-history",
-    title: "맛집 최신화",
+    title: getAdminModuleTitle("restaurant-refresh-history"),
     description:
       "승인된 맛집의 상호명, 전화번호, 폐업·이전 후보와 과거 변경 이력을 관리합니다.",
     href: "/admin?module=restaurant-refresh-history",
@@ -215,7 +217,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "submissions",
-    title: "제보 관리",
+    title: getAdminModuleTitle("submissions"),
     description:
       "사용자 신규/수정 제보를 검토하고 안전 적용 절차로 반영합니다.",
     href: "/admin?module=submissions",
@@ -226,7 +228,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "reviews",
-    title: "리뷰 관리",
+    title: getAdminModuleTitle("reviews"),
     description:
       "미승인 리뷰, OCR 증빙, 중복/삭제 후보를 운영 기준에 맞춰 처리합니다.",
     href: "/admin?module=reviews",
@@ -237,7 +239,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "storyboard",
-    title: "스토리보드 생성",
+    title: getAdminModuleTitle("storyboard"),
     description:
       "쯔양 유튜브 히트맵을 바탕으로 다음 영상 소재와 씬별 촬영안을 생성합니다.",
     href: "/admin?module=storyboard",
@@ -248,7 +250,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "banners",
-    title: "배너 관리",
+    title: getAdminModuleTitle("banners"),
     description:
       "사이드바/모바일 팝업 배너의 노출 위치, 우선순위, 미디어 상태를 관리합니다.",
     href: "/admin?module=banners",
@@ -258,7 +260,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "users",
-    title: "사용자 관리",
+    title: getAdminModuleTitle("users"),
     description:
       "사용자 계정, 관리자 권한, 비활성 상태, 프로필 정보를 안전한 편집 흐름으로 관리합니다.",
     href: "/admin?module=users",
@@ -268,7 +270,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "insights",
-    title: "영상 성과 분석",
+    title: getAdminModuleTitle("insights"),
     description:
       "조회수/좋아요/댓글/영상 길이 기반 트리맵과 변화 추이를 확인합니다.",
     href: "/admin?module=insights",
@@ -278,7 +280,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "pipeline",
-    title: "크롤러 파이프라인",
+    title: getAdminModuleTitle("pipeline"),
     description:
       "비동기 control-plane 상태와 대상별 실행을 관리합니다.",
     href: "/admin?module=pipeline",
@@ -288,7 +290,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "audit",
-    title: "감사 로그",
+    title: getAdminModuleTitle("audit"),
     description:
       "사용자 관리 감사는 admin_audit_events 기준의 부분/도메인별 범위로 추적합니다.",
     href: "/admin?module=audit",
@@ -298,7 +300,7 @@ const consoleModules: ConsoleModule[] = [
   },
   {
     id: "youtube-thumbnail-generator",
-    title: "유튜브 썸네일 생성",
+    title: getAdminModuleTitle("youtube-thumbnail-generator"),
     description:
       "다음 업로드 주제와 참고 이미지를 바탕으로 16:9 먹방 썸네일 초안을 만들고 텍스트를 편집합니다.",
     href: "/admin?module=youtube-thumbnail-generator",
@@ -397,7 +399,7 @@ const sidebarSections: SidebarSection[] = [
     items: [
       {
         id: "overview",
-        title: "대시보드 (KPI)",
+        title: getAdminModuleTitle("overview"),
         description: "구독자·좋아요·댓글 추이를 확인합니다.",
         icon: Activity,
         badge: "성과 요약",
@@ -432,14 +434,14 @@ const sidebarSections: SidebarSection[] = [
       ...getSidebarConsoleItems(["youtube-thumbnail-generator", "storyboard"]),
       {
         id: "routes",
-        title: "맛집 동선 추천",
+        title: getAdminModuleTitle("routes"),
         description: "지도에서 맛집 후보와 실제 도로 동선을 관리합니다.",
         icon: Route,
         badge: "지도 동선",
       },
       {
         id: "llm",
-        title: "운영 보조",
+        title: getAdminModuleTitle("llm"),
         description: "위험 액션 전 읽기 전용 운영 보조를 확인합니다.",
         icon: Bot,
         badge: "실험 중",
@@ -743,7 +745,11 @@ function loadAdminRouteRecommendationModule() {
 
 const ADMIN_EVALUATION_STATIC_STATUS_FILTERS = ["전체", "미처리", "승인대기", "승인됨", "누락", "삭제됨"] as const;
 
-function AdminEvaluationModuleStaticShell() {
+function AdminEvaluationModuleStaticShell({
+  moduleId,
+}: {
+  moduleId: Extract<AdminModuleId, "restaurants" | "submissions" | "reviews">;
+}) {
   const { ref: mobileSkeletonRef, count: mobileSkeletonCount } = useFilledSkeletonCount(96, 4);
   const { ref: desktopSkeletonRef, count: desktopSkeletonCount } = useFilledSkeletonCount(64, 6, 44);
   return (
@@ -755,23 +761,14 @@ function AdminEvaluationModuleStaticShell() {
       className="flex h-full min-h-0 flex-col overflow-hidden"
       data-admin-evaluation-dynamic-loading-shell="true"
     >
-      <span className="sr-only">정적인 관리자 데이터 검수 컨트롤은 바로 표시하고, 동적인 검수 데이터만 불러오는 중입니다.</span>
-      <div className="border-b border-border bg-card px-2 py-1.5">
-        <div className="flex min-h-8 items-center justify-between gap-1.5">
-          <div className="min-w-0 flex-1">
-            <div className="sr-only">
-              <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-primary" aria-hidden="true">
-                <ClipboardCheck className="h-5 w-5" strokeWidth={2.25} />
-              </span>
-              <h1 className="whitespace-nowrap bg-gradient-primary bg-clip-text text-base font-bold text-transparent">
-                관리자 데이터 검수
-              </h1>
-            </div>
-            <div className="mt-0.5 truncate text-xs text-muted-foreground">
-              전체 집계 중
-            </div>
-          </div>
-          <div className="ml-auto flex items-center justify-end gap-1.5" data-admin-evaluation-view-actions="top-right">
+      <AdminPageHeader
+        title={getAdminModuleTitle(moduleId)}
+        icon={ClipboardCheck}
+        summary="전체 집계 중"
+        data-admin-module-header="compact"
+        data-admin-module-header-module={moduleId}
+        data-admin-sidebar-module-loading-header="true"
+        actions={<div className="flex items-center justify-end gap-1.5" data-admin-evaluation-view-actions="top-right">
             <Button type="button" variant="secondary" size="sm" disabled className="h-8 w-8 p-0 disabled:opacity-100" aria-label="리스트 뷰" aria-pressed="true">
               <LayoutList className="h-4 w-4" aria-hidden="true" />
               <span className="sr-only">리스트</span>
@@ -780,9 +777,8 @@ function AdminEvaluationModuleStaticShell() {
               <MonitorPlay className="h-4 w-4" aria-hidden="true" />
               <span className="sr-only">슬라이드</span>
             </Button>
-          </div>
-        </div>
-      </div>
+          </div>}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-2">
         <div className="space-y-2 lg:hidden" data-admin-evaluation-static-loading-controls="true">
@@ -1792,6 +1788,93 @@ function getIsAdminDashboardMobileViewport() {
   return (
     typeof window !== "undefined" &&
     window.matchMedia("(max-width: 767px)").matches
+  );
+}
+
+type AdminDashboardChartSize = {
+  width: number;
+  height: number;
+};
+
+function AdminDashboardResponsiveChart({
+  children,
+  className,
+  minHeight,
+}: {
+  children: ReactElement;
+  className?: string;
+  minHeight?: number;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [chartSize, setChartSize] =
+    useState<AdminDashboardChartSize | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    let isActive = true;
+    const updateChartSize = (width: number, height: number) => {
+      if (!isActive) return;
+
+      const nextWidth = Math.round(width);
+      const nextHeight = Math.round(height);
+      const nextSize =
+        Number.isFinite(nextWidth) &&
+        Number.isFinite(nextHeight) &&
+        nextWidth > 0 &&
+        nextHeight > 0
+          ? { width: nextWidth, height: nextHeight }
+          : null;
+
+      setChartSize((currentSize) => {
+        if (
+          currentSize?.width === nextSize?.width &&
+          currentSize?.height === nextSize?.height
+        ) {
+          return currentSize;
+        }
+
+        return nextSize;
+      });
+    };
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries.find(({ target }) => target === container);
+      if (!entry) return;
+      updateChartSize(entry.contentRect.width, entry.contentRect.height);
+    });
+
+    observer.observe(container);
+    const initialRect = container.getBoundingClientRect();
+    updateChartSize(initialRect.width, initialRect.height);
+
+    return () => {
+      isActive = false;
+      observer.disconnect();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn("relative min-h-0 min-w-0", className)}
+      data-admin-dashboard-chart-size-ready={chartSize ? "true" : "false"}
+    >
+      {chartSize ? (
+        <div
+          className="absolute inset-0 min-h-0 min-w-0"
+          data-admin-dashboard-chart-measured-layer="absolute"
+        >
+          <ResponsiveContainer
+            width={chartSize.width}
+            height={chartSize.height}
+            minHeight={minHeight}
+          >
+            {children}
+          </ResponsiveContainer>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -3834,7 +3917,7 @@ function AdminDashboardManagementSkeleton() {
       role="status"
       aria-busy="true"
     >
-      <AdminPageHeader title="쯔양 성과 대시보드" icon={Activity} className="mb-2"
+      <AdminPageHeader title={getAdminModuleTitle("overview")} icon={Activity} summary="KPI 데이터 조회 중"
         actions={<div
           className="flex w-full min-w-0 shrink-0 flex-nowrap items-center justify-start gap-1.5 overflow-x-auto pb-1 scrollbar-hide [scrollbar-width:none] md:w-auto md:flex-wrap md:items-start md:justify-end md:overflow-visible md:pb-0 md:gap-1 [&::-webkit-scrollbar]:hidden"
           data-admin-dashboard-action-bar="true"
@@ -3928,7 +4011,7 @@ function AdminDashboardManagementSkeleton() {
         KPI 데이터를 불러오는 중입니다. 모바일에서는 핵심 카드부터 순서대로 표시됩니다.
       </p>
 
-      <div className="grid min-w-0 auto-rows-min grid-cols-2 gap-2 overflow-x-hidden overflow-y-visible lg:min-h-0 lg:flex-1 lg:grid-cols-10 lg:grid-rows-[auto_minmax(0,1.15fr)_minmax(0,1fr)] lg:overflow-visible">
+      <div className="grid min-w-0 auto-rows-min grid-cols-2 gap-2 overflow-x-clip overflow-y-visible lg:min-h-0 lg:flex-1 lg:grid-cols-10 lg:grid-rows-[auto_minmax(0,1.15fr)_minmax(0,1fr)] lg:overflow-visible">
         <AdminDashboardKpiCard
           widgetId="subscribers"
           title="현재 구독자"
@@ -4421,7 +4504,7 @@ function AdminDashboardKpiCard({
               aria-hidden="true"
               data-admin-dashboard-kpi-sparkline="true"
             >
-              <ResponsiveContainer width="100%" height="100%">
+              <AdminDashboardResponsiveChart className="h-full w-full">
                 <AreaChart
                   data={chartData}
                   margin={{ top: 6, right: 2, bottom: 2, left: 2 }}
@@ -4448,7 +4531,7 @@ function AdminDashboardKpiCard({
                     isAnimationActive={false}
                   />
                 </AreaChart>
-              </ResponsiveContainer>
+              </AdminDashboardResponsiveChart>
             </div>
           ) : null}
         </div>
@@ -4761,8 +4844,10 @@ function AdminDashboardMultiLineChart({
         {formatNumber(totalPointCount)}개입니다. 사용자가 각 지표를 숨김/보임
         처리할 수 있습니다.
       </p>
-      <div className="min-h-0 flex-1">
-        <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+      <AdminDashboardResponsiveChart
+        className="min-h-0 w-full flex-1"
+        minHeight={180}
+      >
           <LineChart data={chartData} margin={adminDashboardChartMargin}>
             <CartesianGrid stroke={adminDashboardGridColor} vertical={false} />
             <XAxis
@@ -4866,8 +4951,7 @@ function AdminDashboardMultiLineChart({
               </Line>
             ) : null}
           </LineChart>
-        </ResponsiveContainer>
-      </div>
+      </AdminDashboardResponsiveChart>
     </div>
   );
 }
@@ -4954,8 +5038,10 @@ function AdminDashboardBubbleChart({
         {formatNumber(chartData[0]?.참여 ?? 0)}입니다. 색은 순위 구분용이고
         위치와 크기가 의미값입니다.
       </p>
-      <div className="min-h-0 flex-1">
-        <ResponsiveContainer width="100%" height="100%" minHeight={210}>
+      <AdminDashboardResponsiveChart
+        className="min-h-0 w-full flex-1"
+        minHeight={210}
+      >
           <ScatterChart margin={adminDashboardScatterChartMargin}>
             <CartesianGrid stroke={adminDashboardGridColor} />
             <XAxis
@@ -5046,8 +5132,7 @@ function AdminDashboardBubbleChart({
               ))}
             </Scatter>
           </ScatterChart>
-        </ResponsiveContainer>
-      </div>
+      </AdminDashboardResponsiveChart>
     </div>
   );
 }
@@ -5466,7 +5551,10 @@ function AdminDashboardAreaChart({
         최근 참여율 지표는{" "}
         {latestPoint ? formatDashboardPercent(latestPoint.참여율) : "—"}입니다.
       </p>
-      <ResponsiveContainer width="100%" height="100%" minHeight={160}>
+      <AdminDashboardResponsiveChart
+        className="h-full min-h-[160px] w-full"
+        minHeight={160}
+      >
         <AreaChart data={chartData} margin={adminDashboardChartMargin}>
           <defs>
             <linearGradient
@@ -5556,7 +5644,7 @@ function AdminDashboardAreaChart({
             />
           </Area>
         </AreaChart>
-      </ResponsiveContainer>
+      </AdminDashboardResponsiveChart>
     </div>
   );
 }
@@ -7305,6 +7393,11 @@ function AdminDashboardManagementPanel({
   }, [pdfReportData]);
   const shouldShowMobileDashboardLoadingPrompt =
     isDashboardMobileViewport && (isLoading || isSubscriberLoading || isChartLoading);
+  const dashboardHeaderSummary = isLoading
+    ? "KPI 데이터 조회 중"
+    : hasError
+      ? "일부 운영 데이터 확인 필요"
+      : `대기 ${formatNumber(stats.pendingTotal)}건 · 맛집 ${formatNumber(stats.totalRestaurants)}곳 · 영상 ${formatNumber(stats.totalVideos)}개`;
 
   return (
     <section
@@ -7315,7 +7408,7 @@ function AdminDashboardManagementPanel({
       data-admin-dashboard-realtime-charts="true"
       data-admin-dashboard-channel-kpi="true"
     >
-      <AdminPageHeader title="쯔양 성과 대시보드" icon={Activity} className="mb-2"
+      <AdminPageHeader title={getAdminModuleTitle("overview")} icon={Activity} summary={dashboardHeaderSummary}
         actions={<div
           className="flex w-full min-w-0 shrink-0 flex-nowrap items-center justify-start gap-1.5 overflow-x-auto pb-1 scrollbar-hide [scrollbar-width:none] md:w-auto md:flex-wrap md:items-start md:justify-end md:overflow-visible md:pb-0 md:gap-1 [&::-webkit-scrollbar]:hidden"
           data-admin-dashboard-action-bar="true"
@@ -7421,7 +7514,7 @@ function AdminDashboardManagementPanel({
       ) : null}
 
       <div
-        className="grid min-w-0 auto-rows-min grid-cols-2 gap-2 overflow-x-hidden overflow-y-visible lg:min-h-0 lg:flex-1 lg:grid-cols-10 lg:grid-rows-[auto_minmax(0,1.15fr)_minmax(0,1fr)] lg:overflow-visible"
+        className="grid min-w-0 auto-rows-min grid-cols-2 gap-2 overflow-x-clip overflow-y-visible lg:min-h-0 lg:flex-1 lg:grid-cols-10 lg:grid-rows-[auto_minmax(0,1.15fr)_minmax(0,1fr)] lg:overflow-visible"
         data-admin-dashboard-order-mode={
           isDashboardOrderEditorOpen ? "direct-drag" : "off"
         }
@@ -8077,6 +8170,7 @@ function AdminSidebar({
   );
   const [isSidebarOrderEditMode, setIsSidebarOrderEditMode] = useState(false);
   const mobileHeaderRef = useRef<HTMLDivElement | null>(null);
+  const mobileMenuSelectionIntentRef = useRef(false);
   const orderedSidebarSections = useMemo(
     () => buildOrderedSidebarSections(sidebarOrder),
     [sidebarOrder],
@@ -8218,9 +8312,20 @@ function AdminSidebar({
   );
 
   const handleMenuNavigation = (moduleId: AdminModuleId) => {
+    mobileMenuSelectionIntentRef.current = true;
     onSelectModule(moduleId);
     setIsAdminMenuOpen(false);
   };
+
+  const handleAdminMenuCloseAutoFocus = useCallback((event: Event) => {
+    if (!mobileMenuSelectionIntentRef.current) return;
+
+    mobileMenuSelectionIntentRef.current = false;
+    event.preventDefault();
+    document
+      .getElementById("admin-console-canvas")
+      ?.focus({ preventScroll: true });
+  }, []);
 
   useEffect(() => {
     if (!showMobileHeader) {
@@ -8615,6 +8720,7 @@ function AdminSidebar({
       style={{ maxHeight: "min(720px, calc(100dvh - 20px))" }}
       aria-label="관리자 콘솔 메뉴"
       data-admin-console-menu-dropdown="true"
+      onCloseAutoFocus={handleAdminMenuCloseAutoFocus}
     >
       <div className="mb-2 flex items-center gap-2 rounded-xl bg-muted/35 p-2">
         <Link
@@ -9046,17 +9152,18 @@ function AuditPlaceholder() {
     <AdminEmbeddedModuleShell
       moduleId="audit"
       titleId="admin-audit-title"
-      title="감사 로그"
       icon={ScrollText}
       summary={coverageBadgeLabel}
+      actions={<>
+        <Button size="sm" variant="ghost" aria-label="감사 로그 새로고침" disabled={auditEventsQuery.isFetching} onClick={() => auditEventsQuery.refetch()}><RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />새로고침</Button>
+        <Button asChild size="sm" variant="outline"><Link href="/admin/privacy-incidents" title="사람이 검토하고 처리합니다. 자동 신고나 수리 완료를 주장하지 않습니다." data-admin-privacy-incidents-link="true">개인정보 사고 대응<ExternalLink aria-hidden="true" className="h-3 w-3" /></Link></Button>
+      </>}
       contentClassName="overflow-y-auto"
     >
       <div className="min-h-[480px]">
         <div className="admin-cms-toolbar">
           <label className="relative min-w-0 flex-1"><Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /><input aria-label="감사 로그 검색" placeholder="작업·대상·감사 ID 검색" value={search} maxLength={256} onChange={(event) => setSearch(event.target.value)} className="h-8 w-full rounded-md border bg-background pl-7 pr-2 text-xs" /></label>
           <select aria-label="감사 처리 상태" value={status} onChange={(event) => setStatus(event.target.value)} className="h-8 rounded-md border bg-background px-2 text-xs"><option value="">전체 상태</option><option value="intent">적용 전</option><option value="applied">적용됨</option><option value="failed">실패</option></select>
-          <Button size="sm" variant="ghost" aria-label="감사 로그 새로고침" disabled={auditEventsQuery.isFetching} onClick={() => auditEventsQuery.refetch()}><RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /></Button>
-          <Link href="/admin/privacy-incidents" className="inline-flex min-h-8 items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground" title="사람이 검토하고 처리합니다. 자동 신고나 수리 완료를 주장하지 않습니다." data-admin-privacy-incidents-link="true">개인정보 사고 대응<ExternalLink aria-hidden="true" className="h-3 w-3" /></Link>
         </div>
         <details
           className="border-b border-border px-3 py-2 text-xs leading-5 text-muted-foreground"
@@ -9293,12 +9400,9 @@ type AdminConsoleCanvasSkeletonVariant =
   | "audit-log"
   | "pipeline-ops";
 
-type AdminConsoleCanvasSkeletonModuleId = AdminModuleId | "generic";
-
 type AdminConsoleCanvasSkeletonConfig = {
-  moduleId: AdminConsoleCanvasSkeletonModuleId;
+  moduleId: AdminModuleId;
   title: string;
-  description: string;
   icon: typeof Store;
   variant: AdminConsoleCanvasSkeletonVariant;
 };
@@ -9325,10 +9429,9 @@ const ADMIN_CONSOLE_CANVAS_SKELETON_TIMELINE = [
 
 function getAdminConsoleModuleLoadingSkeleton(
   moduleId: AdminModuleId,
-  title?: string,
 ) {
   if (moduleId === "restaurants" || moduleId === "submissions" || moduleId === "reviews") {
-    return <AdminEvaluationModuleStaticShell />;
+    return <AdminEvaluationModuleStaticShell moduleId={moduleId} />;
   }
 
   if (moduleId === "overview") {
@@ -9343,124 +9446,103 @@ function getAdminConsoleModuleLoadingSkeleton(
     return <AdminYoutubeThumbnailModuleLoadingSkeleton />;
   }
 
-  return <AdminConsoleCanvasSkeleton moduleId={moduleId} title={title} />;
+  return <AdminConsoleCanvasSkeleton moduleId={moduleId} />;
 }
 
-function getAdminConsoleCanvasSkeletonConfig({
-  moduleId,
-  title,
-}: {
-  moduleId: AdminConsoleCanvasSkeletonModuleId;
-  title?: string;
-}): AdminConsoleCanvasSkeletonConfig {
+function getAdminConsoleCanvasSkeletonConfig(
+  moduleId: AdminModuleId,
+): AdminConsoleCanvasSkeletonConfig {
+  const title = getAdminModuleTitle(moduleId);
   switch (moduleId) {
     case "restaurants":
       return {
         moduleId,
-        title: title ?? "맛집 관리",
-        description: "검수 테이블과 세부 액션 영역을 뷰포트 안에서 준비합니다.",
+        title,
         icon: Store,
         variant: "evaluation-table",
       };
     case "submissions":
       return {
         moduleId,
-        title: title ?? "제보 관리",
-        description: "제보·수정 요청 목록과 판정 패널을 함께 준비합니다.",
+        title,
         icon: ClipboardList,
         variant: "submission-queue",
       };
     case "reviews":
       return {
         moduleId,
-        title: title ?? "리뷰 관리",
-        description: "리뷰 검수 큐와 증빙 확인 패널을 함께 준비합니다.",
+        title,
         icon: MessageSquareText,
         variant: "submission-queue",
       };
     case "restaurant-refresh-history":
       return {
         moduleId,
-        title: title ?? "맛집 최신화",
-        description: "최신화 후보 목록과 변경 이력 패널을 먼저 배치합니다.",
+        title,
         icon: RefreshCw,
         variant: "refresh-history",
       };
     case "banners":
       return {
         moduleId,
-        title: title ?? "배너 관리",
-        description: "배너 목록, 미디어 미리보기, 편집 폼을 한 화면에 준비합니다.",
+        title,
         icon: ImageIcon,
         variant: "banner-editor",
       };
     case "users":
       return {
         moduleId,
-        title: title ?? "사용자 관리",
-        description: "계정 요약 카드와 사용자 표 구조를 먼저 고정합니다.",
+        title,
         icon: UsersRound,
         variant: "user-table",
       };
     case "insights":
       return {
         moduleId,
-        title: title ?? "영상 성과 분석",
-        description: "지표 카드, 트리맵, 추세 차트를 뷰포트에 맞춰 준비합니다.",
+        title,
         icon: BarChart2,
         variant: "insights-grid",
       };
     case "pipeline":
       return {
         moduleId,
-        title: title ?? "크롤러 파이프라인",
-        description: "control-plane 대상 상태와 환경 칩을 준비합니다.",
+        title,
         icon: Workflow,
         variant: "pipeline-ops",
       };
     case "routes":
       return {
         moduleId,
-        title: title ?? "맛집 동선 추천",
-        description: "지도, 후보 목록, 동선 준비도 패널을 먼저 배치합니다.",
+        title,
         icon: Route,
         variant: "route-map",
       };
     case "llm":
       return {
         moduleId,
-        title: title ?? "운영 보조",
-        description: "읽기 전용 요약 카드와 위험 액션 체크리스트를 준비합니다.",
+        title,
         icon: Bot,
         variant: "llm-workspace",
       };
     case "audit":
       return {
         moduleId,
-        title: title ?? "감사 로그",
-        description: "결정 기록과 상태 재확인 타임라인 구조를 준비합니다.",
+        title,
         icon: ScrollText,
         variant: "audit-log",
       };
     default:
       return {
-        moduleId: "generic",
-        title: title ?? "관리자 작업 화면",
-        description: "사이드바 메뉴 화면의 구조를 먼저 준비합니다.",
+        moduleId,
+        title,
         icon: Store,
         variant: "split-list-detail",
       };
   }
 }
 
-function AdminConsoleCanvasSkeleton({
-  title,
-  moduleId = "generic",
-}: {
-  title?: string;
-  moduleId?: AdminConsoleCanvasSkeletonModuleId;
-} = {}) {
-  const config = getAdminConsoleCanvasSkeletonConfig({ moduleId, title });
+function AdminConsoleCanvasSkeleton({ moduleId }: { moduleId: AdminModuleId }) {
+  const config = getAdminConsoleCanvasSkeletonConfig(moduleId);
   const HeaderIcon = config.icon;
 
   return (
@@ -9476,40 +9558,13 @@ function AdminConsoleCanvasSkeleton({
       aria-busy="true"
       aria-label={`${config.title} 화면 로딩 중`}
     >
-      <span className="sr-only">
-        {config.title} 화면의 뷰포트 기준 레이아웃을 먼저 준비하고 내부 데이터를
-        불러오는 중입니다.
-      </span>
-      <header
-        className="flex shrink-0 flex-col gap-2 border-b border-border bg-card/95 px-3 py-2 lg:flex-row lg:items-center lg:justify-between"
+      <AdminPageHeader
+        title={config.title}
+        icon={HeaderIcon}
         data-admin-sidebar-module-loading-header="true"
-      >
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-            <HeaderIcon className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <div className="min-w-0 space-y-1">
-            <p className="truncate text-sm font-bold text-foreground">
-              {config.title}
-            </p>
-            <p className="truncate text-xs font-semibold text-muted-foreground">
-              {config.description}
-            </p>
-          </div>
-        </div>
-        <div
-          className="flex flex-wrap items-center gap-1.5"
-          aria-hidden="true"
-          data-admin-sidebar-module-loading-toolbar="true"
-        >
-          {ADMIN_CONSOLE_CANVAS_SKELETON_CARDS.map((card) => (
-            <Skeleton
-              key={card}
-              className="h-7 w-20 rounded-full motion-reduce:animate-none"
-            />
-          ))}
-        </div>
-      </header>
+        data-admin-module-header="compact"
+        data-admin-module-header-module={moduleId}
+      />
 
       <AdminConsoleCanvasSkeletonBody variant={config.variant} />
     </section>
@@ -9831,7 +9886,7 @@ function AdminConsoleCanvasSkeletonBody({
 function AdminStoryboardModuleLoadingSkeleton() {
   return (
     <section
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-background p-2"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-background"
       data-admin-console-content-loading="true"
       data-admin-storyboard-generator-loading="true"
       data-storyboard-module-loading="true"
@@ -9846,8 +9901,15 @@ function AdminStoryboardModuleLoadingSkeleton() {
       aria-busy="true"
       aria-label="스토리보드 생성 화면 로딩 중"
     >
+      <AdminPageHeader
+        title={getAdminModuleTitle("storyboard")}
+        icon={Clapperboard}
+        data-admin-sidebar-module-loading-header="true"
+        data-admin-module-header="compact"
+        data-admin-module-header-module="storyboard"
+      />
       <div
-        className="grid h-full min-h-0 gap-3 overflow-hidden"
+        className="grid min-h-0 flex-1 gap-3 overflow-hidden p-2"
         data-storyboard-desktop-split-layout="inline-grid"
         data-storyboard-module-loading-grid="true"
         style={{
@@ -10001,7 +10063,7 @@ function AdminStoryboardModuleLoadingSkeleton() {
 function AdminYoutubeThumbnailModuleLoadingSkeleton() {
   return (
     <section
-      className="relative flex h-full min-h-[640px] min-w-0 flex-col overflow-hidden bg-background p-3 md:min-h-0"
+      className="relative flex h-full min-h-[640px] min-w-0 flex-col overflow-hidden bg-background md:min-h-0"
       data-thumbnail-module-loading="true"
       data-thumbnail-module-loading-layout="page-shell"
       data-thumbnail-module-loading-parity="storyboard-shell"
@@ -10019,7 +10081,15 @@ function AdminYoutubeThumbnailModuleLoadingSkeleton() {
         aria-hidden="true"
         data-thumbnail-module-loading-page-shimmer="true"
       />
-      <div className="relative z-10 grid h-full min-h-0 grid-cols-1 grid-rows-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-3 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:grid-rows-1 xl:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+      <AdminPageHeader
+        title={getAdminModuleTitle("youtube-thumbnail-generator")}
+        icon={ImageIcon}
+        className="relative z-10"
+        data-admin-sidebar-module-loading-header="true"
+        data-admin-module-header="compact"
+        data-admin-module-header-module="youtube-thumbnail-generator"
+      />
+      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-3 overflow-hidden p-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:grid-rows-1 xl:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
         <Card
           className="relative order-2 flex min-h-0 flex-col overflow-hidden border border-border/70 bg-background/86 shadow-none"
           aria-label="유튜브 썸네일 도우미 준비 영역"
@@ -10261,24 +10331,18 @@ export function AdminConsoleOverview({
   const [isMobileHeaderVisible, setIsMobileHeaderVisible] = useState(true);
   const [isAdminMobileViewport, setIsAdminMobileViewport] = useState(false);
   const canvasRef = useRef<HTMLElement | null>(null);
-  const activeDescendantScrollTopRef = useRef(0);
+  const activeDescendantScrollElementRef = useRef<Element | null>(null);
   const previousMobileHeaderScrollTopRef = useRef(0);
   const lastAdminMobileChromeHideAtRef = useRef(0);
   const mobileChromeRevealTimeoutRef = useRef<number | null>(null);
   const mobileChromeHadDownScrollRef = useRef(false);
   const adminCanvasTouchStartYRef = useRef<number | null>(null);
   const previousRequestedModuleIdRef = useRef(requestedModuleId);
+  const previousMobileResetModuleIdRef = useRef(activeModuleId);
   const activeModule = consoleModules.find(
     (module) => module.id === activeModuleId,
   );
-  const activeModuleLabel =
-    activeModuleId === "overview"
-      ? "대시보드 (KPI)"
-      : activeModuleId === "routes"
-        ? "맛집 동선 추천"
-        : activeModuleId === "llm"
-          ? "운영 보조"
-          : activeModule?.title;
+  const activeModuleLabel = getAdminModuleTitle(activeModuleId);
   const activeBrowserTitle = activeModuleLabel
     ? buildScopedBrowserTitle([activeModuleLabel, "관리자 콘솔"])
     : null;
@@ -10381,7 +10445,7 @@ export function AdminConsoleOverview({
     (moduleId: AdminModuleId) => {
       const nextHref = buildCanonicalAdminModuleHref(moduleId);
       setActiveModuleId(moduleId);
-      activeDescendantScrollTopRef.current = 0;
+      activeDescendantScrollElementRef.current = null;
       previousMobileHeaderScrollTopRef.current = 0;
       setIsMobileHeaderVisible(true);
 
@@ -10428,7 +10492,7 @@ export function AdminConsoleOverview({
 
     if (previousRequestedModuleIdRef.current !== nextModuleId) {
       previousRequestedModuleIdRef.current = nextModuleId;
-      activeDescendantScrollTopRef.current = 0;
+      activeDescendantScrollElementRef.current = null;
       previousMobileHeaderScrollTopRef.current = 0;
       setIsMobileHeaderVisible(true);
     }
@@ -10437,6 +10501,24 @@ export function AdminConsoleOverview({
       router.replace(canonicalHref, { scroll: false });
     }
   }, [requestedModuleId, router, searchParams]);
+
+  const getActiveAdminDescendantScrollTop = useCallback(() => {
+    const canvasElement = canvasRef.current;
+    const descendantElement = activeDescendantScrollElementRef.current;
+    if (
+      !canvasElement ||
+      !descendantElement ||
+      !descendantElement.isConnected ||
+      !canvasElement.contains(descendantElement)
+    ) {
+      activeDescendantScrollElementRef.current = null;
+      return 0;
+    }
+
+    return Number.isFinite(descendantElement.scrollTop)
+      ? Math.max(0, descendantElement.scrollTop)
+      : 0;
+  }, []);
 
   const getAdminConsoleScrollTop = useCallback(() => {
     if (typeof window === "undefined") return 0;
@@ -10450,10 +10532,10 @@ export function AdminConsoleOverview({
 
     return Math.max(
       canvasScrollTop,
-      activeDescendantScrollTopRef.current,
+      getActiveAdminDescendantScrollTop(),
       pageScrollTop,
     );
-  }, []);
+  }, [getActiveAdminDescendantScrollTop]);
 
   const updateMobileHeaderVisibility = useCallback(() => {
     const currentScrollTop = getAdminConsoleScrollTop();
@@ -10475,20 +10557,20 @@ export function AdminConsoleOverview({
     });
   }, [getAdminConsoleScrollTop]);
 
-  const updateActiveDescendantScrollTop = useCallback((eventTarget: EventTarget | null) => {
+  const updateActiveDescendantScrollElement = useCallback((eventTarget: EventTarget | null) => {
     const canvasElement = canvasRef.current;
     if (!canvasElement || !(eventTarget instanceof Element)) {
-      activeDescendantScrollTopRef.current = 0;
+      activeDescendantScrollElementRef.current = null;
       return;
     }
 
     if (eventTarget === canvasElement) {
-      activeDescendantScrollTopRef.current = 0;
+      activeDescendantScrollElementRef.current = null;
       return;
     }
 
     if (canvasElement.contains(eventTarget)) {
-      activeDescendantScrollTopRef.current = eventTarget.scrollTop;
+      activeDescendantScrollElementRef.current = eventTarget;
     }
   }, []);
 
@@ -10552,6 +10634,28 @@ export function AdminConsoleOverview({
     [adminBottomNavAutoHide, getAdminConsoleScrollTop, isAdminMobileViewport],
   );
 
+  useEffect(() => {
+    if (previousMobileResetModuleIdRef.current === activeModuleId) return;
+    previousMobileResetModuleIdRef.current = activeModuleId;
+
+    activeDescendantScrollElementRef.current = null;
+    previousMobileHeaderScrollTopRef.current = 0;
+    mobileChromeHadDownScrollRef.current = false;
+    adminCanvasTouchStartYRef.current = null;
+    setAdminMobileChromeHidden(false);
+
+    const resetFrame = window.requestAnimationFrame(() => {
+      activeDescendantScrollElementRef.current = null;
+      previousMobileHeaderScrollTopRef.current = 0;
+      mobileChromeHadDownScrollRef.current = false;
+      canvasRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      setAdminMobileChromeHidden(false);
+      canvasRef.current?.focus({ preventScroll: true });
+    });
+
+    return () => window.cancelAnimationFrame(resetFrame);
+  }, [activeModuleId, setAdminMobileChromeHidden]);
+
   const handleAdminCanvasScroll = useCallback(() => {
     const currentScrollTop = getAdminConsoleScrollTop();
     const isMobileViewportNow =
@@ -10565,7 +10669,7 @@ export function AdminConsoleOverview({
         return;
       }
 
-      if (activeDescendantScrollTopRef.current > 0) {
+      if (getActiveAdminDescendantScrollTop() > 0) {
         updateMobileHeaderVisibility();
         adminBottomNavAutoHide.onScroll();
         return;
@@ -10609,6 +10713,7 @@ export function AdminConsoleOverview({
     adminBottomNavAutoHide.onScroll();
   }, [
     adminBottomNavAutoHide,
+    getActiveAdminDescendantScrollTop,
     getAdminConsoleScrollTop,
     isAdminMobileViewport,
     setAdminMobileChromeHidden,
@@ -10621,7 +10726,6 @@ export function AdminConsoleOverview({
 
       if (event.deltaY > 18) {
         mobileChromeHadDownScrollRef.current = true;
-        setAdminMobileChromeHidden(true);
         return;
       }
 
@@ -10641,7 +10745,6 @@ export function AdminConsoleOverview({
 
       if (event.deltaY > 18) {
         mobileChromeHadDownScrollRef.current = true;
-        setAdminMobileChromeHidden(true);
         return;
       }
 
@@ -10662,9 +10765,8 @@ export function AdminConsoleOverview({
   >(
     (event) => {
       adminCanvasTouchStartYRef.current = event.touches[0]?.clientY ?? null;
-      adminBottomNavAutoHide.onTouchStart(event);
     },
-    [adminBottomNavAutoHide],
+    [],
   );
 
   const handleAdminCanvasTouchMove = useCallback<
@@ -10684,7 +10786,6 @@ export function AdminConsoleOverview({
 
         if (deltaY <= -24) {
           mobileChromeHadDownScrollRef.current = true;
-          setAdminMobileChromeHidden(true);
           adminCanvasTouchStartYRef.current = currentY;
           handledGestureIntent = true;
         } else if (deltaY >= 24 && getAdminConsoleScrollTop() <= 12) {
@@ -10694,13 +10795,11 @@ export function AdminConsoleOverview({
         }
       }
 
-      adminBottomNavAutoHide.onTouchMove(event);
       if (!handledGestureIntent) {
         window.requestAnimationFrame(updateMobileHeaderVisibility);
       }
     },
     [
-      adminBottomNavAutoHide,
       getAdminConsoleScrollTop,
       isAdminMobileViewport,
       setAdminMobileChromeHidden,
@@ -10710,10 +10809,10 @@ export function AdminConsoleOverview({
 
   const handleAdminCapturedScroll = useCallback(
     (event: Event) => {
-      updateActiveDescendantScrollTop(event.target);
+      updateActiveDescendantScrollElement(event.target);
       handleAdminCanvasScroll();
     },
-    [handleAdminCanvasScroll, updateActiveDescendantScrollTop],
+    [handleAdminCanvasScroll, updateActiveDescendantScrollElement],
   );
 
   useEffect(() => {
@@ -10777,12 +10876,6 @@ export function AdminConsoleOverview({
   const showSingleModuleSkeleton =
     isAdminCanvasBootstrapping ||
     (moduleWaitsForContent && !contentReadyModuleIds.has(activeModuleId));
-  const overviewModuleSummary = statsLoading
-    ? "KPI 데이터를 불러오는 중입니다."
-    : statsHasError
-      ? "일부 운영 데이터를 확인하지 못했습니다."
-      : `대기 ${formatNumber(stats.pendingTotal)}건 · 맛집 ${formatNumber(stats.totalRestaurants)}곳 · 영상 ${formatNumber(stats.totalVideos)}개`;
-
   return (
     <main
       className="h-[var(--full-height,100vh)] min-h-0 min-w-0 w-full overflow-hidden bg-background font-sans text-foreground tracking-normal"
@@ -10849,7 +10942,7 @@ export function AdminConsoleOverview({
             {activeModuleLabel} 작업 화면으로 전환됨
           </p>
           {showSingleModuleSkeleton
-            ? getAdminConsoleModuleLoadingSkeleton(activeModuleId, activeModuleLabel)
+            ? getAdminConsoleModuleLoadingSkeleton(activeModuleId)
             : null}
           <div className={showSingleModuleSkeleton ? "hidden" : "h-full min-h-0"}>
           {isAdminCanvasBootstrapping ? (
@@ -10858,9 +10951,7 @@ export function AdminConsoleOverview({
             <AdminEmbeddedModuleShell
               moduleId="overview"
               titleId="admin-overview-module-title"
-              title="대시보드 (KPI)"
               icon={Activity}
-              summary={overviewModuleSummary}
               contentClassName="overflow-y-auto"
             >
               <AdminDashboardManagementPanel
@@ -10874,9 +10965,7 @@ export function AdminConsoleOverview({
             <AdminEmbeddedModuleShell
               moduleId="routes"
               titleId="admin-routes-module-title"
-              title="맛집 동선 추천"
               icon={Route}
-              summary="지도 맛집과 실제 도로 동선을 함께 확인합니다."
               contentClassName="overflow-hidden"
             >
               <AdminRouteRecommendationModule

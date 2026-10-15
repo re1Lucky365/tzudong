@@ -1,0 +1,1330 @@
+{
+  "kind": "second-build-header-census-with-mobile-density-findings",
+  "buildId": "STpIA_Q_8M_46VV2A7HMt",
+  "base": "dd0c790be7ffc94a86f95126aa60019ded8ff9b7",
+  "headerGeometryAccepted": true,
+  "layoutDensityAccepted": false,
+  "observedCombinations": 45,
+  "rows": [
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 4,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "overview",
+      "title": "대시보드 (KPI)",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-overview.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 163970
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 7,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "restaurants",
+      "title": "맛집 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-restaurants.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 122652
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "submissions",
+      "title": "제보 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-submissions.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 53371
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "reviews",
+      "title": "리뷰 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-reviews.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 51800
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "users",
+      "title": "사용자 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-users.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 64424
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 2,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "banners",
+      "title": "배너 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-banners.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 55958
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "insights",
+      "title": "영상 성과 분석",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-insights.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 43992
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 2,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "pipeline",
+      "title": "크롤러 파이프라인",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-pipeline.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 77581
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 2,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "knowledge-graph",
+      "title": "지식 그래프",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-knowledge-graph.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 65259
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "sentry",
+      "title": "오류 모니터링",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-sentry.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 45980
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "youtube-thumbnail-generator",
+      "title": "유튜브 썸네일 생성",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-youtube-thumbnail-generator.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 187944
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "storyboard",
+      "title": "스토리보드 생성",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-storyboard.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 85132
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "routes",
+      "title": "맛집 동선 추천",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-routes.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 80039
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "llm",
+      "title": "운영 보조",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-llm.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 76226
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 1191
+      },
+      "mobileButtonViolations": 0,
+      "module": "audit",
+      "title": "감사 로그",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-desktop-audit.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 70602
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 4,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 521
+      },
+      "mobileButtonViolations": 0,
+      "module": "overview",
+      "title": "대시보드 (KPI)",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-overview.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 88429
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 7,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "restaurants",
+      "title": "맛집 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-restaurants.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 99927
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "submissions",
+      "title": "제보 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-submissions.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 43104
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "reviews",
+      "title": "리뷰 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-reviews.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 42178
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "users",
+      "title": "사용자 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-users.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 50630
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 2,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "banners",
+      "title": "배너 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-banners.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 41360
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "insights",
+      "title": "영상 성과 분석",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-insights.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 90226
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 2,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "pipeline",
+      "title": "크롤러 파이프라인",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-pipeline.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 58273
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 2,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "knowledge-graph",
+      "title": "지식 그래프",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-knowledge-graph.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 47992
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "sentry",
+      "title": "오류 모니터링",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-sentry.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 37670
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "youtube-thumbnail-generator",
+      "title": "유튜브 썸네일 생성",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-youtube-thumbnail-generator.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 102159
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "storyboard",
+      "title": "스토리보드 생성",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-storyboard.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 72983
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "routes",
+      "title": "맛집 동선 추천",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-routes.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 68836
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "llm",
+      "title": "운영 보조",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-llm.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 59470
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 57,
+        "width": 536
+      },
+      "mobileButtonViolations": 0,
+      "module": "audit",
+      "title": "감사 로그",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-tablet-audit.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 58149
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 4,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 113,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "overview",
+      "title": "대시보드 (KPI)",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-overview.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 40460
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 7,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 121,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "restaurants",
+      "title": "맛집 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-restaurants.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 40328
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 61,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "submissions",
+      "title": "제보 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-submissions.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 21404
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 61,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "reviews",
+      "title": "리뷰 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-reviews.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 20206
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 113,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "users",
+      "title": "사용자 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-users.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 28104
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 2,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 163,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "banners",
+      "title": "배너 관리",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-banners.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 21221
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 61,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "insights",
+      "title": "영상 성과 분석",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-insights.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 46363
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 2,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 113,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "pipeline",
+      "title": "크롤러 파이프라인",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-pipeline.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 28758
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 2,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 113,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "knowledge-graph",
+      "title": "지식 그래프",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-knowledge-graph.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 23196
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 113,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "sentry",
+      "title": "오류 모니터링",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-sentry.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 17832
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 61,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "youtube-thumbnail-generator",
+      "title": "유튜브 썸네일 생성",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-youtube-thumbnail-generator.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 62932
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 61,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "storyboard",
+      "title": "스토리보드 생성",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-storyboard.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 38353
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 0,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 61,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "routes",
+      "title": "맛집 동선 추천",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-routes.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 35363
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 113,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "llm",
+      "title": "운영 보조",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-llm.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 37564
+      }
+    },
+    {
+      "bodyOverflow": false,
+      "canvasFocus": true,
+      "headerButtons": 1,
+      "headerOverflow": false,
+      "headerRect": {
+        "height": 113,
+        "width": 370
+      },
+      "mobileButtonViolations": 0,
+      "module": "audit",
+      "title": "감사 로그",
+      "titleClipped": false,
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "24px"
+      },
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1": 1,
+      "capture": {
+        "file": "final-mobile-audit.jpg",
+        "mimeType": "image/jpeg",
+        "bytes": 31240
+      }
+    }
+  ],
+  "mobileDensityFindings": [
+    {
+      "module": "banners",
+      "height": 163,
+      "reason": "wrapped-primary-actions"
+    },
+    {
+      "module": "restaurants",
+      "height": 121,
+      "reason": "tablist-padding"
+    }
+  ],
+  "providerCalls": 0,
+  "hostedWrites": 0,
+  "productionVerification": false
+}

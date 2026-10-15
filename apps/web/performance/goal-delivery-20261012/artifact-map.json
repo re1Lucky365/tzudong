@@ -1,0 +1,1223 @@
+{
+  "schema": "tzudong-delivery-artifact-map/v2",
+  "baseSha": "dd0c790be7ffc94a86f95126aa60019ded8ff9b7",
+  "buildId": "HcJtq7WT9AGLOOijoRGrZ",
+  "sourceManifestSha256": "2cc2a16f055ce9bbcb3cd1c75ac05c90cc0cbd36d29661d1967260ccf8dc3cfa",
+  "changedSources": [
+    {
+      "path": "apps/web/app/admin/banners/page.tsx",
+      "sha256": "19ca267845183b104eda2676bdd1f05419d73df8b643f799b35dca14079f81c5",
+      "bytes": 56235
+    },
+    {
+      "path": "apps/web/app/admin/evaluations/page.tsx",
+      "sha256": "0b266ec596cfd1e8dee4cb26fc69185e799b37ebd8bdc2936b090a0cec06ab31",
+      "bytes": 110684
+    },
+    {
+      "path": "apps/web/app/insights/insights-client.tsx",
+      "sha256": "104801616ece7f6120c61aba622e00b4a18f527715cb54b2728926bf34a54a4b",
+      "bytes": 63906
+    },
+    {
+      "path": "apps/web/components/admin/AdminConsoleOverview.tsx",
+      "sha256": "e3ea987a737af697a5d7ea155a474ed448f1d539fe46178914bb5abc419ac4d1",
+      "bytes": 396047
+    },
+    {
+      "path": "apps/web/components/admin/AdminEmbeddedModuleShell.tsx",
+      "sha256": "ae6cb19a881724ca0c35c8b0a691a1fd2ec36591cc2f3bb61d0599f41d913e38",
+      "bytes": 1931
+    },
+    {
+      "path": "apps/web/components/admin/AdminKnowledgeGraphPanel.tsx",
+      "sha256": "38d82ad5fc054cb91a9087a9a7c9bc84f37d25b4b064e2e0dea50416e9ccdf51",
+      "bytes": 15700
+    },
+    {
+      "path": "apps/web/components/admin/AdminOperationsPanel.tsx",
+      "sha256": "f6647c913e2cbcafb4f0ebfb3eb19f65bf482092f24726622ef58f4ecb94c02f",
+      "bytes": 12518
+    },
+    {
+      "path": "apps/web/components/admin/AdminPageHeader.tsx",
+      "sha256": "ac2621a32fbed7b801798675683a439b8900621ef86e6116034d71a1cfb40a73",
+      "bytes": 1497
+    },
+    {
+      "path": "apps/web/components/admin/AdminSentryPanel.tsx",
+      "sha256": "e25e93e7069e2149af6982be9c4dfd5cd96863399dcad5f4e2468445134a71d9",
+      "bytes": 13012
+    },
+    {
+      "path": "apps/web/components/admin/AdminUsersPanel.tsx",
+      "sha256": "10b4180972c5eafd9383f946e6e7eb03696d869a1bc9db85d2bf36afcad55294",
+      "bytes": 48182
+    },
+    {
+      "path": "apps/web/components/admin/RestaurantManagementWorkspace.tsx",
+      "sha256": "66bb52a36ed0f39451544b5c1c92f74b0a178714e829a77ac33dc2df1dde9a96",
+      "bytes": 3180
+    },
+    {
+      "path": "apps/web/components/admin/pipeline/AdminPipelineDashboard.tsx",
+      "sha256": "943e2b61daa3a321ee8c10239001dae27e95dcedb6a136173299d1bdd2e1a85a",
+      "bytes": 22897
+    },
+    {
+      "path": "apps/web/components/admin/storyboard/LegacyStoryboardReference.tsx",
+      "sha256": "d225dde3a6a6b384e00753e31b633e2ed9b0f8cf0a00e4721c19bf9874330e29",
+      "bytes": 399551
+    },
+    {
+      "path": "apps/web/components/admin/storyboard/LocalStoryboardWorkspace.tsx",
+      "sha256": "1ff97741a96df9c31fe3debcec99c17af4406a122a186d892d62984eeff3fd3c",
+      "bytes": 66507
+    },
+    {
+      "path": "apps/web/components/admin/thumbnail-generator/AdminYoutubeThumbnailGenerator.tsx",
+      "sha256": "5c6d7273115aa9010709668952b41c3587d04275960721b8cdf85ecacce7b38e",
+      "bytes": 308009
+    },
+    {
+      "path": "apps/web/components/layout/CenteredErrorState.tsx",
+      "sha256": "d9cf38e7d2c4f5fa0ea75f367c4594bd42b19c913f740dba829c142399be6d43",
+      "bytes": 2424
+    },
+    {
+      "path": "apps/web/lib/admin/admin-module-metadata.ts",
+      "sha256": "fa51249ba3430c3473840b2e73ca6bb2dcef6f9de69f449f0acd3c7a8d955520",
+      "bytes": 881
+    },
+    {
+      "path": "apps/web/scripts/gemini-live-verification-io.ts",
+      "sha256": "011794294f92d45206601382809465ba3ceb3e5f61a25b270587d768d06678ed",
+      "bytes": 25023
+    },
+    {
+      "path": "apps/web/scripts/verify-admin-sidebar-pages-browser.ts",
+      "sha256": "7500adb0f2ae2878fb0c87f9c2a50e2603635843e6795c748d8faae8057dfafe",
+      "bytes": 42359
+    },
+    {
+      "path": "apps/web/scripts/verify-ocr-gemini-live.ts",
+      "sha256": "718b708b65fa62dc231cd4e889e0f4aba88ac5d72da32b8b70cb31d259c77799",
+      "bytes": 8308
+    },
+    {
+      "path": "apps/web/scripts/verify-storyboard-gemini-live.ts",
+      "sha256": "9586109f3ffe2fcab671350431c2fa98288419552326c27e3061b969cd7b5676",
+      "bytes": 6962
+    },
+    {
+      "path": "apps/web/styles/admin-ui.css",
+      "sha256": "b0741acb28a35b16f4bcab415b5549bf30924c19efba86a8048ced2456d4c307",
+      "bytes": 13382
+    },
+    {
+      "path": "apps/web/tests-unit/admin-console-uiux-source.test.ts",
+      "sha256": "45528c72b90a6d65d6407408a8a86551bad2ab7cf7359b05d4f6517e24a426ac",
+      "bytes": 434711
+    },
+    {
+      "path": "apps/web/tests-unit/admin-module-metadata.test.ts",
+      "sha256": "8be07cc10bc6057c16215bb15773d7ecaaa59f15a20d5d16bddf400370648010",
+      "bytes": 947
+    },
+    {
+      "path": "apps/web/tests-unit/admin-restaurant-refresh-history-source.test.ts",
+      "sha256": "70f0dcaa1600e9d217fe61ee2c1297f07da6c49eb4332213835d83b7686de1eb",
+      "bytes": 25404
+    },
+    {
+      "path": "apps/web/tests-unit/admin-user-management-source.test.ts",
+      "sha256": "ef0b7ac8537ea776541a25fc089c9ed3a5643ac02665fee40b30c6da54ff2d6e",
+      "bytes": 17813
+    },
+    {
+      "path": "apps/web/tests-unit/fixtures/gemini-live-reservation-contender.ts",
+      "sha256": "2ef079043c33503b2e72bd02df1c4686cc815950bbc779174560768ea3e4c8f1",
+      "bytes": 666
+    },
+    {
+      "path": "apps/web/tests-unit/gemini-live-verification-boundary.test.ts",
+      "sha256": "33ce11392aa64c24e524e915ada410d34b6608c89152f4f84c5a8f338789113c",
+      "bytes": 12827
+    },
+    {
+      "path": "apps/web/tests-unit/ocr-live-verification-cli.test.ts",
+      "sha256": "861695d5e9fcc169143ce2c38bca7c9a7deabddf4623f90806cb779aeba290c6",
+      "bytes": 5185
+    },
+    {
+      "path": "apps/web/tests/admin-console-module-hydration.spec.ts",
+      "sha256": "3afb4b5afa41bb29a0e58674de5322e59c583725f01d39ea358b4b378dc3fd62",
+      "bytes": 34959
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "README.md",
+      "bytes": 6672,
+      "sha256": "4c9c42e43813c2bfe1777483305ffd3b56bfc607865456415ad5b2cc2524b16a",
+      "role": "canonical-summary"
+    },
+    {
+      "path": "accepted-desktop-audit.jpg",
+      "bytes": 70653,
+      "sha256": "55b9d8f86a461fb221bb4202c01c63fb11dd7f60cc514c0477862e59209e61d7"
+    },
+    {
+      "path": "accepted-desktop-banners.jpg",
+      "bytes": 55997,
+      "sha256": "7e15d699a951cd919f01840796ad7d97d540b3a866265b7d9e2d8e78930c9197"
+    },
+    {
+      "path": "accepted-desktop-insights.jpg",
+      "bytes": 119550,
+      "sha256": "66a6e4a1ef6523ebb28b6894c49df9631fb85d70cc20cdc61be1a7b4488b37b0"
+    },
+    {
+      "path": "accepted-desktop-knowledge-graph.jpg",
+      "bytes": 65371,
+      "sha256": "251b9399b31c6915505b06f66bae29ab15221792d1805769bfebdcedb6df2307"
+    },
+    {
+      "path": "accepted-desktop-llm.jpg",
+      "bytes": 75969,
+      "sha256": "fd96e43e25b73bb77075a8d9e34be7a76e57ec4867be074301ea336c78b2b040"
+    },
+    {
+      "path": "accepted-desktop-overview.jpg",
+      "bytes": 163977,
+      "sha256": "34b2f389613999aa7c589c8c8b3cddf1eb9176dfe88a176025bfdd1aa9c732b6"
+    },
+    {
+      "path": "accepted-desktop-pipeline.jpg",
+      "bytes": 77667,
+      "sha256": "b42a119b814cf07f1ec31d830609af4ff77aea43a7aefabc1ad2fab07fd25b46"
+    },
+    {
+      "path": "accepted-desktop-restaurants.jpg",
+      "bytes": 122710,
+      "sha256": "a9e315f68554727c0f60aad817ea772a9a980f67d40044852bc424a2027d0074"
+    },
+    {
+      "path": "accepted-desktop-reviews.jpg",
+      "bytes": 51932,
+      "sha256": "ce1d6db0ea9268bb2ad3b393ec9b6baf6a932d4ed48424cddbb86bb1b196622e"
+    },
+    {
+      "path": "accepted-desktop-routes.jpg",
+      "bytes": 100385,
+      "sha256": "2ef1902504d20491529e61da6425a2bfbca66486cdb56e0407b2f8c9d0054570"
+    },
+    {
+      "path": "accepted-desktop-sentry.jpg",
+      "bytes": 46043,
+      "sha256": "747f06a8e13f2283a7c61291e6992138d4f1a84657f570bb9d0fed96389b1087"
+    },
+    {
+      "path": "accepted-desktop-storyboard.jpg",
+      "bytes": 85132,
+      "sha256": "306fe324e565650c8f49e7c50b62f60fb353e0fbc9a875a8af94b89a2ed304b1"
+    },
+    {
+      "path": "accepted-desktop-submissions.jpg",
+      "bytes": 53357,
+      "sha256": "d9690e31c05f3e1720d8dcd58a9497b4b2ffff3aa6f0006a18cc6aa8cdee7fc5"
+    },
+    {
+      "path": "accepted-desktop-users.jpg",
+      "bytes": 64430,
+      "sha256": "ab37b5e02c2f7800f04f92b2e50a481ee7e7001e7d503aef13a95111cb82c6d2"
+    },
+    {
+      "path": "accepted-desktop-youtube-thumbnail-generator.jpg",
+      "bytes": 187571,
+      "sha256": "1dfdc6be500fe9a6b58a2fddb79b2855e7c69859012cee876f9251643ae563f1"
+    },
+    {
+      "path": "accepted-mobile-audit.jpg",
+      "bytes": 31228,
+      "sha256": "f1a5793870d58ad7f518e33003d6ba61e0e45efd6ba3b7ce0c6888f3fabf162e"
+    },
+    {
+      "path": "accepted-mobile-banners.jpg",
+      "bytes": 21740,
+      "sha256": "0e24ab307ac436520421b8122673e101db0578ba52bf586fc40121992e708d50"
+    },
+    {
+      "path": "accepted-mobile-insights.jpg",
+      "bytes": 46363,
+      "sha256": "a0978f323cb6e75e82a5d065abdf14bb86129a5488b26f245fca698956fdc821"
+    },
+    {
+      "path": "accepted-mobile-knowledge-graph.jpg",
+      "bytes": 23250,
+      "sha256": "f40f9a1feade74d487733af5215480292d832442c9dc9a02ca7dbff6c6cb4696"
+    },
+    {
+      "path": "accepted-mobile-llm.jpg",
+      "bytes": 37564,
+      "sha256": "9445a6dd85cef3e2776b2b3c88b97535dda089b400e763c669f68895592430d0"
+    },
+    {
+      "path": "accepted-mobile-overview.jpg",
+      "bytes": 40435,
+      "sha256": "3e11ba8abd44da3e50ac51f6a5ddd5f0a3e76d970cb8c8d71e1b0d5d111e25e0"
+    },
+    {
+      "path": "accepted-mobile-pipeline.jpg",
+      "bytes": 28777,
+      "sha256": "1b12e4aaef546c2f8f286ade56f8c9091a777d1550201308b59f4110eabcedea"
+    },
+    {
+      "path": "accepted-mobile-restaurants.jpg",
+      "bytes": 40747,
+      "sha256": "049b5d35938c5062a7af89c8163ff71fe13579893d5d44fda43cd3dd61b488ef"
+    },
+    {
+      "path": "accepted-mobile-reviews.jpg",
+      "bytes": 20206,
+      "sha256": "7ca9fe768e808aa6dc9675618f5d67d801de5aba086c8b439e0d8b05fcee5fb3"
+    },
+    {
+      "path": "accepted-mobile-routes.jpg",
+      "bytes": 35363,
+      "sha256": "8e6d419f06d0719d20c49a243ac3c5fc68cba57c4dc7d0ce0f380c062cfa5bc7"
+    },
+    {
+      "path": "accepted-mobile-scroll-down.jpg",
+      "bytes": 40703,
+      "sha256": "1ed23f9aa57c4c8a5e68a33b2712c9d82bdf9ec813e1e25cdbc5e5870623555b"
+    },
+    {
+      "path": "accepted-mobile-scroll-up.jpg",
+      "bytes": 39850,
+      "sha256": "aec935cd3898c0c9c90f9277c8564896d151f4986b03ee3a69f4f3afb8698494"
+    },
+    {
+      "path": "accepted-mobile-sentry.jpg",
+      "bytes": 17816,
+      "sha256": "38287ee0400def2d53e95fc106f863a7b1d37d36dc9448f0884d27cba39a736b"
+    },
+    {
+      "path": "accepted-mobile-storyboard.jpg",
+      "bytes": 38345,
+      "sha256": "7a438017316e33e782a408bf9e83967015523d7c77e4d32b92b246c1e5d010ab"
+    },
+    {
+      "path": "accepted-mobile-submissions.jpg",
+      "bytes": 21421,
+      "sha256": "fb527c870c6595b0b7c2cece1bab6e3641bf4fddb00831816777b7e59744b359"
+    },
+    {
+      "path": "accepted-mobile-users.jpg",
+      "bytes": 28153,
+      "sha256": "d05f485b2a960a709b428433cc5deef8bb5c459ab108e76661f39c021310fbad"
+    },
+    {
+      "path": "accepted-mobile-youtube-thumbnail-generator.jpg",
+      "bytes": 63128,
+      "sha256": "7e93872ff94dbfdafae7874e8539dde5029ae1affd59da2d5d20d43ed4386af5"
+    },
+    {
+      "path": "accepted-tablet-audit.jpg",
+      "bytes": 58008,
+      "sha256": "509b33ee438e627973a9b34b7d811bc58c8c7f824c8bf25cc2ec2bc2e8476a09"
+    },
+    {
+      "path": "accepted-tablet-banners.jpg",
+      "bytes": 41368,
+      "sha256": "8121f26e449149cdf48c7440bbcc9062ed17fd0cff9613f1e05542f0f6a12901"
+    },
+    {
+      "path": "accepted-tablet-insights.jpg",
+      "bytes": 90193,
+      "sha256": "82b8c3d0dd809c93dd9f3a061aaf402a03c0a3f3f2ac5d87b7cc6806f3f0240d"
+    },
+    {
+      "path": "accepted-tablet-knowledge-graph.jpg",
+      "bytes": 47925,
+      "sha256": "e09711d2a135135e954747555755a3d4b4647c329da96e237a416c65dcf01244"
+    },
+    {
+      "path": "accepted-tablet-llm.jpg",
+      "bytes": 59295,
+      "sha256": "1bc97153243138e6b6ae0591c75dd0729624273cc431921206e6402aa7374272"
+    },
+    {
+      "path": "accepted-tablet-overview.jpg",
+      "bytes": 88476,
+      "sha256": "1f1c491314d9f62fc45161c5b4dafad504a98da3e72c7ea00c888d2caac39b3e"
+    },
+    {
+      "path": "accepted-tablet-pipeline.jpg",
+      "bytes": 58199,
+      "sha256": "9c31648c272b3e2bcec810b976b5c5d28d5e15c1ea6e550c5b5501f547aa5ac7"
+    },
+    {
+      "path": "accepted-tablet-restaurants.jpg",
+      "bytes": 99967,
+      "sha256": "25894d2fc0e283014e713ce72ed705b203a56a438d0d77b24e333da6bb62c64d"
+    },
+    {
+      "path": "accepted-tablet-reviews.jpg",
+      "bytes": 42101,
+      "sha256": "1db106e73960fa11352dcf9521bf5a48d2bc9e304ee61f215722ca79bdc76901"
+    },
+    {
+      "path": "accepted-tablet-routes.jpg",
+      "bytes": 68689,
+      "sha256": "0e533780cdc2c12f826716822076342817532f84591c2b421b7d6722391944f0"
+    },
+    {
+      "path": "accepted-tablet-sentry.jpg",
+      "bytes": 37681,
+      "sha256": "0bb1c66b9792023ffd09347c6f9a7efc8b6c61e860f2c0abb7896698e2ad678d"
+    },
+    {
+      "path": "accepted-tablet-storyboard.jpg",
+      "bytes": 73006,
+      "sha256": "4deed749a317d8fff721277b55cb3faa5a9c8a438a0c4d03d94615b89248abe9"
+    },
+    {
+      "path": "accepted-tablet-submissions.jpg",
+      "bytes": 43053,
+      "sha256": "b2249c99558563198505f32ed5d4fca9fdccf1c1ba13a0186edbb1ff98f7cd74"
+    },
+    {
+      "path": "accepted-tablet-users.jpg",
+      "bytes": 50587,
+      "sha256": "2dd9853b21f53b8ac05787b19b3848667eab811361198590e4041371957533b1"
+    },
+    {
+      "path": "accepted-tablet-youtube-thumbnail-generator.jpg",
+      "bytes": 101623,
+      "sha256": "44b19bc2c346289dd92acdfdab31cfc31331e50cd64a09acc419055bfcdec932"
+    },
+    {
+      "path": "affected-checks-final.json",
+      "bytes": 1114,
+      "sha256": "ee09a74030f225b34f5fc7d29a44310a5bc19b357282e69c9052a43c368f688c"
+    },
+    {
+      "path": "build-delivery-final.mjs",
+      "bytes": 5608,
+      "sha256": "34dfa92b5de17b274cb972dc5f8f485d5846784a7ef9645cc552616726819252"
+    },
+    {
+      "path": "db-prepare/README.md",
+      "bytes": 5439,
+      "sha256": "afbd96f4d149c89314e215906dbf5334b7c33eecf1d7813b80ddea24ded9a3b6"
+    },
+    {
+      "path": "db-prepare/artifact-map-v1.json",
+      "bytes": 4924,
+      "sha256": "37a35393d91d197dbb03096edda6a56b38170fac3c3e1931ec115854252b9640"
+    },
+    {
+      "path": "db-prepare/artifact-map-v1.sha256",
+      "bytes": 87,
+      "sha256": "46a70ef7e973a31b4f87ba76c1ef48e7ac6987a412d47e6b63bb396ed7af07be"
+    },
+    {
+      "path": "db-prepare/build_artifact_map.py",
+      "bytes": 1124,
+      "sha256": "eedbaca05ccce255b9477b530c319bd752b52574ea8e657dcc54c0c68ea56e95"
+    },
+    {
+      "path": "db-prepare/build_carrier.py",
+      "bytes": 13317,
+      "sha256": "cebc35b4b7fb9856a0e23c0249acb8f0eb1248c73d10aa5d40bd6c27c92cc2d6"
+    },
+    {
+      "path": "db-prepare/carrier-verifier-delta-20261013.json",
+      "bytes": 2668,
+      "sha256": "fb383035265fb7ed33544f5d19c71ff7b02b423bb66980a3ca38b8f8c0d95d39"
+    },
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a/artifact-map-v1.json",
+      "bytes": 1179,
+      "sha256": "312ec242a66cd8b17df93edeb865ad19a8f3477bc143cf5379401687a321a77a"
+    },
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a/artifact-map-v1.sha256",
+      "bytes": 87,
+      "sha256": "3fdde00266b6a205e168fbf24da8f0b7a5a7e800ec4119cba450848a77049ae7"
+    },
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a/run_local_replay.py",
+      "bytes": 4484,
+      "sha256": "22b457af353db43914e0b35b04647278b359fa3827af033d630394ab526a3787"
+    },
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a/verify_carrier.py",
+      "bytes": 3637,
+      "sha256": "4bd5f7d9d357cd2ec379bc2ff0c111f7bfa564b9e8f1d4dc312e23c4d8739a65"
+    },
+    {
+      "path": "db-prepare/local-replay-v1.json",
+      "bytes": 1549,
+      "sha256": "44ee007b4d0a3896eda7afffd75f65154fbfa32838451bd9d8e3b9b59b99aaf4"
+    },
+    {
+      "path": "db-prepare/review-carrier-v1.json",
+      "bytes": 14880,
+      "sha256": "ddc64738652c7a4a2da7aa294a4d8aaac4dcb945e6ec963a3ac855eb5e78551a"
+    },
+    {
+      "path": "db-prepare/run-local-replay-hardening-delta-20261013.json",
+      "bytes": 3762,
+      "sha256": "522a1684a445a3f17d8299481e4f5ddc4cc33df3049cc56257b4c57d8b32142d"
+    },
+    {
+      "path": "db-prepare/run-local-replay-hardening-delta-20261013.sha256",
+      "bytes": 113,
+      "sha256": "6d4bf9ec9408eb6b2548eb063de9476ad014b5507e82958842058f6104bc2243"
+    },
+    {
+      "path": "db-prepare/run_local_replay.py",
+      "bytes": 19305,
+      "sha256": "e2dfc3a8b266b5adb8f6570915a2f79a3cc6d686d4596121979529bdc0f5701a"
+    },
+    {
+      "path": "db-prepare/test_run_local_replay.py",
+      "bytes": 10454,
+      "sha256": "6a8bda809c0b54464edc6c8b484712eac7ec6dcab77a37cb360d37b1eff97130"
+    },
+    {
+      "path": "db-prepare/test_verify_carrier.py",
+      "bytes": 8507,
+      "sha256": "c087eb8fd77fc9733371902df73da8222b9adeb6dba9db0dc88a731b943fe3aa"
+    },
+    {
+      "path": "db-prepare/verify_carrier.py",
+      "bytes": 4177,
+      "sha256": "81983d82440b1ca6b388c75ea2b8eb7a8916276f6b66c2aff7fc9f3cfcbbe9e6"
+    },
+    {
+      "path": "desktop-audit.jpg",
+      "bytes": 70527,
+      "sha256": "93652851607fd43a7da3dae40344af20c130113d6d34d465dad40ccdb99a64be"
+    },
+    {
+      "path": "desktop-banners.jpg",
+      "bytes": 56108,
+      "sha256": "82ca56c6ffca7bd558b31d5e48d08fa34259363de5b2b178fca4852fa0158174"
+    },
+    {
+      "path": "desktop-insights.jpg",
+      "bytes": 119455,
+      "sha256": "0f737364ed6eab828ba77b14b35a5a18ef23c3d09e9864cef79666756fa68360"
+    },
+    {
+      "path": "desktop-knowledge-graph.jpg",
+      "bytes": 65164,
+      "sha256": "cc8f47614364b0d29fb75bc6c15ef8fc7714c4b86249911a4303c5e77fd4b73c"
+    },
+    {
+      "path": "desktop-llm.jpg",
+      "bytes": 75993,
+      "sha256": "0deba157d827f4e671c8e5f27c2bb456e2cc657bbee9f67fcff688918851f33c"
+    },
+    {
+      "path": "desktop-overview.jpg",
+      "bytes": 163958,
+      "sha256": "7b402ffc1af1ddfb1e1a3bb3977b5821314faf898d0a3395c098a346db75bb81"
+    },
+    {
+      "path": "desktop-pipeline.jpg",
+      "bytes": 77759,
+      "sha256": "c317a29a38a5f16ebc6bc11dc94912a74c1bf13f8fcbcbbcce9a61070a9a1a70"
+    },
+    {
+      "path": "desktop-restaurants.jpg",
+      "bytes": 122206,
+      "sha256": "c5fe8f5c71ee5bfbc38a893d730c02539d25f3f8bc808720d69626c5a4a600c2"
+    },
+    {
+      "path": "desktop-reviews.jpg",
+      "bytes": 51734,
+      "sha256": "bd47f83a59ee09f3c74f107e7558c0f937f7e6b0df00405331a995bacf7acc45"
+    },
+    {
+      "path": "desktop-routes.jpg",
+      "bytes": 49269,
+      "sha256": "0063ec190db89c6eaba8e4c900b37b0a0e72840f6694d5631a0275603b7a01dc"
+    },
+    {
+      "path": "desktop-sentry.jpg",
+      "bytes": 45980,
+      "sha256": "eb16240393304e0137abc3d4ec24af6ef5ec5cbffd65818d0c4ace97687a7615"
+    },
+    {
+      "path": "desktop-storyboard.jpg",
+      "bytes": 85341,
+      "sha256": "de4a7fe2676cadfb9b7b87d432bbc67a01bce8c4b7e92dbd84431e492a6d0759"
+    },
+    {
+      "path": "desktop-submissions.jpg",
+      "bytes": 53294,
+      "sha256": "a560ba3c47ce13da368d573ab73a7519d47020d797225109bf459b9f17bfbb0e"
+    },
+    {
+      "path": "desktop-users.jpg",
+      "bytes": 64240,
+      "sha256": "9be53fed6c61b99c2203b7d03b97d780462d349cb1df319ee45f945ce136ed58"
+    },
+    {
+      "path": "desktop-youtube-thumbnail-generator.jpg",
+      "bytes": 186605,
+      "sha256": "2ce283946732f52fc4f9db98aa20552a5c2b84b9ce88d98201739b4db0e1bbef"
+    },
+    {
+      "path": "evidence-package-reconciliation-20261013.json",
+      "bytes": 3453,
+      "sha256": "b63bb07a4e19dc5eced0060b42f9d216e46537ad79de6dcf12983d87ba64d15a"
+    },
+    {
+      "path": "final-build-receipt.json",
+      "bytes": 2110,
+      "sha256": "762702a88f84b9a3e7be6412cc50b94bed2f03ae31e737151b6a88c9d85205fb"
+    },
+    {
+      "path": "final-build-source-after.json",
+      "bytes": 86451,
+      "sha256": "4fac972aeb883f11ef0ad0a51f8e1bb028397c3ab61a352bfbe58688dbdb90dc"
+    },
+    {
+      "path": "final-build-source-before.json",
+      "bytes": 86994,
+      "sha256": "e9529636d35853281277c04ce42bcf1ad3c4ea2f1f451c95f6f9c3afa256d58c"
+    },
+    {
+      "path": "final-desktop-audit.jpg",
+      "bytes": 70602,
+      "sha256": "4ddf124dcafe6d19f00670150f6c9917ee5aa4800aa3f5dbea65e6242690b2bb"
+    },
+    {
+      "path": "final-desktop-banners.jpg",
+      "bytes": 55958,
+      "sha256": "e90db500004a67fbeb98359a4cd4365107de5a3baa19660a2761f6b8cee9c7e4"
+    },
+    {
+      "path": "final-desktop-insights.jpg",
+      "bytes": 43992,
+      "sha256": "229514e7771881a23a031d674914edc793e314e92a11cd31e6b1c55ea99e5d55"
+    },
+    {
+      "path": "final-desktop-knowledge-graph.jpg",
+      "bytes": 65259,
+      "sha256": "54f168a4bee6359b11183b1d00f36fa19836dae156b2d328644abd47f76058df"
+    },
+    {
+      "path": "final-desktop-llm.jpg",
+      "bytes": 76226,
+      "sha256": "9f4cfb125810643da0b6adc52df1a1d240ae6d65a7075ade4204c7497df84bc2"
+    },
+    {
+      "path": "final-desktop-overview.jpg",
+      "bytes": 163970,
+      "sha256": "a784b22f8c6c1f2aeeb77c6ae67ec89f7d92a7add69258c0cb5114326719dfa0"
+    },
+    {
+      "path": "final-desktop-pipeline.jpg",
+      "bytes": 77581,
+      "sha256": "adb28bcff03688bbcd4399d34da57ce75fa040f5bcd61af6cad0d8475d3b854e"
+    },
+    {
+      "path": "final-desktop-restaurants.jpg",
+      "bytes": 122652,
+      "sha256": "d1d8e5d90c92b56a65dc8d40d2392abe28baedb270fba8c27f38821028a89a0d"
+    },
+    {
+      "path": "final-desktop-reviews.jpg",
+      "bytes": 51800,
+      "sha256": "89cddbaf6a03e64ee664baef7245e437aa4b5c043ee9ac36945f1b88c9cafad6"
+    },
+    {
+      "path": "final-desktop-routes.jpg",
+      "bytes": 80039,
+      "sha256": "8144491b9b42d6328ef30712260f81d0f9f4ce3eb5e5a6f067b80cf8f2fb5dc1"
+    },
+    {
+      "path": "final-desktop-sentry.jpg",
+      "bytes": 45980,
+      "sha256": "eb16240393304e0137abc3d4ec24af6ef5ec5cbffd65818d0c4ace97687a7615"
+    },
+    {
+      "path": "final-desktop-storyboard.jpg",
+      "bytes": 85132,
+      "sha256": "306fe324e565650c8f49e7c50b62f60fb353e0fbc9a875a8af94b89a2ed304b1"
+    },
+    {
+      "path": "final-desktop-submissions.jpg",
+      "bytes": 53371,
+      "sha256": "7d7ad590f0f8c095301ae04a411cf33eca29faf5e5453666f90ab1034ccd49b8"
+    },
+    {
+      "path": "final-desktop-users.jpg",
+      "bytes": 64424,
+      "sha256": "e70cb440d5e0950515f3a203fb0b409436a77aca9bf22a68d2cfa9b681edcd21"
+    },
+    {
+      "path": "final-desktop-youtube-thumbnail-generator.jpg",
+      "bytes": 187944,
+      "sha256": "cb98c38526acaa4e46a702aeb7c3a577ea5a7c87a2cab4027376f22bbba13ba6"
+    },
+    {
+      "path": "final-mobile-audit.jpg",
+      "bytes": 31240,
+      "sha256": "b6daa96e36294b3eb4d023784208a9ed12f3398fe5de5f0403148a03256a108b"
+    },
+    {
+      "path": "final-mobile-banners.jpg",
+      "bytes": 21221,
+      "sha256": "a31c8a7ff6f760e6f359f94c1d55cfa97bb1157be35d4f9c3c83abe2a242ef8c"
+    },
+    {
+      "path": "final-mobile-insights.jpg",
+      "bytes": 46363,
+      "sha256": "a0978f323cb6e75e82a5d065abdf14bb86129a5488b26f245fca698956fdc821"
+    },
+    {
+      "path": "final-mobile-knowledge-graph.jpg",
+      "bytes": 23196,
+      "sha256": "6c1df6e0fb3180ac274e2958975e9e90b3eb89d0fcd3434af324157134bed65c"
+    },
+    {
+      "path": "final-mobile-llm.jpg",
+      "bytes": 37564,
+      "sha256": "9445a6dd85cef3e2776b2b3c88b97535dda089b400e763c669f68895592430d0"
+    },
+    {
+      "path": "final-mobile-overview.jpg",
+      "bytes": 40460,
+      "sha256": "23ce4c777885f43473f657705a8d286fc22f9a54fd889dc394ff7389b9825b5c"
+    },
+    {
+      "path": "final-mobile-pipeline.jpg",
+      "bytes": 28758,
+      "sha256": "87485686887ac09e2517d50fe661bfc3eef9c7995dd9ff2302450c92c83a0766"
+    },
+    {
+      "path": "final-mobile-restaurants.jpg",
+      "bytes": 40328,
+      "sha256": "f39e8e8719322ee7b87a426df63a6263c263430cd667f15e351b4f61e6be8ae7"
+    },
+    {
+      "path": "final-mobile-reviews.jpg",
+      "bytes": 20206,
+      "sha256": "7ca9fe768e808aa6dc9675618f5d67d801de5aba086c8b439e0d8b05fcee5fb3"
+    },
+    {
+      "path": "final-mobile-routes.jpg",
+      "bytes": 35363,
+      "sha256": "8e6d419f06d0719d20c49a243ac3c5fc68cba57c4dc7d0ce0f380c062cfa5bc7"
+    },
+    {
+      "path": "final-mobile-sentry.jpg",
+      "bytes": 17832,
+      "sha256": "01a8548422dcf224a9d07d953c6ee425dabe6a136f3210152551a4524c2538db"
+    },
+    {
+      "path": "final-mobile-storyboard.jpg",
+      "bytes": 38353,
+      "sha256": "5ee138fc8b26f494a20dcfbfe7ca424deef25c2b885d49377a8a0364afaa3811"
+    },
+    {
+      "path": "final-mobile-submissions.jpg",
+      "bytes": 21404,
+      "sha256": "d7ed47a880d230649e99af35f7c6b48aaeabdc89ce55dc06f6dc34a43719de3c"
+    },
+    {
+      "path": "final-mobile-users.jpg",
+      "bytes": 28104,
+      "sha256": "1a8568fd52db34f8732e11ac520172aedaf1ccc99c2ce3a99c349d702ca378f2"
+    },
+    {
+      "path": "final-mobile-youtube-thumbnail-generator.jpg",
+      "bytes": 62932,
+      "sha256": "7834e876f4e9c5c011001ae9ff757b665d3acb76d50415d09737be891ed76d37"
+    },
+    {
+      "path": "final-source-bound-render.json",
+      "bytes": 35903,
+      "sha256": "abe371ba9711bab732aef5452ca8ecaa3cf10d3c76cae8366ca66081b90a02e2"
+    },
+    {
+      "path": "final-tablet-audit.jpg",
+      "bytes": 58149,
+      "sha256": "202384ff8c3abacef1608603efee14b0aaf680075c062861f19edfae0f6c80b3"
+    },
+    {
+      "path": "final-tablet-banners.jpg",
+      "bytes": 41360,
+      "sha256": "4964e50a27726414f57207ed935d7305ac6719174db807418c4349cda91cde71"
+    },
+    {
+      "path": "final-tablet-insights.jpg",
+      "bytes": 90226,
+      "sha256": "69b7f05e21a990378a3d94e2081e9b2d621c3f3f3789a517ffae5205c004ffc7"
+    },
+    {
+      "path": "final-tablet-knowledge-graph.jpg",
+      "bytes": 47992,
+      "sha256": "b6db45b4d321f63a918f09e55de601ad787da7832884fadd57e6b24d522630f4"
+    },
+    {
+      "path": "final-tablet-llm.jpg",
+      "bytes": 59470,
+      "sha256": "77f31f2d3ae2a54a19c8b3e06baf7d76a656ddfba94d8d04e0ddc4fba1a5adc0"
+    },
+    {
+      "path": "final-tablet-overview.jpg",
+      "bytes": 88429,
+      "sha256": "42458449f5ab5f1db10e5e1567812055df38d59d440e73de6bb48bab22423863"
+    },
+    {
+      "path": "final-tablet-pipeline.jpg",
+      "bytes": 58273,
+      "sha256": "51d0b8f38483563ad2a9a1d270f3a8eabb7461c7f638abd7d4de419258103f39"
+    },
+    {
+      "path": "final-tablet-restaurants.jpg",
+      "bytes": 99927,
+      "sha256": "d686f3bb42121378f2ce595abea79f87b7291eeb04a2ab2b69b458e401e6e9fb"
+    },
+    {
+      "path": "final-tablet-reviews.jpg",
+      "bytes": 42178,
+      "sha256": "784b5eb9e4b2e5be1d7e2b0034fa2c85ba5400d99eabcfc2bc1ab251bfe1ce4c"
+    },
+    {
+      "path": "final-tablet-routes.jpg",
+      "bytes": 68836,
+      "sha256": "7aa6f6386e6d262efd4558d62708ae853b0eecbebc4152e02ccfa3979a91cecf"
+    },
+    {
+      "path": "final-tablet-sentry.jpg",
+      "bytes": 37670,
+      "sha256": "5fe8953b2bba0035c372004bb1b5407a0ad2f5d8074dd11387d7bcae61be8102"
+    },
+    {
+      "path": "final-tablet-storyboard.jpg",
+      "bytes": 72983,
+      "sha256": "d14e7ce7010af97b9836e8d748c8b6feaa3d531d56f3fb066a4031ca2c140fb8"
+    },
+    {
+      "path": "final-tablet-submissions.jpg",
+      "bytes": 43104,
+      "sha256": "b5b0289e3be12fb9ed58e4ec04da4990497ec19ca58e14c211db2a71d24d44e2"
+    },
+    {
+      "path": "final-tablet-users.jpg",
+      "bytes": 50630,
+      "sha256": "8efe400da663ed2ab6758633babf0120867362c3232742b460ba00aacf6359f5"
+    },
+    {
+      "path": "final-tablet-youtube-thumbnail-generator.jpg",
+      "bytes": 102159,
+      "sha256": "af7183d7ebafd5f2e62aef210853f5ae00e165ef687320f08921c9a5fe6ab984"
+    },
+    {
+      "path": "historical-c503483d02c97c9a/artifact-map.json",
+      "bytes": 37564,
+      "sha256": "adb3918fbf6d55efe6b3a712ead47170b5a495a5da7dfd167eb4a64887d53385"
+    },
+    {
+      "path": "historical-c503483d02c97c9a/artifact-map.json.sha256",
+      "bytes": 84,
+      "sha256": "0a4d60cb71af7e8e7587b63cf4a7ac723d707e3d313a5560fe394de5ca1d15c3"
+    },
+    {
+      "path": "initial-desktop-render.json",
+      "bytes": 10426,
+      "sha256": "73eddd45d2f7d28aefbfd3c10277f4c3a8bcf347af6d43ca925dce2279a38bc5"
+    },
+    {
+      "path": "release-desktop-audit.jpg",
+      "bytes": 70686,
+      "sha256": "1937b3084b394df8bc1f1bc8403482e43ad38c3444cf66f6bf487ed0ed66f85c"
+    },
+    {
+      "path": "release-desktop-banners.jpg",
+      "bytes": 55997,
+      "sha256": "7e15d699a951cd919f01840796ad7d97d540b3a866265b7d9e2d8e78930c9197"
+    },
+    {
+      "path": "release-desktop-insights.jpg",
+      "bytes": 119566,
+      "sha256": "8d160991dfe0613c455dc4ee41aa5023157102d10ff5925b70e51f515e6d2303"
+    },
+    {
+      "path": "release-desktop-knowledge-graph.jpg",
+      "bytes": 65228,
+      "sha256": "60cd11e1e9db0c87ac911ee34323af4b048d53c4e0fec8642c57c3efae1ee3dd"
+    },
+    {
+      "path": "release-desktop-llm.jpg",
+      "bytes": 76143,
+      "sha256": "d376a63a9d7c9709a513774bedb347ef3b476a8dc9b43c9eeb57200055dfa384"
+    },
+    {
+      "path": "release-desktop-overview.jpg",
+      "bytes": 163977,
+      "sha256": "34b2f389613999aa7c589c8c8b3cddf1eb9176dfe88a176025bfdd1aa9c732b6"
+    },
+    {
+      "path": "release-desktop-pipeline.jpg",
+      "bytes": 77751,
+      "sha256": "bdff34fe005682d10c16b58b78c2396141b5c39581a628ead47b09200988b833"
+    },
+    {
+      "path": "release-desktop-restaurants.jpg",
+      "bytes": 122663,
+      "sha256": "ab329c9624ba62fd956764cee18605bf0fba7f8087550136cfd501e59018b139"
+    },
+    {
+      "path": "release-desktop-reviews.jpg",
+      "bytes": 51836,
+      "sha256": "d8e5562fa0dc48ab3f740b38049ea393fc063623e47a798ce716132a11e9f1df"
+    },
+    {
+      "path": "release-desktop-routes.jpg",
+      "bytes": 100359,
+      "sha256": "c05a2899eccaa9672aaa396bdf86d648c5334510185152722e64140a47f09c2c"
+    },
+    {
+      "path": "release-desktop-sentry.jpg",
+      "bytes": 46033,
+      "sha256": "328bdaaaf7be68e490fc1ace835ea4d9d8a55b4b7e832d428bd3ee44bf869497"
+    },
+    {
+      "path": "release-desktop-storyboard.jpg",
+      "bytes": 85307,
+      "sha256": "dff3b5e7776f26b90cfe41ee4e416b98d64d0f14b4bb256f789402c660bd8c38"
+    },
+    {
+      "path": "release-desktop-submissions.jpg",
+      "bytes": 53275,
+      "sha256": "57f54445fa450ec125a4320dd5bd169424eed4a739f7b31903ea0b0183499d40"
+    },
+    {
+      "path": "release-desktop-users.jpg",
+      "bytes": 64481,
+      "sha256": "8184055fb626d75c23ebad67aa239196657b06d74fa2ad44ea99df08de3247ad"
+    },
+    {
+      "path": "release-desktop-youtube-thumbnail-generator.jpg",
+      "bytes": 187732,
+      "sha256": "b2f81a0e3d059eea3b35a05aca7df63f9043a60778dcb4cc06cb344c94ea4df4"
+    },
+    {
+      "path": "release-mobile-audit.jpg",
+      "bytes": 31208,
+      "sha256": "7f87d3256d08cf9e86881acbe4a19ab76f02e49e45a5ddf100f584be2f6c696b"
+    },
+    {
+      "path": "release-mobile-banners.jpg",
+      "bytes": 28543,
+      "sha256": "20d504a1095097be061a484caea1609e37aae6b5052e1c0c4b1b414fac429206"
+    },
+    {
+      "path": "release-mobile-insights.jpg",
+      "bytes": 46554,
+      "sha256": "6c976e61fbba2284a6b637ede95abd2e123c64908318fa220e9deee6fd595ccf"
+    },
+    {
+      "path": "release-mobile-knowledge-graph.jpg",
+      "bytes": 29007,
+      "sha256": "6a2733625513e7e4d5d8c5690254c98daca8b017c807306e684856e47d15d450"
+    },
+    {
+      "path": "release-mobile-llm.jpg",
+      "bytes": 37537,
+      "sha256": "e845d154eda45b089c20bc670fe2b6a72ffbad6332b839f0dbe12b94351d3ae5"
+    },
+    {
+      "path": "release-mobile-overview.jpg",
+      "bytes": 44634,
+      "sha256": "2bd3b85d453bced27419728b20dbb8ae9cc7eec76c55513f0c17dc4afc8b3e16"
+    },
+    {
+      "path": "release-mobile-pipeline.jpg",
+      "bytes": 33474,
+      "sha256": "8dd726e580dc5d1b3a28d4597d51655d6001858252060fc9d7e52aff1d61812c"
+    },
+    {
+      "path": "release-mobile-restaurants.jpg",
+      "bytes": 43384,
+      "sha256": "da60d31f917ce345ad867dcb267c1420f1bff69e0e2238f33720c946ca50530b"
+    },
+    {
+      "path": "release-mobile-reviews.jpg",
+      "bytes": 27173,
+      "sha256": "462974b3503b92cd9b25dcd9e159d90d08c82813a8a34435b5eca9810383dd09"
+    },
+    {
+      "path": "release-mobile-routes.jpg",
+      "bytes": 35359,
+      "sha256": "c299ca91802eb40a532c597640e9ae0288c476c05171af9e7b3540af9ca33342"
+    },
+    {
+      "path": "release-mobile-sentry.jpg",
+      "bytes": 24774,
+      "sha256": "285accef50a43eb42e80549b03c5000410600aa7ee84fafcd2e020442c9859e1"
+    },
+    {
+      "path": "release-mobile-storyboard.jpg",
+      "bytes": 38322,
+      "sha256": "53b1f7f53f9b31e81c39e0caf7bca4d3aa99cbaeb090c834c4b66da339570ee2"
+    },
+    {
+      "path": "release-mobile-submissions.jpg",
+      "bytes": 28365,
+      "sha256": "24d69c14b2c970e7a1d0ecc5f566988988d9e24dccacce1425fe5d762cbb678f"
+    },
+    {
+      "path": "release-mobile-users.jpg",
+      "bytes": 34881,
+      "sha256": "0107806a0905936ca252c5cb759b0ee818d9c8f03f44750d8c2a6c5e29ec9b1e"
+    },
+    {
+      "path": "release-mobile-youtube-thumbnail-generator.jpg",
+      "bytes": 62933,
+      "sha256": "37eafea1d5ea13d7c21a15f53ad2b7ee37ee2bb1de165d4486895c59bcd2a4b1"
+    },
+    {
+      "path": "release-tablet-audit.jpg",
+      "bytes": 58154,
+      "sha256": "235cb553d00ebe365ce9361f5655dfea3b8b47567b38c2b7f23da60af8cd919a"
+    },
+    {
+      "path": "release-tablet-banners.jpg",
+      "bytes": 46413,
+      "sha256": "43b9c9c0c8d6272406d7e02e97453b22e6dd4638f6c2eaab44bc9045d3605551"
+    },
+    {
+      "path": "release-tablet-insights.jpg",
+      "bytes": 92549,
+      "sha256": "8da836cd421383af46cd5d0d91a1dc39f9f19ad8887cf53ea6a79654461f5ff7"
+    },
+    {
+      "path": "release-tablet-knowledge-graph.jpg",
+      "bytes": 53071,
+      "sha256": "dcf57e294758f8a8511474b26d5f3e3f3e3abe432aa75fcd61921ff9fab3b7be"
+    },
+    {
+      "path": "release-tablet-llm.jpg",
+      "bytes": 59306,
+      "sha256": "6d30592fb93e4d7af83895e21d82e429cc9bf55fcd50ae44ea70fb64833149f2"
+    },
+    {
+      "path": "release-tablet-overview.jpg",
+      "bytes": 89668,
+      "sha256": "916b7c2c0e001ae2816a0aa8d761e9beb872b64eec26922fd51f2d7f943af39f"
+    },
+    {
+      "path": "release-tablet-pipeline.jpg",
+      "bytes": 63177,
+      "sha256": "1e00c27e110d69f8a0ca4daa3fcf4c13689be666e20aa9678424ea76f6c54dbe"
+    },
+    {
+      "path": "release-tablet-restaurants.jpg",
+      "bytes": 102939,
+      "sha256": "10920fedfbdbb2d6df1d3cae8cc8af18511e0537e9f905038c310c8549142776"
+    },
+    {
+      "path": "release-tablet-reviews.jpg",
+      "bytes": 47119,
+      "sha256": "da107cd5077a337d38d260f8b2d2fbb5e979af6797760402a0d2c0a4659997f2"
+    },
+    {
+      "path": "release-tablet-routes.jpg",
+      "bytes": 68843,
+      "sha256": "a7428767f8db6f2cd44536f59bae91b4281db44e3bc79ccd9cf83955d2a469b5"
+    },
+    {
+      "path": "release-tablet-sentry.jpg",
+      "bytes": 42565,
+      "sha256": "5a52fc7311ec850d8f0d1b713b72d631ced89f0eb527e7052b947457416d9ce6"
+    },
+    {
+      "path": "release-tablet-storyboard.jpg",
+      "bytes": 73081,
+      "sha256": "7ae00667871851b592ea58bfa8bcf13783e0349e4e013d0b129a62eff9201071"
+    },
+    {
+      "path": "release-tablet-submissions.jpg",
+      "bytes": 47898,
+      "sha256": "6c82325decb2889ff6de27789fe64d39397bd2039eaa5667a6c5f46873c49b3a"
+    },
+    {
+      "path": "release-tablet-users.jpg",
+      "bytes": 55391,
+      "sha256": "03b8e66b3b3f3f1bd4d46792e6c12b394e31f832f718f9a26231ea4d398578bd"
+    },
+    {
+      "path": "release-tablet-youtube-thumbnail-generator.jpg",
+      "bytes": 100738,
+      "sha256": "4bd65ea5bffb7a77b4cf5be0259228ca46c1b31770b7ad4d4b6d4b0e5e1232f6"
+    },
+    {
+      "path": "second-build-header-render.json",
+      "bytes": 30886,
+      "sha256": "adab8aa5f3aded104c68678e08dd756a348ce66ed5322a9f62b09b83802de88c"
+    },
+    {
+      "path": "source-reconciliation-delta-20261013-v2.json",
+      "bytes": 3962,
+      "sha256": "4f5dd32c69dcb3d285448aea6b8f9013fb27259b9553bacf99468fc4ad23d8ac",
+      "role": "current-selected-source-reconciliation-delta"
+    },
+    {
+      "path": "source-reconciliation-delta-20261013.json",
+      "bytes": 1768,
+      "sha256": "fe0da048921eb9729738aa607efdb0d9ecb149d2a580c0528fe67b5117dede0a",
+      "role": "pre-final-selected-source-reconciliation-delta"
+    },
+    {
+      "path": "third-build-header-render.json",
+      "bytes": 33341,
+      "sha256": "0fe3c495538d0dd9d0cfe695bab0ee64fe4c88c4d9d7d9f94c303647d96818ba"
+    }
+  ],
+  "historicalPackages": [
+    {
+      "path": "../admin-header-consistency-20261011/artifact-map.json",
+      "sha256": "b1a2d8e9f27117aaa3a632747a2bdb8202672990ce01310d5cbb2c75b044e2d7",
+      "verifiedArtifacts": 251
+    },
+    {
+      "path": "../gemini-live-validation-20261012/artifact-map-paid-historical.json",
+      "sha256": "251afc906a6493ced159430ff72b55d56b63ee6c62afbc0e10a218ab4e116114",
+      "verifiedArtifacts": 6,
+      "classification": "historical-paid-provider-package"
+    },
+    {
+      "path": "historical-c503483d02c97c9a/artifact-map.json",
+      "sha256": "adb3918fbf6d55efe6b3a712ead47170b5a495a5da7dfd167eb4a64887d53385",
+      "verifiedArtifacts": 176,
+      "classification": "immutable-c503-parent-inventory"
+    },
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a/artifact-map-v1.json",
+      "sha256": "312ec242a66cd8b17df93edeb865ad19a8f3477bc143cf5379401687a321a77a",
+      "verifiedArtifacts": 8,
+      "classification": "immutable-c503-db-prepare-inventory"
+    },
+    {
+      "path": "../admin-route-consistency-20261012/historical-c503483d02c97c9a/artifact-map.json",
+      "sha256": "335fb4abe8fdd3b6445ab334d3ded0f29377a2517640068add56485848249414",
+      "verifiedArtifacts": 62,
+      "classification": "immutable-c503-admin-route-inventory"
+    }
+  ],
+  "limits": [
+    "Source, local synthetic rendering, provider canaries and operating deployment remain separate evidence classes.",
+    "No production DB, Storage, provider, billing or deployment mutation in this delivery.",
+    "Whole goal remains active; provider/DB/UI end-to-end, card removal and 1071 long-form completion are not proven.",
+    "This map reconciliation verifies file identity only; existing build, render, runtime, database, provider and browser receipts were not rerun.",
+    "Diagnostic logs, interpreter caches, credentials and secrets are excluded from the current inventory."
+  ],
+  "changedSourcesClassification": {
+    "status": "historical-build-source-bindings",
+    "buildId": "HcJtq7WT9AGLOOijoRGrZ",
+    "sourceManifestSha256": "2cc2a16f055ce9bbcb3cd1c75ac05c90cc0cbd36d29661d1967260ccf8dc3cfa",
+    "currentSourceBindingsClaimed": false,
+    "currentCheckpointHead": "bb6f9228209c9a4a8251ca2e182428f7021d6a3e",
+    "reconciliationScope": "selected-reviewed-source-counterparts-only",
+    "selectedHistoricalRowsChecked": 5,
+    "selectedMismatchCount": 5,
+    "selectedMismatchPaths": [
+      "apps/web/scripts/gemini-live-verification-io.ts",
+      "apps/web/scripts/verify-admin-sidebar-pages-browser.ts",
+      "apps/web/scripts/verify-ocr-gemini-live.ts",
+      "apps/web/tests-unit/gemini-live-verification-boundary.test.ts",
+      "apps/web/tests-unit/ocr-live-verification-cli.test.ts"
+    ],
+    "currentOnlyRelatedPaths": [
+      "apps/web/scripts/ocr-gemini-live-attempt.ts",
+      "apps/web/scripts/verify-admin-pipeline-browser.ts"
+    ],
+    "fullChangedSourcesInventoryVerified": false,
+    "fullBuildSourceManifestVerified": false,
+    "reconciliationDelta": "source-reconciliation-delta-20261013-v2.json",
+    "reconciliationDeltaSha256": "4f5dd32c69dcb3d285448aea6b8f9013fb27259b9553bacf99468fc4ad23d8ac",
+    "reconciliationDeltas": [
+      {
+        "path": "source-reconciliation-delta-20261013.json",
+        "sha256": "fe0da048921eb9729738aa607efdb0d9ecb149d2a580c0528fe67b5117dede0a",
+        "classification": "pre-final-selected-source-reconciliation"
+      },
+      {
+        "path": "source-reconciliation-delta-20261013-v2.json",
+        "sha256": "4f5dd32c69dcb3d285448aea6b8f9013fb27259b9553bacf99468fc4ad23d8ac",
+        "classification": "current-selected-source-reconciliation"
+      }
+    ],
+    "historicalBuildReplayed": false,
+    "historicalReadbackReplayed": false
+  },
+  "packageSourceHead": "c503483d02c97c9abe6a19eddd8cd3f5715ebc42",
+  "scope": "Current source-only hardening evidence and complete current db-prepare byte inventory, with pre-existing build/render/runtime/provider receipts retained as historical evidence. No historical execution receipt was rerun by this reconciliation.",
+  "artifactCount": 185,
+  "artifactBytes": 10197400,
+  "currentPackageBindings": [
+    {
+      "path": "db-prepare/artifact-map-v1.json",
+      "sha256": "37a35393d91d197dbb03096edda6a56b38170fac3c3e1931ec115854252b9640",
+      "artifactCount": 16,
+      "classification": "current-source-plus-historical-db-inventory"
+    },
+    {
+      "path": "../admin-route-consistency-20261012/artifact-map.json",
+      "sha256": "f8ee56863632052c88e4369ebbbcd0de9abb10420e26f8ac2539b78b4303a7ea",
+      "artifactCount": 71,
+      "classification": "current-source-plus-historical-ui-evidence-inventory"
+    },
+    {
+      "path": "evidence-package-reconciliation-20261013.json",
+      "sha256": "b63bb07a4e19dc5eced0060b42f9d216e46537ad79de6dcf12983d87ba64d15a",
+      "classification": "current-reconciliation-receipt"
+    }
+  ],
+  "evidenceClassification": {
+    "currentSourceOnlyReceipts": [
+      "db-prepare/carrier-verifier-delta-20261013.json",
+      "db-prepare/run-local-replay-hardening-delta-20261013.json",
+      "../admin-route-consistency-20261012/privacy-fixture-startup-closure-delta-20261013.json"
+    ],
+    "historicalExecutionEvidence": "All pre-existing build, render, runtime, database replay, provider, and browser receipts remain historical unless separately named as current source-only evidence.",
+    "historicalReceiptsRerun": false,
+    "currentProductionBuildClaim": false,
+    "currentUiRenderClaim": false,
+    "currentDatabaseClaim": false,
+    "currentProviderClaim": false
+  },
+  "exclusions": {
+    "mapSelfReference": [
+      "artifact-map.json",
+      "artifact-map.json.sha256"
+    ],
+    "diagnosticLogsNotIndexed": [
+      "build-log-container.json",
+      "build-turbopack-failed.json",
+      "final-build-output.txt.gz"
+    ],
+    "generatedInterpreterCachesNotIndexed": [
+      "db-prepare/__pycache__/**",
+      "db-prepare/**/*.pyc"
+    ],
+    "credentialsAndSecretsNotIndexed": [
+      ".env*",
+      "*credential*",
+      "*secret*",
+      "session tokens",
+      "raw request or response bodies"
+    ]
+  }
+}
