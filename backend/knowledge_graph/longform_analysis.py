@@ -61,6 +61,23 @@ WIRE_SCHEMA_PREDECESSOR_SOURCES = {
     "adapterSha256": "d3c9a61c9c2e33289abefe187bae0b394c09ca8e66ade4f7a4d6017e7685145b",
     "policySha256": "7934ff60da85f5a28a8884ecdfca2963785ba82edc78230fa7a90506b643aaa4",
 }
+# Exact sources that produced the completed static-segment cache immediately
+# before bounded ANALYSIS_PARTIAL diagnostics were added. Compatibility is
+# read-only: these hashes may prove reuse or a terminal unresolved result, but
+# they never authorize another provider request or rewrite an old receipt.
+OBSERVABILITY_PREDECESSOR_SOURCES = {
+    "adapterSha256": "9969cc50edb6fc552b8e3f2010315983b5ca4a75e2ecd3f995a81225eccff3af",
+    "policySha256": "9f355d15e58259f1e7d7375818026c953b3c919d1ca8404fec82fa2b338ad643",
+}
+PARTIAL_VALIDATION_REASONS = frozenset({
+    "COVERAGE_START_MISMATCH",
+    "COVERAGE_END_MISMATCH",
+    "COVERAGE_INCOMPLETE",
+    "COVERAGE_LIMITATIONS_PRESENT",
+    "SUMMARY_EMPTY",
+    "SUMMARY_EVIDENCE_MISSING",
+    "UNKNOWN",
+})
 LEGACY_REJECTION_PRODUCER = "344f80e48d104a4a0142ef8d0597fb9bd0d7d631"
 LEGACY_REJECTION_SOURCE_SHA256 = "12ec9fd76cd6990487f58d7a0c92a36cf018ac770fa771564a28d8e0468602ef"
 
@@ -94,8 +111,9 @@ Confidence is a number from 0 to 1. Use empty arrays where evidence is absent.
 class AnalysisError(Exception):
     """Only fixed codes cross the CLI/receipt boundary."""
 
-    def __init__(self, code: str):
+    def __init__(self, code: str, *, validation_failure=None):
         self.code = code
+        self.validation_failure = validation_failure
         super().__init__(code)
 
 
@@ -351,6 +369,13 @@ def wire_schema_predecessor_config(config: AnalysisConfig):
     return previous
 
 
+def observability_predecessor_config(config: AnalysisConfig):
+    """Rebuild the exact pre-diagnostics identity for read-only compatibility."""
+    if config.protocol != 2:
+        raise AnalysisError("READBACK_REQUIRED")
+    return {**config.identity, **OBSERVABILITY_PREDECESSOR_SOURCES}
+
+
 def load_model_evidence(path: Path, model: str, checkout: Path, timeout: int) -> AnalysisConfig:
     evidence = read_json(path)
     if not isinstance(model, str) or not re.fullmatch(r"gemini-[a-z0-9]+(?:[.-][a-z0-9]+)*", model) or len(model) > 80:
@@ -435,6 +460,72 @@ def _facts(value, duration, start=0, maximum=100):
     return result
 
 
+def _partial_counts(value):
+    summary = value.get("summary") if isinstance(value, dict) else None
+    if not isinstance(summary, list):
+        return None, None
+    evidence_count = 0
+    for fact in summary:
+        evidence = fact.get("evidence") if isinstance(fact, dict) else None
+        if isinstance(evidence, list):
+            evidence_count += len(evidence)
+    return len(summary), evidence_count
+
+
+def _partial_failure(reason, value, row, limitations_count):
+    coverage = value["coverage"]
+    summary_count, summary_evidence_count = _partial_counts(value)
+
+    def bounded_number(candidate):
+        return candidate if finite_number(candidate) else None
+
+    complete = coverage.get("complete")
+    return {
+        "schemaVersion": 1,
+        "reason": reason,
+        "segmentIndex": row.get("segmentIndex"),
+        "startSeconds": row.get("segmentStartSeconds", 0),
+        "endSeconds": row.get("segmentEndSeconds", row["durationSeconds"]),
+        "reportedStartSeconds": bounded_number(coverage.get("startSeconds")),
+        "reportedEndSeconds": bounded_number(coverage.get("endSeconds")),
+        "reportedComplete": complete if type(complete) is bool else None,
+        "limitationsCount": limitations_count,
+        "summaryCount": summary_count,
+        "summaryEvidenceCount": summary_evidence_count,
+    }
+
+
+def validation_failure(value, row):
+    """Validate bounded partial diagnostics or derive UNKNOWN for old receipts."""
+    start = row.get("segmentStartSeconds", 0)
+    end = row.get("segmentEndSeconds", row["durationSeconds"])
+    segment_index = row.get("segmentIndex")
+    if value is None:
+        return {"schemaVersion": 1, "reason": "UNKNOWN", "segmentIndex": segment_index,
+                "startSeconds": start, "endSeconds": end, "reportedStartSeconds": None,
+                "reportedEndSeconds": None, "reportedComplete": None, "limitationsCount": None,
+                "summaryCount": None, "summaryEvidenceCount": None}
+    keys = {"schemaVersion", "reason", "segmentIndex", "startSeconds", "endSeconds",
+            "reportedStartSeconds", "reportedEndSeconds", "reportedComplete", "limitationsCount",
+            "summaryCount", "summaryEvidenceCount"}
+    if not isinstance(value, dict) or set(value) != keys:
+        raise AnalysisError("RECEIPT_CORRUPT")
+    counts = (value.get("limitationsCount"), value.get("summaryCount"), value.get("summaryEvidenceCount"))
+    reported = (value.get("reportedStartSeconds"), value.get("reportedEndSeconds"))
+    if (type(value.get("schemaVersion")) is not int or value.get("schemaVersion") != 1
+            or value.get("reason") not in PARTIAL_VALIDATION_REASONS
+            or value.get("segmentIndex") != segment_index
+            or (segment_index is not None and type(value.get("segmentIndex")) is not int)
+            or (segment_index is None and value.get("segmentIndex") is not None)
+            or not finite_number(value.get("startSeconds")) or value.get("startSeconds") != start
+            or not finite_number(value.get("endSeconds")) or value.get("endSeconds") != end
+            or any(item is not None and not finite_number(item) for item in reported)
+            or not (value.get("reportedComplete") is None or type(value.get("reportedComplete")) is bool)
+            or any(item is not None and (type(item) is not int or item < 0) for item in counts)):
+        raise AnalysisError("RECEIPT_CORRUPT")
+    return value
+
+
 def validate_analysis(value, row):
     if (not isinstance(value, dict) or set(value) != {"schemaVersion", "videoId", "coverage", "summary", "restaurants", "claims", "uncertainty"}
             or type(value["schemaVersion"]) is not int or value["schemaVersion"] != 1 or value["videoId"] != row["videoId"]):
@@ -446,13 +537,25 @@ def validate_analysis(value, row):
     if not isinstance(coverage, dict) or set(coverage) != {"startSeconds", "endSeconds", "complete", "limitations"}:
         raise AnalysisError("ANALYSIS_SCHEMA_INVALID")
     limitations = _strings(coverage["limitations"])
-    if (type(coverage["startSeconds"]) not in (int, float) or coverage["startSeconds"] != start
-            or type(coverage["endSeconds"]) not in (int, float) or coverage["endSeconds"] != duration
-            or coverage["complete"] is not True or limitations):
-        raise AnalysisError("ANALYSIS_PARTIAL")
+    reason = None
+    if type(coverage["startSeconds"]) not in (int, float) or coverage["startSeconds"] != start:
+        reason = "COVERAGE_START_MISMATCH"
+    elif type(coverage["endSeconds"]) not in (int, float) or coverage["endSeconds"] != duration:
+        reason = "COVERAGE_END_MISMATCH"
+    elif coverage["complete"] is not True:
+        reason = "COVERAGE_INCOMPLETE"
+    elif limitations:
+        reason = "COVERAGE_LIMITATIONS_PRESENT"
+    if reason:
+        raise AnalysisError("ANALYSIS_PARTIAL", validation_failure=_partial_failure(
+            reason, value, row, len(limitations)))
     summary = _facts(value["summary"], duration, start, maximum)
-    if not summary or not any(fact["evidence"] for fact in summary):
-        raise AnalysisError("ANALYSIS_PARTIAL")
+    if not summary:
+        raise AnalysisError("ANALYSIS_PARTIAL", validation_failure=_partial_failure(
+            "SUMMARY_EMPTY", value, row, len(limitations)))
+    if not any(fact["evidence"] for fact in summary):
+        raise AnalysisError("ANALYSIS_PARTIAL", validation_failure=_partial_failure(
+            "SUMMARY_EVIDENCE_MISSING", value, row, len(limitations)))
     if not isinstance(value["restaurants"], list) or len(value["restaurants"]) > maximum:
         raise AnalysisError("ANALYSIS_SCHEMA_INVALID")
     restaurants = []
@@ -806,12 +909,16 @@ def validate_saved_evidence(evidence, row, config, *, config_identity=None):
                 raise AnalysisError("SEGMENT_COVERAGE_INVALID")
 
 
-def segment_evidence(state, row, config):
-    _, receipt_path, evidence_path = paths(state, row, config)
+def segment_evidence(state, row, config, *, config_identity=None):
+    if config_identity is None:
+        _, receipt_path, evidence_path = paths(state, row, config)
+        config_identity = config.identity
+    else:
+        _, receipt_path, evidence_path = _exact_paths(state, row, config, config_identity)
     receipt, evidence = checked_document(receipt_path), checked_document(evidence_path)
     admitted_membership(receipt.get("membershipEvidence"))
-    validate_saved_evidence(evidence, row, config)
-    if (receipt.get("state") != "succeeded" or receipt.get("identity") != identity(row, config)
+    validate_saved_evidence(evidence, row, config, config_identity=config_identity)
+    if (receipt.get("state") != "succeeded" or receipt.get("identity") != identity(row, config, config_identity=config_identity)
             or receipt.get("evidenceSha256") != digest(evidence) or receipt.get("usage") != evidence["usage"]
             or receipt.get("model") != config.model or type(receipt.get("callsAttempted")) is not int or receipt["callsAttempted"] != 2
             or type(receipt.get("reservedCalls")) is not int or receipt["reservedCalls"] != 2
@@ -821,7 +928,7 @@ def segment_evidence(state, row, config):
     observed_path = receipt_path.with_name(receipt_path.name.replace(".receipt.json", ".observation.json"))
     if checked_document(observed_path) != evidence["observation"]:
         raise AnalysisError("SEGMENT_RECEIPT_INVALID")
-    lineage = repair_lineage(state, row, config)
+    lineage = repair_lineage(state, row, config) if config_identity == config.identity else None
     if lineage:
         batch_id = receipt.get("batchId", "")
         if not isinstance(batch_id, str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", batch_id):
@@ -908,6 +1015,56 @@ def _wire_schema_predecessor_state(state, row, config):
                 or evidence["usage"] != combined_usage(parts)
                 or evidence["reportSha256"] != digest([part["reportSha256"] for part in parts])
                 or any(key in receipt for key in ("batchId", "repairLineageSha256"))):
+            raise AnalysisError("READBACK_REQUIRED")
+        return "reusable"
+    except (AnalysisError, adapter.AdapterError, OSError, ValueError, TypeError, AttributeError, KeyError):
+        return "readback_required"
+
+
+def _observability_predecessor_state(state, row, config):
+    """Reuse exact completed pre-diagnostics bytes; keep failures unresolved."""
+    if config.protocol != 2:
+        return None
+    config_identity = observability_predecessor_config(config)
+    spans = segment_rows(row, config)
+    root_directory, receipt_path, evidence_path = _exact_paths(state, row, config, config_identity)
+    segment_directory = root_directory / "segments" / digest(config_identity)
+    if not receipt_path.exists() and not evidence_path.exists() and not segment_directory.exists():
+        return None
+    try:
+        if (not receipt_path.is_file()
+                or receipt_path.with_name(receipt_path.name.replace(".receipt.json", ".repair.json")).exists()
+                or list(segment_directory.glob("*.repair.json")) or list(segment_directory.glob("*.readback.json"))
+                or list(segment_directory.glob(".pending-*"))):
+            raise AnalysisError("READBACK_REQUIRED")
+        receipt = checked_document(receipt_path)
+        admitted_membership(receipt.get("membershipEvidence"))
+        if receipt.get("identity") != identity(row, config, config_identity=config_identity):
+            raise AnalysisError("READBACK_REQUIRED")
+        if receipt.get("state") != "succeeded":
+            return "readback_required"
+        if not evidence_path.is_file():
+            raise AnalysisError("READBACK_REQUIRED")
+        expected_receipts, expected_evidence, expected_observations = set(), set(), set()
+        for span in spans:
+            _, part_receipt, part_evidence = _exact_paths(state, span, config, config_identity)
+            expected_receipts.add(part_receipt)
+            expected_evidence.add(part_evidence)
+            expected_observations.add(part_receipt.with_name(part_receipt.name.replace(
+                ".receipt.json", ".observation.json")))
+        if (set(segment_directory.glob("*.receipt.json")) != expected_receipts
+                or set(segment_directory.glob("*.analysis.json")) != expected_evidence
+                or set(segment_directory.glob("*.observation.json")) != expected_observations):
+            raise AnalysisError("READBACK_REQUIRED")
+        evidence = checked_document(evidence_path)
+        validate_saved_evidence(evidence, row, config, config_identity=config_identity)
+        pairs = verify_full_evidence(state, row, config, evidence, config_identity=config_identity)
+        if (receipt.get("evidenceSha256") != digest(evidence) or receipt.get("usage") != evidence["usage"]
+                or receipt.get("model") != config.model or receipt.get("segmentCount") != len(pairs)
+                or receipt.get("callsAttempted") != sum(part[0]["callsAttempted"] for part in pairs)
+                or receipt.get("reservedInputTokens") != len(pairs) * config.input_limit
+                or receipt.get("reservedOutputTokens") != len(pairs) * config.output_limit
+                or receipt.get("callAccounting") != "count_and_interactions_per_static_segment"):
             raise AnalysisError("READBACK_REQUIRED")
         return "reusable"
     except (AnalysisError, adapter.AdapterError, OSError, ValueError, TypeError, AttributeError, KeyError):
@@ -1062,7 +1219,7 @@ def _wire_schema_predecessor_readback(state, row, config, *, provider, max_calls
                 or receipt.get("reservedInputTokens") != config.input_limit
                 or receipt.get("reservedOutputTokens") != config.output_limit
                 or receipt.get("observationSha256") != digest(observation)
-                or receipt.get("state") not in ("running", "uncertain", "rejected")
+                or receipt.get("state") not in ("running", "uncertain")
                 or observation["requestSha256"] != contract["requestSha256"]
                 or any(key in receipt for key in ("batchId", "repairLineageSha256"))
                 or not provider or not observation["responseId"]
@@ -1201,6 +1358,9 @@ def cached_state(state: Path, row, config, *, repair=None):
     if evidence_path.exists() or list(directory.rglob(".pending-*")):
         return "readback_required"
     if not lineage:
+        predecessor_state = _observability_predecessor_state(state, row, config)
+        if predecessor_state is not None:
+            return predecessor_state
         predecessor_state = _wire_schema_predecessor_state(state, row, config)
         if predecessor_state is not None:
             return predecessor_state
@@ -1301,6 +1461,75 @@ def validate_segment_batch(ledger, config, expected_identity=None):
     return limits
 
 
+def failure_outcome(error, observation):
+    """Classify one failed provider result without using raw diagnostics."""
+    confirmed = observation and observation.get("httpOutcome") in ("http_success", "http_rejected")
+    rejected = confirmed and error.code not in ("WATCH_RESPONSE_NOT_COMPLETED", "WATCH_TRANSPORT_UNCERTAIN")
+    return {"state": "rejected" if rejected else "uncertain", "code": error.code}
+
+
+def segment_outcome(receipt, row):
+    """Derive the same bounded state for execution, restart and readback."""
+    state, code = receipt.get("state"), receipt.get("code")
+    if state == "succeeded":
+        return {"state": "succeeded", "code": code}
+    if state == "rejected":
+        result = {"state": "rejected", "code": code}
+        if code == "ANALYSIS_PARTIAL":
+            result["validationFailure"] = validation_failure(receipt.get("validationFailure"), row)
+        elif "validationFailure" in receipt:
+            raise AnalysisError("RECEIPT_CORRUPT")
+        return result
+    if state in ("running", "uncertain", "failed", "partial"):
+        if "validationFailure" in receipt:
+            raise AnalysisError("RECEIPT_CORRUPT")
+        return {"state": "uncertain", "code": code}
+    raise AnalysisError("RECEIPT_CORRUPT")
+
+
+def apply_failure(receipt, error, observation, row):
+    outcome = failure_outcome(error, observation)
+    receipt.update(outcome)
+    if error.code == "ANALYSIS_PARTIAL":
+        receipt["validationFailure"] = validation_failure(error.validation_failure, row)
+    else:
+        receipt.pop("validationFailure", None)
+    return receipt
+
+
+def record_parent_failure(receipt_path, row, span, segment_receipt, config):
+    parent = checked_document(receipt_path)
+    if (parent.get("identity") != identity(row, config)
+            or parent.get("state") not in ("segmented", "uncertain", "rejected")):
+        raise AnalysisError("RECEIPT_CORRUPT")
+    outcome = segment_outcome(segment_receipt, span)
+    if outcome["state"] not in ("rejected", "uncertain"):
+        raise AnalysisError("RECEIPT_CORRUPT")
+    parent.update(state=outcome["state"], code=outcome["code"], blockedSegment={
+        "segmentIndex": span["segmentIndex"],
+        "startSeconds": span["segmentStartSeconds"],
+        "endSeconds": span["segmentEndSeconds"],
+        "receiptSha256": digest(segment_receipt),
+        "observationSha256": segment_receipt.get("observationSha256"),
+    })
+    if "validationFailure" in outcome:
+        parent["validationFailure"] = outcome["validationFailure"]
+    else:
+        parent.pop("validationFailure", None)
+    atomic_document(receipt_path, parent)
+
+
+def clear_parent_uncertainty(receipt_path, row, config):
+    parent = checked_document(receipt_path)
+    if parent.get("identity") != identity(row, config):
+        raise AnalysisError("RECEIPT_CORRUPT")
+    if parent.get("state") == "uncertain":
+        parent.update(state="segmented", code="SEGMENTS_PENDING")
+        parent.pop("blockedSegment", None)
+        parent.pop("validationFailure", None)
+        atomic_document(receipt_path, parent)
+
+
 def unique(items):
     return list({canonical(item): item for item in items}.values())
 
@@ -1324,10 +1553,10 @@ def combined_usage(parts):
     return adapter.usage(counters)
 
 
-def verify_full_evidence(state, row, config, evidence):
+def verify_full_evidence(state, row, config, evidence, *, config_identity=None):
     pairs = []
     for span, proof in zip(segment_rows(row, config), evidence["segments"]):
-        receipt, part = segment_evidence(state, span, config)
+        receipt, part = segment_evidence(state, span, config, config_identity=config_identity)
         if digest(receipt) != proof["receiptSha256"] or digest(part) != proof["evidenceSha256"]:
             raise AnalysisError("SEGMENT_RECEIPT_INVALID")
         pairs.append((receipt, part))
@@ -1462,9 +1691,7 @@ def execute(rows, inventory_info, state: Path, config, limits, *, batch_id=None,
                             receipt.update(state="succeeded", code="COMPLETED", evidenceSha256=digest(evidence))
                             summary["segmentsSucceeded"] += 1
                         except (AnalysisError, adapter.AdapterError) as error:
-                            confirmed = observation and observation["httpOutcome"] in ("http_success", "http_rejected")
-                            rejected = confirmed and error.code not in ("WATCH_RESPONSE_NOT_COMPLETED", "WATCH_TRANSPORT_UNCERTAIN")
-                            receipt.update(state="rejected" if rejected else "uncertain", code=error.code)
+                            apply_failure(receipt, error, observation, span)
                             if isinstance(error, adapter.AdapterError):
                                 # Optional new failure diagnostics; observation and old receipts remain unchanged.
                                 status = adapter.bounded_http_status(error.http_status)
@@ -1473,13 +1700,14 @@ def execute(rows, inventory_info, state: Path, config, limits, *, batch_id=None,
                                     receipt["httpStatus"] = status
                             failed = True
                         except (OSError, ValueError, TypeError, TimeoutError):
-                            receipt.update(state="uncertain", code="WATCH_TRANSPORT_UNCERTAIN")
+                            apply_failure(receipt, AnalysisError("WATCH_TRANSPORT_UNCERTAIN"), observation, span)
                             failed = True
                         receipt.update(callsAttempted=len(seen_operations), elapsedSeconds=round(time.monotonic() - started, 6))
                         if observation:
                             receipt.update(usage=observation["usage"], observationSha256=digest(observation))
                         atomic_document(receipt_path, receipt)
                         if failed:
+                            record_parent_failure(video_receipt, row, span, receipt, config)
                             break
                     if not failed:
                         complete_video(state, row, config)
@@ -1532,7 +1760,8 @@ def readback(rows, state, config, *, provider=False, max_calls=0):
                         raise AnalysisError("READBACK_REQUIRED")
                     result["recovered"] += 1
                     continue
-                if receipt.get("identity") != identity(row, config) or receipt.get("state") != "segmented":
+                if (receipt.get("identity") != identity(row, config)
+                        or receipt.get("state") not in ("segmented", "uncertain")):
                     raise AnalysisError("READBACK_REQUIRED")
                 for span in segment_rows(row, config):
                     _, part_path, part_evidence_path = paths(state, span, config)
@@ -1546,9 +1775,10 @@ def readback(rows, state, config, *, provider=False, max_calls=0):
                         part_receipt = _recover_active_readback_binding(
                             part_path, observation_path, part_receipt, expected_part_identity)
                         observed = validate_observation(checked_document(observation_path))
+                        outcome = segment_outcome(part_receipt, span)
                         if (part_receipt.get("identity") != expected_part_identity
                                 or part_receipt.get("observationSha256") != digest(observed)
-                                or part_receipt.get("state") not in ("running", "uncertain", "rejected")
+                                or outcome["state"] != "uncertain"
                                 or not provider or not observed["responseId"]
                                 or observed["operation"] not in ("generate", "readback")
                                 or result["readbackCalls"] >= max_calls):
@@ -1584,20 +1814,29 @@ def readback(rows, state, config, *, provider=False, max_calls=0):
                             part_receipt = updated_receipt
                             binding_path.unlink()
 
-                        recovered = adapter.invoke(checkout=config.checkout, model=config.model, video_id=row["videoId"],
-                            start=span["segmentStartSeconds"], end=span["segmentEndSeconds"], prompt=segment_prompt(span),
-                            input_limit=config.input_limit, output_limit=config.output_limit, timeout=config.timeout,
-                            key=key, budget=project_budget(), observe=observe, response_id=observed["responseId"],
-                            request_digest=observed["requestSha256"], counted_input_tokens=observed["countedInputTokens"])
-                        observation = validate_observation(recovered["observation"])
-                        part = {"identity": identity(span, config), "analysis": validate_analysis(decode(recovered["text"]), span),
-                                "usage": observation["usage"], "reportSha256": recovered["responseSha256"],
-                                "provider": "gemini_via_claude_video", "processing": "static_segment", "observation": observation}
-                        validate_saved_evidence(part, span, config)
-                        atomic_document(part_evidence_path, part)
+                        try:
+                            recovered = adapter.invoke(checkout=config.checkout, model=config.model, video_id=row["videoId"],
+                                start=span["segmentStartSeconds"], end=span["segmentEndSeconds"], prompt=segment_prompt(span),
+                                input_limit=config.input_limit, output_limit=config.output_limit, timeout=config.timeout,
+                                key=key, budget=project_budget(), observe=observe, response_id=observed["responseId"],
+                                request_digest=observed["requestSha256"], counted_input_tokens=observed["countedInputTokens"])
+                            observation = validate_observation(recovered["observation"])
+                            part = {"identity": identity(span, config), "analysis": validate_analysis(decode(recovered["text"]), span),
+                                    "usage": observation["usage"], "reportSha256": recovered["responseSha256"],
+                                    "provider": "gemini_via_claude_video", "processing": "static_segment", "observation": observation}
+                            validate_saved_evidence(part, span, config)
+                            atomic_document(part_evidence_path, part)
+                        except (AnalysisError, adapter.AdapterError) as error:
+                            apply_failure(part_receipt, error, durable_observation, span)
+                            part_receipt.update(usage=durable_observation["usage"],
+                                                observationSha256=digest(durable_observation))
+                            atomic_document(part_path, part_receipt)
+                            record_parent_failure(receipt_path, row, span, part_receipt, config)
+                            raise
                     part_receipt.update(state="succeeded", code="READBACK_COMPLETED", usage=part["usage"], evidenceSha256=digest(part),
                                         observationSha256=digest(part["observation"]))
                     atomic_document(part_path, part_receipt)
+                    clear_parent_uncertainty(receipt_path, row, config)
                 complete_video(state, row, config)
                 result["recovered"] += 1
         except (AnalysisError, adapter.AdapterError, OSError, ValueError, TypeError):

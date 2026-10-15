@@ -445,12 +445,35 @@ class LongformAnalysisTests(unittest.TestCase):
 
     def test_full_completion_requires_literal_true_full_range_and_no_limitations(self):
         coverage = self.analysis()["coverage"]
-        invalid = [{**coverage, "complete": value} for value in (False, "true", "false", 0, 1, None, [], {})]
-        invalid += [{**coverage, "startSeconds": 1}, {**coverage, "endSeconds": 59},
-                    {**coverage, "limitations": ["media unavailable"]}]
-        for candidate in invalid:
+        invalid = [({**coverage, "complete": value}, "COVERAGE_INCOMPLETE")
+                   for value in (False, "true", "false", 0, 1, None, [], {})]
+        invalid += [({**coverage, "startSeconds": 1}, "COVERAGE_START_MISMATCH"),
+                    ({**coverage, "endSeconds": 59}, "COVERAGE_END_MISMATCH"),
+                    ({**coverage, "limitations": ["media unavailable"]}, "COVERAGE_LIMITATIONS_PRESENT")]
+        for candidate, reason in invalid:
             with self.subTest(coverage=candidate), self.assertRaisesRegex(module.AnalysisError, "ANALYSIS_PARTIAL"):
-                module.validate_analysis({**self.analysis(), "coverage": candidate}, self.row)
+                try:
+                    module.validate_analysis({**self.analysis(), "coverage": candidate}, self.row)
+                except module.AnalysisError as error:
+                    self.assertEqual(error.validation_failure["reason"], reason)
+                    self.assertEqual((error.validation_failure["startSeconds"], error.validation_failure["endSeconds"]), (0, 60))
+                    raise
+
+    def test_partial_summary_reasons_store_counts_without_text(self):
+        empty = {**self.analysis(), "summary": []}
+        no_evidence = self.analysis()
+        no_evidence["summary"][0]["evidence"] = []
+        for value, reason, counts in ((empty, "SUMMARY_EMPTY", (0, 0)),
+                                      (no_evidence, "SUMMARY_EVIDENCE_MISSING", (1, 0))):
+            with self.subTest(reason=reason), self.assertRaisesRegex(module.AnalysisError, "ANALYSIS_PARTIAL"):
+                try:
+                    module.validate_analysis(value, self.row)
+                except module.AnalysisError as error:
+                    failure = error.validation_failure
+                    self.assertEqual((failure["reason"], failure["summaryCount"], failure["summaryEvidenceCount"]),
+                                     (reason, *counts))
+                    self.assertTrue({"text", "evidence", "uncertainty"}.isdisjoint(failure))
+                    raise
 
     def test_uncertain_current_membership_cannot_reuse_or_readback_a_valid_cache(self):
         with self.execution(lambda argv, **kw: subprocess.CompletedProcess(argv, 0, self.report(), b"")):
