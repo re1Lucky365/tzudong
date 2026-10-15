@@ -36,6 +36,7 @@ from urllib.parse import urlsplit
 from backend.utils.privacy_log import redact_log_text
 from backend.utils.provider_budget import ProjectBudget, budget_path, positive_int
 from backend.knowledge_graph import claude_video_adapter as adapter
+from backend.knowledge_graph import longform_inventory as inventory_materializer
 
 PINNED_COMMIT = "03ceb42f7fa2c4439aca01752118044baabffb8f"
 DEFAULT_CHECKOUT = Path("/Users/twoimo/.codex/runtime-cache/tzudong-claude-video-03ceb42")
@@ -220,8 +221,8 @@ def admitted_row(row):
         raise AnalysisError("STREAM_LIVE_STATUS_INVALID")
 
 
-def load_inventory(path: Path) -> tuple[list[dict], dict]:
-    document = read_json(path)
+def load_inventory(path: Path, *, data: bytes | None = None) -> tuple[list[dict], dict]:
+    document = decode(data) if data is not None else read_json(path)
     if not isinstance(document, dict) or document.get("schemaVersion") != 1 or not isinstance(document.get("videos"), list):
         raise AnalysisError("INVENTORY_INVALID")
     if len(document["videos"]) > 100000:
@@ -1546,9 +1547,97 @@ def readback(rows, state, config, *, provider=False, max_calls=0):
             result["unresolved"] += 1
     return result
 
+def _inventory_from_args(args) -> tuple[list[dict], dict]:
+    membership_values = (
+        args.membership_videos_sha256,
+        args.membership_streams,
+        args.membership_streams_sha256,
+        args.membership_shorts,
+        args.membership_shorts_sha256,
+        args.materialized_inventory,
+        args.materialization_receipt,
+    )
+    if args.inventory is not None:
+        if (args.inventory_sha256 is None or args.expected_longform_count is None
+                or args.expected_inventory_rows is None
+                or any(value is not None for value in membership_values)):
+            raise AnalysisError("INVENTORY_SOURCE_CONTRACT_REQUIRED")
+        try:
+            inventory_data = inventory_materializer.verify_file_sha256(
+                args.inventory, args.inventory_sha256, maximum=MAX_DOCUMENT_BYTES,
+            )
+        except inventory_materializer.MaterializationError as error:
+            raise AnalysisError(error.code) from None
+        rows, info = load_inventory(args.inventory, data=inventory_data)
+        if (args.expected_longform_count < 1 or args.expected_inventory_rows < 1
+                or len(rows) != args.expected_longform_count
+                or info["inventoryRows"] != args.expected_inventory_rows):
+            raise AnalysisError("INVENTORY_EXPECTED_COUNT_MISMATCH")
+        return rows, {**info, "inventoryFileSha256": args.inventory_sha256,
+                      "inventorySource": "pinned_schema_v1"}
+
+    if (args.inventory_sha256 is not None or args.expected_longform_count is not None
+            or args.expected_inventory_rows is not None or args.membership_videos is None
+            or not all(value is not None for value in membership_values)):
+        raise AnalysisError("MEMBERSHIP_SOURCE_CONTRACT_REQUIRED")
+    try:
+        receipt = inventory_materializer.materialize(
+            videos_path=args.membership_videos,
+            videos_sha256=args.membership_videos_sha256,
+            streams_path=args.membership_streams,
+            streams_sha256=args.membership_streams_sha256,
+            shorts_path=args.membership_shorts,
+            shorts_sha256=args.membership_shorts_sha256,
+            inventory_path=args.materialized_inventory,
+            receipt_path=args.materialization_receipt,
+        )
+        readback_receipt = inventory_materializer.readback(
+            args.materialized_inventory, args.materialization_receipt,
+        )
+    except inventory_materializer.MaterializationError as error:
+        raise AnalysisError(error.code) from None
+    try:
+        inventory_data = inventory_materializer.verify_file_sha256(
+            args.materialized_inventory, receipt["inventory"]["sha256"],
+            maximum=MAX_DOCUMENT_BYTES,
+        )
+    except inventory_materializer.MaterializationError as error:
+        raise AnalysisError(error.code) from None
+    rows, info = load_inventory(args.materialized_inventory, data=inventory_data)
+    expected = readback_receipt["counts"]
+    if (
+        len(rows) != expected["eligibleLongform"]
+        or info["inventoryRows"] != expected["inventoryRows"]
+        or info["excludedShorts"] != expected["shortsExcluded"]
+        or info["videoTabCount"] != expected["videos"]
+        or info["completedStreamCount"] != expected["completedStreams"]
+        or info["duplicateRows"] != 0
+    ):
+        raise AnalysisError("MATERIALIZED_INVENTORY_COUNT_MISMATCH")
+    return rows, {
+        **info,
+        "inventoryFileSha256": receipt["inventory"]["sha256"],
+        "inventorySource": "pinned_membership_shards",
+        "materializationReceiptSha256": readback_receipt["receiptSha256"],
+        "membershipCounts": expected,
+    }
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--inventory", type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--inventory", type=Path)
+    source.add_argument("--membership-videos", type=Path)
+    parser.add_argument("--inventory-sha256")
+    parser.add_argument("--expected-longform-count", type=int)
+    parser.add_argument("--expected-inventory-rows", type=int)
+    parser.add_argument("--membership-videos-sha256")
+    parser.add_argument("--membership-streams", type=Path)
+    parser.add_argument("--membership-streams-sha256")
+    parser.add_argument("--membership-shorts", type=Path)
+    parser.add_argument("--membership-shorts-sha256")
+    parser.add_argument("--materialized-inventory", type=Path)
+    parser.add_argument("--materialization-receipt", type=Path)
     parser.add_argument("--state-dir", type=Path, required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--model-evidence", type=Path, required=True)
@@ -1571,7 +1660,7 @@ def main(argv=None):
     parser.add_argument("--repair-producer-commit", help="Known legacy producer provenance from the original run")
     args = parser.parse_args(argv)
     try:
-        rows, info = load_inventory(args.inventory)
+        rows, info = _inventory_from_args(args)
         config = load_model_evidence(args.model_evidence, args.model, args.watch_checkout, args.timeout)
         if not 1 <= args.segment_seconds <= 900:
             raise AnalysisError("SEGMENT_BOUNDS_INVALID")

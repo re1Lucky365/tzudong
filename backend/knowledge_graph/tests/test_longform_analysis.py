@@ -394,7 +394,9 @@ class LongformAnalysisTests(unittest.TestCase):
         model = self.root / "model.json"
         model.write_text(json.dumps({"sourceUrl": "https://ai.google.dev/api/models", "checkedAt": "2026-10-04T12:00:00Z",
                                      "name": "models/gemini-3.8-flash", "inputTokenLimit": 1000, "outputTokenLimit": 100}))
-        argv = ["--inventory", str(path), "--state-dir", str(self.state), "--model", "gemini-3.8-flash", "--model-evidence", str(model)]
+        argv = ["--inventory", str(path), "--inventory-sha256", module.hashlib.sha256(path.read_bytes()).hexdigest(),
+                "--expected-longform-count", "1", "--expected-inventory-rows", "1",
+                "--state-dir", str(self.state), "--model", "gemini-3.8-flash", "--model-evidence", str(model)]
         output = io.StringIO()
         with contextlib.redirect_stdout(output), patch.object(module, "execute", side_effect=AssertionError("executed")):
             self.assertEqual(module.main(argv), 0)
