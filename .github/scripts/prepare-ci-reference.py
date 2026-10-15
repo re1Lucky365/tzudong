@@ -262,6 +262,7 @@ def attempt_resolved(observation: dict) -> bool:
         return False
     return conclusion != "success" or bool(
         observation.get("terminalEvidenceComplete")
+        and observation.get("chronologyValid", True)
     )
 
 
@@ -273,7 +274,10 @@ def reference_terminal(observation: dict) -> bool:
         and observation.get("cohortMetadataVerified")
         and (
             observation.get("conclusion") != "success"
-            or observation.get("terminalEvidenceComplete")
+            or (
+                observation.get("terminalEvidenceComplete")
+                and observation.get("chronologyValid", True)
+            )
         )
     )
 
@@ -282,7 +286,9 @@ def assess_pending(observation: dict, target: dict) -> dict:
     """Classify unresolved work without guessing its eventual cohort."""
     reason = "exact_cohort_pending"
     potentially_same = True
-    if observation.get("cohortKey") == target.get("cohortKey"):
+    if observation.get("chronologyValid") is False:
+        reason = "chronology_invalid_attempt"
+    elif observation.get("cohortKey") == target.get("cohortKey"):
         pass
     elif observation.get("workflow") != target.get("workflow"):
         reason, potentially_same = "verified_different_workflow", False
@@ -316,6 +322,7 @@ def assess_pending(observation: dict, target: dict) -> dict:
         "executionMode": observation.get("executionMode"),
         "jobTopology": observation.get("jobTopology"),
         "runnerFamilies": observation.get("runnerFamilies"),
+        "chronologyIssueCodes": observation.get("chronologyIssueCodes", []),
         "reason": reason,
         "potentiallySameCohort": potentially_same,
         # Any active attempt can start before the next baseline cutoff. Keep
@@ -335,6 +342,7 @@ def assess_without_target(observation: dict) -> dict:
         "executionMode": observation.get("executionMode"),
         "jobTopology": observation.get("jobTopology"),
         "runnerFamilies": observation.get("runnerFamilies"),
+        "chronologyIssueCodes": observation.get("chronologyIssueCodes", []),
         "reason": "target_cohort_unavailable",
         "potentiallySameCohort": True,
         "blocksReferenceFreeze": True,
@@ -364,7 +372,7 @@ def evaluate_reference(state_dir: Path, checkpoint_path: Path, tick_id: str | No
         item for item in cohort
         if item.get("status") == "completed"
         and item.get("conclusion") == "success"
-        and item.get("terminalEvidenceComplete")
+        and item.get("timingUsable")
         and item.get("cohortMetadataVerified")
         and item.get("sourceTree")
     ]
@@ -425,6 +433,14 @@ def evaluate_reference(state_dir: Path, checkpoint_path: Path, tick_id: str | No
         "pendingReasonCounts": dict(sorted(Counter(
             item["reason"] for item in pending_assessments
         ).items())),
+        "chronologyInvalidAttemptCount": sum(
+            item.get("chronologyValid") is False for item in observations
+        ),
+        "chronologyIssueCodeCounts": dict(sorted(Counter(
+            code
+            for item in observations
+            for code in item.get("chronologyIssueCodes", [])
+        ).items())),
         "pendingAssessments": pending_assessments,
         "collectionComplete": collection_complete,
         "blockingCoverageAlerts": sorted(coverage_alerts & BLOCKING_COVERAGE_ALERTS),
@@ -450,12 +466,15 @@ def evaluate_reference(state_dir: Path, checkpoint_path: Path, tick_id: str | No
             or (candidate.get("reference") or {}).get("cohortId") != cohort_id
         ):
             raise ReferenceError("INVALID_FROZEN_REFERENCE_CANDIDATE")
-        result["status"] = "reference_candidate_ready"
         result.update(
             candidateBaselinePath=state_ref(state_dir, candidate_path),
             candidateBaselineSha256=candidate_sha,
-            notificationKey=f"reference_ready:{cohort_id}:{candidate_sha}",
         )
+        if ready_now:
+            result["status"] = "reference_candidate_ready"
+            result["notificationKey"] = (
+                f"reference_ready:{cohort_id}:{candidate_sha}"
+            )
     elif ready_now:
         raw_records = retained_records_for_candidate(state_dir)
         raw_by_fingerprint = {

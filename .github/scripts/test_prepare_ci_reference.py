@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import tempfile
 import unittest
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -151,6 +152,71 @@ class CiReferenceTests(unittest.TestCase):
         self.assertEqual(incomplete["status"], "collecting_reference")
         self.assertFalse(incomplete["collectionComplete"])
         self.assertEqual(incomplete["blockingCoverageAlerts"], ["RECENT_WINDOW_TRUNCATED"])
+
+    def test_chronology_invalid_success_is_pending_and_never_enters_candidate(self):
+        successes = self.successes(start=400)
+        defective = FIXTURE.make_run(499, 50, attempt=2)
+        defective["jobs"][0]["createdAt"] = FIXTURE.timestamp(
+            REFERENCE.MONITOR.parse_timestamp(
+                defective["jobs"][0]["startedAt"]
+            ) + timedelta(seconds=1)
+        )
+        runs = successes + [defective]
+        self.write_checkpoint(runs)
+        self.write_tick("001", runs)
+
+        result = REFERENCE.evaluate_reference(
+            self.state, self.checkpoint, "001"
+        )
+        self.assertEqual(result["status"], "collecting_reference")
+        self.assertEqual(result["successCount"], 7)
+        self.assertEqual(result["distinctSourceTreeCount"], 7)
+        self.assertEqual(result["candidateAttemptCount"], 7)
+        self.assertEqual(result["blockingPendingCount"], 1)
+        self.assertEqual(
+            result["pendingReasonCounts"],
+            {"chronology_invalid_attempt": 1},
+        )
+        self.assertEqual(result["chronologyInvalidAttemptCount"], 1)
+        self.assertEqual(
+            result["chronologyIssueCodeCounts"],
+            {"JOB_START_PRECEDES_JOB_CREATION": 1},
+        )
+        self.assertEqual(
+            result["pendingAssessments"][0]["chronologyIssueCodes"],
+            ["JOB_START_PRECEDES_JOB_CREATION"],
+        )
+        self.assertFalse((self.state / "reference-candidates").exists())
+
+    def test_later_chronology_pending_blocks_a_prepared_candidate(self):
+        successes = self.successes(start=420)
+        self.write_checkpoint(successes)
+        self.write_tick("001", successes)
+        ready = REFERENCE.evaluate_reference(
+            self.state, self.checkpoint, "001"
+        )
+        self.assertEqual(ready["status"], "reference_candidate_ready")
+
+        defective = FIXTURE.make_run(499, 50, attempt=2)
+        defective["jobs"][0]["createdAt"] = FIXTURE.timestamp(
+            REFERENCE.MONITOR.parse_timestamp(
+                defective["jobs"][0]["startedAt"]
+            ) + timedelta(seconds=1)
+        )
+        runs = successes + [defective]
+        self.write_checkpoint(runs)
+        self.write_tick("002", runs)
+        blocked = REFERENCE.evaluate_reference(
+            self.state, self.checkpoint, "002"
+        )
+
+        self.assertEqual(blocked["status"], "collecting_reference")
+        self.assertEqual(blocked["blockingPendingCount"], 1)
+        self.assertEqual(
+            blocked["candidateBaselineSha256"],
+            ready["candidateBaselineSha256"],
+        )
+        self.assertNotIn("notificationKey", blocked)
 
     def test_unverified_shape_or_revision_pending_blocks_reference(self):
         successes = self.successes(start=800)

@@ -87,3 +87,16 @@ run 생성 뒤 job 생성까지의 시간, 생성 뒤 대기와 실행을 각각
 현재 v4의 첫 수동 tick(2026-10-11 10:35 UTC)은 60개 run을 3페이지로 읽고 API 9회, 6.236070초를 사용했다. 캐시 58개를 재사용하고 job set 2개를 갱신했으며 coverage 경보·새 경보·프로그램 모델 호출·원격 mutation은 모두 0개다. 기준선 포함 29개 attempt 중 성공 23·실패 2·취소 2·미완료 2개다. 선택된 새 코호트의 성공·source tree는 0개이고 미해결 attempt는 2개이므로 reference 준비와 효과 판정을 보류한다. 이는 이전 4개 표본이 삭제됐다는 뜻이 아니라 실행 모드·topology가 다른 코호트를 구분한 결과다.
 
 현재 자동화는 v4를 실행하도록 기존 ID·6시간 주기·thread를 유지해 갱신하고 저장본을 재확인했다. 영수증은 `corrected-live-tick-v2/`, `corrected-live-tick-v3/`, `corrected-live-tick-v4/`와 `automation-readback-v3.json`, `automation-readback-v4.json`이다. source snapshot 5개는 상태 창에 보존했다. 미래 예약 실행·실제 CI 시간 단축·금액 절감은 아직 확인하지 않았다.
+
+## 2026-10-15 attempt 시간순서 결함
+
+run `38617798185`, attempt `2`는 attempt별 job 응답 6개 중 5개에서 `startedAt-createdAt`이 -993~-1,002초였다. 같은 attempt의 run과 job 결합은 맞았고 CI conclusion은 success였다. [GitHub 공식 workflow jobs API](https://docs.github.com/en/rest/actions/workflow-jobs)는 `GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs`를 attempt별 job 조회 경로로 정의한다. 현재 문서의 workflow job 응답 예시는 `started_at`과 `completed_at`을 보여 주지만 이 모순의 생성 원인이나 `created_at`의 부분 재실행 의미를 규정하지 않는다. 따라서 공급자 원인을 단정하거나 시각을 보정하지 않는다.
+
+기존 analyzer는 현재 창의 시간순서 모순도 `ChronologyError`로 전체 tick 밖에 던졌다. 그 결과 정상 신규 관측까지 분석하지 못했고 checkpoint는 불변으로 남았다. collector는 같은 record를 보존하되 `invalid_timing_order` 때문에 terminal로 고정하지 않았다. 수정된 경계는 다음과 같다.
+
+- 고정 before 기준선의 모순은 계속 fail-closed다.
+- after attempt의 모순은 원본 fingerprint와 완료·실패 상태를 보존하고 고정 코드로 기록한다. 시각 clamp, 추정, 삭제, tombstone 변환은 하지 않는다.
+- 해당 attempt는 `terminalEvidenceComplete=false`, `timingUsable=false`이며 임계 경로·러너 점유·queue·stage 표본을 모두 비운다. 동일 fingerprint는 O(1) checkpoint 중복 조회로 재사용하고, 공급자가 같은 attempt를 일관된 값으로 교정한 경우에만 교체 후 terminal로 동결할 수 있다.
+- reference 성공·source-tree 표본에서는 제외하고 `chronology_invalid_attempt` pending으로 창 전환을 막는다. 오류 코드는 1회성 `chronology:<run>:<attempt>:<code>` 경보로 노출한다. 이후 정상 attempt 수집과 분석은 계속한다.
+
+불변 입력을 별도 상태 디렉터리에서 재생한 결과 첫 tick은 69개 attempt를 수용했고 문제 attempt에 `JOB_START_PRECEDES_JOB_CREATION`, `JOB_COMPLETION_PRECEDES_JOB_CREATION`을 기록했다. 시간 지표는 모두 `null` 또는 빈 stage였고 reference는 성공 11개·source tree 7개가 있어도 pending 1개 때문에 `collecting_reference`를 유지했다. 같은 입력의 두 번째 tick은 신규 수용 0·중복 69·새 경보 0이었다. 직접 테스트 60개와 전체 CI Python 테스트 82개는 기준선 fail-closed, 현재 창 표본 제외, 동일 fingerprint 중복, 교정 가능한 비terminal 상태, 교정 후 불변화, 정상 신규 run 지속 수용, 준비된 후보의 재차단, reference 차단을 검증했다. 이는 격리 로컬 재생이며 GitHub 응답의 근본 생성 원인 해결이나 운영 창 전환을 뜻하지 않는다.

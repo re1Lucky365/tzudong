@@ -79,6 +79,30 @@ class ChronologyError(MonitorError):
     """Raised when run and job timestamps violate their required ordering."""
 
 
+CHRONOLOGY_CODES = {
+    "CRITICAL_PATH_NEGATIVE",
+    "JOB_COMPLETION_PRECEDES_JOB_CREATION",
+    "JOB_COMPLETION_PRECEDES_JOB_START",
+    "JOB_START_PRECEDES_JOB_CREATION",
+    "JOB_TIMESTAMP_PRECEDES_RUN_CREATION",
+    "STEP_COMPLETION_PRECEDES_STEP_START",
+    "STEP_TIMESTAMP_FOLLOWS_JOB_COMPLETION",
+    "STEP_TIMESTAMP_PRECEDES_JOB_START",
+    "STEP_TIMESTAMP_PRECEDES_RUN_CREATION",
+}
+
+
+def record_chronology_issue(
+    issue_codes: set[str], phase: str, code: str
+) -> None:
+    """Fail closed for frozen input; retain current-window defects as codes."""
+    if code not in CHRONOLOGY_CODES:
+        raise MonitorError("unknown chronology issue code")
+    if phase == "before":
+        raise ChronologyError(code)
+    issue_codes.add(code)
+
+
 def _load_collector() -> Any:
     spec = importlib.util.spec_from_file_location("tzudong_collect_ci", COLLECTOR_PATH)
     if spec is None or spec.loader is None:
@@ -342,6 +366,7 @@ def analyze_record(
     incomplete_step_count = 0
     failed_job_count = 0
     failed_step_count = 0
+    chronology_issue_codes: set[str] = set()
     job_durations: list[float] = []
     queue_durations: list[float] = []
     job_completion_times: list[datetime] = []
@@ -350,6 +375,7 @@ def analyze_record(
     try:
         created_at = parse_timestamp(get_first(record, "createdAt", "created_at"))
         for job in jobs:
+            job_chronology_valid = True
             if job["conclusion"] in FAILURE_CONCLUSIONS:
                 failed_job_count += 1
             job_created_at = parse_timestamp(job["createdAt"])
@@ -358,35 +384,62 @@ def analyze_record(
             if created_at is not None:
                 for job_time in (job_created_at, job_started_at, job_completed_at):
                     if job_time is not None and job_time < created_at:
-                        raise ChronologyError("job timestamp precedes run creation")
+                        record_chronology_issue(
+                            chronology_issue_codes,
+                            phase,
+                            "JOB_TIMESTAMP_PRECEDES_RUN_CREATION",
+                        )
+                        job_chronology_valid = False
             if (
                 job_created_at is not None
                 and job_started_at is not None
                 and job_started_at < job_created_at
             ):
-                raise ChronologyError("job start precedes job creation")
+                record_chronology_issue(
+                    chronology_issue_codes,
+                    phase,
+                    "JOB_START_PRECEDES_JOB_CREATION",
+                )
+                job_chronology_valid = False
             if (
                 job_started_at is not None
                 and job_completed_at is not None
                 and job_completed_at < job_started_at
             ):
-                raise ChronologyError("job completion precedes job start")
+                record_chronology_issue(
+                    chronology_issue_codes,
+                    phase,
+                    "JOB_COMPLETION_PRECEDES_JOB_START",
+                )
+                job_chronology_valid = False
             if (
                 job_created_at is not None
                 and job_completed_at is not None
                 and job_completed_at < job_created_at
             ):
-                raise ChronologyError("job completion precedes job creation")
-            job_duration = duration_seconds(job["startedAt"], job["completedAt"])
-            queue_duration = duration_seconds(job["createdAt"], job["startedAt"])
-            completed_time = job_completed_at
-            if job_duration is None or queue_duration is None or completed_time is None:
+                record_chronology_issue(
+                    chronology_issue_codes,
+                    phase,
+                    "JOB_COMPLETION_PRECEDES_JOB_CREATION",
+                )
+                job_chronology_valid = False
+            job_has_complete_timing = bool(
+                job_created_at is not None
+                and job_started_at is not None
+                and job_completed_at is not None
+            )
+            if not job_has_complete_timing:
                 incomplete_job_count += 1
-            else:
-                job_durations.append(job_duration)
-                queue_durations.append(queue_duration)
-                job_completion_times.append(completed_time)
+            elif job_chronology_valid:
+                job_durations.append(
+                    (job_completed_at - job_started_at).total_seconds()
+                )
+                queue_durations.append(
+                    (job_started_at - job_created_at).total_seconds()
+                )
+                job_completion_times.append(job_completed_at)
             for step in job["steps"]:
+                step_chronology_valid = True
                 if step["conclusion"] in FAILURE_CONCLUSIONS:
                     failed_step_count += 1
                 step_started_at = parse_timestamp(step["startedAt"])
@@ -394,25 +447,41 @@ def analyze_record(
                 if created_at is not None:
                     for step_time in (step_started_at, step_completed_at):
                         if step_time is not None and step_time < created_at:
-                            raise ChronologyError(
-                                "step timestamp precedes run creation"
+                            record_chronology_issue(
+                                chronology_issue_codes,
+                                phase,
+                                "STEP_TIMESTAMP_PRECEDES_RUN_CREATION",
                             )
+                            step_chronology_valid = False
                 if job_started_at is not None:
                     for step_time in (step_started_at, step_completed_at):
                         if step_time is not None and step_time < job_started_at:
-                            raise ChronologyError("step timestamp precedes job start")
+                            record_chronology_issue(
+                                chronology_issue_codes,
+                                phase,
+                                "STEP_TIMESTAMP_PRECEDES_JOB_START",
+                            )
+                            step_chronology_valid = False
                 if job_completed_at is not None:
                     for step_time in (step_started_at, step_completed_at):
                         if step_time is not None and step_time > job_completed_at:
-                            raise ChronologyError(
-                                "step timestamp follows job completion"
+                            record_chronology_issue(
+                                chronology_issue_codes,
+                                phase,
+                                "STEP_TIMESTAMP_FOLLOWS_JOB_COMPLETION",
                             )
+                            step_chronology_valid = False
                 if (
                     step_started_at is not None
                     and step_completed_at is not None
                     and step_completed_at < step_started_at
                 ):
-                    raise ChronologyError("step completion precedes step start")
+                    record_chronology_issue(
+                        chronology_issue_codes,
+                        phase,
+                        "STEP_COMPLETION_PRECEDES_STEP_START",
+                    )
+                    step_chronology_valid = False
 
                 step_is_skipped = step["conclusion"] == "skipped"
                 step_is_terminal = bool(
@@ -434,7 +503,7 @@ def analyze_record(
                 )
                 if not step_is_complete:
                     incomplete_step_count += 1
-                elif not step_is_skipped:
+                elif not step_is_skipped and step_chronology_valid:
                     step_duration = (
                         step_completed_at - step_started_at
                     ).total_seconds()
@@ -445,6 +514,7 @@ def analyze_record(
         malformed_timestamp = True
         created_at = None
 
+    chronology_valid = not chronology_issue_codes
     terminal_evidence_complete = bool(
         status == "completed"
         and jobs
@@ -453,11 +523,13 @@ def analyze_record(
         and incomplete_job_count == 0
         and incomplete_step_count == 0
         and not malformed_timestamp
+        and chronology_valid
     )
     timing_usable = bool(
         conclusion == "success"
         and not tombstone
         and terminal_evidence_complete
+        and chronology_valid
         and created_at is not None
         and job_completion_times
     )
@@ -467,7 +539,13 @@ def analyze_record(
         else None
     )
     if critical_path is not None and critical_path < 0:
-        raise ChronologyError("critical path cannot be negative")
+        record_chronology_issue(
+            chronology_issue_codes, phase, "CRITICAL_PATH_NEGATIVE"
+        )
+        chronology_valid = False
+        terminal_evidence_complete = False
+        timing_usable = False
+        critical_path = None
     families = sorted({job["runnerFamily"] for job in jobs})
     cohort_metadata_verified = bool(
         workflow_metadata_verified
@@ -504,6 +582,8 @@ def analyze_record(
         "sourceFingerprint": source_fingerprint,
         "runnerFamilies": families,
         "timingUsable": timing_usable,
+        "chronologyValid": chronology_valid,
+        "chronologyIssueCodes": sorted(chronology_issue_codes),
         "attemptJobSetComplete": jobs_complete,
         "terminalEvidenceComplete": terminal_evidence_complete,
         "tombstone": tombstone,
@@ -518,7 +598,11 @@ def analyze_record(
         "runnerOccupiedSeconds": round(sum(job_durations), 6) if timing_usable else None,
         "totalQueueSeconds": round(sum(queue_durations), 6) if timing_usable else None,
         "maxQueueSeconds": round(max(queue_durations), 6) if timing_usable else None,
-        "stageSeconds": {key: round(value, 6) for key, value in sorted(stage_seconds.items())},
+        "stageSeconds": (
+            {key: round(value, 6) for key, value in sorted(stage_seconds.items())}
+            if chronology_valid
+            else {}
+        ),
     }
 
 
@@ -836,6 +920,14 @@ def build_analysis(
             sorted(Counter(run["conclusion"] for run in observations).items())
         ),
         "timingUsableRunCount": sum(run["timingUsable"] for run in observations),
+        "chronologyInvalidRunCount": sum(
+            run.get("chronologyValid") is False for run in observations
+        ),
+        "chronologyIssueCodeCounts": dict(sorted(Counter(
+            code
+            for run in observations
+            for code in run.get("chronologyIssueCodes", [])
+        ).items())),
         "incompleteAttemptJobSetRunCount": sum(
             not run["attemptJobSetComplete"] for run in observations
         ),

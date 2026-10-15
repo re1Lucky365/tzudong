@@ -277,7 +277,7 @@ class MonitorCiPerformanceTests(unittest.TestCase):
         malformed_job["jobs"].append(None)
         self.assert_input_rejected(payload([malformed_job]), name="null-job.json")
 
-    def test_job_timestamps_before_run_creation_are_rejected(self) -> None:
+    def test_job_timestamps_before_run_creation_are_rejected_from_baseline(self) -> None:
         base = datetime(2026, 10, 10, 12, 0, tzinfo=timezone.utc)
         cases = {
             "created": {
@@ -304,7 +304,7 @@ class MonitorCiPerformanceTests(unittest.TestCase):
                 with self.assertRaises(MONITOR.MonitorError):
                     MONITOR.analyze_record(
                         run,
-                        "after",
+                        "before",
                         ".github/workflows/web-admin-ci.yml",
                         True,
                         "c" * 64,
@@ -412,7 +412,7 @@ class MonitorCiPerformanceTests(unittest.TestCase):
         self.assertEqual(receipt["analysis"]["incompleteStepCount"], 1)
         self.assertEqual(receipt["analysis"]["timingUsableRunCount"], 0)
 
-    def test_step_timestamps_outside_run_or_job_bounds_are_rejected(self) -> None:
+    def test_step_timestamps_outside_baseline_bounds_are_rejected(self) -> None:
         base = datetime(2026, 10, 10, 12, 0, tzinfo=timezone.utc)
         cases = {
             "before_job_start": {
@@ -451,11 +451,73 @@ class MonitorCiPerformanceTests(unittest.TestCase):
                 with self.assertRaises(MONITOR.MonitorError):
                     MONITOR.analyze_record(
                         run,
-                        "after",
+                        "before",
                         ".github/workflows/web-admin-ci.yml",
                         True,
                         "d" * 64,
                     )
+
+    def test_after_chronology_defect_is_replaceable_and_excluded_from_timing(self) -> None:
+        defective = make_run(1_035, 80, attempt=2)
+        defective["jobs"][0]["createdAt"] = timestamp(
+            MONITOR.parse_timestamp(defective["jobs"][0]["startedAt"])
+            + timedelta(seconds=1)
+        )
+        first_source = self.write("chronology-defect.json", payload([defective]))
+        first = self.invoke(after=first_source)
+        observation = json.loads(
+            self.checkpoint.read_text(encoding="utf-8")
+        )["runs"]["1035:2"]
+
+        self.assertFalse(observation["chronologyValid"])
+        self.assertEqual(
+            observation["chronologyIssueCodes"],
+            ["JOB_START_PRECEDES_JOB_CREATION"],
+        )
+        self.assertFalse(observation["terminalEvidenceComplete"])
+        self.assertFalse(observation["timingUsable"])
+        self.assertIsNone(observation["criticalPathSeconds"])
+        self.assertIsNone(observation["runnerOccupiedSeconds"])
+        self.assertIsNone(observation["totalQueueSeconds"])
+        self.assertEqual(observation["stageSeconds"], {})
+        self.assertEqual(first["analysis"]["chronologyInvalidRunCount"], 1)
+        self.assertEqual(
+            first["analysis"]["chronologyIssueCodeCounts"],
+            {"JOB_START_PRECEDES_JOB_CREATION": 1},
+        )
+
+        duplicate = self.invoke(after=first_source)
+        self.assertEqual(duplicate["admittedRunCount"], 0)
+        self.assertEqual(duplicate["duplicateRunIdCount"], 1)
+
+        normal = make_run(1_036, 40)
+        continued_source = self.write(
+            "chronology-defect-plus-new.json", payload([defective, normal])
+        )
+        continued = self.invoke(after=continued_source)
+        self.assertEqual(continued["admittedRunCount"], 1)
+        self.assertEqual(continued["analysis"]["timingUsableRunCount"], 1)
+        self.assertEqual(continued["analysis"]["chronologyInvalidRunCount"], 1)
+
+        corrected = make_run(1_035, 80, attempt=2)
+        corrected_source = self.write(
+            "corrected-chronology-attempt.json", payload([corrected])
+        )
+        corrected_receipt = self.invoke(after=corrected_source)
+        corrected_observation = json.loads(
+            self.checkpoint.read_text(encoding="utf-8")
+        )["runs"]["1035:2"]
+        self.assertEqual(corrected_receipt["admittedRunCount"], 1)
+        self.assertTrue(corrected_observation["terminalEvidenceComplete"])
+        self.assertTrue(corrected_observation["chronologyValid"])
+        self.assertTrue(corrected_observation["timingUsable"])
+        self.assertEqual(corrected_observation["chronologyIssueCodes"], [])
+
+        changed = dict(corrected)
+        changed["updatedAt"] = "2026-10-12T00:00:00Z"
+        self.assert_input_rejected(
+            payload([changed]), name="changed-immutable-chronology-defect.json"
+        )
 
     def test_completed_skipped_step_may_omit_timing(self) -> None:
         run = make_run(1_026, 80)

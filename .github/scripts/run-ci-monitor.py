@@ -206,6 +206,12 @@ def tick(args):
         for observation in checkpoint["runs"].values():
             if observation["phase"] == "after" and observation["conclusion"] in MONITOR.FAILURE_CONCLUSIONS:
                 alerts.add(f"failure:{observation['runId']}:{observation['attempt']}")
+            if observation["phase"] == "after":
+                for code in observation.get("chronologyIssueCodes", []):
+                    alerts.add(
+                        f"chronology:{observation['runId']}:"
+                        f"{observation['attempt']}:{code}"
+                    )
         for cohort in analysis["cohorts"]:
             cohort_id = MONITOR.sha256_bytes(MONITOR.canonical_json(cohort["cohortKey"]))[:16]
             for metric, evidence in cohort["metrics"].items():
@@ -226,6 +232,7 @@ def tick(args):
             "duplicateAttemptCount": receipt["duplicateRunIdCount"],
             "excludedHistoricalAttempts": current["excludedHistoricalAttempts"],
             "conclusions": analysis["runConclusionCounts"],
+            "chronologyInvalidAttemptCount": analysis["chronologyInvalidRunCount"],
             "cohortCount": len(analysis["cohorts"]),
             "activeAlertKeys": sorted(alerts), "newAlertKeys": new_alerts,
             "shouldNotify": bool(new_alerts), "causalClaimAllowed": False,
@@ -259,6 +266,7 @@ def tick(args):
                     "distinctSourceTreeCount", "pendingSameCohortCount",
                     "potentialSameCohortPendingCount", "blockingPendingCount",
                     "verifiedDifferentPendingCount", "pendingReasonCounts",
+                    "chronologyInvalidAttemptCount", "chronologyIssueCodeCounts",
                     "collectionComplete", "candidateBaselineSha256",
                     "candidateBaselinePath", "readinessReceiptPath",
                 )

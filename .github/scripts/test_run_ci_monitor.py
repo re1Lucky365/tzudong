@@ -7,6 +7,7 @@ import json
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from datetime import timedelta
 from unittest.mock import patch
 from pathlib import Path
 
@@ -69,6 +70,51 @@ class CiMonitorTickTests(unittest.TestCase):
         self.assertEqual(second["mode"], "offline_replay")
         self.assertEqual(second["apiRequestsThisTick"], 0)
         self.assertEqual(second["referenceReadiness"]["status"], "collecting_reference")
+
+    def test_chronology_defect_alerts_blocks_reference_and_allows_new_runs(self):
+        defective = FIXTURE.make_run(2, 10, attempt=2)
+        defective["jobs"][0]["createdAt"] = FIXTURE.timestamp(
+            TICK.MONITOR.parse_timestamp(defective["jobs"][0]["startedAt"])
+            + timedelta(seconds=1)
+        )
+        self.export = FIXTURE.payload([defective])
+        self.export["capturedAtUtc"] = "2026-10-10T10:03:00Z"
+        self.export["coverage"] = {
+            "alerts": [],
+            "incrementalWindowComplete": True,
+        }
+        TICK.MONITOR.atomic_write_json(self.input_path, self.export)
+
+        first = TICK.tick(self.args)
+        chronology_alert = (
+            "chronology:2:2:JOB_START_PRECEDES_JOB_CREATION"
+        )
+        self.assertIn(chronology_alert, first["newAlertKeys"])
+        self.assertEqual(first["chronologyInvalidAttemptCount"], 1)
+        readiness = first["referenceReadiness"]
+        self.assertEqual(readiness["status"], "collecting_reference")
+        self.assertEqual(readiness["successCount"], 0)
+        self.assertEqual(readiness["blockingPendingCount"], 1)
+        self.assertEqual(
+            readiness["pendingReasonCounts"],
+            {"chronology_invalid_attempt": 1},
+        )
+        self.assertEqual(readiness["chronologyInvalidAttemptCount"], 1)
+
+        repeated = TICK.tick(self.args)
+        self.assertFalse(repeated["shouldNotify"])
+        self.assertEqual(repeated["admittedAttemptCount"], 0)
+        self.assertEqual(repeated["duplicateAttemptCount"], 2)
+
+        normal = FIXTURE.make_run(3, 10)
+        self.export["runs"] = [defective, normal]
+        TICK.MONITOR.atomic_write_json(self.input_path, self.export)
+        continued = TICK.tick(self.args)
+        self.assertEqual(continued["admittedAttemptCount"], 1)
+        self.assertEqual(continued["chronologyInvalidAttemptCount"], 1)
+        self.assertEqual(
+            continued["referenceReadiness"]["blockingPendingCount"], 1
+        )
 
     def test_receipts_use_only_state_relative_opaque_paths(self):
         result = TICK.tick(self.args)
@@ -215,6 +261,31 @@ class CiMonitorTickTests(unittest.TestCase):
                 "BASELINE_TERMINAL_EVIDENCE_INCOMPLETE",
             )
             self.assertFalse((self.args.state_dir / "analysis-state.json").exists())
+
+    def test_chronology_invalid_baseline_remains_fail_closed(self):
+        baseline_run = FIXTURE.make_run(1, 10)
+        baseline_run["jobs"][0]["createdAt"] = FIXTURE.timestamp(
+            TICK.MONITOR.parse_timestamp(
+                baseline_run["jobs"][0]["startedAt"]
+            ) + timedelta(seconds=1)
+        )
+        baseline = FIXTURE.payload([baseline_run])
+        baseline["capturedAtUtc"] = "2026-10-10T10:01:31Z"
+        TICK.MONITOR.atomic_write_json(self.baseline_path, baseline)
+        arguments = [
+            "--state-dir", str(self.args.state_dir),
+            "--baseline", str(self.baseline_path),
+            "--baseline-sha256", TICK.MONITOR.sha256_file(self.baseline_path),
+            "--input", str(self.input_path),
+        ]
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(TICK.main(arguments), 2)
+        self.assertEqual(
+            json.loads(output.getvalue())["code"],
+            "BASELINE_TERMINAL_EVIDENCE_INCOMPLETE",
+        )
+        self.assertFalse((self.args.state_dir / "analysis-state.json").exists())
 
     def test_terminal_failure_and_cancelled_baseline_attempts_are_valid(self):
         terminal = [
