@@ -4,18 +4,18 @@
   "files": [
     {
       "path": ".github/scripts/classify-ci-benchmark.mjs",
-      "sha256": "df28fd4b8cdc8f3a547620dc30bdfc3bc12da78ccc50092223d43c72f99f10d5",
-      "bytes": 5654
+      "sha256": "0c224f74f12e098d42700ad98a4f7f68bec6b455dfead78df2a82aebbe56744f",
+      "bytes": 5667
     },
     {
       "path": ".github/scripts/classify-ci-benchmark.test.mjs",
-      "sha256": "3fb9b74051e533badb7e2151966aa1bc85349361cbb78496c2df131565443ea2",
-      "bytes": 7106
+      "sha256": "9eb5540223b023e660814dce0d2dfb1fbfe894af78f931c1e2b8ce58708f7c5e",
+      "bytes": 7130
     },
     {
       "path": ".github/scripts/collect-ci-monitor.py",
-      "sha256": "4d010ef92f7f46bf9fb007b34268587049a80e3c97c6a597c9c628f068f237e3",
-      "bytes": 21560
+      "sha256": "0d8d63bf2ab4b26a9da1b12fc8758b8dd5f6f278565e787cabc0d38bac97c06e",
+      "bytes": 22071
     },
     {
       "path": ".github/scripts/collect-ci-performance.py",
@@ -24,8 +24,8 @@
     },
     {
       "path": ".github/scripts/monitor-ci-performance.py",
-      "sha256": "fc5cc965f9654cdf81175512f1663fb013a71de60da1f132ec86f49c402b8267",
-      "bytes": 50104
+      "sha256": "dcf43e801c435887c56cb327e620adfa41f2eb9840c0d525157cdcedfd1c5c50",
+      "bytes": 50598
     },
     {
       "path": ".github/scripts/prepare-ci-reference.py",
@@ -44,8 +44,8 @@
     },
     {
       "path": ".github/scripts/test_collect_ci_monitor.py",
-      "sha256": "6c12a3459bf219b2d241a1a38103de68a4e10327e4aa74ef3b37d6466e0ee9ab",
-      "bytes": 15440
+      "sha256": "ee739673a282eb2234ed5dd3da939a0363bc3423f071e113969aad2c0db93158",
+      "bytes": 16739
     },
     {
       "path": ".github/scripts/test_collect_ci_performance.py",
@@ -54,8 +54,8 @@
     },
     {
       "path": ".github/scripts/test_monitor_ci_performance.py",
-      "sha256": "751aacf218b0a3e772f4ff47fa20aaa38e80af4f4a66bdec261e49fa088e12d4",
-      "bytes": 32307
+      "sha256": "209bdcf3215174a6689c91e7890affe50a649c46cb4b9931b1ca70135f13df3c",
+      "bytes": 33117
     },
     {
       "path": ".github/scripts/test_prepare_ci_reference.py",
@@ -189,12 +189,12 @@
     },
     {
       "path": "apps/web/performance/ci-20261010/local-compiler/artifact-map.json",
-      "sha256": "bf31f4afbc3fedcc7bf666383962144fe37925ae5ddb05e6f07ffc090c7dc1ec",
-      "bytes": 2109
+      "sha256": "3190bbc41a44486f747aabca6ad35b9d27e7f4a1e030a476a46129a7dca155a6",
+      "bytes": 2172
     },
     {
       "path": "apps/web/performance/ci-20261010/local-compiler/artifact-map.json.sha256",
-      "sha256": "526885607268625049ea14eaf5538f3806eba2f5c8b0094727abbc20a79621c5",
+      "sha256": "baf6b69165edaf0979adfb0164349095a51afc21b4b160ebaa60aa46985ccec8",
       "bytes": 84
     },
     {
@@ -204,8 +204,8 @@
     },
     {
       "path": "apps/web/performance/ci-20261010/local-compiler/benchmark.py",
-      "sha256": "262de388f2af276efd34612efeb240f6cd4c6f933e224314a040ada45c345046",
-      "bytes": 32213
+      "sha256": "9bc20eac6ce416dc4e4368da910e01c81371a541712f7e4989d4285677dd7023",
+      "bytes": 35365
     },
     {
       "path": "apps/web/performance/ci-20261010/local-compiler/historical-scorer-7f9df77e.py",
@@ -239,8 +239,8 @@
     },
     {
       "path": "apps/web/performance/ci-20261010/local-compiler/test_benchmark.py",
-      "sha256": "8b9bd6192a04ac33c78e01362dcc5b14d4fa30855b463375a60775d0cb7b5551",
-      "bytes": 7313
+      "sha256": "5a1a31293edc802785064cd9083c5dc91d3d77809fd1d9a72ae0084561d41a57",
+      "bytes": 9595
     },
     {
       "path": "apps/web/performance/ci-20261010/source-replay-validation.json",

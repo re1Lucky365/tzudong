@@ -30,6 +30,7 @@ SCHEMA = "tzudong-ci-incremental-export/v1"
 SAFE_SHA = re.compile(r"^[0-9a-f]{40}$")
 SAFE_REPOSITORY = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 KNOWN_JOBS = {"Admin", "Install", "Ubuntu Bun", "Ubuntu npm", "Windows Bun", "Windows npm"}
+PLATFORM_JOBS = {"Ubuntu Bun", "Ubuntu npm", "Windows Bun", "Windows npm"}
 STATUSES = {"queued", "in_progress", "completed", "waiting", "pending", "requested"}
 CONCLUSIONS = {"success", "failure", "cancelled", "skipped", "timed_out", "action_required", "neutral", "stale", "startup_failure"}
 REPRESENTATIVE_NAMES = {
@@ -151,6 +152,35 @@ def terminal_outcome_complete(run, jobs, job_set_complete):
         )
         for job in jobs
     )
+
+
+def execution_mode(jobs):
+    platform_jobs = [job for job in jobs if job["name"] in PLATFORM_JOBS]
+    if {job["name"] for job in platform_jobs} != PLATFORM_JOBS:
+        return "unknown"
+    benchmark_jobs = {
+        job["name"]
+        for job in platform_jobs
+        if any(
+            COLLECTOR.classify_step(step["name"]) == "benchmark_report"
+            and step["conclusion"] not in (None, "skipped")
+            for step in job["steps"]
+        )
+    }
+    diagnostic_jobs = {
+        job["name"]
+        for job in platform_jobs
+        if any(
+            COLLECTOR.classify_step(step["name"]) == "typecheck"
+            and step["conclusion"] not in (None, "skipped")
+            for step in job["steps"]
+        )
+    }
+    if benchmark_jobs == PLATFORM_JOBS:
+        return "full_benchmark"
+    if not benchmark_jobs and diagnostic_jobs == PLATFORM_JOBS:
+        return "diagnostic"
+    return "unknown"
 
 
 class GitHubReader:
@@ -349,9 +379,7 @@ def collect(
                 record.update(jobs=[safe_job(job) for job in jobs], jobsTotalCount=count, jobsAttempt=attempt)
                 tree, revision = source_metadata(db, reader, repository, run["headSha"], workflow_path)
                 topology = sorted(job["name"] for job in record["jobs"])
-                benchmark_jobs = sum(any(COLLECTOR.classify_step(step["name"]) == "benchmark_report" and step["conclusion"] not in (None, "skipped") for step in job["steps"]) for job in record["jobs"])
-                diagnostic_jobs = sum(any(COLLECTOR.classify_step(step["name"]) == "typecheck" and step["conclusion"] not in (None, "skipped") for step in job["steps"]) for job in record["jobs"])
-                record.update(sourceTree=tree, workflowRevision=revision, jobTopology=digest(topology), executionMode="full_benchmark" if benchmark_jobs == 4 else "diagnostic" if benchmark_jobs == 0 and diagnostic_jobs == 4 else "unknown")
+                record.update(sourceTree=tree, workflowRevision=revision, jobTopology=digest(topology), executionMode=execution_mode(record["jobs"]))
                 timing_reasons = COLLECTOR.timing_exclusion_reasons(record)
                 if count == 0 and run["conclusion"] != "success":
                     timing_reasons = [reason for reason in timing_reasons if reason != "no_jobs"]

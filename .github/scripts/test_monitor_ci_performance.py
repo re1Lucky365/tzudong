@@ -358,6 +358,20 @@ class MonitorCiPerformanceTests(unittest.TestCase):
             "regression_signal",
         )
 
+    def test_thresholds_reject_boolean_nonfinite_negative_and_overflow_values(self) -> None:
+        malformed = (True, False, -0.01, float("nan"), float("inf"), 10**1000)
+        for field in ("absoluteSeconds", "relativePercent"):
+            for value in malformed:
+                with self.subTest(field=field, value=value):
+                    thresholds = {
+                        metric: dict(defaults)
+                        for metric, defaults in MONITOR.DEFAULT_THRESHOLDS.items()
+                    }
+                    thresholds["criticalPathSeconds"][field] = value
+                    path = self.write("thresholds.json", {"thresholds": thresholds})
+                    with self.assertRaisesRegex(MONITOR.MonitorError, "threshold"):
+                        MONITOR.load_thresholds(path)
+
     def test_incomplete_completed_attempt_can_be_replaced_when_evidence_completes(self) -> None:
         incomplete = self.write(
             "incomplete-completed.json",

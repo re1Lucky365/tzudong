@@ -3,9 +3,9 @@
   "artifacts": [
     {
       "path": "benchmark.py",
-      "sha256": "262de388f2af276efd34612efeb240f6cd4c6f933e224314a040ada45c345046",
-      "bytes": 32213,
-      "role": "current benchmark and replay scorer with strict acceptance-budget validation"
+      "sha256": "9bc20eac6ce416dc4e4368da910e01c81371a541712f7e4989d4285677dd7023",
+      "bytes": 35365,
+      "role": "current benchmark and replay scorer with exact tracked snapshot inventory and strict acceptance-budget validation"
     },
     {
       "path": "historical-scorer-7f9df77e.py",
@@ -51,9 +51,9 @@
     },
     {
       "path": "test_benchmark.py",
-      "sha256": "8b9bd6192a04ac33c78e01362dcc5b14d4fa30855b463375a60775d0cb7b5551",
-      "bytes": 7313,
-      "role": "frozen-input and budget negative tests"
+      "sha256": "5a1a31293edc802785064cd9083c5dc91d3d77809fd1d9a72ae0084561d41a57",
+      "bytes": 9595,
+      "role": "ignored-input exclusion, frozen-input, and budget negative tests"
     }
   ],
   "admitted": false

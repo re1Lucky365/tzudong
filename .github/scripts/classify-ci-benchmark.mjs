@@ -17,7 +17,7 @@ export function classifyPaths(paths) {
     if (/^(\.github\/|\.kiro\/|\.agents\/)/.test(file)) return full('CI_OR_EVIDENCE_CHANGE');
     if (/(^|\/)(package(?:-lock)?\.json|bun\.lockb?|.*\.lock|requirements[^/]*\.txt|pyproject\.toml|Cargo\.toml|go\.mod|go\.sum)$/.test(file)) return full('DEPENDENCY_CHANGE');
     if (/^(apps\/web\/(scripts|config|vendor|performance|fixtures\/typecheck-benchmark)\/)/.test(file)
-      || /(^|\/)(tsconfig[^/]*\.json|[^/]*\.config\.[^/]+|next-env\.d\.ts|\.npmrc|\.node-version|\.nvmrc|\.tool-versions)$/.test(file)
+      || /(^|\/)(tsconfig[^/]*\.json|[^/]*\.config\.[^/]+|bunfig\.toml|next-env\.d\.ts|\.npmrc|\.node-version|\.nvmrc|\.tool-versions)$/.test(file)
       || /^apps\/web\/tests-unit\/(typescript-toolchain|typecheck-benchmark|cross-platform-web-tooling|dependency-modernization)/.test(file)) return full('TOOLCHAIN_OR_MEASUREMENT_CHANGE');
     // Unrecognised roots are intentionally full: new build inputs need an explicit
     // classification instead of silently losing performance coverage.

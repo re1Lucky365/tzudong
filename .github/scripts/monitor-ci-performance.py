@@ -734,9 +734,27 @@ def load_thresholds(path: Path | None) -> tuple[dict[str, Any], str]:
             raise MonitorError(f"invalid threshold for {metric}")
         absolute = candidate.get("absoluteSeconds")
         relative = candidate.get("relativePercent")
-        if not isinstance(absolute, (int, float)) or not math.isfinite(absolute) or absolute < 0:
+        try:
+            absolute_finite = math.isfinite(float(absolute))
+        except (OverflowError, TypeError, ValueError):
+            absolute_finite = False
+        if (
+            isinstance(absolute, bool)
+            or not isinstance(absolute, (int, float))
+            or not absolute_finite
+            or absolute < 0
+        ):
             raise MonitorError(f"invalid absolute threshold for {metric}")
-        if not isinstance(relative, (int, float)) or not math.isfinite(relative) or relative < 0:
+        try:
+            relative_finite = math.isfinite(float(relative))
+        except (OverflowError, TypeError, ValueError):
+            relative_finite = False
+        if (
+            isinstance(relative, bool)
+            or not isinstance(relative, (int, float))
+            or not relative_finite
+            or relative < 0
+        ):
             raise MonitorError(f"invalid relative threshold for {metric}")
         validated[metric] = {
             "absoluteSeconds": float(absolute),

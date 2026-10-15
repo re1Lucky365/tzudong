@@ -87,6 +87,41 @@ class CollectorTests(unittest.TestCase):
     def collect(self, reader):
         return M.collect("twoimo/tzudong", "web-admin-ci.yml", self.cache, reader)
 
+    def test_diagnostic_mode_counts_only_the_four_platform_jobs(self):
+        def job(name, step):
+            item = jobs()["jobs"][0]
+            item["name"] = name
+            item["steps"][0]["name"] = step
+            return item
+
+        payload = {
+            "total_count": 5,
+            "jobs": [
+                job(name, "Run npm run typecheck:parity")
+                for name in sorted(M.PLATFORM_JOBS)
+            ] + [job("Admin", "Run npx tsc --noEmit --pretty false")],
+        }
+        result = self.collect(Reader(job_payload=payload))
+        self.assertEqual(result["runs"][0]["executionMode"], "diagnostic")
+
+    def test_execution_mode_requires_all_four_distinct_platform_jobs(self):
+        def safe(name, step):
+            item = jobs()["jobs"][0]
+            item["name"] = name
+            item["steps"][0]["name"] = step
+            return M.safe_job(item)
+
+        three = [
+            safe(name, "Run npm run typecheck:parity")
+            for name in sorted(M.PLATFORM_JOBS)[:3]
+        ]
+        self.assertEqual(M.execution_mode(three), "unknown")
+        benchmark = [
+            safe(name, "Run npm run typecheck:benchmark")
+            for name in sorted(M.PLATFORM_JOBS)
+        ]
+        self.assertEqual(M.execution_mode(benchmark), "full_benchmark")
+
     def test_terminal_cache_uses_one_list_request_and_redacts(self):
         first = self.collect(Reader())
         second = self.collect(Reader())

@@ -87,6 +87,52 @@ class CleanSourceAdmissionTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "content mismatch"):
                 BENCHMARK.verify_tracked_snapshot(repository, snapshot)
 
+    def test_ignored_generated_inputs_are_pruned_before_measurement(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="tzudong-compiler-ignored-") as root:
+            repository = self.make_repository(Path(root))
+            (repository / ".gitignore").write_text(
+                "apps/web/.next/\n", encoding="utf-8"
+            )
+            subprocess.run(
+                ["git", "-C", str(repository), "add", ".gitignore"], check=True
+            )
+            subprocess.run(
+                [
+                    "git", "-C", str(repository), "-c",
+                    "user.name=CI Evidence Test", "-c",
+                    "user.email=ci-evidence@example.invalid", "commit", "-qm",
+                    "ignore generated compiler input",
+                ],
+                check=True,
+            )
+            generated = repository / "apps/web/.next/types/generated.d.ts"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("declare const generated: true;\n", encoding="utf-8")
+            snapshot = Path(root) / "snapshot"
+            shutil.copytree(repository / "apps/web", snapshot)
+
+            pruning = BENCHMARK.prune_snapshot_to_tracked_inputs(
+                repository, snapshot
+            )
+
+            self.assertFalse((snapshot / ".next").exists())
+            self.assertEqual(pruning["excludedInputEntryCount"], 1)
+            contract = BENCHMARK.verify_tracked_snapshot(repository, snapshot)
+            self.assertEqual(contract["untrackedOrIgnoredAppInputs"], [])
+
+    def test_snapshot_rejects_input_created_after_pruning(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="tzudong-compiler-extra-") as root:
+            repository = self.make_repository(Path(root))
+            snapshot = Path(root) / "snapshot"
+            shutil.copytree(repository / "apps/web", snapshot)
+            BENCHMARK.prune_snapshot_to_tracked_inputs(repository, snapshot)
+            extra = snapshot / ".next/types/generated.d.ts"
+            extra.parent.mkdir(parents=True)
+            extra.write_text("declare const generated: true;\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "untracked input"):
+                BENCHMARK.verify_tracked_snapshot(repository, snapshot)
+
     @staticmethod
     def sequence(name: str, duration_ms: float) -> dict[str, object]:
         return {

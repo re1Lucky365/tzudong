@@ -26,7 +26,7 @@ test('promotion, protected push, scheduled and manual runs always benchmark', ()
 });
 
 test('every dependency, toolchain, measurement and CI input requires full proof', () => {
-  for (const file of ['.github/workflows/web-admin-ci.yml', '.github/scripts/classify-ci-benchmark.mjs', '.kiro/specs/receipt.json', 'apps/web/package.json', 'apps/web/package-lock.json', 'apps/web/bun.lock', 'apps/web/tsconfig.json', 'apps/web/tsconfig.compat.json', 'apps/web/next.config.ts', 'apps/web/scripts/run-typecheck.mjs', 'apps/web/config/pins.json', 'apps/web/vendor/typescript/a.js', 'apps/web/performance/ts7/report.json', 'apps/web/tests-unit/typecheck-benchmark-source.test.ts', 'backend/package-lock.json', 'backend/requirements.txt', 'go.mod', '.nvmrc']) {
+  for (const file of ['.github/workflows/web-admin-ci.yml', '.github/scripts/classify-ci-benchmark.mjs', '.kiro/specs/receipt.json', 'apps/web/package.json', 'apps/web/package-lock.json', 'apps/web/bun.lock', 'apps/web/bunfig.toml', 'apps/web/tsconfig.json', 'apps/web/tsconfig.compat.json', 'apps/web/next.config.ts', 'apps/web/scripts/run-typecheck.mjs', 'apps/web/config/pins.json', 'apps/web/vendor/typescript/a.js', 'apps/web/performance/ts7/report.json', 'apps/web/tests-unit/typecheck-benchmark-source.test.ts', 'backend/package-lock.json', 'backend/requirements.txt', 'go.mod', '.nvmrc']) {
     assert.equal(classifyPaths([...feature, file]).benchmark, true, file);
   }
 });

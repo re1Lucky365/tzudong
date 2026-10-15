@@ -240,7 +240,9 @@ def git_blob_sha1(content: bytes) -> str:
     return digest.hexdigest()
 
 
-def verify_tracked_snapshot(repository: Path, snapshot: Path) -> dict[str, Any]:
+def tracked_snapshot_entries(
+    repository: Path,
+) -> tuple[bytes, dict[str, tuple[str, str]]]:
     completed = subprocess.run(
         [
             "git",
@@ -259,7 +261,7 @@ def verify_tracked_snapshot(repository: Path, snapshot: Path) -> dict[str, Any]:
     )
     if completed.returncode != 0:
         raise RuntimeError("cannot enumerate measured Git tree")
-    count = 0
+    entries: dict[str, tuple[str, str]] = {}
     for entry in completed.stdout.split(b"\0"):
         if not entry:
             continue
@@ -271,7 +273,76 @@ def verify_tracked_snapshot(repository: Path, snapshot: Path) -> dict[str, Any]:
         prefix = "apps/web/"
         if not full_path.startswith(prefix):
             raise RuntimeError("measured Git path escaped apps/web")
-        snapshot_path = snapshot / full_path[len(prefix) :]
+        relative = full_path[len(prefix) :]
+        if not relative or relative in entries:
+            raise RuntimeError("measured Git tree contains a duplicate path")
+        entries[relative] = (mode, expected_blob)
+    return completed.stdout, entries
+
+
+def prune_snapshot_to_tracked_inputs(repository: Path, snapshot: Path) -> dict[str, Any]:
+    """Remove ignored/generated app inputs while retaining the private dependency copy."""
+    tree_bytes, entries = tracked_snapshot_entries(repository)
+    tracked_files = set(entries)
+    tracked_directories = {
+        parent.as_posix()
+        for relative in tracked_files
+        for parent in Path(relative).parents
+        if parent != Path(".")
+    }
+    removed = 0
+
+    def prune(directory: Path, prefix: str = "") -> None:
+        nonlocal removed
+        for child in directory.iterdir():
+            relative = f"{prefix}/{child.name}" if prefix else child.name
+            if relative == "node_modules":
+                continue
+            if relative in tracked_files:
+                continue
+            if (
+                relative in tracked_directories
+                and child.is_dir()
+                and not child.is_symlink()
+            ):
+                prune(child, relative)
+                continue
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+            removed += 1
+
+    prune(snapshot)
+    return {
+        "trackedBlobCount": len(entries),
+        "lsTreeSha256": hashlib.sha256(tree_bytes).hexdigest(),
+        "excludedInputEntryCount": removed,
+    }
+
+
+def verify_tracked_snapshot(repository: Path, snapshot: Path) -> dict[str, Any]:
+    tree_bytes, entries = tracked_snapshot_entries(repository)
+    actual_inputs: set[str] = set()
+    for root, directories, files in os.walk(snapshot, followlinks=False):
+        root_path = Path(root)
+        relative_root = root_path.relative_to(snapshot)
+        if relative_root == Path("."):
+            directories[:] = [name for name in directories if name != "node_modules"]
+        symlink_directories = [
+            name for name in directories if (root_path / name).is_symlink()
+        ]
+        directories[:] = [name for name in directories if name not in symlink_directories]
+        for name in [*files, *symlink_directories]:
+            actual_inputs.add((relative_root / name).as_posix())
+    expected_inputs = set(entries)
+    extras = sorted(actual_inputs - expected_inputs)
+    if extras:
+        raise RuntimeError(f"snapshot contains an untracked input: {extras[0]}")
+    count = 0
+    for relative, (mode, expected_blob) in sorted(entries.items()):
+        full_path = f"apps/web/{relative}"
+        snapshot_path = snapshot / relative
         if mode == "120000":
             if not snapshot_path.is_symlink():
                 raise RuntimeError(f"tracked snapshot symlink mismatch: {full_path}")
@@ -285,7 +356,12 @@ def verify_tracked_snapshot(repository: Path, snapshot: Path) -> dict[str, Any]:
         count += 1
     return {
         "trackedBlobCount": count,
-        "lsTreeSha256": hashlib.sha256(completed.stdout).hexdigest(),
+        "lsTreeSha256": hashlib.sha256(tree_bytes).hexdigest(),
+        "logicalInputCountExcludingDependencies": len(actual_inputs),
+        "logicalInputInventorySha256": hashlib.sha256(
+            canonical_json(sorted(actual_inputs)).encode("utf-8")
+        ).hexdigest(),
+        "untrackedOrIgnoredAppInputs": [],
     }
 
 
@@ -662,6 +738,7 @@ def main() -> int:
     )
     snapshot = temporary_root / "web"
     clone_snapshot(source, snapshot)
+    snapshot_pruning = prune_snapshot_to_tracked_inputs(repository, snapshot)
     snapshot_contract_before = verify_tracked_snapshot(repository, snapshot)
     snapshot_dependency_hashes_before = verify_file_hashes(
         snapshot / "node_modules",
@@ -692,6 +769,7 @@ def main() -> int:
         "dependencyHashes": contract_before["dependencyHashes"],
         "nodeModulesTarget": contract_before["nodeModulesTarget"],
         "trackedSnapshotContract": snapshot_contract_before,
+        "snapshotPruning": snapshot_pruning,
         "snapshotDependencyHashes": snapshot_dependency_hashes_before,
         "benchmarkScriptSha256": sha256_file(benchmark_path),
         "experimentConfigSha256": sha256_file(experiment_config_path),
