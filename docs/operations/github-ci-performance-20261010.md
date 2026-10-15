@@ -117,6 +117,12 @@ A/A 절대 상대차 p95는 **28.28%**로 사전 5% 예산을 23.28%p 초과했�
 
 private 원본 config/raw는 runtime evidence에 유지하고 공개본에서는 정확히 세 JSON pointer만 `<shared-node-modules-root>`로 정제했다. 원본→공개본 canonical equality, private/public SHA, 정제 필드와 report의 통계 해석 보강은 [sanitization receipt](../../apps/web/performance/ci-20261010/local-compiler-clean-20261011/sanitization-receipt.json)에 있다. raw 측정값·예산·소스·의존성 해시는 바꾸지 않았다.
 
+### 2026-10-15 compiler byte provenance rerun
+
+기존 dirty·clean 실험은 변경하지 않았다. 별도 [provenance rerun](../../apps/web/performance/ci-20261010/local-compiler-provenance-20261015/report.md)은 커밋 `215cb86185ce65246afdfbda8bb8fcbffb79d675`, `apps/web` tree `671a84d19c0a1a424daba802a3bb5094fbf683a0`에서 같은 7개 전후 쌍·7개 A/A 쌍, 같은 scorer·예산으로 실행했다. 측정 전 선언에는 package metadata와 함께 native·compat 진입점, launcher·resolver·bridge·compiler 구현, macOS arm64 플랫폼 바이너리까지 12개 파일의 byte SHA-256을 포함했다. 측정 원본, private snapshot, 측정 후 원본의 hash가 모두 일치했다. 8개 실제 실행 역할과 12개 파일은 [provenance inventory](../../apps/web/performance/ci-20261010/local-compiler-provenance-20261015/compiler-provenance-inventory.json)에 보존했고 inventory SHA-256은 `6a35c1ab0ca5db9142daa3198df360119de11b69669cd86a4bd02a065ae21446`이다.
+
+전 sequence와 source contract는 통과했다. 평균 paired 절대 감소 25.195초와 상대 감소율 51.87%의 사전 기준은 통과했지만 A/A 절대 상대차 p95가 **24.50%**로 5% noise 예산을 초과했다. scorer 결과는 `noise-p95=False`, `admitted=False`, `officialApproval=False`이며 승인된 성능 개선 수치는 계속 0개다. 공개 증거의 재생성 scorer 일치, 7+7 표본 수, 논리 입력 manifest, compiler byte inventory와 경로 정제는 [validation receipt](../../apps/web/performance/ci-20261010/local-compiler-provenance-20261015/validation.json)에 기록했다.
+
 분류기의 실제 Git fixture로 일반 변경·rename/삭제·누락 이력·head 불일치·악성 SHA·잘못된 이벤트를 검증했다. 네 플랫폼의 YAML에서 parity 소유자, 증빙 upload/finalizer 조건, tree/report 결속, 기존 기능 검증을 확인한다. Windows에서도 테스트 실패가 후속 명령으로 덮이지 않도록 분류기 테스트와 실행을 별도 step으로 둔다.
 
 로컬 검증 환경은 macOS arm64, Node 24.21.0, Bun 1.4.0 및 동일 package-lock을 사용하는 의존성이다. TypeScript native 7.0.2/compat 6.0.2 parity는 diagnostics 0, logical inputs 3,129개로 통과했다. 워크플로 문법은 공식 릴리스·checksum을 확인한 actionlint 1.7.12로 검증했다. 로컬 검증은 Windows·GitHub 호스팅 시간의 증거가 아니다.

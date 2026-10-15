@@ -1,0 +1,25 @@
+{
+  "admitted": false,
+  "checks": {
+    "benchmarkScriptHashMatches": true,
+    "dependencyHashesStable": true,
+    "embeddedConfigMatches": true,
+    "executedCompilerRolesBound": true,
+    "expectedNonAdmissionPreserved": true,
+    "inputManifestBoundToRaw": true,
+    "provenanceInventorySelfHashes": true,
+    "sampleCountsPreserved": true,
+    "sanitizedPublicHashesMatch": true,
+    "scorerRegenerationMatches": true,
+    "sourceContractUnchanged": true
+  },
+  "dependencyFileCount": 12,
+  "executedCompilerRoleCount": 8,
+  "failedBudgetChecks": [
+    "noiseP95"
+  ],
+  "provenanceInventorySha256": "6a35c1ab0ca5db9142daa3198df360119de11b69669cd86a4bd02a065ae21446",
+  "sampleCountAaPaired": 7,
+  "sampleCountPaired": 7,
+  "schema": "tzudong-ci-performance/v1/compiler-provenance-validation"
+}
