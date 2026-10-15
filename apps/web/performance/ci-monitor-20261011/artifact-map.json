@@ -3,28 +3,28 @@
   "files": [
     {
       "path": ".github/scripts/collect-ci-monitor.py",
-      "sha256": "0d8d63bf2ab4b26a9da1b12fc8758b8dd5f6f278565e787cabc0d38bac97c06e",
-      "bytes": 22071
+      "sha256": "1bb42bd56a23ead7e61c1fd6b2517d598adf1c267440ddbc59a19152e7e128e8",
+      "bytes": 23423
     },
     {
       "path": ".github/scripts/collect-ci-performance.py",
-      "sha256": "0f8f488a0757fd05bb6e14fbc830dc37e515fa3c1910fa6b88e08a15d806c401",
-      "bytes": 41184
+      "sha256": "b62e60b3dbb150c2300c39d2ca77d337e32bdb14aa2ae52e9c93caeddb044577",
+      "bytes": 41295
     },
     {
       "path": ".github/scripts/monitor-ci-performance.py",
-      "sha256": "920e98ac3a0e74c6fb0ceb224bda5565d1bfae4e467f2848f43f12d4030e5c69",
-      "bytes": 50943
+      "sha256": "918d47d78d6bebb52eb814ffb51498eea6a3bc66f837f7172dc47cf91064058f",
+      "bytes": 53477
     },
     {
       "path": ".github/scripts/prepare-ci-reference.py",
-      "sha256": "f1eee964e34058209718a678c35a3bb51aea18584898a934f35c5d7cd5ddba40",
-      "bytes": 23914
+      "sha256": "b9d43ad7e197ec7297155f5cb87f7f5ba8b46e781105f8d6be471a621608721e",
+      "bytes": 24493
     },
     {
       "path": ".github/scripts/run-ci-monitor.py",
-      "sha256": "fa1b4de6d107bf4a3433c18d941ac98392f1d24f89f2b98c669e5b388c9f93b2",
-      "bytes": 13905
+      "sha256": "ecb6d1fd6ebdd16411f3aae13558b8350914167c53d5934d42b5ce0bd9a1701f",
+      "bytes": 15853
     },
     {
       "path": ".github/scripts/test_ci_audit_budget.py",
@@ -33,8 +33,8 @@
     },
     {
       "path": ".github/scripts/test_collect_ci_monitor.py",
-      "sha256": "ee739673a282eb2234ed5dd3da939a0363bc3423f071e113969aad2c0db93158",
-      "bytes": 16739
+      "sha256": "3d9dcec8bc3e816738c019d2902686348b84abc2799435e0f57f07257172086e",
+      "bytes": 19545
     },
     {
       "path": ".github/scripts/test_collect_ci_performance.py",
@@ -43,8 +43,8 @@
     },
     {
       "path": ".github/scripts/test_monitor_ci_performance.py",
-      "sha256": "c3df94f989caa373565308192476a4aac7fefa70fcc9c6f1a1842b2c6eeb203f",
-      "bytes": 34106
+      "sha256": "372f5a5924f3160302e67b46ed1e738dccb579eda48cf1ddc79358ff0e50c1da",
+      "bytes": 40516
     },
     {
       "path": ".github/scripts/test_prepare_ci_reference.py",
@@ -53,8 +53,8 @@
     },
     {
       "path": ".github/scripts/test_run_ci_monitor.py",
-      "sha256": "a251a57a53667c6824d46280290ca0e24fbd56e5cc22beca794f6d4e32074f83",
-      "bytes": 17917
+      "sha256": "6139925ed7a08b440c8d8f61fe762403abaced189eed9c54cf7bf6da8a5f4a66",
+      "bytes": 23587
     },
     {
       "path": ".github/workflows/security-audit.yml",

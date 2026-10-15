@@ -389,6 +389,39 @@ class MonitorCiPerformanceTests(unittest.TestCase):
         self.assertTrue(checkpoint["runs"]["1025:1"]["terminalEvidenceComplete"])
         self.assertTrue(checkpoint["runs"]["1025:1"]["timingUsable"])
 
+    def test_legacy_immutable_snapshot_is_revalidated_under_current_contract(self) -> None:
+        valid = self.write("legacy-valid.json", payload([make_run(1_054, 80)]))
+        self.invoke(after=valid)
+
+        empty_steps = make_run(1_054, 80)
+        empty_steps["jobs"][0]["steps"] = []
+        checkpoint = json.loads(self.checkpoint.read_text(encoding="utf-8"))
+        legacy = checkpoint["runs"]["1054:1"]
+        legacy.pop("analysisFingerprint")
+        legacy["sourceFingerprint"] = MONITOR.sha256_bytes(
+            MONITOR.canonical_json(empty_steps)
+        )
+        legacy.update(
+            terminalOutcomeComplete=True,
+            terminalEvidenceComplete=True,
+            timingUsable=True,
+            timingExclusionReasons=[],
+            snapshotImmutable=True,
+        )
+        self.checkpoint.write_text(json.dumps(checkpoint), encoding="utf-8")
+        empty = self.write("legacy-empty-steps.json", payload([empty_steps]))
+
+        receipt = self.invoke(after=empty)
+        refreshed = json.loads(self.checkpoint.read_text(encoding="utf-8"))[
+            "runs"
+        ]["1054:1"]
+
+        self.assertEqual(receipt["admittedRunCount"], 1)
+        self.assertFalse(refreshed["terminalOutcomeComplete"])
+        self.assertFalse(refreshed["timingUsable"])
+        self.assertFalse(refreshed["snapshotImmutable"])
+        self.assertIn("no_steps", refreshed["timingExclusionReasons"])
+
     def test_timestamped_nonterminal_step_can_be_replaced_when_it_completes(self) -> None:
         incomplete_run = make_run(1_027, 80)
         incomplete_run["jobs"][0]["steps"][0].update(
@@ -581,6 +614,117 @@ class MonitorCiPerformanceTests(unittest.TestCase):
                 self.assertFalse(observation["terminalOutcomeComplete"])
                 self.assertFalse(observation["timingUsable"])
 
+    def test_success_without_step_evidence_is_refreshable(self) -> None:
+        for name, value in (("missing", "missing"), ("null", None), ("empty", [])):
+            with self.subTest(name=name):
+                run = make_run(1_048, 20)
+                if value == "missing":
+                    run["jobs"][0].pop("steps")
+                else:
+                    run["jobs"][0]["steps"] = value
+                observation = MONITOR.analyze_record(
+                    run,
+                    "after",
+                    ".github/workflows/web-admin-ci.yml",
+                    True,
+                    "e" * 64,
+                )
+                self.assertFalse(observation["terminalOutcomeComplete"])
+                self.assertFalse(observation["timingUsable"])
+                self.assertFalse(observation["snapshotImmutable"])
+                self.assertIn("no_steps", observation["timingExclusionReasons"])
+
+    def test_skipped_job_without_steps_does_not_invalidate_success_run(self) -> None:
+        run = make_run(1_053, 20)
+        run["jobs"][0].update(conclusion="skipped", steps=[])
+
+        observation = MONITOR.analyze_record(
+            run,
+            "after",
+            ".github/workflows/web-admin-ci.yml",
+            True,
+            "f" * 64,
+        )
+
+        self.assertTrue(observation["terminalOutcomeComplete"])
+        self.assertTrue(observation["timingUsable"])
+        self.assertTrue(observation["snapshotImmutable"])
+        self.assertNotIn("no_steps", observation["timingExclusionReasons"])
+
+    def test_digest_fields_require_exact_producer_lengths(self) -> None:
+        invalid_git_ids = (
+            "a" * 41,
+            "a" * 63,
+            "sha256:" + "a" * 40,
+            "sha256:" + "a" * 64,
+        )
+        for field in ("sourceTree", "workflowRevision"):
+            for invalid in invalid_git_ids:
+                with self.subTest(field=field, length=len(invalid)):
+                    run = make_run(1_049, 20)
+                    run[field] = invalid
+                    observation = MONITOR.analyze_record(
+                        run,
+                        "after",
+                        ".github/workflows/web-admin-ci.yml",
+                        True,
+                        "d" * 64,
+                    )
+                    self.assertIsNone(observation[field])
+                    self.assertFalse(observation["cohortMetadataVerified"])
+
+        for invalid in (
+            "b" * 40,
+            "b" * 41,
+            "b" * 63,
+            "sha256:" + "b" * 40,
+            "sha256:" + "b" * 64,
+        ):
+            with self.subTest(field="jobTopology", length=len(invalid)):
+                run = make_run(1_050, 20)
+                run["jobTopology"] = invalid
+                observation = MONITOR.analyze_record(
+                    run,
+                    "after",
+                    ".github/workflows/web-admin-ci.yml",
+                    True,
+                    "c" * 64,
+                )
+                self.assertIsNone(observation["jobTopology"])
+                self.assertFalse(observation["cohortMetadataVerified"])
+
+        for git_id in ("c" * 40, "c" * 64):
+            with self.subTest(valid_git_id_length=len(git_id)):
+                run = make_run(1_051, 20)
+                run["sourceTree"] = git_id
+                run["workflowRevision"] = git_id
+                observation = MONITOR.analyze_record(
+                    run,
+                    "after",
+                    ".github/workflows/web-admin-ci.yml",
+                    True,
+                    "b" * 64,
+                )
+                self.assertTrue(observation["cohortMetadataVerified"])
+
+    def test_unverified_attempt_boundary_stays_out_of_failure_rate_signals(self) -> None:
+        before_runs = [make_run(1_060 + index, 20) for index in range(7)]
+        after_runs = [make_run(1_070 + index, 20) for index in range(7)]
+        uncertain = make_run(1_080, 20, conclusion="cancelled", attempt=2)
+        uncertain["attemptBoundaryVerified"] = False
+        before = self.write("boundary-before.json", payload(before_runs))
+        after = self.write(
+            "boundary-after.json", payload([*after_runs, uncertain])
+        )
+
+        receipt = self.invoke(before, after)
+        cohort = receipt["analysis"]["cohorts"][0]
+
+        self.assertEqual(cohort["beforeFailureRate"]["n"], 7)
+        self.assertEqual(cohort["afterFailureRate"]["n"], 7)
+        self.assertEqual(cohort["afterFailureRate"]["failures"], 0)
+        self.assertEqual(cohort["failureSignal"], "insufficient_samples")
+
     def test_terminal_failure_outcome_does_not_require_timing(self) -> None:
         run = make_run(1_040, 20, conclusion="failure")
         run["startedAt"] = None
@@ -618,6 +762,15 @@ class MonitorCiPerformanceTests(unittest.TestCase):
                 run = make_run(1_042, 20)
                 run["jobs"][0]["steps"].append(invalid)
                 self.assert_input_rejected(payload([run]), name=f"bad-step-{invalid!s}.json")
+
+    def test_falsey_scalar_step_collections_are_rejected(self) -> None:
+        for invalid in (False, 0, ""):
+            with self.subTest(invalid=invalid):
+                run = make_run(1_052, 20)
+                run["jobs"][0]["steps"] = invalid
+                self.assert_input_rejected(
+                    payload([run]), name=f"bad-step-collection-{invalid!s}.json"
+                )
 
     def test_attempt_defaults_only_when_absent(self) -> None:
         absent = make_run(1_043, 20)

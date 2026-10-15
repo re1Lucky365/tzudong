@@ -116,20 +116,62 @@ def future_observations(payload, baseline):
     """Do not mislabel an older pagination catch-up as an after sample."""
     cutoff = MONITOR.COLLECTOR.parse_timestamp(baseline["capturedAtUtc"])
     baseline_keys = {(r["id"], r["attempt"]) for r in baseline["runs"]}
-    included, excluded = [], 0
+    baseline_attempts = {}
+    for run_id, attempt in baseline_keys:
+        baseline_attempts[run_id] = max(attempt, baseline_attempts.get(run_id, 0))
+    included, excluded, uncertain = [], 0, 0
     for record in payload["runs"]:
-        if (record["id"], record["attempt"]) in baseline_keys:
+        run_id = record["id"]
+        attempt = MONITOR.run_attempt(record)
+        if (run_id, attempt) in baseline_keys:
             continue
-        started = record.get("startedAt") or record.get("createdAt")
-        if started and MONITOR.COLLECTOR.parse_timestamp(started) > cutoff:
-            included.append(record)
-        else:
+        prior_attempt = baseline_attempts.get(run_id)
+        rerun = attempt > 1
+        if rerun:
+            # createdAt belongs to the original workflow run. For a rerun,
+            # startedAt is the phase clock; updatedAt is only the fallback for
+            # an attempt cancelled before a runner starts. A post-cutoff
+            # original creation is also sufficient because the rerun cannot
+            # predate it. Missing attempt clocks remain pending.
+            started = record.get("startedAt")
+            updated = record.get("updatedAt")
+            created = record.get("createdAt")
+            if started:
+                boundary_verified = (
+                    MONITOR.COLLECTOR.parse_timestamp(started) > cutoff
+                )
+            elif updated:
+                boundary_verified = (
+                    MONITOR.COLLECTOR.parse_timestamp(updated) > cutoff
+                )
+            elif created and MONITOR.COLLECTOR.parse_timestamp(created) > cutoff:
+                boundary_verified = True
+            else:
+                included.append(dict(record, attemptBoundaryVerified=False))
+                uncertain += 1
+                continue
+            if boundary_verified:
+                included.append(dict(record, attemptBoundaryVerified=True))
+            else:
+                excluded += 1
+            continue
+        started = record.get("startedAt")
+        created = record.get("createdAt") if prior_attempt is None else None
+        boundary_verified = any(
+            value
+            and MONITOR.COLLECTOR.parse_timestamp(value) > cutoff
+            for value in (started, created)
+        )
+        if not boundary_verified:
             excluded += 1
+            continue
+        included.append(dict(record, attemptBoundaryVerified=True))
     return {
         "workflow": payload["workflow"], "runs": included,
         "sourceExportSha256": MONITOR.sha256_bytes(MONITOR.canonical_json(payload)),
         "baselineCutoffUtc": baseline["capturedAtUtc"],
         "excludedHistoricalAttempts": excluded,
+        "uncertainAttemptBoundaryCount": uncertain,
     }
 
 
@@ -230,6 +272,7 @@ def tick(args):
             "admittedAttemptCount": receipt["admittedRunCount"],
             "duplicateAttemptCount": receipt["duplicateRunIdCount"],
             "excludedHistoricalAttempts": current["excludedHistoricalAttempts"],
+            "uncertainAttemptBoundaryCount": current["uncertainAttemptBoundaryCount"],
             "conclusions": analysis["runConclusionCounts"],
             "chronologyInvalidAttemptCount": analysis["chronologyInvalidRunCount"],
             "cohortCount": len(analysis["cohorts"]),

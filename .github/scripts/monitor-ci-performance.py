@@ -46,7 +46,8 @@ DEFAULT_P95_SOURCE_CLUSTERS = 20
 MAX_BOOTSTRAP_RESAMPLES = 100_000
 SAFE_WORKFLOW_PATH = re.compile(r"^[A-Za-z0-9_./-]{1,200}$")
 SAFE_SHA = re.compile(r"^[0-9a-fA-F]{40}$")
-SAFE_DIGEST = re.compile(r"^(?:sha256:)?[0-9a-fA-F]{40,64}$")
+SAFE_GIT_OBJECT_ID = re.compile(r"^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$")
+SAFE_SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 SAFE_EVENT = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 VALID_CONCLUSIONS = {
     "success",
@@ -210,9 +211,14 @@ def safe_sha(value: Any) -> str | None:
     return candidate.lower() if SAFE_SHA.fullmatch(candidate) else None
 
 
-def safe_digest(value: Any) -> str | None:
+def safe_git_object_id(value: Any) -> str | None:
     candidate = str(value or "")
-    return candidate.lower() if SAFE_DIGEST.fullmatch(candidate) else None
+    return candidate.lower() if SAFE_GIT_OBJECT_ID.fullmatch(candidate) else None
+
+
+def safe_sha256(value: Any) -> str | None:
+    candidate = str(value or "")
+    return candidate.lower() if SAFE_SHA256.fullmatch(candidate) else None
 
 
 def runner_family(labels: Iterable[Any]) -> str:
@@ -267,7 +273,9 @@ def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
     labels = get_first(job, "runnerLabels", "labels") or []
     if not isinstance(labels, list):
         labels = []
-    steps = get_first(job, "steps") or []
+    steps = get_first(job, "steps")
+    if steps is None:
+        steps = []
     if not isinstance(steps, list):
         raise MonitorError("job steps must be a list")
     if any(not isinstance(step, dict) for step in steps):
@@ -351,11 +359,11 @@ def analyze_record(
     attempt = run_attempt(record)
     event = safe_event(get_first(record, "event"))
     head_sha = safe_sha(get_first(record, "headSha", "head_sha", "headShaOid"))
-    source_tree = safe_digest(get_first(record, "sourceTree", "source_tree"))
-    workflow_revision = safe_digest(
+    source_tree = safe_git_object_id(get_first(record, "sourceTree", "source_tree"))
+    workflow_revision = safe_git_object_id(
         get_first(record, "workflowRevision", "workflow_revision")
     )
-    job_topology = safe_digest(get_first(record, "jobTopology", "job_topology"))
+    job_topology = safe_sha256(get_first(record, "jobTopology", "job_topology"))
     execution_mode = str(
         get_first(record, "executionMode", "execution_mode") or "unknown"
     )
@@ -381,6 +389,13 @@ def analyze_record(
         and jobs_attempt == attempt
     )
     jobs = [normalize_job(job) for job in jobs_raw]
+    attempt_boundary_verified = get_first(
+        record, "attemptBoundaryVerified", "attempt_boundary_verified"
+    )
+    if attempt_boundary_verified is None:
+        attempt_boundary_verified = True
+    if not isinstance(attempt_boundary_verified, bool):
+        raise MonitorError("attempt boundary verification must be boolean")
 
     collector_timing_record = {
         "createdAt": get_first(record, "createdAt", "created_at"),
@@ -393,6 +408,8 @@ def analyze_record(
     )
     if not jobs_complete:
         timing_exclusion_reasons.add("incomplete_job_set")
+    if not attempt_boundary_verified:
+        timing_exclusion_reasons.add("attempt_boundary_unverified")
 
     malformed_timestamp = False
     incomplete_job_count = 0
@@ -606,7 +623,15 @@ def analyze_record(
         run_outcome_terminal
         and jobs_complete
         and (
-            (jobs and job_outcomes_terminal and step_outcomes_terminal)
+            (
+                jobs
+                and job_outcomes_terminal
+                and step_outcomes_terminal
+                and all(
+                    job["conclusion"] != "success" or job["steps"]
+                    for job in jobs
+                )
+            )
             or (not jobs and conclusion != "success")
         )
     )
@@ -614,6 +639,7 @@ def analyze_record(
         conclusion == "success"
         and not tombstone
         and terminal_outcome_complete
+        and attempt_boundary_verified
         and chronology_valid
         and not timing_exclusion_reasons
         and not malformed_timestamp
@@ -675,6 +701,7 @@ def analyze_record(
         "chronologyValid": chronology_valid,
         "chronologyIssueCodes": sorted(chronology_issue_codes),
         "attemptJobSetComplete": jobs_complete,
+        "attemptBoundaryVerified": attempt_boundary_verified,
         "terminalOutcomeComplete": terminal_outcome_complete,
         # Compatibility field for existing checkpoint readers. Timing
         # eligibility is represented only by timingUsable.
@@ -682,7 +709,8 @@ def analyze_record(
         "snapshotImmutable": bool(
             tombstone
             or (
-                terminal_outcome_complete
+                attempt_boundary_verified
+                and terminal_outcome_complete
                 and (conclusion != "success" or timing_usable)
             )
         ),
@@ -972,15 +1000,28 @@ def build_analysis(
                         + classify_signal(before_values, after_values, interval, threshold),
                     }
 
-        before_failure = failure_rate(phases["before"])
-        after_failure = failure_rate(phases["after"])
+        boundary_verified = {
+            phase: [
+                run
+                for run in phases[phase]
+                if run.get("attemptBoundaryVerified", True) is True
+            ]
+            for phase in ("before", "after")
+        }
+        before_failure = failure_rate(boundary_verified["before"])
+        after_failure = failure_rate(boundary_verified["after"])
         failure_signal = "insufficient_samples"
         cohort_metadata_verified = all(
             run["cohortMetadataVerified"]
             for run in phases["before"] + phases["after"]
         )
+        attempt_boundaries_verified = all(
+            run.get("attemptBoundaryVerified", True) is True
+            for run in phases["before"] + phases["after"]
+        )
         if (
             cohort_metadata_verified
+            and attempt_boundaries_verified
             and before_failure["n"] >= MIN_COHORT_SUCCESSES
             and after_failure["n"] >= MIN_COHORT_SUCCESSES
         ):
@@ -1160,20 +1201,38 @@ def main(argv: Sequence[str] | None = None) -> int:
                     raise MonitorError("run id must be a positive integer")
                 attempt = run_attempt(record)
                 key = f"{run_id}:{attempt}"
-                source_fingerprint = sha256_bytes(canonical_json(record))
+                analysis_fingerprint = sha256_bytes(canonical_json(record))
+                source_record = dict(record)
+                source_record.pop("attemptBoundaryVerified", None)
+                source_record.pop("attempt_boundary_verified", None)
+                source_fingerprint = sha256_bytes(canonical_json(source_record))
                 if key in run_index:
-                    if run_index[key].get("phase") != phase:
+                    prior_observation = run_index[key]
+                    if prior_observation.get("phase") != phase:
                         raise MonitorError("a run attempt cannot move between before and after")
-                    if run_index[key].get("sourceFingerprint") == source_fingerprint:
+                    prior_analysis_fingerprint = prior_observation.get(
+                        "analysisFingerprint"
+                    )
+                    if prior_analysis_fingerprint == analysis_fingerprint:
                         duplicate_count += 1
                         continue
-                    immutable = run_index[key].get("snapshotImmutable")
-                    if immutable is None:
-                        # Backward-compatible read of checkpoints written before
-                        # outcome and timing eligibility were split.
-                        immutable = run_index[key].get("terminalEvidenceComplete") is True
-                    if immutable:
-                        raise MonitorError("completed run attempt changed after becoming immutable")
+                    legacy_same_source = bool(
+                        prior_analysis_fingerprint is None
+                        and prior_observation.get("sourceFingerprint")
+                        == source_fingerprint
+                    )
+                    if not legacy_same_source:
+                        immutable = prior_observation.get("snapshotImmutable")
+                        if immutable is None:
+                            # Backward-compatible read of checkpoints written before
+                            # outcome and timing eligibility were split.
+                            immutable = (
+                                prior_observation.get("terminalEvidenceComplete") is True
+                            )
+                        if immutable:
+                            raise MonitorError(
+                                "completed run attempt changed after becoming immutable"
+                            )
                 observation = analyze_record(
                     record,
                     phase,
@@ -1181,6 +1240,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     workflow_metadata_verified,
                     source_fingerprint,
                 )
+                observation["analysisFingerprint"] = analysis_fingerprint
                 run_index[key] = observation
                 admitted_count += 1
 

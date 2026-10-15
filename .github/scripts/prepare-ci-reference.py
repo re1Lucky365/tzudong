@@ -244,6 +244,7 @@ def select_current_observation(observations: list[dict]) -> dict | None:
         item
         for item in observations
         if item.get("cohortMetadataVerified")
+        and item.get("attemptBoundaryVerified", True)
         and not item.get("tombstone")
         and not (
             attempt_resolved(item)
@@ -262,6 +263,8 @@ def select_current_cohort(observations: list[dict]) -> str | None:
 
 
 def attempt_resolved(observation: dict) -> bool:
+    if observation.get("attemptBoundaryVerified", True) is not True:
+        return False
     if observation.get("tombstone"):
         return True
     if observation.get("conclusion") == "success":
@@ -296,7 +299,9 @@ def assess_pending(observation: dict, target: dict) -> dict:
     """Classify unresolved work without guessing its eventual cohort."""
     reason = "exact_cohort_pending"
     potentially_same = True
-    if observation.get("chronologyValid") is False:
+    if observation.get("attemptBoundaryVerified", True) is not True:
+        reason = "attempt_cutoff_unverified"
+    elif observation.get("chronologyValid") is False:
         reason = "chronology_invalid_attempt"
     elif observation.get("cohortKey") == target.get("cohortKey"):
         pass
@@ -333,6 +338,7 @@ def assess_pending(observation: dict, target: dict) -> dict:
         "jobTopology": observation.get("jobTopology"),
         "runnerFamilies": observation.get("runnerFamilies"),
         "chronologyIssueCodes": observation.get("chronologyIssueCodes", []),
+        "attemptBoundaryVerified": observation.get("attemptBoundaryVerified", True),
         "reason": reason,
         "potentiallySameCohort": potentially_same,
         # Any active attempt can start before the next baseline cutoff. Keep
@@ -342,6 +348,11 @@ def assess_pending(observation: dict, target: dict) -> dict:
 
 
 def assess_without_target(observation: dict) -> dict:
+    reason = (
+        "attempt_cutoff_unverified"
+        if observation.get("attemptBoundaryVerified", True) is not True
+        else "target_cohort_unavailable"
+    )
     return {
         "runId": observation.get("runId"),
         "attempt": observation.get("attempt"),
@@ -353,7 +364,8 @@ def assess_without_target(observation: dict) -> dict:
         "jobTopology": observation.get("jobTopology"),
         "runnerFamilies": observation.get("runnerFamilies"),
         "chronologyIssueCodes": observation.get("chronologyIssueCodes", []),
-        "reason": "target_cohort_unavailable",
+        "attemptBoundaryVerified": observation.get("attemptBoundaryVerified", True),
+        "reason": reason,
         "potentiallySameCohort": True,
         "blocksReferenceFreeze": True,
     }

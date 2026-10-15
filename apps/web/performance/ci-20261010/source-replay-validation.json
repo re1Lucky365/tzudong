@@ -16,12 +16,12 @@
   },
   "currentSource": {
     "path": ".github/scripts/collect-ci-performance.py",
-    "bytes": 41184,
-    "sha256": "0f8f488a0757fd05bb6e14fbc830dc37e515fa3c1910fa6b88e08a15d806c401",
+    "bytes": 41295,
+    "sha256": "b62e60b3dbb150c2300c39d2ca77d337e32bdb14aa2ae52e9c93caeddb044577",
     "testPath": ".github/scripts/test_collect_ci_performance.py",
     "testSha256": "d9019ff7f6f38e2c55536ac861806c29275fcf72265daa769dbc8637db275c9f",
     "replayedArtifactMapPath": "artifact-map-current-source.json",
-    "replayedArtifactMapSha256": "741a9b1507ac6396f267b9ba4d6deb537ee8e41efd3b20adc44cca4e5e187c4f",
+    "replayedArtifactMapSha256": "7b48fb113291b4ae6206b8807140d513be888117c56a22eb6ff5f16324db0f22",
     "fiveEvidenceOutputsByteIdenticalToRetained": true
   },
   "replayedOutputs": {

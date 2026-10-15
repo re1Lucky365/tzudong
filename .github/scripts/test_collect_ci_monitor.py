@@ -156,6 +156,66 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(second["collection"]["refreshedJobSets"], 1)
         self.assertEqual(second["collection"]["reusedJobSets"], 0)
 
+    def test_success_jobs_without_step_evidence_are_rechecked(self):
+        variants = (
+            ("missing", lambda job: job.pop("steps")),
+            ("null", lambda job: job.update(steps=None)),
+            ("empty", lambda job: job.update(steps=[])),
+        )
+        for index, (name, mutate) in enumerate(variants):
+            with self.subTest(name=name):
+                payload = jobs()
+                mutate(payload["jobs"][0])
+                cache = Path(self.directory.name) / f"empty-steps-{index}.sqlite"
+                first = M.collect(
+                    "twoimo/tzudong", "web-admin-ci.yml", cache,
+                    Reader(job_payload=payload),
+                )
+                second = M.collect(
+                    "twoimo/tzudong", "web-admin-ci.yml", cache,
+                    Reader(job_payload=payload),
+                )
+                observation = first["runs"][0]
+                self.assertFalse(observation["terminalOutcomeComplete"])
+                self.assertFalse(observation["timingUsable"])
+                self.assertIn("no_steps", observation["timingExclusionReasons"])
+                self.assertEqual(second["collection"]["refreshedJobSets"], 1)
+                self.assertEqual(second["collection"]["reusedJobSets"], 0)
+
+    def test_skipped_job_without_steps_does_not_keep_success_run_refreshable(self):
+        payload = jobs()
+        payload["jobs"][0].update(conclusion="skipped", steps=[])
+
+        first = self.collect(Reader(job_payload=payload))
+        second = self.collect(Reader(job_payload=payload))
+
+        self.assertTrue(first["runs"][0]["terminalOutcomeComplete"])
+        self.assertTrue(first["runs"][0]["timingUsable"])
+        self.assertEqual(second["collection"]["refreshedJobSets"], 0)
+        self.assertEqual(second["collection"]["reusedJobSets"], 1)
+
+    def test_old_terminal_cache_with_empty_steps_is_revalidated(self):
+        payload = jobs()
+        payload["jobs"][0]["steps"] = []
+        first = self.collect(Reader(job_payload=payload))
+        self.assertFalse(first["runs"][0]["terminalOutcomeComplete"])
+        with closing(sqlite3.connect(self.cache)) as db:
+            db.execute("UPDATE runs SET terminal=1")
+            db.commit()
+
+        second = self.collect(Reader(job_payload=payload))
+
+        self.assertEqual(second["collection"]["refreshedJobSets"], 1)
+        self.assertEqual(second["collection"]["reusedJobSets"], 0)
+
+    def test_falsey_scalar_steps_are_rejected(self):
+        for invalid in (False, 0, ""):
+            with self.subTest(invalid=invalid):
+                payload = jobs()
+                payload["jobs"][0]["steps"] = invalid
+                with self.assertRaisesRegex(M.ReadError, "INVALID_JOB_STEPS"):
+                    self.collect(Reader(job_payload=payload))
+
     def test_missing_terminal_conclusions_are_rechecked(self):
         variants = (
             ("run", lambda latest, payload: latest.update(conclusion=None)),

@@ -56,6 +56,149 @@ class CiMonitorTickTests(unittest.TestCase):
         retry = dict(self.baseline["runs"][0], attempt=2, startedAt="2026-10-11T00:00:00Z")
         current = TICK.future_observations({"workflow": self.export["workflow"], "runs": [retry]}, self.baseline)
         self.assertEqual(len(current["runs"]), 1)
+        self.assertTrue(current["runs"][0]["attemptBoundaryVerified"])
+
+    def test_new_attempt_uses_attempt_update_instead_of_original_creation(self):
+        retry = dict(
+            self.baseline["runs"][0],
+            attempt=2,
+            startedAt=None,
+            createdAt="2026-10-09T00:00:00Z",
+            updatedAt="2026-10-11T00:00:00Z",
+        )
+        current = TICK.future_observations(
+            {"workflow": self.export["workflow"], "runs": [retry]}, self.baseline
+        )
+        self.assertEqual(len(current["runs"]), 1)
+        self.assertTrue(current["runs"][0]["attemptBoundaryVerified"])
+        self.assertEqual(current["uncertainAttemptBoundaryCount"], 0)
+
+    def test_unlisted_old_run_rerun_uses_post_cutoff_attempt_update(self):
+        retry = FIXTURE.make_run(3, 10, attempt=2)
+        retry.update(
+            startedAt=None,
+            createdAt="2026-10-09T00:00:00Z",
+            updatedAt="2026-10-11T00:00:00Z",
+        )
+
+        current = TICK.future_observations(
+            {"workflow": self.export["workflow"], "runs": [retry]}, self.baseline
+        )
+
+        self.assertEqual(len(current["runs"]), 1)
+        self.assertTrue(current["runs"][0]["attemptBoundaryVerified"])
+        self.assertEqual(current["excludedHistoricalAttempts"], 0)
+        self.assertEqual(current["uncertainAttemptBoundaryCount"], 0)
+
+    def test_unlisted_old_run_rerun_without_attempt_clock_stays_pending(self):
+        retry = FIXTURE.make_run(3, 10, attempt=2)
+        retry.update(
+            startedAt=None,
+            createdAt="2026-10-09T00:00:00Z",
+            updatedAt=None,
+        )
+
+        current = TICK.future_observations(
+            {"workflow": self.export["workflow"], "runs": [retry]}, self.baseline
+        )
+
+        self.assertEqual(len(current["runs"]), 1)
+        self.assertFalse(current["runs"][0]["attemptBoundaryVerified"])
+        self.assertEqual(current["excludedHistoricalAttempts"], 0)
+        self.assertEqual(current["uncertainAttemptBoundaryCount"], 1)
+
+    def test_rerun_start_before_cutoff_remains_historical_after_late_update(self):
+        retry = dict(
+            self.baseline["runs"][0],
+            attempt=2,
+            startedAt="2026-10-10T10:00:00Z",
+            createdAt="2026-10-09T00:00:00Z",
+            updatedAt="2026-10-11T00:00:00Z",
+        )
+
+        current = TICK.future_observations(
+            {"workflow": self.export["workflow"], "runs": [retry]}, self.baseline
+        )
+
+        self.assertEqual(current["runs"], [])
+        self.assertEqual(current["excludedHistoricalAttempts"], 1)
+        self.assertEqual(current["uncertainAttemptBoundaryCount"], 0)
+
+    def test_listed_run_rerun_with_pre_cutoff_attempt_clocks_is_historical(self):
+        retry = dict(
+            self.baseline["runs"][0],
+            attempt=2,
+            startedAt="2026-10-10T10:00:00Z",
+            createdAt="2026-10-09T00:00:00Z",
+            updatedAt="2026-10-10T10:01:00Z",
+        )
+
+        current = TICK.future_observations(
+            {"workflow": self.export["workflow"], "runs": [retry]}, self.baseline
+        )
+
+        self.assertEqual(current["runs"], [])
+        self.assertEqual(current["excludedHistoricalAttempts"], 1)
+        self.assertEqual(current["uncertainAttemptBoundaryCount"], 0)
+
+    def test_original_run_update_does_not_move_a_historical_run_past_cutoff(self):
+        historical = FIXTURE.make_run(3, 10)
+        historical.update(
+            startedAt="2026-10-09T00:00:01Z",
+            createdAt="2026-10-09T00:00:00Z",
+            updatedAt="2026-10-11T00:00:00Z",
+        )
+        current = TICK.future_observations(
+            {"workflow": self.export["workflow"], "runs": [historical]},
+            self.baseline,
+        )
+        self.assertEqual(current["runs"], [])
+        self.assertEqual(current["excludedHistoricalAttempts"], 1)
+
+    def test_attempt_clock_equal_to_cutoff_is_not_after(self):
+        retry = dict(
+            self.baseline["runs"][0],
+            attempt=2,
+            startedAt=None,
+            createdAt="2026-10-09T00:00:00Z",
+            updatedAt=self.baseline["capturedAtUtc"],
+        )
+        current = TICK.future_observations(
+            {"workflow": self.export["workflow"], "runs": [retry]}, self.baseline
+        )
+        self.assertEqual(current["runs"], [])
+        self.assertEqual(current["excludedHistoricalAttempts"], 1)
+        self.assertEqual(current["uncertainAttemptBoundaryCount"], 0)
+
+    def test_new_attempt_without_attempt_time_is_retained_as_pending(self):
+        retry = FIXTURE.make_run(1, 10, attempt=2, conclusion="cancelled")
+        retry.update(
+            startedAt=None,
+            createdAt="2026-10-09T00:00:00Z",
+            updatedAt=None,
+        )
+        self.export["runs"] = [retry]
+        self.export["coverage"] = {
+            "alerts": [],
+            "incrementalWindowComplete": True,
+        }
+        TICK.MONITOR.atomic_write_json(self.input_path, self.export)
+
+        result = TICK.tick(self.args)
+
+        self.assertEqual(result["uncertainAttemptBoundaryCount"], 1)
+        self.assertIn("failure:1:2", result["newAlertKeys"])
+        self.assertEqual(result["referenceReadiness"]["blockingPendingCount"], 1)
+        self.assertEqual(
+            result["referenceReadiness"]["pendingReasonCounts"],
+            {"attempt_cutoff_unverified": 1},
+        )
+        checkpoint = TICK.MONITOR.load_json(
+            self.args.state_dir / "analysis-state.json"
+        )
+        observation = checkpoint["runs"]["1:2"]
+        self.assertFalse(observation["attemptBoundaryVerified"])
+        self.assertFalse(observation["snapshotImmutable"])
 
     def test_offline_tick_alerts_once_and_reuses_completed_attempts(self):
         first = TICK.tick(self.args)

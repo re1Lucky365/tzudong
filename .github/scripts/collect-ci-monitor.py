@@ -103,7 +103,9 @@ def safe_run(raw):
 def safe_job(raw):
     if not isinstance(raw, dict):
         raise ReadError("INVALID_JOB")
-    raw_steps = raw.get("steps") or []
+    raw_steps = raw.get("steps")
+    if raw_steps is None:
+        raw_steps = []
     if (
         not isinstance(raw_steps, list)
         or any(not isinstance(step, dict) for step in raw_steps)
@@ -145,6 +147,7 @@ def terminal_outcome_complete(run, jobs, job_set_complete):
     return all(
         job["status"] == "completed"
         and job["conclusion"] in CONCLUSIONS
+        and (job["conclusion"] != "success" or bool(job["steps"]))
         and all(
             step["status"] == "completed"
             and step["conclusion"] in CONCLUSIONS
@@ -152,6 +155,34 @@ def terminal_outcome_complete(run, jobs, job_set_complete):
         )
         for job in jobs
     )
+
+
+def cached_terminal_reusable(record):
+    """Revalidate cached terminal rows when the evidence contract advances."""
+    if not isinstance(record, dict):
+        return False
+    jobs = record.get("jobs")
+    count = record.get("jobsTotalCount")
+    attempt = record.get("attempt")
+    jobs_attempt = record.get("jobsAttempt")
+    complete = bool(
+        isinstance(jobs, list)
+        and all(isinstance(job, dict) for job in jobs)
+        and isinstance(count, int)
+        and not isinstance(count, bool)
+        and count == len(jobs)
+        and isinstance(attempt, int)
+        and not isinstance(attempt, bool)
+        and isinstance(jobs_attempt, int)
+        and not isinstance(jobs_attempt, bool)
+        and jobs_attempt == attempt
+    )
+    if not complete or not terminal_outcome_complete(record, jobs, complete):
+        return False
+    if record.get("conclusion") != "success":
+        return True
+    timing_reasons = COLLECTOR.timing_exclusion_reasons(record)
+    return not timing_reasons
 
 
 def execution_mode(jobs):
@@ -352,14 +383,20 @@ def collect(
             if latest["attempt"] > 10: alerts.append("ATTEMPT_HISTORY_BOUND")
             for attempt in range(max(1, latest["attempt"] - 9), latest["attempt"] + 1):
                 cached = db.execute("SELECT fingerprint,terminal,record FROM runs WHERE run_id=? AND attempt=?", (latest["id"], attempt)).fetchone()
-                if attempt != latest["attempt"] and cached and cached[1]:
-                    export.append(json.loads(cached[2])); cached_sets += 1; continue
+                cached_record = json.loads(cached[2]) if cached else None
+                cached_terminal = bool(
+                    cached
+                    and cached[1]
+                    and cached_terminal_reusable(cached_record)
+                )
+                if attempt != latest["attempt"] and cached_terminal:
+                    export.append(cached_record); cached_sets += 1; continue
                 run = latest if attempt == latest["attempt"] else safe_run(reader.get(f"repos/{repository}/actions/runs/{latest['id']}/attempts/{attempt}"))
                 if run["id"] != latest["id"] or run["attempt"] != attempt:
                     raise ReadError("ATTEMPT_BINDING_MISMATCH")
                 fingerprint = digest(run)
-                if cached and cached[1] and cached[0] == fingerprint:
-                    export.append(json.loads(cached[2])); cached_sets += 1; continue
+                if cached_terminal and cached[0] == fingerprint:
+                    export.append(cached_record); cached_sets += 1; continue
                 jobs_payload = reader.get(f"repos/{repository}/actions/runs/{run['id']}/attempts/{attempt}/jobs", {"per_page": 100, "page": 1})
                 jobs = jobs_payload.get("jobs")
                 count = jobs_payload.get("total_count")

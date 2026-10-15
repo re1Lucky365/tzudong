@@ -276,6 +276,8 @@ def timing_exclusion_reasons(run: dict[str, Any]) -> list[str]:
         ]
         if any(value in (None, "") for value in job_timing):
             reasons.append("missing_job_timing")
+        if job.get("conclusion") == "success" and not job.get("steps"):
+            reasons.append("no_steps")
         job_created, job_started, job_completed = [
             admission_timestamp(value, reasons) for value in job_timing
         ]
