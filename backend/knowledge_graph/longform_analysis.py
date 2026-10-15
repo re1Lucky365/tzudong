@@ -1303,7 +1303,64 @@ def _wire_schema_predecessor_readback(state, row, config, *, provider, max_calls
     return True
 
 
-def cached_state(state: Path, row, config, *, repair=None):
+def _known_segment_disposition(state, row, config):
+    """Classify bound segment failures without rewriting legacy receipts."""
+    if config.protocol != 2:
+        return None
+    video_directory = state / "videos" / row["videoId"]
+    if not video_directory.is_dir() or video_directory.is_symlink():
+        return None
+    root_input_sha = identity(row, config)["inputSha256"]
+    spans = {identity(span, config)["inputSha256"]: span for span in segment_rows(row, config)}
+    terminal = None
+    for root_path in sorted(video_directory.glob("*.receipt.json")):
+        root = checked_document(root_path)
+        root_identity = root.get("identity")
+        if (not isinstance(root_identity, dict) or root_identity.get("videoId") != row["videoId"]
+                or root_identity.get("inputSha256") != root_input_sha
+                or not SHA256.fullmatch(str(root_identity.get("configSha256")))):
+            continue
+        config_sha = root_identity["configSha256"]
+        segment_directory = root_path.parent / "segments" / config_sha
+        if not segment_directory.is_dir() or segment_directory.is_symlink():
+            continue
+        admitted_membership(root.get("membershipEvidence"))
+        for receipt_path in sorted(segment_directory.glob("*.receipt.json")):
+            receipt = checked_document(receipt_path)
+            receipt_identity = receipt.get("identity")
+            span = spans.get(receipt_identity.get("inputSha256") if isinstance(receipt_identity, dict) else None)
+            if (span is None or receipt_identity.get("videoId") != row["videoId"]
+                    or receipt_identity.get("configSha256") != config_sha):
+                continue
+            state_name = receipt.get("state")
+            if state_name == "succeeded":
+                continue
+            observation_path = receipt_path.with_name(receipt_path.name.replace(
+                ".receipt.json", ".observation.json"))
+            observation = checked_document(observation_path) if observation_path.is_file() else None
+            binding_matches = (observation is not None
+                               and receipt.get("observationSha256") == digest(observation))
+            if not binding_matches:
+                return {"state": "readback_required", "kind": "uncertain", "code": receipt.get("code"),
+                        "uncertaintyReason": "REQUEST_OBSERVATION_BINDING_MISMATCH",
+                        "providerGetEligible": False}
+            observation = validate_observation(observation)
+            confirmed = (state_name == "rejected"
+                         and observation["httpOutcome"] in ("http_success", "http_rejected")
+                         and receipt.get("code") not in ("WATCH_RESPONSE_NOT_COMPLETED", "WATCH_TRANSPORT_UNCERTAIN"))
+            if confirmed:
+                terminal = {"state": "terminal_rejected",
+                            "kind": "partial" if receipt.get("code") == "ANALYSIS_PARTIAL" else "failed",
+                            "code": receipt.get("code"), "uncertaintyReason": None,
+                            "providerGetEligible": False}
+                continue
+            return {"state": "readback_required", "kind": "uncertain", "code": receipt.get("code"),
+                    "uncertaintyReason": "PROVIDER_RESULT_UNCERTAIN",
+                    "providerGetEligible": False}
+    return terminal
+
+
+def _cached_state(state: Path, row, config, *, repair=None):
     admitted_row(row)
     lineage = repair_lineage(state, row, config, repair)
     directory, receipt_path, evidence_path = paths(state, row, config)
@@ -1382,6 +1439,24 @@ def cached_state(state: Path, row, config, *, repair=None):
     return "new"
 
 
+def cached_disposition(state: Path, row, config, *, repair=None):
+    admitted_row(row)
+    status = _cached_state(state, row, config, repair=repair)
+    if repair is None and status == "readback_required":
+        known = _known_segment_disposition(state, row, config)
+        if known is not None:
+            return known
+    return {"state": status,
+            "kind": status if status in ("reusable", "new") else "uncertain",
+            "code": None,
+            "uncertaintyReason": "UNCLASSIFIED_READBACK_REQUIRED" if status == "readback_required" else None,
+            "providerGetEligible": False}
+
+
+def cached_state(state: Path, row, config, *, repair=None):
+    return cached_disposition(state, row, config, repair=repair)["state"]
+
+
 def remaining_segments(state, row, config):
     pending = []
     for span in segment_rows(row, config):
@@ -1396,16 +1471,28 @@ def remaining_segments(state, row, config):
 
 
 def make_plan(rows, inventory_info, state, config, limits=None, *, repair=None):
-    counts = {"reusable": 0, "new": 0, "readback_required": 0, "corrupt": 0}
+    counts = {"reusable": 0, "new": 0, "terminal_rejected": 0, "readback_required": 0, "corrupt": 0}
+    denominator = {"reusable": 0, "new": 0, "partial": 0, "failed": 0, "uncertain": 0, "corrupt": 0}
+    uncertainty_reasons = {}
+    provider_get_eligible = 0
     pending = []
     for row in rows:
         try:
-            status = cached_state(state, row, config, repair=repair)
+            disposition = cached_disposition(state, row, config, repair=repair)
+            status = disposition["state"]
             if status == "new":
                 pending.append((row["videoId"], len(remaining_segments(state, row, config))))
         except AnalysisError:
             status = "corrupt"
+            disposition = {"kind": "corrupt", "uncertaintyReason": None, "providerGetEligible": False}
         counts[status] += 1
+        denominator[disposition["kind"]] += 1
+        reason = disposition.get("uncertaintyReason")
+        if reason:
+            uncertainty_reasons[reason] = uncertainty_reasons.get(reason, 0) + 1
+        provider_get_eligible += int(disposition.get("providerGetEligible") is True)
+    if sum(denominator.values()) != len(rows):
+        raise AnalysisError("PLAN_DENOMINATOR_INVALID")
     total = sum(count for _, count in pending)
     admitted = total
     if limits:
@@ -1413,7 +1500,12 @@ def make_plan(rows, inventory_info, state, config, limits=None, *, repair=None):
                        limits["maxInputTokens"] // config.input_limit)
     return {**inventory_info, "phase": "plan", "model": config.model, "watchCommit": PINNED_COMMIT,
             "longformVideoCount": len(rows), "totalDurationSeconds": sum(row["durationSeconds"] for row in rows),
-            "cache": counts, "estimatedInputTokens": None, "estimatedCost": None,
+            "cache": counts,
+            "classificationDenominator": {"total": len(rows), **denominator,
+                                          "providerGetEligible": provider_get_eligible,
+                                          "automaticProviderCalls": 0,
+                                          "uncertaintyReasons": uncertainty_reasons},
+            "estimatedInputTokens": None, "estimatedCost": None,
             "inputReservationPerCall": config.input_limit, "reservationBasis": "official_model_input_limit_per_static_segment",
             "segmentSecondsUpper": config.segment_seconds, "remainingSegments": total,
             "remainingWork": {"callsMin": 0, "callsUpper": total * 2, "generationCallsUpper": total,
@@ -1742,7 +1834,7 @@ def readback(rows, state, config, *, provider=False, max_calls=0):
                         continue
                     # A changed code fingerprint does not erase prior unresolved or
                     # predecessor-completed receipts; local readback must report them.
-                    if cached_state(state, row, config) == "readback_required":
+                    if cached_state(state, row, config) in ("readback_required", "terminal_rejected"):
                         raise AnalysisError("READBACK_REQUIRED")
                     continue
                 receipt = checked_document(receipt_path)

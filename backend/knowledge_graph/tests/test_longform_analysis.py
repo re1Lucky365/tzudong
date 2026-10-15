@@ -203,6 +203,39 @@ class LongformAnalysisTests(unittest.TestCase):
         self.assertEqual(plan["boundedExecution"]["inputTokenReservationUpper"], 1000)
         self.assertFalse(self.state.exists())
 
+    def test_plan_denominator_separates_terminal_partial_failure_and_uncertainty(self):
+        rows = [{**self.row, "videoId": letter * 11} for letter in "ABCDEF"]
+        dispositions = {
+            rows[0]["videoId"]: {"state": "reusable", "kind": "reusable", "code": None,
+                                 "uncertaintyReason": None, "providerGetEligible": False},
+            rows[1]["videoId"]: {"state": "new", "kind": "new", "code": None,
+                                 "uncertaintyReason": None, "providerGetEligible": False},
+            rows[2]["videoId"]: {"state": "terminal_rejected", "kind": "partial", "code": "ANALYSIS_PARTIAL",
+                                 "uncertaintyReason": None, "providerGetEligible": False},
+            rows[3]["videoId"]: {"state": "terminal_rejected", "kind": "failed", "code": "ANALYSIS_SCHEMA_INVALID",
+                                 "uncertaintyReason": None, "providerGetEligible": False},
+            rows[4]["videoId"]: {"state": "readback_required", "kind": "uncertain", "code": "READBACK_REQUIRED",
+                                 "uncertaintyReason": "REQUEST_OBSERVATION_BINDING_MISMATCH",
+                                 "providerGetEligible": False},
+        }
+
+        def disposition(_state, row, _config, **_kwargs):
+            if row["videoId"] == rows[5]["videoId"]:
+                raise module.AnalysisError("RECEIPT_CORRUPT")
+            return dispositions[row["videoId"]]
+
+        with patch.object(module, "cached_disposition", side_effect=disposition), \
+                patch.object(module, "remaining_segments", return_value=[object()]):
+            plan = module.make_plan(rows, self.info, self.state, self.config)
+        self.assertEqual(plan["cache"], {"reusable": 1, "new": 1, "terminal_rejected": 2,
+                                         "readback_required": 1, "corrupt": 1})
+        self.assertEqual(plan["classificationDenominator"], {
+            "total": 6, "reusable": 1, "new": 1, "partial": 1, "failed": 1,
+            "uncertain": 1, "corrupt": 1, "providerGetEligible": 0,
+            "automaticProviderCalls": 0,
+            "uncertaintyReasons": {"REQUEST_OBSERVATION_BINDING_MISMATCH": 1}})
+        self.assertEqual((plan["remainingSegments"], plan["remainingWork"]["callsUpper"]), (1, 2))
+
     def test_explicit_official_exact_model_evidence_is_required(self):
         path = self.root / "model.json"
         evidence = {"sourceUrl": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash",

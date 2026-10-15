@@ -834,7 +834,8 @@ class SegmentExecutionTests(unittest.TestCase):
             executed = m.execute([self.row], self.info, self.state, self.config, self.limits,
                                  batch_id="post-diagnostics")
             readback = m.readback([self.row], self.state, self.config, provider=True, max_calls=1)
-        self.assertEqual(plan["cache"], {"reusable": 1, "new": 0, "readback_required": 0, "corrupt": 0})
+        self.assertEqual(plan["cache"], {"reusable": 1, "new": 0, "terminal_rejected": 0,
+                                         "readback_required": 0, "corrupt": 0})
         self.assertEqual((executed["reused"], executed["attempted"]), (1, 0))
         self.assertEqual(readback, {"phase": "readback", "recovered": 0, "unresolved": 0, "readbackCalls": 0})
         self.assertEqual(len(self.calls), calls)
@@ -865,7 +866,47 @@ class SegmentExecutionTests(unittest.TestCase):
             executed = m.execute([self.row], self.info, self.state, self.config, self.limits,
                                  batch_id="post-diagnostics-partial")
             readback = m.readback([self.row], self.state, self.config, provider=True, max_calls=1)
-        self.assertEqual(plan["cache"], {"reusable": 0, "new": 0, "readback_required": 1, "corrupt": 0})
+        self.assertEqual(plan["cache"], {"reusable": 0, "new": 0, "terminal_rejected": 1,
+                                         "readback_required": 0, "corrupt": 0})
+        self.assertEqual(plan["classificationDenominator"], {
+            "total": 1, "reusable": 0, "new": 0, "partial": 1, "failed": 0,
+            "uncertain": 0, "corrupt": 0, "providerGetEligible": 0,
+            "automaticProviderCalls": 0, "uncertaintyReasons": {}})
+        self.assertEqual((executed["blocked"], executed["attempted"]), (1, 0))
+        self.assertEqual(readback, {"phase": "readback", "recovered": 0, "unresolved": 1, "readbackCalls": 0})
+        self.assertEqual(len(self.calls), calls)
+        self.assertEqual({path: path.read_bytes() for path in self.state.rglob("*.json")}, before)
+
+    def test_observability_predecessor_binding_mismatch_stays_uncertain_and_get_ineligible(self):
+        predecessor = m.observability_predecessor_config(self.config)
+        self.scenario = "invalid"
+        with patch.object(m.AnalysisConfig, "identity", new=property(lambda _: predecessor)):
+            self.execute(batch_id="pre-diagnostics-binding-mismatch")
+        span = m.segment_rows(self.row, self.config)[0]
+        _, segment_path, _ = m._exact_paths(self.state, span, self.config, predecessor)
+        _, parent_path, _ = m._exact_paths(self.state, self.row, self.config, predecessor)
+        observation_path = segment_path.with_name(segment_path.name.replace(".receipt.json", ".observation.json"))
+        observation = m.checked_document(observation_path)
+        observation["operation"] = "readback"
+        m.atomic_document(observation_path, observation)
+        parent = m.checked_document(parent_path)
+        parent.update(state="segmented", code="SEGMENTS_PENDING")
+        parent.pop("blockedSegment", None)
+        m.atomic_document(parent_path, parent)
+        before = {path: path.read_bytes() for path in self.state.rglob("*.json")}
+        calls = len(self.calls)
+        with patch.object(m.adapter, "invoke", side_effect=AssertionError("mismatched binding cannot GET")):
+            plan = m.make_plan([self.row], self.info, self.state, self.config)
+            executed = m.execute([self.row], self.info, self.state, self.config, self.limits,
+                                 batch_id="post-diagnostics-binding-mismatch")
+            readback = m.readback([self.row], self.state, self.config, provider=True, max_calls=1)
+        self.assertEqual(plan["cache"], {"reusable": 0, "new": 0, "terminal_rejected": 0,
+                                         "readback_required": 1, "corrupt": 0})
+        self.assertEqual(plan["classificationDenominator"], {
+            "total": 1, "reusable": 0, "new": 0, "partial": 0, "failed": 0,
+            "uncertain": 1, "corrupt": 0, "providerGetEligible": 0,
+            "automaticProviderCalls": 0,
+            "uncertaintyReasons": {"REQUEST_OBSERVATION_BINDING_MISMATCH": 1}})
         self.assertEqual((executed["blocked"], executed["attempted"]), (1, 0))
         self.assertEqual(readback, {"phase": "readback", "recovered": 0, "unresolved": 1, "readbackCalls": 0})
         self.assertEqual(len(self.calls), calls)

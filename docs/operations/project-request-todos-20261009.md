@@ -24,6 +24,8 @@
 
 PR #3215의 GitGuardian 탐지 #38234125 한 건은 사용자 승인에 따라 `Ignored · Test credential` 상태를 확인했다. 해당 테스트 입력의 자격증명 형태는 `ade10447`에서 제거했고 관련 34개 검사가 통과했다. 즉시 조회한 과거 head의 check는 여전히 failure였으므로 새 head 검사 성공으로 재해석하지 않는다. 다른 탐지 변경과 workflow 재실행은 0건이다. OCR의 CSV 대체 모델, SSE 중단 후 기존 결과 조회, 관리자 재처리 revision 및 86/97-only의 정확한 readiness 경계를 이어서 구현·검증한다.
 
+리딤 계정의 기존 Google AI Studio 결제 탭에서 `tzudong-free-zero` 프로젝트 1개와 유료 1 등급, 사용 가능한 GCP 크레딧 `₩6.71만` 표시를 읽기 전용으로 확인했다. 반올림 전 잔액·선불 잔액·자동충전 설정·실제 청구 및 특정 생성 결과의 크레딧 차감은 이번 조회로 확인하지 않았다. 결제·추가 충전·provider 호출은 0회다. `gemini-credit-ui-readback-20261015.json`과 sidecar에 이 관측만 보존한다.
+
 증빙은 `apps/web/performance/goal-followthrough-20261015/`와 `apps/web/performance/feature-completion-20261013/`에 구분해 보관한다. 이번 항목은 결정적 건수·설정·계약 관측이므로 성능 변화율이나 95% 신뢰구간을 만들지 않는다. 공급자 요율 산술과 실제 청구도 구분한다.
 
 ## 2026-10-14 최신 실행 Todo
