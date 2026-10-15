@@ -975,7 +975,15 @@ def build_analysis(
         before_failure = failure_rate(phases["before"])
         after_failure = failure_rate(phases["after"])
         failure_signal = "insufficient_samples"
-        if before_failure["n"] >= MIN_COHORT_SUCCESSES and after_failure["n"] >= MIN_COHORT_SUCCESSES:
+        cohort_metadata_verified = all(
+            run["cohortMetadataVerified"]
+            for run in phases["before"] + phases["after"]
+        )
+        if (
+            cohort_metadata_verified
+            and before_failure["n"] >= MIN_COHORT_SUCCESSES
+            and after_failure["n"] >= MIN_COHORT_SUCCESSES
+        ):
             if after_failure["percent"] > before_failure["percent"]:
                 failure_signal = "failure_rate_increased"
             elif after_failure["percent"] < before_failure["percent"]:

@@ -50,8 +50,12 @@ class SourceReplayTests(unittest.TestCase):
             / "historical-collector-380c6e3f/.github/scripts/collect-ci-performance.py"
         )
         current = REPOSITORY / ".github/scripts/collect-ci-performance.py"
+        current_test = REPOSITORY / ".github/scripts/test_collect_ci_performance.py"
         self.assertEqual(sha256(historical), PROOF["historicalSource"]["sha256"])
         self.assertEqual(sha256(current), PROOF["currentSource"]["sha256"])
+        self.assertEqual(
+            sha256(current_test), PROOF["currentSource"]["testSha256"]
+        )
 
         with tempfile.TemporaryDirectory(prefix="tzudong-ci-source-replay-") as temp:
             temp_root = Path(temp)
@@ -83,6 +87,36 @@ class SourceReplayTests(unittest.TestCase):
                 sha256(current_output / "artifact-map.json"),
                 PROOF["currentSource"]["replayedArtifactMapSha256"],
             )
+
+    def test_offline_monitor_receipts_retain_authenticated_inputs(self) -> None:
+        monitor_root = ROOT.parent / "ci-monitor-20261011"
+        artifact_map_path = monitor_root / "artifact-map.json"
+        artifact_map = json.loads(artifact_map_path.read_text(encoding="utf-8"))
+        artifacts = {item["path"]: item for item in artifact_map["files"]}
+        self.assertEqual(len(artifact_map["files"]), 76)
+        self.assertEqual(
+            artifact_map["currentSourceBinding"], "current_path_sha256_and_bytes"
+        )
+        self.assertEqual(artifact_map["formalPerformanceAdmittedSlices"], 0)
+        self.assertEqual(
+            (monitor_root / "artifact-map.json.sha256").read_text(encoding="utf-8"),
+            f"{sha256(artifact_map_path)}  artifact-map.json\n",
+        )
+        for name in ("offline-replay", "final-offline-replay"):
+            directory = monitor_root / name
+            tick = json.loads((directory / "tick.json").read_text(encoding="utf-8"))
+            self.assertEqual(sha256(directory / "export.json"), tick["exportSha256"])
+            self.assertEqual(sha256(directory / "analysis.json"), tick["analysisSha256"])
+            for filename in ("analysis.json", "export.json", "tick.json"):
+                path = directory / filename
+                relative = path.relative_to(REPOSITORY).as_posix()
+                self.assertEqual(artifacts[relative]["sha256"], sha256(path))
+                self.assertEqual(artifacts[relative]["bytes"], path.stat().st_size)
+        for relative, item in artifacts.items():
+            path = REPOSITORY / relative
+            self.assertTrue(path.is_file(), relative)
+            self.assertEqual(item["sha256"], sha256(path), relative)
+            self.assertEqual(item["bytes"], path.stat().st_size, relative)
 
 
 if __name__ == "__main__":

@@ -743,13 +743,15 @@ class MonitorCiPerformanceTests(unittest.TestCase):
         after = self.write(
             "after.json",
             payload(
-                [make_run(1_400 + index, 50) for index in range(7)],
+                [make_run(1_400 + index, 50) for index in range(7)]
+                + [make_run(1_407, 50, conclusion="failure")],
                 workflow="web-admin-ci.yml",
             ),
         )
         receipt = self.invoke(before, after)
         cohort = receipt["analysis"]["cohorts"][0]
         self.assertEqual(cohort["metrics"], {})
+        self.assertEqual(cohort["failureSignal"], "insufficient_samples")
         self.assertIn("workflow_cohort_metadata_unverified", cohort["warnings"])
 
     def test_damaged_checkpoint_fails_without_overwriting_receipt(self) -> None:

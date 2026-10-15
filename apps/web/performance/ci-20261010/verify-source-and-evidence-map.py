@@ -25,6 +25,9 @@ HISTORICAL_DIRECTORY = Path(
 PROVENANCE_DIRECTORY = Path(
     "apps/web/performance/ci-20261010/local-compiler-provenance-20261015"
 )
+MONITOR_HISTORICAL_DIRECTORY = Path(
+    "apps/web/performance/ci-monitor-20261011/historical-artifact-map-73a439d4"
+)
 VERIFIER_RELATIVE = Path(
     "apps/web/performance/ci-20261010/verify-source-and-evidence-map.py"
 )
@@ -86,7 +89,11 @@ def load_map() -> dict[str, Any]:
 def expanded_paths(payload: dict[str, Any]) -> list[Path]:
     paths = {safe_relative(item.get("path")) for item in payload["files"]}
     paths.add(VERIFIER_RELATIVE)
-    for directory in (HISTORICAL_DIRECTORY, PROVENANCE_DIRECTORY):
+    for directory in (
+        HISTORICAL_DIRECTORY,
+        PROVENANCE_DIRECTORY,
+        MONITOR_HISTORICAL_DIRECTORY,
+    ):
         absolute = REPOSITORY / directory
         if not absolute.is_dir():
             raise RuntimeError(f"required evidence directory is missing: {directory}")

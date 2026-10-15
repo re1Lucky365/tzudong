@@ -29,9 +29,9 @@
   "schema": "tzudong-ci-performance/v1/artifact-map",
   "sourceFiles": [
     {
-      "bytes": 40740,
+      "bytes": 41184,
       "path": ".github/scripts/collect-ci-performance.py",
-      "sha256": "3cca836db070697afbf6a31d5df0d2711863c64efa2df4738d26571681aae58d"
+      "sha256": "0f8f488a0757fd05bb6e14fbc830dc37e515fa3c1910fa6b88e08a15d806c401"
     }
   ]
 }

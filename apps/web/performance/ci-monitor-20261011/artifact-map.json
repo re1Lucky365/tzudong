@@ -3,28 +3,28 @@
   "files": [
     {
       "path": ".github/scripts/collect-ci-monitor.py",
-      "sha256": "283094e56dfec28990ef2f1ddd61046e9f7f5c0833d92d5bb0c26271827dc438",
-      "bytes": 19402
+      "sha256": "0d8d63bf2ab4b26a9da1b12fc8758b8dd5f6f278565e787cabc0d38bac97c06e",
+      "bytes": 22071
     },
     {
       "path": ".github/scripts/collect-ci-performance.py",
-      "sha256": "5b5fc5bdebf4161b71db91f171d277e6f0677fcbbb459f5b5c4fb1023c037cd4",
-      "bytes": 39379
+      "sha256": "0f8f488a0757fd05bb6e14fbc830dc37e515fa3c1910fa6b88e08a15d806c401",
+      "bytes": 41184
     },
     {
       "path": ".github/scripts/monitor-ci-performance.py",
-      "sha256": "d4ff6c1ace299ace94038dd53786e247bcc5be1c3f5b91c10c373c74c1cb2b9e",
-      "bytes": 43056
+      "sha256": "920e98ac3a0e74c6fb0ceb224bda5565d1bfae4e467f2848f43f12d4030e5c69",
+      "bytes": 50943
     },
     {
       "path": ".github/scripts/prepare-ci-reference.py",
-      "sha256": "95dd1ba380faa176ccacafab3e9ff7803dd5f89501acd8d9edbac5abcf6879a6",
-      "bytes": 22295
+      "sha256": "f1eee964e34058209718a678c35a3bb51aea18584898a934f35c5d7cd5ddba40",
+      "bytes": 23914
     },
     {
       "path": ".github/scripts/run-ci-monitor.py",
-      "sha256": "30436d3aa5dc460421503baad5b8a76da526bb93c337144918be64fa39f4ffba",
-      "bytes": 13342
+      "sha256": "fa1b4de6d107bf4a3433c18d941ac98392f1d24f89f2b98c669e5b388c9f93b2",
+      "bytes": 13905
     },
     {
       "path": ".github/scripts/test_ci_audit_budget.py",
@@ -33,28 +33,28 @@
     },
     {
       "path": ".github/scripts/test_collect_ci_monitor.py",
-      "sha256": "0501181275dcfa9d650c384a93366ee4d47fa3980239366c9f81bf9a6778f861",
-      "bytes": 14626
+      "sha256": "ee739673a282eb2234ed5dd3da939a0363bc3423f071e113969aad2c0db93158",
+      "bytes": 16739
     },
     {
       "path": ".github/scripts/test_collect_ci_performance.py",
-      "sha256": "25d39d1e750110c0fb5bc4f77062623daba23511812af551f12297031951827b",
-      "bytes": 6765
+      "sha256": "d9019ff7f6f38e2c55536ac861806c29275fcf72265daa769dbc8637db275c9f",
+      "bytes": 10200
     },
     {
       "path": ".github/scripts/test_monitor_ci_performance.py",
-      "sha256": "e402ea4b13be208e3ab43b4d79d2e4e19b55d284bd87a026e4c5f42f564e0ee6",
-      "bytes": 23360
+      "sha256": "c3df94f989caa373565308192476a4aac7fefa70fcc9c6f1a1842b2c6eeb203f",
+      "bytes": 34106
     },
     {
       "path": ".github/scripts/test_prepare_ci_reference.py",
-      "sha256": "7cf61af114f2258cf2815624e547433171df0e11f0a1c08482a1341664c7e7db",
-      "bytes": 19761
+      "sha256": "bae41794bd958bcbd00ffce3c00a13b89acfdc83679732c4bbd55aba3d05911c",
+      "bytes": 24673
     },
     {
       "path": ".github/scripts/test_run_ci_monitor.py",
-      "sha256": "440b8a8a85ebdbe2e407ad42f74689bbd4f9b5dab68405acac74b3083e31ee40",
-      "bytes": 13923
+      "sha256": "a251a57a53667c6824d46280290ca0e24fbd56e5cc22beca794f6d4e32074f83",
+      "bytes": 17917
     },
     {
       "path": ".github/workflows/security-audit.yml",
@@ -227,6 +227,11 @@
       "bytes": 11011
     },
     {
+      "path": "apps/web/performance/ci-monitor-20261011/final-offline-replay/export.json",
+      "sha256": "d30558285d8fd4a466d11757f03cf5e24656545a0611a08d9a69f7454d928242",
+      "bytes": 1956285
+    },
+    {
       "path": "apps/web/performance/ci-monitor-20261011/final-offline-replay/tick.json",
       "sha256": "ef9c2c5c0e679b2b114e4ccee56ad57d1616995aa83f9952dce06c3a6d5ee9c9",
       "bytes": 1792
@@ -277,6 +282,16 @@
       "bytes": 1850
     },
     {
+      "path": "apps/web/performance/ci-monitor-20261011/historical-artifact-map-73a439d4/artifact-map.json",
+      "sha256": "67c2d6dba00ab7e609525693034f25b8d507c3c8bc9c52c1bdfc0394a1b71687",
+      "bytes": 14678
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/historical-artifact-map-73a439d4/artifact-map.json.sha256",
+      "sha256": "298f774495f133b3e5ae80b258928ffdb36fd5a054eb7e80870c1cf98d3417cb",
+      "bytes": 84
+    },
+    {
       "path": "apps/web/performance/ci-monitor-20261011/initial-analysis.json",
       "sha256": "47a9ba4ffc7054fb6ac5ba1060dc371c322433eede73c28f58a6ab5ca469363a",
       "bytes": 10807
@@ -295,6 +310,11 @@
       "path": "apps/web/performance/ci-monitor-20261011/offline-replay/analysis.json",
       "sha256": "3904f053afaf91678f0443dddff156f7b1431b73b8251e404887e98fb0f20dad",
       "bytes": 11011
+    },
+    {
+      "path": "apps/web/performance/ci-monitor-20261011/offline-replay/export.json",
+      "sha256": "477f09dda1c9ecb3e2722ef16fdd7ed384be1d9fd57f6f0fa54c9a84048dbe5e",
+      "bytes": 1956284
     },
     {
       "path": "apps/web/performance/ci-monitor-20261011/offline-replay/tick.json",
@@ -358,10 +378,15 @@
     },
     {
       "path": "docs/operations/github-ci-monitor-20261011.md",
-      "sha256": "af52886379c1b1886324d3a59df7b51e74ecb1e6c9e4265552e2c6707132d8d2",
-      "bytes": 16151
+      "sha256": "dfa4e5d6d7effa2e5d7f827a76586d9fd19f59035753fe64997447e1286c1d6e",
+      "bytes": 20313
     }
   ],
   "sourceBaseCommit": "6098055f2d8d141625a216a99d6c8f99956de2a0",
+  "sourceBaseCommitMeaning": "historical replay lineage only; file entries bind current path bytes",
+  "currentSourceBinding": "current_path_sha256_and_bytes",
+  "historicalArtifactMapPath": "apps/web/performance/ci-monitor-20261011/historical-artifact-map-73a439d4/artifact-map.json",
+  "historicalArtifactMapSha256": "67c2d6dba00ab7e609525693034f25b8d507c3c8bc9c52c1bdfc0394a1b71687",
+  "historicalResultsRelabeledAsCurrentPerformanceProof": false,
   "formalPerformanceAdmittedSlices": 0
 }

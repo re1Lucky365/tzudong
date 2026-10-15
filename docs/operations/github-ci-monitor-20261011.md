@@ -96,9 +96,11 @@ run `38617798185`, attempt `2`는 attempt별 job 응답 6개 중 5개에서 `sta
 
 - 고정 before 기준선의 모순은 계속 fail-closed다.
 - after attempt의 모순은 원본 fingerprint와 완료·실패 상태를 보존하고 고정 코드로 기록한다. 시각 clamp, 추정, 삭제, tombstone 변환은 하지 않는다.
-- 해당 attempt는 `terminalEvidenceComplete=false`, `timingUsable=false`이며 임계 경로·러너 점유·queue·stage 표본을 모두 비운다. 동일 fingerprint는 O(1) checkpoint 중복 조회로 재사용하고, 공급자가 같은 attempt를 일관된 값으로 교정한 경우에만 교체 후 terminal로 동결할 수 있다.
+- 해당 attempt는 완료 결과 자체는 `terminalOutcomeComplete=true`로 보존하지만 `snapshotImmutable=false`, `timingUsable=false`이며 임계 경로·러너 점유·queue·stage 표본을 모두 비운다. 동일 fingerprint는 O(1) checkpoint 중복 조회로 재사용하고, 공급자가 같은 attempt를 일관된 값으로 교정한 경우에만 교체 후 불변화할 수 있다.
 - reference 성공·source-tree 표본에서는 제외하고 `chronology_invalid_attempt` pending으로 창 전환을 막는다. 오류 코드는 1회성 `chronology:<run>:<attempt>:<code>` 경보로 노출한다. 이후 정상 attempt 수집과 분석은 계속한다.
 
 불변 입력을 별도 상태 디렉터리에서 재생한 결과 첫 tick은 69개 attempt를 수용했고 문제 attempt에 `JOB_START_PRECEDES_JOB_CREATION`, `JOB_COMPLETION_PRECEDES_JOB_CREATION`을 기록했다. 시간 지표는 모두 `null` 또는 빈 stage였고 reference는 성공 11개·source tree 7개가 있어도 pending 1개 때문에 `collecting_reference`를 유지했다. 같은 입력의 두 번째 tick은 신규 수용 0·중복 69·새 경보 0이었다. 직접 테스트 60개와 전체 CI Python 테스트 82개는 기준선 fail-closed, 현재 창 표본 제외, 동일 fingerprint 중복, 교정 가능한 비terminal 상태, 교정 후 불변화, 정상 신규 run 지속 수용, 준비된 후보의 재차단, reference 차단을 검증했다. 이는 격리 로컬 재생이며 GitHub 응답의 근본 생성 원인 해결이나 운영 창 전환을 뜻하지 않는다.
+
+`offline-replay/`와 `final-offline-replay/`의 당시 `export.json`을 각 tick의 `exportSha256`과 같은 원본 byte로 보존했다. 이 replay·raw·analysis·admission은 당시 소스와 입력에서 생성된 historical receipt이며 현재 analyzer 또는 현재 성능 개선의 증명으로 재라벨하지 않는다. PR head `73a439d4`에 있던 artifact map과 sidecar는 `historical-artifact-map-73a439d4/`에 byte-exact로 보존했다. 현재 artifact map은 76개 경로의 현재 bytes/hash를 검증하며, historical map 두 파일도 별도 entry로 결속한다. 이 map 갱신은 과거 scorer 결과나 `formalPerformanceAdmittedSlices=0`을 바꾸지 않는다.
 
 후보를 `origin/develop` `ab9196b30f469ce34e9bda6e36db90098059a822`와 병합한 뒤 reconciliation 207개 entry의 현재 bytes에서 candidate content hash를 다시 계산했다. CI Python 82개, source classifier 6개, reconciliation 7개와 관련 workflow 3개의 actionlint 1.7.12가 통과했다. 저장소 전체 actionlint는 이 후보가 바꾸지 않은 `daily-crawler.yml`, `g035-hosted-recovery.yml`, `ts7-release-evidence.yml`의 기존 오류 4건으로 실패하므로 전체 workflow 무결성을 주장하지 않는다.
