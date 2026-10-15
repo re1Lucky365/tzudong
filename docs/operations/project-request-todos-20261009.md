@@ -15,6 +15,8 @@
 
 10월 15일 후속: OCR generation·model policy·status readback SQL을 로컬 `392398a9`에 기록했고 실제 권한 경로의 PG17.6 검증은 통과했다. 사용자 RPC 수정·관리자 service reset·stale publish 거부·두 lock 순서에서 deadlock 0→0, 원본 catalog SHA 불변을 확인했다. OCR UI 복구·경합 검사는 51 pass이며 마지막 build는 53 static pages와 CSS boundary를 통과했다. 전체 canonical 후속 첫 실행은 3,538 pass·18 fail·3 skip으로, readiness fixture 갱신 후 재검증 중이다. PG15 전체 dual replay·보호 승격·운영 적용·live readback은 아직 완료가 아니다. 아래 과거 수치는 각 시점의 관측으로 보존하며 최신 소스의 최종 통과로 재해석하지 않는다.
 
+추가 관측: 위 브라우저 실패는 readiness 응답 및 lifecycle ref가 빠진 fixture 때문이었고, 수정 후 스토리보드 15개·리뷰/IndexedDB 3개가 통과했다. UI source 계약도 44개가 통과했다. 새 canonical 전체 판정은 아직 없다. 첫 clean PG15 재구축에서는 저장소에 생성 소스가 없던 OCR 컬럼 4개를 발견했으며, 기존 운영 정의를 미적용 migration에 보강 중이다. 이전 PG17 proof는 이전 source에만 유효하다. CI PR #3168은 `cd7039478c5707b73a2ce79dafae313d0d2f0fce`로 갱신했고 root 독립 Python112개 및 map86/76개 bytes/hash 일치, 검토3건 resolve를 확인했다. 새 v9 감시 환경은 기존 v8를 보존한 별도 경로에서 준비·첫 tick 검증 중이며 자동화 전환은 아직 하지 않았다.
+
 - UI PR #3195는 `develop`의 `97a94381303f5426892d686c94ef1bd23735c7a2`에 정상 병합됐다. 현재 운영 alias는 아직 `dpl_EUxJnWmDDozCSMWb2sqNSPgKJLM5` / main `1884f87e53c4567ead7c9a0fb394b09b91a70396`다. 병합과 배포를 구분한다.
 - Feature 후보의 당시 canonical unit은 Node24.21.0·Bun1.4.0에서 3,749 pass·0 fail·11 skip으로 종료했고 선택한 코드 입력 1,516개의 전후 SHA drift는 0건이다. 이후 readiness·OCR 계약이 변경 중이므로 이 결과는 새 소스의 최종 검증이 아니며, 전체 runtime closure나 hosted 동작 증거도 아니다. 앞선 3,529 pass·1 fail·3 skip과 3,528 pass·3 fail·3 skip도 보존했다. 인증 helper의 새 source-binding 인자를 검사하도록 기존 계약을 갱신했고, CLI 실패 fixture는 임시 앱에서 패키지를 자동 해석하지 않도록 설치된 의존성과 Node24를 사용한다. 필수 검사와 timeout은 줄이지 않았다.
 - 앞선 native7.0.2/compat6.0.2 parity는 3,161 inputs·diagnostics0이며 변경 테스트 3파일의 ESLint도 통과했다. `/s/[code]`는 실제 GET handler에 재결속했다. 논리 표면 27개와 page 파일 26개를 구분하며 과거 브라우저 캡처를 현재 화면 증거로 바꾸지 않는다.
@@ -872,3 +874,15 @@ DB rehearsal checksum38개와 successor checksum25개는 mismatch0, 각 detached
 UI 커밋 뒤 `origin/develop`을 충돌 없이 병합한 HEAD `2d7e284df964e3f00ce61deb49165e321d273fc0`에서 clean 시작 상태를 확인했다. Node24.21.0·Bun1.4.0·`TZUDONG_NODE24_BIN`을 고정한 canonical unit runner는21그룹·450 file executions·3,656 pass·11 skip·0 fail·92,655 assertions로 종료0이었다. native7.0.2/compat6.0.2 parity는3,156 logical inputs·diagnostics0, 병합으로 들어온 Sentry·proxy·Next 설정 관련12개 코드·테스트의 ESLint는 warnings0으로 종료했다.
 
 새 production fixture build `fc15-01`은 Next16.3.8·source1,543개, 전후 source hash `d3e5b84d936de03099cc68454128112d45fd2e7d123342f321d8e5f2f67e7881` 동일, tsconfig 복구, 임시 dependency link 제거, CSS 경계를 확인했다. 새 runtime closure는4,540 files·160,203,871 bytes·SHA `9c25b133c185cca2f01069901eb7b655686fbdd81ed0ade51dc89f78a717eabf`다. 이는 현재 병합 소스에 대한 새 로컬 build 증거이며 기존 `fc14-02`·과거 실패·render·smoke·PostgreSQL·provider 증거를 재표시하지 않는다. raw log는 runtime-cache 또는 ignore 경로에만 두었고, browser render·OAuth·hosted DB·provider·배포·운영 서비스·성능·비용 개선은 주장하지 않는다.
+
+
+### 2026-10-15 OCR 최종 로컬 검사와 CI 감시 전환 감사
+
+- [x] `59be0ec6`의 canonical 웹 검사: 3,775 pass·0 fail·11 skip·92,234 assertions, 입력 1,270개 source drift 0. 첫 18개 실패와 font·타입 오류 증빙은 보존했고 최종 통과와 합산하지 않았다.
+- [x] 동일 소스의 targeted ESLint 51개: 오류·경고 0, source binding mismatch 0. 기존 성공 build의 선택 앱 입력 757개도 현재 bytes와 일치한다. 새 SQL은 build 증명에 포함하지 않는다.
+- [x] 아직 적용하지 않은 OCR migration에 기존 운영의 4개 컬럼·3개 인덱스 생성 계약과 catalog 충돌 거부를 보강. exact PG17.6 proof findings 0·23 source bindings 일치. PG15.8 독립 clean reconstruction 2회 exit 0, 58개 파일·1,960 catalog 행 exact-byte 일치, comparison passed. 운영 쓰기 0.
+- [x] CI `cd703947`의 이전 리뷰 3건 수정·push·해결. 해당 head의 원격 검사 24 success·1 neutral·1 skipped·실패 0. 이것을 다음 수정 head의 통과로 재사용하지 않는다.
+- [ ] 새 CI 리뷰 3건: 오래된 rerun 발견의 API coverage, 0-threshold 무변화 오판, compiler manifest/28 raw command provenance 결속을 병렬 수정 중.
+- [x] v9 전환 후보의 과거 immutable success 4건 누락 발견. 자동화 전환을 거부하고 별도 audit 영수증 보존. active v8와 기존 baseline/state는 유지했다.
+- [ ] v10은 원시 입력 합집합 82키의 근거를 준비했지만 최종 CI source 수정·재분석·live tick·전체 설정 readback 전에는 활성화하지 않는다. 과거 checkpoint를 복사하거나 phase를 옮기지 않는다.
+- [ ] 현재 feature 증빙·독립 코드 감사 마감 후 PR #3215에 push, 최신 head의 리뷰와 필수 검사를 통과시킨다. 보호된 승격, held/ready 2단계 배포, 새 writer fence, 운영 SQL·OCR/스토리보드/자동 승인·Storage/live readback은 별도 미완료다. 전체 목표는 active이며 성능·금액 절감·세계 순위는 주장하지 않는다.

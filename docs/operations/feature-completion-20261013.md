@@ -103,4 +103,12 @@ SQL·manifest·변환기와 새 PG17.6 하니스를 로컬 커밋 `392398a9`에 
 
 영수증 복구는 최초 요청의 사진·맛집 context를 유지하고, 사진 교체·삭제·닫기 뒤 도착한 이전 응답과 buffered SSE patch를 무시한다. 상태 조회는 수동 수정·입력 위치를 초기화하지 않으며, 사진 삭제는 요청을 중단하고 busy 상태도 해제한다. 실제 컴포넌트 함수를 실행하는 관련 51개 검사가 통과했다. 늦은 결과의 result/field/notices 효과는 고정 fixture에서 2/2/1→0/0/0이었으며, 이는 지연·비용 개선 추정이 아니므로 신뢰구간을 적용하지 않는다.
 
-최종 웹 build는 Node24.21.0·Next16.3.8에서 compile·TypeScript·static 53 pages·route CSS boundary를 통과했고 선택한 runtime/build 입력 757개 drift는 0건이다. 최초 font 다운로드 실패와 후속 타입 오류도 별도 rejected 영수증으로 남겼다. 전체 canonical unit의 첫 후속 실행은 3,538 pass·18 fail·3 skip으로 중단됐다. 새 readiness 계약을 공급하지 못한 브라우저 fixture와 이전 source assertion을 수정하고 있으며 이 실패를 최종 통과로 합산하지 않는다. 현재 영수증은 `apps/web/performance/feature-completion-20261013/ocr-recovery-race-verification-20261015.json`이다. 실제 운영 DB 반영·배포·사용자 OCR 저장 완료는 미확인이다.
+최종 웹 build는 Node24.21.0·Next16.3.8에서 compile·TypeScript·static 53 pages·route CSS boundary를 통과했고 선택한 runtime/build 입력 757개 drift는 0건이다. 최초 font 다운로드 실패와 후속 타입 오류도 별도 rejected 영수증으로 남겼다. 전체 canonical unit의 첫 후속 실행은 3,538 pass·18 fail·3 skip으로 중단됐다. 새 readiness 계약을 공급하지 못한 브라우저 fixture와 이전 source assertion을 수정했고, 이 첫 실패 기록은 보존한다. 당시 영수증은 `apps/web/performance/feature-completion-20261013/ocr-recovery-race-verification-20261015.json`이다. 실제 운영 DB 반영·배포·사용자 OCR 저장 완료는 미확인이다.
+
+## 2026-10-15 재구축 가능한 OCR 스키마와 최종 웹 검사
+
+PG15 전체 재구축은 운영 복제본에만 있던 `reviews.receipt_hash` 컬럼의 소스 부재로 최초 실패했다. 해당 실패와 소유 자원 정리 결과를 별도 보존했다. 아직 적용하지 않은 durable migration에 운영의 기존 4개 컬럼과 3개 인덱스를 멱등적으로 선언하고, 같은 이름의 다른 타입·기본값·NULL 허용·인덱스 정의는 거부하도록 보강했다. 이미 적용한 migration과 기존 RLS·권한은 변경하지 않았다. 이 소스는 `59be0ec683642a3f26c759fc54589229ca16f7d6`에 기록했다.
+
+새 exact PG17.6 복제 검증은 findings 0이고 소스 23개 bytes/hash·sidecar 일치를 root가 확인했다. 새 증빙은 `pg17-existing-catalog-replay-review-ocr-catalog-contract-20261015.json`이며 이전 proof를 현재 SQL에 재라벨하지 않았다. PG15.8의 깨끗한 독립 재구축 두 회도 각각 exit 0으로 끝났고 canonical comparison은 passed다. root가 두 결과를 다시 읽어 58개 파일·각 1,788,551 bytes·1,960 catalog 행의 exact-byte 일치와 comparison receipt SHA `0cb272ffc3458225645ca95151fc5ff72010b7478ddcd096ed0fcdf71c5d5418`를 확인했다. worker의 소유 Docker 자원과 프로세스 잔여물은 0개다. 이는 source reconstruction이며 hosted catalog 동일성 증명은 아니다.
+
+동일 `59be0ec6`의 canonical `npm run test:unit`은 3,775 pass·0 fail·11 skip·92,234 assertions·exit 0, 선택 입력 1,270개 drift 0으로 종료했다. 건너뛴 11개는 통과에 합산하지 않는다. targeted ESLint 51개 파일은 오류·경고 0이고 source binding 51개도 일치한다. 최종 build의 선택 입력 757개는 현재 앱 bytes와 다시 대조해 mismatch 0이었다. 이는 새 빌드 실행이나 새 SQL 전체의 build 증명이 아니며 SQL은 별도 PG 검증을 따른다. 새 영수증은 `ocr-recovery-canonical-final-59be0ec6-20261015.json`, `ocr-recovery-eslint-final-59be0ec6-20261015.json`, `ocr-recovery-build-input-readback-59be0ec6-20261015.json`이다. 이 결과는 로컬 검증이며 운영 적용·provider 응답·실제 사용자 저장 완료나 성능·금액 절감을 주장하지 않는다.
