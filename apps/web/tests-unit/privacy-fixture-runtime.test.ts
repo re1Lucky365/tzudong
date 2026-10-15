@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   lstatSync,
@@ -59,17 +60,6 @@ function lockedDependencies(webRoot: string, dependencies: string) {
     mkdirSync(path.join(dependencies, name), { recursive: true });
     writeFileSync(path.join(dependencies, name, 'package.json'), `${JSON.stringify({ name, version })}\n`);
     writeFileSync(path.join(dependencies, name, 'index.js'), `export const packageName = ${JSON.stringify(name)};\n`);
-  }
-}
-
-function materializeInstalledLock(sourceWebRoot: string, dependencies: string) {
-  const installedLock = JSON.parse(readFileSync(path.join(sourceWebRoot, 'node_modules', '.package-lock.json'), 'utf8'));
-  writeFileSync(path.join(dependencies, '.package-lock.json'), `${JSON.stringify(installedLock)}\n`);
-  for (const [lockedPath, row] of Object.entries(installedLock.packages) as Array<[string, { version?: string }]>) {
-    if (!lockedPath.startsWith('node_modules/') || typeof row.version !== 'string') continue;
-    const packageRoot = path.join(dependencies, lockedPath.slice('node_modules/'.length));
-    mkdirSync(packageRoot, { recursive: true });
-    writeFileSync(path.join(packageRoot, 'package.json'), `${JSON.stringify({ version: row.version })}\n`);
   }
 }
 
@@ -273,12 +263,18 @@ describe('privacy fixture runtime ownership', () => {
         path.join(evidenceRoot, 'privacy-fixture-runtime.mjs'),
         readFileSync(path.join(webSource, 'performance/admin-route-consistency-20261012/privacy-fixture-runtime.mjs')),
       );
+      // This ownership fixture needs a coherent lock, not the mutable checkout's
+      // installed package manager state. Rebind only the temporary launcher copy;
+      // the historical launcher and its evidence hash remain unchanged.
+      lockedDependencies(webRoot, dependencies);
+      const fixtureLock = readFileSync(path.join(webRoot, 'package-lock.json'));
+      const launcher = readFileSync(path.join(webSource, 'performance/admin-route-consistency-20261012/v2/start-loopback.mjs'), 'utf8');
+      const lockBinding = /const EXPECTED_LOCK_SHA256 = '[0-9a-f]{64}';/g;
+      expect(launcher.match(lockBinding)).toHaveLength(1);
       writeFileSync(
         path.join(launcherDirectory, 'start-loopback.mjs'),
-        readFileSync(path.join(webSource, 'performance/admin-route-consistency-20261012/v2/start-loopback.mjs')),
+        launcher.replace(lockBinding, `const EXPECTED_LOCK_SHA256 = '${createHash('sha256').update(fixtureLock).digest('hex')}';`),
       );
-      writeFileSync(path.join(webRoot, 'package-lock.json'), readFileSync(path.join(webSource, 'package-lock.json')));
-      materializeInstalledLock(webSource, dependencies);
       writeFileSync(path.join(webRoot, dist, 'BUILD_ID'), 'fixture-build-id\n');
       writeFileSync(path.join(dependencies, 'next', 'package.json'), '{"version":"16.3.8"}\n');
       writeFileSync(
