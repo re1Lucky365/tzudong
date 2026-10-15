@@ -112,6 +112,7 @@ function fixture() {
         content: 'Synthetic offline fixture review content only.',
         verificationPhoto: new File(['receipt'], 'receipt.jpg'), foodPhotos: [new File(['food'], 'food.jpg')],
         restaurantId: 'fixture-restaurant',
+        ocrResultRef: null as string | null, ocrResultRevision: null as string | null,
     };
     const messages: {title: string; description?: string}[] = [];
     const recoveryStates: (string | null)[] = [];
@@ -184,8 +185,9 @@ describe('actual receipt result recovery', () => {
         const setMode = evaluate(`${nodeText(source, 'setReceiptVerificationInputMode')};`, {
             useCallback: (callback: unknown) => callback,
             verificationInputModeRef, receiptOcrPreparationRef, ocrRunGenerationRef, ocrAbortControllerRef,
-            userStepOverrideDuringOcrRef,
+            userStepOverrideDuringOcrRef, latestSaveInputsRef: { current: {} },
             setVerificationInputMode(value: 'ai' | 'manual') { renderedMode = value; },
+            setOcrResultRef() {}, setOcrResultRevision() {},
             setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
         }) as (mode: 'ai' | 'manual') => void;
         const selectPhoto = evaluate(`${nodeText(source, 'handleVerificationPhotoSelected')};`, {
@@ -321,8 +323,9 @@ describe('actual receipt result recovery', () => {
         const setMode = evaluate(`${nodeText(source, 'setReceiptVerificationInputMode')};`, {
             useCallback: (callback: unknown) => callback,
             verificationInputModeRef, receiptOcrPreparationRef, ocrRunGenerationRef, ocrAbortControllerRef,
-            userStepOverrideDuringOcrRef,
-            setVerificationInputMode() {}, setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
+            userStepOverrideDuringOcrRef, latestSaveInputsRef: { current: {} },
+            setVerificationInputMode() {}, setOcrResultRef() {}, setOcrResultRevision() {},
+            setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
         }) as (mode: 'ai' | 'manual') => void;
         const analyze = evaluate(`${nodeText(source, 'analyzeReceipt')}\nanalyzeReceipt;`, {
             AbortController, featureHeld: false, user: { id: 'fixture-owner' },
@@ -371,8 +374,9 @@ describe('actual receipt result recovery', () => {
         const setMode = evaluate(`${nodeText(source, 'setReceiptVerificationInputMode')};`, {
             useCallback: (callback: unknown) => callback,
             verificationInputModeRef, receiptOcrPreparationRef, ocrRunGenerationRef, ocrAbortControllerRef,
-            userStepOverrideDuringOcrRef,
-            setVerificationInputMode() {}, setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
+            userStepOverrideDuringOcrRef, latestSaveInputsRef: { current: {} },
+            setVerificationInputMode() {}, setOcrResultRef() {}, setOcrResultRevision() {},
+            setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
         }) as (mode: 'ai' | 'manual') => void;
         const analyze = evaluate(`${nodeText(source, 'analyzeReceipt')}\nanalyzeReceipt;`, {
             AbortController, featureHeld: false, user: { id: 'fixture-owner' },
@@ -478,6 +482,37 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         const row = [...f.rows.values()][0]; expect(row.is_verified).toBe(false); expect(row.user_id).toBe('fixture-owner');
         expect(row.verification_photo.startsWith(`${row.user_id}/reviews/${row.id}/verification/`)).toBe(true);
         expect(row.food_photos[0].startsWith(`${row.user_id}/reviews/${row.id}/food/`)).toBe(true);
+    });
+    test('photo-only mode clears a completed OCR binding and uses the standard review insert', async () => {
+        const f = fixture();
+        f.bindings.latestSaveInputsRef.current = {
+            ...f.bindings.latestSaveInputsRef.current,
+            ocrResultRef: '11111111-1111-4111-8111-111111111111',
+            ocrResultRevision: '22222222-2222-4222-8222-222222222222',
+        };
+        const cleared = { ref: false, revision: false };
+        const setMode = evaluate(`${nodeText(source, 'setReceiptVerificationInputMode')};`, {
+            useCallback: (callback: unknown) => callback,
+            verificationInputModeRef: { current: 'ai' },
+            receiptOcrPreparationRef: { current: createLatestSelection() },
+            ocrRunGenerationRef: { current: 0 }, ocrAbortControllerRef: { current: null },
+            userStepOverrideDuringOcrRef: { current: false },
+            latestSaveInputsRef: f.bindings.latestSaveInputsRef,
+            setVerificationInputMode() {},
+            setOcrResultRef(value: null) { cleared.ref = value === null; },
+            setOcrResultRevision(value: null) { cleared.revision = value === null; },
+            setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
+        }) as (mode: 'ai' | 'manual') => void;
+
+        setMode('manual');
+        expect(cleared).toEqual({ ref: true, revision: true });
+        expect(f.bindings.latestSaveInputsRef.current.ocrResultRef).toBeNull();
+        expect(f.bindings.latestSaveInputsRef.current.ocrResultRevision).toBeNull();
+
+        await f.submit();
+        expect(f.rows.size).toBe(1);
+        expect(f.counts).toEqual({ uploads: 2, inserts: 1, removes: 0, reads: 0, cleared: 1, success: 1, closes: 1 });
+        expect([...f.rows.values()][0]).not.toHaveProperty('receipt_data');
     });
     test('held feature readiness stops before draft capture, upload, or review insert', async () => {
         const f = fixture(); f.setFeatureReady(false); await f.submit();

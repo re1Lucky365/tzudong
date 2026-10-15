@@ -77,6 +77,22 @@ describe('Gemini storyboard worker client', () => {
     expect(resolveStoryboardGeminiKey({ GEMINI_CREDITS_API_KEY: 'funded', STORYBOARD_GEMINI_API_KEY: 'other' })).toBe('funded');
     expect(resolveStoryboardGeminiKey({ NEXT_PUBLIC_GOOGLE_API_KEY: 'public' })).toBeNull();
   });
+  test('passes the worker env-file scope and AbortSignal to every project-budget acquisition', async () => {
+    const fake = fakeClient();
+    const controller = new AbortController();
+    const env = { GEMINI_CREDITS_API_KEY: 'funded', GEMINI_BUDGET_PROJECT: 'worker-env-file' };
+    const observed: Array<{ env?: NodeJS.ProcessEnv; signal?: AbortSignal }> = [];
+    const budget = async <T>(work: () => Promise<T>, options?: { env?: NodeJS.ProcessEnv; signal?: AbortSignal }) => {
+      observed.push(options ?? {});
+      return await work();
+    };
+
+    await new GeminiStoryboardClient({ client: fake.client, env, budget }).models(controller.signal);
+
+    expect(observed).toHaveLength(3);
+    expect(observed.every((entry) => entry.env?.GEMINI_BUDGET_PROJECT === 'worker-env-file')).toBe(true);
+    expect(observed.every((entry) => entry.signal === controller.signal)).toBe(true);
+  });
   test('coalesces repeated metadata polling through a bounded catalog and returns independent objects', async () => {
     const fake = fakeClient(); const provider = new GeminiStoryboardClient({ client: fake.client, budget: directBudget });
     const first = await provider.models(); first[0].capabilities.push('forged');

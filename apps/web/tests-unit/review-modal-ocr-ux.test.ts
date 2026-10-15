@@ -166,6 +166,10 @@ describe('review modal OCR terminal recovery contract', () => {
     expect(reviewModalSource).toContain('const verificationInputModeRef = useRef<VerificationInputMode>("ai")');
     expect(reviewModalSource).toContain('receiptOcrPreparationRef.current.invalidate()');
     expect(reviewModalSource).toContain('userStepOverrideDuringOcrRef.current = true');
+    expect(reviewModalSource).toContain('setOcrResultRef(null)');
+    expect(reviewModalSource).toContain('setOcrResultRevision(null)');
+    expect(reviewModalSource).toContain('ocrResultRef: null');
+    expect(reviewModalSource).toContain('ocrResultRevision: null');
     expect(reviewModalSource).toContain('ocrAbortControllerRef.current?.abort()');
     expect(reviewModalSource.match(/onClick=\{\(\) => setReceiptVerificationInputMode\("manual"\)\}/g)).toHaveLength(3);
     expect(reviewModalSource).not.toContain('onClick={() => setVerificationInputMode("manual")}');

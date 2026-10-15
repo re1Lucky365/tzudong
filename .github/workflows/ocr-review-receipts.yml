@@ -27,7 +27,18 @@ concurrency:
 
 jobs:
   process:
-    if: github.ref_name == github.event.repository.default_branch
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository == 'twoimo/tzudong' &&
+      github.event.repository.full_name == 'twoimo/tzudong' &&
+      github.event.repository.default_branch == 'main' &&
+      github.event.repository.owner.login == github.repository_owner &&
+      github.repository_owner == github.actor &&
+      github.triggering_actor == github.actor &&
+      github.event.sender.login == github.actor &&
+      github.ref == 'refs/heads/main' &&
+      github.ref_name == 'main' &&
+      github.ref_protected
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -47,6 +58,33 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+
+      - name: Verify authenticated owner dispatch and protected main source
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          EVENT_REPOSITORY_FULL_NAME: ${{ github.event.repository.full_name }}
+          EVENT_REPOSITORY_OWNER: ${{ github.event.repository.owner.login }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          SENDER_LOGIN: ${{ github.event.sender.login }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = twoimo/tzudong
+          test "$EVENT_REPOSITORY_FULL_NAME" = twoimo/tzudong
+          test "$DEFAULT_BRANCH" = main
+          test "$EVENT_REPOSITORY_OWNER" = "$REPOSITORY_OWNER"
+          test "$GITHUB_ACTOR" = "$REPOSITORY_OWNER"
+          test "$TRIGGERING_ACTOR" = "$REPOSITORY_OWNER"
+          test "$SENDER_LOGIN" = "$REPOSITORY_OWNER"
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_REF_NAME" = main
+          test "$GITHUB_REF_PROTECTED" = true
+          test "$GITHUB_SHA" = "$(git rev-parse --verify HEAD)"
+          test "$GITHUB_SHA" = "$(git show -s --format=%H HEAD)"
+          test -z "$(git symbolic-ref --quiet HEAD || true)"
+          test -z "$(git status --short)"
 
       - name: Set up Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6

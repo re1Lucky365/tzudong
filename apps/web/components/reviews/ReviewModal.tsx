@@ -571,6 +571,13 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         ocrAbortControllerRef.current?.abort();
         ocrAbortControllerRef.current = null;
         userStepOverrideDuringOcrRef.current = true;
+        setOcrResultRef(null);
+        setOcrResultRevision(null);
+        latestSaveInputsRef.current = {
+            ...latestSaveInputsRef.current,
+            ocrResultRef: null,
+            ocrResultRevision: null,
+        };
         setIsAnalyzing(false);
         setOcrProgress(null);
         setOcrFallbackNotice(null);

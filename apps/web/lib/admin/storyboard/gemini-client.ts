@@ -7,12 +7,13 @@ import {
 import { STORYBOARD_GEMINI_TEXT_MODEL, STORYBOARD_GEMINI_IMAGE_MODELS, isAllowedStoryboardGeminiModel } from './gemini-models';
 
 type Usage = { model: string; promptTokens: number | null; outputTokens: number | null; thoughtTokens: number | null; totalTokens: number | null };
-type ProjectBudget = <T>(work: () => Promise<T>) => Promise<T>;
+type ProjectBudgetOptions = { env?: NodeJS.ProcessEnv; signal?: AbortSignal };
+type ProjectBudget = <T>(work: () => Promise<T>, options?: ProjectBudgetOptions) => Promise<T>;
 const count = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 ? Number(value) : null;
 
-async function sharedGeminiProjectBudget<T>(work: () => Promise<T>): Promise<T> {
+async function sharedGeminiProjectBudget<T>(work: () => Promise<T>, options?: ProjectBudgetOptions): Promise<T> {
   const budget = await import('../../../../../backend/utils/provider-budget.mjs');
-  return await budget.withProjectBudget(work);
+  return await budget.withProjectBudget(work, options);
 }
 
 export function resolveStoryboardGeminiKey(env: NodeJS.ProcessEnv = process.env): string | null {
@@ -37,9 +38,11 @@ export class GeminiStoryboardClient {
     this.client = options.client ?? new GoogleGenAI({ apiKey: apiKey!, httpOptions: { timeout: 120_000, retryOptions: { attempts: 1 } } });
     this.onUsage = options.onUsage;
     this.budget = options.budget ?? sharedGeminiProjectBudget;
+    this.budgetEnv = options.env ? { ...options.env } : undefined;
   }
   private readonly onUsage?: (usage: Usage) => void;
   private readonly budget: ProjectBudget;
+  private readonly budgetEnv?: NodeJS.ProcessEnv;
   private catalog?: { expiresAt: number; models: Awaited<ReturnType<GeminiStoryboardClient['readModels']>> };
 
   async models(signal?: AbortSignal, refresh = false) {
@@ -59,7 +62,7 @@ export class GeminiStoryboardClient {
       try {
         const model = await this.budget(() => this.client.models.get({
           model: id, config: { httpOptions: { timeout: 15_000 }, abortSignal: signal },
-        }));
+        }), { env: this.budgetEnv, signal });
         if (model.name?.replace(/^models\//, '') !== id) throw new StoryboardProductionError('model_identity_mismatch');
         results.push({ id, capabilities: [id === STORYBOARD_GEMINI_TEXT_MODEL ? 'chat' : 'image'],
           loaded: false, bytes_on_disk: 0, bytes_resident: 0, owned_by: 'gemini-api' as const });
@@ -102,7 +105,7 @@ export class GeminiStoryboardClient {
         thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM }, maxOutputTokens: 8192,
         responseMimeType: 'application/json', abortSignal: signal,
         httpOptions: { timeout: 120_000, retryOptions: { attempts: 1 } },
-      } }));
+      } }), { env: this.budgetEnv, signal });
     } catch (error) { signal?.throwIfAborted(); throw providerError(error); }
     signal?.throwIfAborted();
     this.recordUsage(model, response.usageMetadata);
@@ -124,7 +127,7 @@ export class GeminiStoryboardClient {
       response = await this.budget(() => this.client.models.generateContent({ model, contents: prompt, config: {
         responseModalities: ['IMAGE'], imageConfig: { aspectRatio, imageSize: '1K' },
         abortSignal: signal, httpOptions: { timeout: 120_000, retryOptions: { attempts: 1 } },
-      } }));
+      } }), { env: this.budgetEnv, signal });
     } catch (error) { signal?.throwIfAborted(); throw providerError(error); }
     signal?.throwIfAborted();
     this.recordUsage(model, response.usageMetadata);

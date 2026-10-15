@@ -1,6 +1,13 @@
 import { describe, expect, mock, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import {
   runAdminReceiptOcrBatch,
   type ReceiptOcrBatchDependencies,
@@ -364,6 +371,97 @@ describe('trusted administrator receipt OCR workflow', () => {
     expect(processor).not.toContain('error.message');
     expect(processor).toContain('buildOcrInputContextHash(imageHash, null, inferenceConfig)');
     expect(processor).toContain('inferenceConfig,\n                    signal: input.signal');
+  });
+
+  test('admits funded workflow execution only for the repository owner at protected main', () => {
+    const root = join(import.meta.dir, '..');
+    const workflow = readFileSync(join(root, '../../.github/workflows/ocr-review-receipts.yml'), 'utf8');
+    for (const requiredGuard of [
+      "github.event_name == 'workflow_dispatch'",
+      "github.repository == 'twoimo/tzudong'",
+      "github.event.repository.full_name == 'twoimo/tzudong'",
+      "github.event.repository.default_branch == 'main'",
+      'github.event.repository.owner.login == github.repository_owner',
+      'github.repository_owner == github.actor',
+      'github.triggering_actor == github.actor',
+      'github.event.sender.login == github.actor',
+      "github.ref == 'refs/heads/main'",
+      "github.ref_name == 'main'",
+      'github.ref_protected',
+    ]) {
+      expect(workflow).toContain(requiredGuard);
+    }
+
+    const marker = '      - name: Verify authenticated owner dispatch and protected main source\n';
+    const stepStart = workflow.indexOf(marker);
+    expect(stepStart).toBeGreaterThanOrEqual(0);
+    const nextStep = workflow.indexOf('\n      - name: ', stepStart + marker.length);
+    const step = workflow.slice(stepStart, nextStep);
+    const runMarker = '\n        run: |\n';
+    const runStart = step.indexOf(runMarker);
+    expect(runStart).toBeGreaterThanOrEqual(0);
+    const verify = step
+      .slice(runStart + runMarker.length)
+      .split('\n')
+      .map((line) => line.startsWith('          ') ? line.slice(10) : line)
+      .join('\n');
+
+    const directory = mkdtempSync(join(tmpdir(), 'tzudong-ocr-workflow-'));
+    try {
+      for (const args of [
+        ['init', '-q'],
+        ['config', 'user.name', 'Workflow Contract'],
+        ['config', 'user.email', 'workflow-contract@example.invalid'],
+      ]) {
+        expect(spawnSync('git', args, { cwd: directory }).status).toBe(0);
+      }
+      writeFileSync(join(directory, 'source.txt'), 'protected main source\n');
+      expect(spawnSync('git', ['add', 'source.txt'], { cwd: directory }).status).toBe(0);
+      expect(spawnSync('git', ['commit', '-qm', 'source'], { cwd: directory }).status).toBe(0);
+      expect(spawnSync('git', ['checkout', '--detach', '-q'], { cwd: directory }).status).toBe(0);
+      const revision = spawnSync('git', ['rev-parse', 'HEAD'], {
+        cwd: directory,
+        encoding: 'utf8',
+      }).stdout.trim();
+      const common = {
+        ...process.env,
+        DEFAULT_BRANCH: 'main',
+        EVENT_REPOSITORY_FULL_NAME: 'twoimo/tzudong',
+        EVENT_REPOSITORY_OWNER: 'twoimo',
+        GITHUB_ACTOR: 'twoimo',
+        GITHUB_EVENT_NAME: 'workflow_dispatch',
+        GITHUB_REF: 'refs/heads/main',
+        GITHUB_REF_NAME: 'main',
+        GITHUB_REF_PROTECTED: 'true',
+        GITHUB_REPOSITORY: 'twoimo/tzudong',
+        GITHUB_SHA: revision,
+        REPOSITORY_OWNER: 'twoimo',
+        SENDER_LOGIN: 'twoimo',
+        TRIGGERING_ACTOR: 'twoimo',
+      };
+      const run = (environment: Record<string, string | undefined>) => spawnSync(
+        'bash',
+        ['-c', verify],
+        { cwd: directory, env: environment },
+      );
+
+      expect(run(common).status).toBe(0);
+      for (const rejected of [
+        { ...common, GITHUB_ACTOR: 'writer' },
+        { ...common, SENDER_LOGIN: 'writer' },
+        { ...common, TRIGGERING_ACTOR: 'writer' },
+        { ...common, EVENT_REPOSITORY_FULL_NAME: 'fork/tzudong' },
+        { ...common, GITHUB_REPOSITORY: 'fork/tzudong' },
+        { ...common, GITHUB_REF: 'refs/heads/develop' },
+        { ...common, GITHUB_REF_NAME: 'develop' },
+        { ...common, GITHUB_REF_PROTECTED: 'false' },
+        { ...common, GITHUB_SHA: '0'.repeat(40) },
+      ]) {
+        expect(run(rejected).status).not.toBe(0);
+      }
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
   });
 
   test('preserves bounded reset state for indeterminate dispatch and scopes every worker batch', () => {
