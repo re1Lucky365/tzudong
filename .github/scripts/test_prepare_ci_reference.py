@@ -63,11 +63,19 @@ class CiReferenceTests(unittest.TestCase):
             "runs": observations,
         })
 
-    def write_tick(self, tick_id, runs, *, complete=True, alerts=None):
+    def write_tick(
+        self,
+        tick_id,
+        runs,
+        *,
+        complete=True,
+        alerts=None,
+        captured_at="2026-10-11T08:00:00Z",
+    ):
         directory = self.state / "ticks" / tick_id
         export = {
             "workflow": WORKFLOW,
-            "capturedAtUtc": "2026-10-11T08:00:00Z",
+            "capturedAtUtc": captured_at,
             "runs": runs,
             "coverage": {
                 "incrementalWindowComplete": complete,
@@ -479,6 +487,76 @@ class CiReferenceTests(unittest.TestCase):
         )
         self.assertEqual(repeated["status"], "reference_candidate_ready")
         self.assertEqual(candidate_path.read_text(encoding="utf-8"), '{"tampered":true}')
+
+    def test_crash_window_adopts_byte_exact_orphan_with_original_capture(self):
+        runs = self.successes(start=640)
+        self.write_checkpoint(runs)
+        self.write_tick("001", runs, captured_at="2026-10-11T08:00:00Z")
+        original_create = REFERENCE.atomic_create_json
+        create_count = 0
+
+        def stop_before_manifest(path, value):
+            nonlocal create_count
+            create_count += 1
+            if create_count == 2:
+                raise RuntimeError("simulated receipt publication crash")
+            return original_create(path, value)
+
+        with patch.object(REFERENCE, "atomic_create_json", new=stop_before_manifest):
+            with self.assertRaisesRegex(RuntimeError, "publication crash"):
+                REFERENCE.evaluate_reference(self.state, self.checkpoint, "001")
+
+        candidates = list((self.state / "reference-candidates").glob("*.json"))
+        orphan = next(path for path in candidates if not path.name.endswith(".receipt.json"))
+        receipt = orphan.with_name(f"{orphan.stem}.receipt.json")
+        original = orphan.read_bytes()
+        original_sha = REFERENCE.MONITOR.sha256_bytes(original)
+        self.assertFalse(receipt.exists())
+
+        self.write_tick("002", runs, captured_at="2026-10-11T09:00:00Z")
+        recovered = REFERENCE.evaluate_reference(self.state, self.checkpoint, "002")
+
+        self.assertEqual(orphan.read_bytes(), original)
+        self.assertEqual(recovered["candidateBaselineSha256"], original_sha)
+        self.assertEqual(
+            REFERENCE.MONITOR.load_json(orphan)["capturedAtUtc"],
+            "2026-10-11T08:00:00Z",
+        )
+        self.assertTrue(receipt.is_file())
+
+    def test_tampered_crash_window_orphan_is_preserved_and_rejected(self):
+        runs = self.successes(start=642)
+        self.write_checkpoint(runs)
+        self.write_tick("001", runs)
+        original_create = REFERENCE.atomic_create_json
+        create_count = 0
+
+        def stop_before_manifest(path, value):
+            nonlocal create_count
+            create_count += 1
+            if create_count == 2:
+                raise RuntimeError("simulated receipt publication crash")
+            return original_create(path, value)
+
+        with patch.object(REFERENCE, "atomic_create_json", new=stop_before_manifest):
+            with self.assertRaises(RuntimeError):
+                REFERENCE.evaluate_reference(self.state, self.checkpoint, "001")
+
+        candidates = list((self.state / "reference-candidates").glob("*.json"))
+        orphan = next(path for path in candidates if not path.name.endswith(".receipt.json"))
+        tampered = REFERENCE.MONITOR.load_json(orphan)
+        tampered["reference"]["successCount"] = 999
+        REFERENCE.MONITOR.atomic_write_json(orphan, tampered)
+        tampered_bytes = orphan.read_bytes()
+
+        self.write_tick("002", runs, captured_at="2026-10-11T09:00:00Z")
+        with self.assertRaisesRegex(
+            REFERENCE.ReferenceError, "ORPHAN_REFERENCE_CANDIDATE_MISMATCH"
+        ):
+            REFERENCE.evaluate_reference(self.state, self.checkpoint, "002")
+
+        self.assertEqual(orphan.read_bytes(), tampered_bytes)
+        self.assertFalse(orphan.with_name(f"{orphan.stem}.receipt.json").exists())
 
     def test_tampered_frozen_candidate_is_rejected_before_parsing(self):
         runs = self.successes(start=645)

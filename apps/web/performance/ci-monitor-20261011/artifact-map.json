@@ -18,8 +18,8 @@
     },
     {
       "path": ".github/scripts/prepare-ci-reference.py",
-      "sha256": "b9d43ad7e197ec7297155f5cb87f7f5ba8b46e781105f8d6be471a621608721e",
-      "bytes": 24493
+      "sha256": "50036d81bc475dbc09defb1262f874a2195ba15d0b02cd0ee75d9da879c035e7",
+      "bytes": 27042
     },
     {
       "path": ".github/scripts/run-ci-monitor.py",
@@ -48,8 +48,8 @@
     },
     {
       "path": ".github/scripts/test_prepare_ci_reference.py",
-      "sha256": "bae41794bd958bcbd00ffce3c00a13b89acfdc83679732c4bbd55aba3d05911c",
-      "bytes": 24673
+      "sha256": "4ed44451b62ac45f4e0c3c7601afa58c58a78dc9a9852b83f7841a1f086dfbd0",
+      "bytes": 28011
     },
     {
       "path": ".github/scripts/test_run_ci_monitor.py",

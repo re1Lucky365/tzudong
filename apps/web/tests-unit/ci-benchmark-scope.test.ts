@@ -11,9 +11,9 @@ const workflow = Bun.YAML.parse(readFileSync(resolve(root, ".github/workflows/we
 describe("compiler CI coverage routing", () => {
   test("compact trigger lists preserve public/admin, schema and publication inputs", () => {
     expect(workflow.on.pull_request.paths).toEqual(workflow.on.push.paths);
-    expect(workflow.on.pull_request.paths).toHaveLength(21);
+    expect(workflow.on.pull_request.paths).toHaveLength(16);
     const matches = (file: string) => workflow.on.pull_request.paths.some((pattern) => new Bun.Glob(pattern).match(file));
-    for (const file of ["apps/web/app/admin/page.tsx", "apps/web/app/api/admin/evaluations/route.ts", "apps/web/tsconfig.json", "apps/web/package-lock.json", "apps/web/scripts/run-typecheck.mjs", "apps/web/tests-unit/typecheck-benchmark-source.test.ts", "apps/web/supabase/migrations/change.sql", "backend/supabase/migrations/change.sql", "backend/bin/build_tzuyang_case_review_pack.mjs", "backend/bin/tests/node-dependency-compatibility.test.mjs", "backend/restaurant-crawling/scripts/worker.py", ".github/scripts/classify-ci-benchmark.mjs", ".github/nightly-local-publication-allowlist.txt"]) expect(matches(file)).toBe(true);
+    for (const file of ["apps/web/app/admin/page.tsx", "apps/web/app/api/admin/evaluations/route.ts", "apps/web/tsconfig.json", "apps/web/package-lock.json", "apps/web/scripts/run-typecheck.mjs", "apps/web/tests-unit/typecheck-benchmark-source.test.ts", "apps/web/supabase/migrations/change.sql", "backend/supabase/migrations/change.sql", "backend/test-requirements.txt", "backend/bin/build_tzuyang_case_review_pack.mjs", "backend/bin/tests/node-dependency-compatibility.test.mjs", "backend/restaurant-crawling/scripts/worker.py", ".github/scripts/classify-ci-benchmark.mjs", ".github/dependabot.yml", ".github/nightly-local-publication-allowlist.txt", ".kiro/specs/receipt.json", ".agents/skills/ci/SKILL.md"]) expect(matches(file)).toBe(true);
     expect(matches("docs/example.md")).toBe(false);
   });
 

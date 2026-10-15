@@ -2,14 +2,14 @@
   "baseCommit": "a9ce6ba2be377594e30dc865c621f2854006aa79",
   "files": [
     {
-      "bytes": 5667,
+      "bytes": 5672,
       "path": ".github/scripts/classify-ci-benchmark.mjs",
-      "sha256": "0c224f74f12e098d42700ad98a4f7f68bec6b455dfead78df2a82aebbe56744f"
+      "sha256": "8c7f1b0044f94313e4210b034802a6a4cc557a1828eee75960097dbdc53d0502"
     },
     {
-      "bytes": 7130,
+      "bytes": 7219,
       "path": ".github/scripts/classify-ci-benchmark.test.mjs",
-      "sha256": "9eb5540223b023e660814dce0d2dfb1fbfe894af78f931c1e2b8ce58708f7c5e"
+      "sha256": "d7d62d467752b7e7f8ec48e83304663866bdf1d4ad563287ff21ecce65b2778d"
     },
     {
       "bytes": 28744,
@@ -27,9 +27,9 @@
       "sha256": "eab2a18e94d8eed55cd1e2557053f866099d65845fbbd42a5687901e341a3baa"
     },
     {
-      "bytes": 24493,
+      "bytes": 27042,
       "path": ".github/scripts/prepare-ci-reference.py",
-      "sha256": "b9d43ad7e197ec7297155f5cb87f7f5ba8b46e781105f8d6be471a621608721e"
+      "sha256": "50036d81bc475dbc09defb1262f874a2195ba15d0b02cd0ee75d9da879c035e7"
     },
     {
       "bytes": 15853,
@@ -57,9 +57,9 @@
       "sha256": "f50b24359306bd9808ab9d7aa8dbd88b2a38b8d1cd5d969aae0ea1c7ee2b4792"
     },
     {
-      "bytes": 24673,
+      "bytes": 28011,
       "path": ".github/scripts/test_prepare_ci_reference.py",
-      "sha256": "bae41794bd958bcbd00ffce3c00a13b89acfdc83679732c4bbd55aba3d05911c"
+      "sha256": "4ed44451b62ac45f4e0c3c7601afa58c58a78dc9a9852b83f7841a1f086dfbd0"
     },
     {
       "bytes": 23587,
@@ -72,9 +72,9 @@
       "sha256": "55fff34edfd1dcdd2f112ee7752e18454e35dc68159d8ce9f85e1101e2cac8c9"
     },
     {
-      "bytes": 21827,
+      "bytes": 21109,
       "path": ".github/workflows/web-admin-ci.yml",
-      "sha256": "984fab56261b08dc64b12d70add53065a228f028a446c58b0b38ea9cdadc72a7"
+      "sha256": "89e821d65b8cc1a28d42b0f674be9e9d05715a244f003fd11016b3597aab9198"
     },
     {
       "bytes": 168157,
@@ -384,12 +384,12 @@
     {
       "bytes": 16004,
       "path": "apps/web/performance/ci-monitor-20261011/artifact-map.json",
-      "sha256": "4fedbb42e4d5df73043957c081a6b22c583534423ad60ff08e115e7840e5b794"
+      "sha256": "5d99f55090cffee5524402ce0beafce62bb383a362b0afdc4df67eed83f28dfc"
     },
     {
       "bytes": 84,
       "path": "apps/web/performance/ci-monitor-20261011/artifact-map.json.sha256",
-      "sha256": "348ba8a3a7ceb47eec72581191710bba427eae6c321e9debf0d122215a7f2711"
+      "sha256": "535f01028c4504cfbf5eb547b55f1e5137e17c28e9485add2847a09f068adaff"
     },
     {
       "bytes": 14678,
@@ -402,9 +402,9 @@
       "sha256": "298f774495f133b3e5ae80b258928ffdb36fd5a054eb7e80870c1cf98d3417cb"
     },
     {
-      "bytes": 5671,
+      "bytes": 5788,
       "path": "apps/web/tests-unit/ci-benchmark-scope.test.ts",
-      "sha256": "dbd23de95a2c675805336a423f4c0807bfb1deeaae040d44382ab20864d699f8"
+      "sha256": "67fb916134d2d1b2667e48b619e1e982e617a91cb27c35564123e9bc3a0ab86b"
     },
     {
       "bytes": 6661,

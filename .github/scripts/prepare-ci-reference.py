@@ -212,16 +212,23 @@ def authenticated_export(directory: Path) -> tuple[dict, list[dict], str]:
     return export, records, workflow
 
 
-def retained_records_for_candidate(state_dir: Path) -> list[dict]:
-    """Bind source fingerprints once, only when a new candidate is ready."""
+def retained_inputs_for_candidate(
+    state_dir: Path,
+) -> tuple[list[dict], set[tuple[str, str]]]:
+    """Bind source records and authenticated export capture identities once."""
     records_by_key: dict[tuple[int, int], tuple[str, dict]] = {}
+    export_captures: set[tuple[str, str]] = set()
     ticks = sorted(path.parent for path in (state_dir / "ticks").glob("*/tick.json"))
     if not ticks:
         raise ReferenceError("NO_RETAINED_TICKS")
     for directory in ticks:
         if directory.resolve().parent != (state_dir / "ticks").resolve():
             raise ReferenceError("INVALID_RETAINED_TICK_PATH")
-        _, records, _ = authenticated_export(directory)
+        export, records, workflow = authenticated_export(directory)
+        captured_at = export.get("capturedAtUtc")
+        if not isinstance(captured_at, str) or not captured_at:
+            raise ReferenceError("INVALID_RETAINED_EXPORT")
+        export_captures.add((workflow, captured_at))
         for record in records:
             if not isinstance(record, dict):
                 raise ReferenceError("INVALID_RETAINED_RECORD")
@@ -236,7 +243,36 @@ def retained_records_for_candidate(state_dir: Path) -> list[dict]:
                 records_by_key[key] = (fingerprint, record)
             elif not prior:
                 records_by_key[key] = (fingerprint, record)
-    return [item[1] for item in records_by_key.values()]
+    return [item[1] for item in records_by_key.values()], export_captures
+
+
+def authenticate_orphan_candidate(
+    candidate_path: Path,
+    expected_candidate: dict,
+    export_captures: set[tuple[str, str]],
+) -> tuple[dict, str]:
+    """Adopt only the exact canonical candidate left before receipt publication."""
+    try:
+        candidate, digest = authenticated_json(candidate_path)
+    except ReferenceError as error:
+        if str(error) in {"INVALID_REFERENCE_JSON", "REFERENCE_INPUT_READ_FAILED"}:
+            raise ReferenceError("REFERENCE_CANDIDATE_ALREADY_EXISTS") from None
+        raise
+    if not isinstance(candidate, dict):
+        raise ReferenceError("INVALID_ORPHAN_REFERENCE_CANDIDATE")
+    captured_at = candidate.get("capturedAtUtc")
+    workflow = candidate.get("workflow")
+    if (workflow, captured_at) not in export_captures:
+        raise ReferenceError("ORPHAN_REFERENCE_CANDIDATE_MISMATCH")
+    expected_with_original_capture = {
+        **expected_candidate,
+        "capturedAtUtc": captured_at,
+    }
+    if MONITOR.sha256_bytes(
+        MONITOR.canonical_json(expected_with_original_capture)
+    ) != digest:
+        raise ReferenceError("ORPHAN_REFERENCE_CANDIDATE_MISMATCH")
+    return candidate, digest
 
 
 def select_current_observation(observations: list[dict]) -> dict | None:
@@ -515,7 +551,7 @@ def evaluate_reference(state_dir: Path, checkpoint_path: Path, tick_id: str | No
                 f"reference_ready:{cohort_id}:{candidate_sha}"
             )
     elif ready_now:
-        raw_records = retained_records_for_candidate(state_dir)
+        raw_records, export_captures = retained_inputs_for_candidate(state_dir)
         raw_by_fingerprint = {
             MONITOR.sha256_bytes(MONITOR.canonical_json(record)): record
             for record in raw_records
@@ -543,12 +579,32 @@ def evaluate_reference(state_dir: Path, checkpoint_path: Path, tick_id: str | No
             },
         }
         candidate_path = state_dir / "reference-candidates" / f"{cohort_id}.json"
-        candidate_sha = MONITOR.sha256_bytes(MONITOR.canonical_json(candidate))
-        atomic_create_json(candidate_path, candidate)
-        atomic_create_json(candidate_manifest_path(state_dir, cohort_id), {
+        # Validate confinement before either reading an orphan or creating a new
+        # immutable candidate. A crash may leave the candidate after its durable
+        # link but before the cohort receipt; authenticate that exact byte object
+        # against the current cohort and a retained export instead of rebuilding
+        # it with a newer capture timestamp.
+        candidate_reference = state_ref(state_dir, candidate_path)
+        if candidate_path.exists():
+            candidate, candidate_sha = authenticate_orphan_candidate(
+                candidate_path, candidate, export_captures
+            )
+        else:
+            candidate_sha = MONITOR.sha256_bytes(MONITOR.canonical_json(candidate))
+            try:
+                atomic_create_json(candidate_path, candidate)
+            except ReferenceError as error:
+                if str(error) != "REFERENCE_CANDIDATE_ALREADY_EXISTS":
+                    raise
+                candidate, candidate_sha = authenticate_orphan_candidate(
+                    candidate_path, candidate, export_captures
+                )
+        manifest_path = candidate_manifest_path(state_dir, cohort_id)
+        state_ref(state_dir, manifest_path)
+        atomic_create_json(manifest_path, {
             "schema": f"{SCHEMA}/candidate-receipt",
             "cohortId": cohort_id,
-            "candidateBaselinePath": state_ref(state_dir, candidate_path),
+            "candidateBaselinePath": candidate_reference,
             "candidateBaselineSha256": candidate_sha,
         })
         result.update(
