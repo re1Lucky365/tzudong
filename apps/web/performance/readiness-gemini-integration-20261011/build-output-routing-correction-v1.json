@@ -1,0 +1,24 @@
+{
+  "ownedNewOutputsMoved": [
+    {
+      "path": "configured-build-v6.json",
+      "sha256": "9c3d3a61eda13afb46606b0fe03c4618b159c2d1f5df28a089ab5908d2b6859c"
+    },
+    {
+      "path": "configured-build-v6.log",
+      "sha256": "892a0602b2fdc375d3e35a18bf588ba3ef470ddf9ad9a51d8db8c3e08662fc21"
+    },
+    {
+      "path": "configured-css-v6.log",
+      "sha256": "e658b588eb4e25e19eb55c986c16594f823e19550a10d88f87afee4c53c6130e"
+    },
+    {
+      "path": "tsconfig-generated-configured-v6.json",
+      "sha256": "959f5788179802ac671da2623c8d3d9e2d0faef821a686e0057fab0129feca67"
+    }
+  ],
+  "frozenOriginalFilesModified": false,
+  "initialScriptSha256": "9438346509ab2375abb79fe88cdb686fb0a77eba9217d45b08cffee09130a6f2",
+  "canonicalScriptSha256": "aae3f212cb3f36527a616481f3df8ffb4249edb02ec5314edce0b7ee5f9b57fc",
+  "buildApplicationBytesChanged": false
+}

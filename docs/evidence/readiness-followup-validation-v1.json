@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "packages": [
+    {
+      "package": "readiness-media-followup-20261011",
+      "files": 134,
+      "mapSha256": "024668f6f6e202743df4212f56d0ede60d6cb77b3a02ffc2503e7b3e3ec32d3a"
+    },
+    {
+      "package": "tzuyang-review-minimal-20261011",
+      "files": 6,
+      "mapSha256": "694f9b2aca99ec0029f53f19bd29a995c17a94fa062534d5ad44096f93c36698"
+    }
+  ],
+  "sourceFiles": 101,
+  "sourceBindingsVerified": true,
+  "performanceAdmission": 0,
+  "operatingApplyAttempts": 1,
+  "operatingContentCommitsVerified": 0,
+  "browserHealthClean": false,
+  "physicalFieldAdmission": 0
+}

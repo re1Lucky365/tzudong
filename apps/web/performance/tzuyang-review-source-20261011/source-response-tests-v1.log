@@ -1,0 +1,14 @@
+✔ admits bounded ordered results with exact source quotation, without certifying meaning (1.481791ms)
+✔ rejects wrong model and nonterminal finish (0.335875ms)
+✔ rejects missing, reordered or duplicate input keys (0.782667ms)
+✔ rejects paraphrased evidence and guessed segment indices (0.414041ms)
+✔ rejects a generated review for empty source and prose for unresolved evidence (0.263709ms)
+✔ rejects extra provider text fields rather than persisting them (0.098ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 59.402916

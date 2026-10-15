@@ -1,0 +1,49 @@
+{
+  "sourceFailuresPreserved": [
+    {
+      "log": "admin-forward-pg17-probe-v1.log",
+      "stage": "parser",
+      "code": "SyntaxError",
+      "dbWrites": 0
+    },
+    {
+      "log": "admin-forward-pg17-probe-v2.log",
+      "stage": "fixture",
+      "code": "23503",
+      "reason": "missing fixture public bucket; transaction rolled back"
+    },
+    {
+      "log": "admin-forward-pg17-probe-v3.log",
+      "stage": "fixture",
+      "code": "42501",
+      "reason": "actual Storage direct SQL deletion guard; transaction rolled back"
+    },
+    {
+      "log": "admin-forward-pg17-probe-v5.log",
+      "stage": "admission",
+      "code": "OWNED_TARGET_ALREADY_EXISTS",
+      "dbWrites": 0
+    }
+  ],
+  "productionBrowserFailures": [
+    "browser-readiness-admin-media-v32.json",
+    "browser-readiness-admin-media-v33.json",
+    "browser-readiness-admin-media-v34.json"
+  ],
+  "browserRootCause": "ephemeral production server used primary development localhost:8080 origin; correct fail-closed 403, not application authorization failure",
+  "finalBrowser": "browser-readiness-admin-media-v35.json",
+  "ciFailures": [
+    {
+      "head": "5c14e967c4616783f4a669dae94e073be87565b2",
+      "unit": "private-review-verification",
+      "reason": "combined SDK module mocks replaced StorageApiError export"
+    },
+    {
+      "head": "7cb7f73b00ce4de7efa92dff5b102ca8910a86a2",
+      "unit": "private-review-verification",
+      "reason": "third whole-SDK mock in account-deletion-contract still shared the process"
+    }
+  ],
+  "latestIsolationFixValidatedLocally": true,
+  "freshCiStillRequired": true
+}

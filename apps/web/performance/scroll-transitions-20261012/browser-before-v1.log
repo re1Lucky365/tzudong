@@ -1,0 +1,163 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-unit/scroll-effects-browser.test.ts:
+(pass) scroll reveal remains readable, completes once and respects keyboard focus at 390px [291.99ms]
+(pass) scroll reveal remains readable, completes once and respects keyboard focus at 820px [260.47ms]
+53 | 
+54 | for (const width of [390, 820, 1440]) {
+55 |   test(`scroll reveal remains readable, completes once and respects keyboard focus at ${width}px`, async () => run(async page => {
+56 |     await ui(page.locator('#panel-11')).toHaveAttribute('data-reveal-state', 'waiting');
+57 |     expect(await page.locator('#panel-0').getAttribute('data-reveal-state')).not.toBe('waiting');
+58 |     expect(await page.locator('#panel-11').evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThanOrEqual(.9);
+                                                                                                      ^
+error: expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 0.9
+Received: 0.836395
+
+      at <anonymous> (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:58:98)
+      at async run (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:50:11)
+(fail) scroll reveal remains readable, completes once and respects keyboard focus at 1440px [275.48ms]
+66 | test('unrelated child mutations do not rescan the entire document', async () => run(async page => {
+67 |   await ui(page.locator('#panel-11')).toHaveAttribute('data-reveal-state', 'waiting');
+68 |   const before = await page.evaluate(() => (window as unknown as { scrollFixture: { scans: number } }).scrollFixture.scans);
+69 |   await page.locator('#noise').evaluate(el => { for (let i = 0; i < 200; i++) el.appendChild(document.createElement('span')); });
+70 |   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+71 |   expect(await page.evaluate(() => (window as unknown as { scrollFixture: { scans: number } }).scrollFixture.scans)).toBe(before);
+                                                                                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 1
+Received: 2
+
+      at <anonymous> (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:71:118)
+      at async run (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:50:11)
+(fail) unrelated child mutations do not rescan the entire document [247.17ms]
+killed 1 dangling process
+(fail) starting with reduced motion can later enable it, and disable it without hiding content [5001.86ms]
+  ^ this test timed out after 5000ms.
+35 |   browser = await chromium.launch({ channel: 'chrome', headless: true });
+36 | });
+37 | afterAll(async () => { await browser?.close(); });
+38 | 
+39 | async function run(check: (page: Page) => Promise<void>, width = 390, reducedMotion: 'reduce' | 'no-preference' = 'no-preference') {
+40 |   const context = await browser.newContext({ viewport: { width, height: 844 }, reducedMotion });
+                                     ^
+error: async newContext: Target page, context or browser has been closed
+Browser logs:
+
+<launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/var/folders/8d/nwv_19w124zbq0dxqx2r1jn40000gn/T/playwright_chromiumdev_profile-Sx55N7 --remote-debugging-pipe --no-startup-window
+<launched> pid=73796
+[pid=73796][err] Trying to load the allocator multiple times. This is *not* supported.
+[pid=73796][err] [73815:406618823:1012/014700.545640:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014700.545852:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014700.547294:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014700.547356:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014700.548110:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014700.548151:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014700.548493:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014700.548529:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014700.548621:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014700.548675:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014700.805729:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014700.805795:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014700.806715:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014700.806747:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014700.807428:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014700.807489:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014700.807596:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014700.807650:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014700.807804:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014700.807836:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73796:406618821:1012/014700.973019:ERROR:base/process/process_mac.cc:53] task_policy_set TASK_CATEGORY_POLICY: (os/kern) invalid argument (4)
+[pid=73796][err] [73796:406618821:1012/014700.973039:ERROR:base/process/process_mac.cc:98] task_policy_set TASK_SUPPRESSION_POLICY: (os/kern) invalid argument (4)
+[pid=73796][err] [73815:406618823:1012/014701.111774:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.111838:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.112757:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.112798:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.113361:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.113410:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.113536:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.113574:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.113662:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.113738:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73796:406618821:1012/014701.248067:ERROR:base/process/process_mac.cc:53] task_policy_set TASK_CATEGORY_POLICY: (os/kern) invalid argument (4)
+[pid=73796][err] [73796:406618821:1012/014701.248082:ERROR:base/process/process_mac.cc:98] task_policy_set TASK_SUPPRESSION_POLICY: (os/kern) invalid argument (4)
+[pid=73796][err] [73815:406618823:1012/014701.345366:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.345412:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.346369:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.346493:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.347100:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.347140:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.347228:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.347278:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.347402:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.347451:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73796:406618821:1012/014701.495390:ERROR:base/process/process_mac.cc:53] task_policy_set TASK_CATEGORY_POLICY: (os/kern) invalid argument (4)
+[pid=73796][err] [73796:406618821:1012/014701.495403:ERROR:base/process/process_mac.cc:98] task_policy_set TASK_SUPPRESSION_POLICY: (os/kern) invalid argument (4)
+[pid=73796][err] [73815:406618823:1012/014701.560115:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.560196:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.560994:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.561065:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.561539:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.561583:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.561697:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.561763:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618823:1012/014701.561855:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73815:406618891:1012/014701.561895:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=73796][err] [73796:406618807:1012/014703.903428:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+ log: [],
+
+      at run (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:40:33)
+      at processTicksAndRejections (native:7:39)
+
+# Unhandled error between tests
+-------------------------------
+8583 | 
+8584 | // packages/utils/stackTrace.ts
+8585 | function captureRawStack() {
+8586 |   const stackTraceLimit = Error.stackTraceLimit;
+8587 |   Error.stackTraceLimit = 50;
+8588 |   const error = new Error();
+                           ^
+error: expect(locator).toHaveAttribute(expected) failed
+
+Locator:  locator('#panel-11')
+Expected: "waiting"
+Received: ""
+
+Call log:
+  - Expect "toHaveAttribute" locator('#panel-11') with timeout 5000ms
+  - waiting for locator('#panel-11')
+    14 × locator resolved to <section id="panel-11" data-scroll-reveal="panel">…</section>
+       - unexpected value "null"
+  - Target page, context or browser has been closed
+
+ matcherResult: {
+  name: "toHaveAttribute",
+  expected: "waiting",
+  message: "expect(locator).toHaveAttribute(expected) failed\n\nLocator:  locator('#panel-11')\nExpected: \"waiting\"\nReceived: \"\"\n\nCall log:\n  - Expect \"toHaveAttribute\" locator('#panel-11') with timeout 5000ms\n  - waiting for locator('#panel-11')\n    14 × locator resolved to <section id=\"panel-11\" data-scroll-reveal=\"panel\">…</section>\n       - unexpected value \"null\"\n  - Target page, context or browser has been closed\n",
+  pass: false,
+  actual: null,
+  log: [ "  - Expect \"toHaveAttribute\" locator('#panel-11') with timeout 5000ms", "  - waiting for locator('#panel-11')",
+    "    14 × locator resolved to <section id=\"panel-11\" data-scroll-reveal=\"panel\">…</section>",
+    "       - unexpected value \"null\"", "  - Target page, context or browser has been closed"
+  ],
+  timeout: undefined,
+  ariaSnapshot: "- heading \"Section 12\" [level=2]\n- button \"Action 12\"",
+},
+
+      at captureRawStack (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/node_modules/playwright-core/lib/coreBundle.js:8588:21)
+      at callMatcherAsStep (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/node_modules/playwright/lib/matchers/expect.js:13310:57)
+      at /Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:77:39
+      at run (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/scroll-effects-browser.test.ts:50:11)
+      at processTicksAndRejections (native:7:39)
+-------------------------------
+
+(fail) removing waiting elements clears stale state and unmount disconnects mutation work [31.20ms]
+
+ 2 pass
+ 4 fail
+ 1 error
+ 10 expect() calls
+Ran 6 tests across 1 file. [6.63s]

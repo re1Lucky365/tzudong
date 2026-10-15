@@ -1,0 +1,7 @@
+performance backlog: health is not canonical
+Traceback (most recent call last):
+  File "/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/performance/transitions-adoption-20261012/assemble-canonical-v1.py", line 37, in <module>
+    subprocess.run(score,cwd=app,check=True)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 528, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/Users/twoimo/.npm/_npx/387698761821791d/node_modules/node/bin/node', '/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/scripts/score-performance-backlog.mjs', '--artifact-root', '/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/performance/transitions-adoption-20261012/canonical-zero-v1', '--release-id', 'transitions-adoption-20261012', '--candidate-sha', '1c672acae8d2554c0eca1698d0f28e123099fe84', '--candidate-tree', '1de7814108e829ca964e5e34db500284e3afecae', '--config-sha256', '13f667eee3208e5c5f917505d833bab85fb001434f4b464962f1fce1c462cbbe', '--data-profile-sha256', '346c9c865201a48b590c439a4e06306bfada92f91c73f9a83293a991a51058b5', '--frozen-as-of', '2026-10-11T16:28:32.046466Z', '--input', 'backlog.raw.json', '--artifact-map', 'score-artifact-map.json', '--artifact-map-sha256', '7e108bfb32db31787ad3793b1183a1ed00a4ce6093cc1ab89657b8454c37f609', '--output', 'backlog.scored.json']' returned non-zero exit status 1.

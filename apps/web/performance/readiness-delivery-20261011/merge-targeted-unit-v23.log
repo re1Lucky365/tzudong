@@ -1,0 +1,164 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-unit/supabase-migration-transaction.test.ts:
+(pass) four exact source envelopes agree with pinned provider-source parser and preserve body bytes [200.57ms]
+(pass) hash/vector drift and all intermediate control aliases are rejected before a call [1.32ms]
+(pass) quoted/dollar/comment control text remains untouched; unsupported meta commands reject [0.12ms]
+(pass) BEGIN ATOMIC and parenthesis nesting match the pinned G037 statement vector [19.42ms]
+(pass) CASE nesting and END identifier suffixes cannot terminate a BEGIN ATOMIC body [0.14ms]
+(pass) comments between BEGIN and ATOMIC are whitespace to PostgreSQL but exceed the pinned provider vector [17.73ms]
+(pass) standard strings keep backslashes literal while escape strings may quote with backslashes [0.14ms]
+(pass) comment-separated prepared transactions remain denied [0.09ms]
+(pass) terminal state is checked after exact ledger insertion and no source transaction boundary reaches payload [0.74ms]
+(pass) insufficient query contracts deny before connection; no forged expected default [0.25ms]
+(pass) long escaped readback literals compile while mutation outside literals remains denied [8.86ms]
+(pass) dollar literals and nested comments are ignored by readback mutation admission [0.15ms]
+(pass) ledger state selects one valid readback and the lock precedes catalog validation [0.17ms]
+(pass) ambiguous lost ACK reconciles once without resend and remains unconfirmed [0.38ms]
+(pass) server terminal guard rollback stays unconfirmed when another runner later commits [0.18ms]
+(pass) not-applied reconciliation returns only bounded error codes [0.44ms]
+(pass) conflict/unknown are fixed outcomes and not-applied retains bounded failure [0.07ms]
+Supabase migration terminal state verified: g016_privacy_audit_owner_policy
+Supabase migration terminal state verified: g016_onboarding_confirmation_freshness
+(pass) existing caller preserves pinned dry-run and valid provider-owned verify-only shape [3.29ms]
+(pass) exit0 truncated/contaminated/mismatched stdout reconciles once after committed state [0.36ms]
+(pass) local psql startup and raw diagnostics stay outside the executor contract [0.07ms]
+
+tests-unit/review-edit-modal-photo-cleanup.test.ts:
+(pass) shared review mutation UI boundary > both UIs use commit-aware mutations and cannot directly remove photos or rows [0.14ms]
+(pass) shared review mutation UI boundary > uncertain requests keep their retry action and cleanup can resume without a review card [0.07ms]
+(pass) shared review mutation UI boundary > edit keeps authoritative historical photo values separate from Storage object paths [0.04ms]
+
+tests-unit/admin-record-sql-successor.test.ts:
+(pass) protected main readback resolves the actual remote ref instead of trusting local HEAD [537.04ms]
+(pass) dedicated manifest pins the exact five-source chain, full vectors, toolchain and untouched legacy manifest [0.20ms]
+(pass) production manifest loader either binds the exact current toolchain or fails closed on source drift [104.92ms]
+(pass) production ready manifest still rejects corrupt fence custody before checkout, transport or journal creation [4.54ms]
+(pass) in-memory held manifest rejects before checkout, transport or journal creation [2.66ms]
+(pass) exact 80 to 85 transition rejects prior count 81 before checkout, transport or journal creation [2.14ms]
+(pass) fresh admission binds exact revision, rehearsal, rollback, external fences and all five schema/ledger stages [2.70ms]
+(pass) private canonical receipt bytes bind project, source, stage state, rollback and each writer fence [12.89ms]
+(pass) compiled plan checks catalog and ledger roots at every stage under an advisory and ledger-locked outer transaction [305.09ms]
+(pass) successful controller preflights before create-once journal and applies once without persisting the URI [237.84ms]
+(pass) admission expiring during preflight never issues a mutating apply [243.86ms]
+(pass) live rollback identity is checked once before journal or database access [3.35ms]
+(pass) live rollback readback crossing exact expiry stops before journal or database access [5.10ms]
+(pass) source mismatch, journal collision and fresh preflight mismatch all stop before mutation [228.18ms]
+(pass) lost acknowledgement never resends and journals bounded unconfirmed outcome after one readonly reconciliation [241.93ms]
+(pass) target identity accepts only exact direct and official project-bound pooler endpoints [0.33ms]
+(pass) psql transport keeps the URI out of argv and bounds verbose server diagnostics [0.64ms]
+(pass) state query is a single read-only SELECT contract and does not expand the generic G016 path [4.39ms]
+
+tests-unit/admin-evaluation-page-server.test.ts:
+(pass) DB-backed bounded evaluation pages > pins normalization and default ordering rather than silently accepting runtime drift [0.06ms]
+(pass) DB-backed bounded evaluation pages > reads only the page and bounded database warning aggregates across the page boundary [2.63ms]
+(pass) DB-backed bounded evaluation pages > explicit compatibility stream does not depend on RPC admission [1.97ms]
+(pass) DB-backed bounded evaluation pages > defaults to bounded raw groups without the runtime normalization gate [2.11ms]
+(pass) DB-backed bounded evaluation pages > only exact SQL Unicode/capacity admission failures use the complete existing stream [3.08ms]
+(pass) DB-backed bounded evaluation pages > does not hide transport, DB, malformed, unknown or stale RPC failures [0.65ms]
+(pass) DB-backed bounded evaluation pages > stream failures remain errors after an admission refusal [0.33ms]
+(pass) DB-backed bounded evaluation pages > refuses source mutation during warnings and does not pass partial statistics [0.48ms]
+(pass) DB-backed bounded evaluation pages > rejects malformed UUID/cross-filter cursors and duplicate row IDs [0.47ms]
+(pass) DB-backed bounded evaluation pages > coalesces 100 cold reads, reuses summaries, and refreshes after a revision or TTL change [1.56ms]
+(pass) DB-backed bounded evaluation pages > missing raw RPC uses five bounded cold-cache calls, no row stream, and never sticks after availability changes [0.82ms]
+(pass) DB-backed bounded evaluation pages > double-missing compatibility preserves all 1,659 related rows within fourteen cold-cache DB calls [2.55ms]
+(pass) DB-backed bounded evaluation pages > double-missing stream admits exactly 2,000 rows with a sentinel and rejects 2,001 without partial warnings [6.47ms]
+(pass) DB-backed bounded evaluation pages > transitional capacity does not shrink explicit stream or admitted Unicode compatibility [5.10ms]
+(pass) DB-backed bounded evaluation pages > double-missing compatibility never hides runtime, permission, timeout or inexact schema errors [0.49ms]
+(pass) DB-backed bounded evaluation pages > never caches a failed or inconsistent load [0.54ms]
+(pass) DB-backed bounded evaluation pages > evicts older queries rather than retaining an unbounded catalog of pages [4.84ms]
+(pass) raw warning server transport > raw RPC preserves unsupported Unicode and deleted union without the SQL ICU gate [2.70ms]
+(pass) raw warning server transport > default preserves all Unicode/deleted warnings when the old database has no raw RPC [1.04ms]
+(pass) raw warning server transport > automatic raw never disguises errors or disappearance after a partial batch [2.46ms]
+(pass) raw warning server transport > default full warning output equals stream on the Unicode fixture [1.55ms]
+(pass) raw warning server transport > advances bound cursor and restarts complete stream only on exact capacity refusal after a partial batch [1.22ms]
+(pass) raw warning server transport > raw transport, unknown, permission, malformed and stale failures never trigger stream fallback [0.85ms]
+
+tests-unit/admin-user-rpc-forward-successor.test.ts:
+(pass) dedicated ready manifest pins the post-five chain and exact forward source/vector [0.82ms]
+(pass) post-five state query binds the admin action body derived from the exact M5 source [0.91ms]
+(pass) production ready manifest still rejects corrupt operating custody before checkout or transport access [1.17ms]
+(pass) in-memory held manifest rejects before admission, checkout or transport access [0.04ms]
+(pass) fresh admission and compiled plan bind exact 85 preimage, shared lock and one 85 to 86 ledger insert [26.94ms]
+(pass) wrong version, count, five-stage state, target state and protected revision fail closed [5.40ms]
+(pass) operating readback hash requires canonical private bytes bound to project, source and prior state [2.94ms]
+(pass) wrong project target and fresh preflight mismatch stop before mutation [2.12ms]
+(pass) admission expiring during preflight never issues a mutating apply [18.22ms]
+(pass) live rollback identity is checked once before database access [1.44ms]
+(pass) live rollback readback crossing exact expiry stops before database access [0.91ms]
+(pass) wrong or stale protected main revision fails before database transport [0.97ms]
+(pass) a real frozen detached checkout can prepare admission after commit without manifest hash self-reference [564.97ms]
+(pass) success uses one read-only preflight and one atomic apply through the successor runner contract [19.54ms]
+(pass) lost acknowledgement never resends and returns only bounded unconfirmed outcome after readonly reconciliation [29.28ms]
+
+tests-unit/vercel-rollback-readback.test.ts:
+(pass) captures only the exact immutable deployment, Git identity and current production aliases [0.58ms]
+(pass) rejects a mismatched project without returning provider data [0.08ms]
+(pass) rejects a mismatched team without returning provider data [0.02ms]
+(pass) rejects a mismatched deployment ID without returning provider data [0.01ms]
+(pass) rejects a mismatched immutable URL without returning provider data
+(pass) rejects a mismatched readiness without returning provider data
+(pass) rejects a mismatched target without returning provider data
+(pass) rejects a mismatched Git org without returning provider data [0.01ms]
+(pass) rejects a mismatched Git repo without returning provider data [0.01ms]
+(pass) rejects a mismatched Git SHA without returning provider data
+(pass) rejects a mismatched Git ref without returning provider data
+(pass) uses direct alias GETs when the deployment alias list is missing [0.13ms]
+(pass) uses direct alias GETs when the deployment alias list is internal only [0.04ms]
+(pass) uses direct alias GETs when the deployment alias list is provider-derived unrelated aliases [0.04ms]
+(pass) rejects an alias that does not point at the exact deployment [0.16ms]
+(pass) rejects an alias whose nested deployment identity is missing or mismatched [0.06ms]
+(pass) rejects invalid caller identity before transport [0.04ms]
+(pass) rejects invalid caller identity before transport
+(pass) rejects invalid caller identity before transport
+(pass) rejects invalid caller identity before transport
+(pass) rejects invalid caller identity before transport
+(pass) scoped CLI transport uses only the fixed team and GET endpoint [0.50ms]
+(pass) scoped CLI transport emits a fixed failure code without stderr contents [0.09ms]
+(pass) scoped CLI transport enforces a bounded response size [301.11ms]
+(pass) scoped CLI transport rejects non-readback endpoints before spawning [0.23ms]
+(pass) scoped CLI transport terminates a hung CLI within the configured bound [1001.56ms]
+(pass) synchronous scoped transport uses bounded exact CLI arguments and fixed failures [0.31ms]
+(pass) synchronous capture shares exact deployment and alias validation [0.26ms]
+
+tests-unit/tzuyang-review-display.test.ts:
+(pass) public Tzuyang review display > removes single and grouped source references without erasing sentences [0.08ms]
+(pass) public Tzuyang review display > handles case, whitespace, fractional seconds and compact lists
+(pass) public Tzuyang review display > preserves meaningful dates, times, brackets and paragraph structure [0.39ms]
+(pass) public Tzuyang review display > cleans legacy wrappers and emphasis without erasing criticism or quantities [0.04ms]
+(pass) public Tzuyang review display > leaves source review identity, visit count inputs and video metadata intact [0.22ms]
+
+tests-unit/auth-user-continuation.test.ts:
+(pass) requested user login continuation > keeps MY and review destinations while ordinary in-page login stays put [0.11ms]
+(pass) requested user login continuation > retains the administrator boundary and rejects unsafe destinations [0.01ms]
+(pass) requested user login continuation > binds the resumed stamp composer to the selected public restaurant ID [0.09ms]
+(pass) requested user login continuation > keeps a verified destination through exact privacy recovery URLs [0.09ms]
+(pass) requested user login continuation > holds the desktop stamp route until its selected review continuation is consumed [0.45ms]
+(pass) requested user login continuation > keeps the new-password UI aligned with the server 72-character bound [0.58ms]
+
+tests-unit/receipt-replacement-reconciliation.test.ts:
+(pass) OCR replacement after concurrent writes > discards a losing replacement when a competing request has won or the row was deleted [0.04ms]
+(pass) OCR replacement after concurrent writes > retains the replacement on committed readback, missing CAS acknowledgement, or failed read [0.01ms]
+(pass) OCR replacement after concurrent writes > refuses unrelated or malformed readback instead of treating it as absence [0.03ms]
+
+tests-unit/zz-ocr-route-contract.test.ts:
+(pass) OCR extract route privacy and normalization contract > stores only bounded count/status metadata and excludes raw receipt/provider/credential payloads [1.48ms]
+(pass) OCR extract route privacy and normalization contract > disables raw OCR log caching and persists fixed failure codes only [0.70ms]
+(pass) OCR extract route privacy and normalization contract > rejects unauthenticated and oversized OCR requests before reading image bytes [0.15ms]
+(pass) OCR extract route privacy and normalization contract > rejects cross-site OCR mutations before authentication or paid work [0.39ms]
+(pass) OCR extract route privacy and normalization contract > parses only bounded, unique OCR multipart fields [0.94ms]
+(pass) OCR extract route privacy and normalization contract > rejects malformed and chunked oversized OCR multipart bodies [4.09ms]
+(pass) OCR extract route privacy and normalization contract > keeps authenticated OCR reads and writes on the user-scoped client [0.18ms]
+(pass) OCR extract route privacy and normalization contract > force refresh rejection copy does not expose dev/admin internals [0.08ms]
+(pass) OCR extract route privacy and normalization contract > fails closed without exposing diagnostics when quota state is unavailable [0.35ms]
+(pass) OCR extract route privacy and normalization contract > uses an authenticated atomic OCR quota reservation instead of count-then-act [0.58ms]
+(pass) OCR extract route privacy and normalization contract > parses bounded OCR quota receipts and fails closed on malformed RPC data [0.32ms]
+(pass) OCR extract route privacy and normalization contract > admin OCR rerun preflights workflow before destructive reset and rolls back dispatch failures [1.48ms]
+(pass) OCR extract route privacy and normalization contract > inline OCR rejects foreign, originless, and cross-site browser mutations [0.09ms]
+(pass) OCR extract route privacy and normalization contract > inline OCR blocks secret-bearing fixtures before persistence and never retains debug receipt artifacts [0.59ms]
+(pass) OCR extract route privacy and normalization contract > admin receipt image retrieval remains private, bounded, contained, and non-destructive [11.54ms]
+
+ 136 pass
+ 0 fail
+ 1064 expect() calls
+Ran 136 tests across 10 files. [4.69s]

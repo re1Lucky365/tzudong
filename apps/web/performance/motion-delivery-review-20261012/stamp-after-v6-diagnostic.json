@@ -1,0 +1,29 @@
+{
+  "variant": "after",
+  "distDir": ".next-motion-delivery-review-v1",
+  "buildId": "uy4y-gS3pEl9YZy1_RLGD",
+  "data": "Synthetic REST735/client Auth; cookie-free guest SSR",
+  "serverAuthenticationVerified": false,
+  "physicalDevice": false,
+  "operatingWrites": 0,
+  "fieldAdmission": 0,
+  "pageErrors": 0,
+  "consoleKinds": {
+    "other": 1
+  },
+  "unsupportedFixture": 0,
+  "mutationAttempts": 0,
+  "cases": [
+    {
+      "width": 390,
+      "composerVisible": true,
+      "writeReviewConsumed": true,
+      "composerClosed": true,
+      "desktopRouted": true,
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "browser": "154.0.8037.98",
+  "browserHealthClean": false
+}

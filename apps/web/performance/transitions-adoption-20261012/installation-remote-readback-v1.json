@@ -1,0 +1,259 @@
+{
+  "ref": "2773886681b6bb8effe0d7b5c66306430d18e000",
+  "checkedFiles": 42,
+  "matches": true,
+  "files": [
+    {
+      "path": "skills/transitions-dev/01-card-resize.md",
+      "gitBlob": "893c07f629954bca50a79b5c0a1848539d1352a0",
+      "remoteBlob": "893c07f629954bca50a79b5c0a1848539d1352a0",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/02-number-pop-in.md",
+      "gitBlob": "0f749a96ad29f2020f2f83962e6acecc61c09cf1",
+      "remoteBlob": "0f749a96ad29f2020f2f83962e6acecc61c09cf1",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/03-notification-badge.md",
+      "gitBlob": "f00b034f28981db7dd7336c4f1afcbe7ff463d7b",
+      "remoteBlob": "f00b034f28981db7dd7336c4f1afcbe7ff463d7b",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/04-text-states-swap.md",
+      "gitBlob": "39bbafd03546b56ea1b07896c2cb485c299a2474",
+      "remoteBlob": "39bbafd03546b56ea1b07896c2cb485c299a2474",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/05-menu-dropdown.md",
+      "gitBlob": "e2ef3f92f47a8fabdcf18289e0d23530a1177e4c",
+      "remoteBlob": "e2ef3f92f47a8fabdcf18289e0d23530a1177e4c",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/06-modal.md",
+      "gitBlob": "87b2a5407f39835eebb88bc4bfe207015550b3e1",
+      "remoteBlob": "87b2a5407f39835eebb88bc4bfe207015550b3e1",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/07-panel-reveal.md",
+      "gitBlob": "5c7a32a04500960f6fef262c88226d61352bdba5",
+      "remoteBlob": "5c7a32a04500960f6fef262c88226d61352bdba5",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/08-page-side-by-side.md",
+      "gitBlob": "257f4727f7fe403b314e8b8919d826c186d7c614",
+      "remoteBlob": "257f4727f7fe403b314e8b8919d826c186d7c614",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/09-icon-swap.md",
+      "gitBlob": "10579532c265f9c52ccdf9caa9dc12ba52b2cf44",
+      "remoteBlob": "10579532c265f9c52ccdf9caa9dc12ba52b2cf44",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/10-success-check.md",
+      "gitBlob": "67e180e171c62c07855941d9cae5bc75440eb0ee",
+      "remoteBlob": "67e180e171c62c07855941d9cae5bc75440eb0ee",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/11-avatar-group-hover.md",
+      "gitBlob": "02564672d56ca3e08ab85d53a3aea6ed0966b787",
+      "remoteBlob": "02564672d56ca3e08ab85d53a3aea6ed0966b787",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/12-error-state-shake.md",
+      "gitBlob": "cad7a65326512b2bdd22284fcd29773841f8b418",
+      "remoteBlob": "cad7a65326512b2bdd22284fcd29773841f8b418",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/13-input-clear-dissolve.md",
+      "gitBlob": "42ededa9bddd89b49c0cc7ee834b7ee97ac48b5e",
+      "remoteBlob": "42ededa9bddd89b49c0cc7ee834b7ee97ac48b5e",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/14-skeleton-reveal.md",
+      "gitBlob": "5bd2eaebad26bc1df25151a9630342ccda29e645",
+      "remoteBlob": "5bd2eaebad26bc1df25151a9630342ccda29e645",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/15-shimmer-text.md",
+      "gitBlob": "4a8c11b3c63a7adb26a4a1c7ba92d4de9ce0c83f",
+      "remoteBlob": "4a8c11b3c63a7adb26a4a1c7ba92d4de9ce0c83f",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/16-tabs-sliding.md",
+      "gitBlob": "ac2875a9307b3e837c5e67b962dc661147c4424e",
+      "remoteBlob": "ac2875a9307b3e837c5e67b962dc661147c4424e",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/17-tooltip.md",
+      "gitBlob": "32e42a1fd79bdc2ff89762c32d1e090d3c260df8",
+      "remoteBlob": "32e42a1fd79bdc2ff89762c32d1e090d3c260df8",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/18-texts-reveal.md",
+      "gitBlob": "954cd3675035c554e1000043b9b1edc8093d994a",
+      "remoteBlob": "954cd3675035c554e1000043b9b1edc8093d994a",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/19-card-tilt.md",
+      "gitBlob": "5a8fdce95bd0e2bd17b93083766c1d4b19fcf7b4",
+      "remoteBlob": "5a8fdce95bd0e2bd17b93083766c1d4b19fcf7b4",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/20-plus-menu-morph.md",
+      "gitBlob": "7fc33949b49c3424d3ceb3417af4513d7089a2a1",
+      "remoteBlob": "7fc33949b49c3424d3ceb3417af4513d7089a2a1",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/21-accordion.md",
+      "gitBlob": "f7553d833555e7bdc9d9feb4dbc930e6418ba54e",
+      "remoteBlob": "f7553d833555e7bdc9d9feb4dbc930e6418ba54e",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/22-toast.md",
+      "gitBlob": "9abb9cd89db003d3170d45496983ed42b6f8f19a",
+      "remoteBlob": "9abb9cd89db003d3170d45496983ed42b6f8f19a",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/23-like-button.md",
+      "gitBlob": "39019ccdf0d5c5714a649a6c5b9ae84eaea9e0de",
+      "remoteBlob": "39019ccdf0d5c5714a649a6c5b9ae84eaea9e0de",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/24-learn-more-hover.md",
+      "gitBlob": "156876a96dfe9db34803b10a27110bde32545cc4",
+      "remoteBlob": "156876a96dfe9db34803b10a27110bde32545cc4",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/25-checkbox-check.md",
+      "gitBlob": "9ceb6e70443f74cdf33392e2933bcc0feae86b1e",
+      "remoteBlob": "9ceb6e70443f74cdf33392e2933bcc0feae86b1e",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/26-spinning-counter.md",
+      "gitBlob": "ca546fef8ec032532134321ac4e623ee32005e1c",
+      "remoteBlob": "ca546fef8ec032532134321ac4e623ee32005e1c",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/27-toggle.md",
+      "gitBlob": "116f17a16d1bc1d8fe8a8317ef27389e30780152",
+      "remoteBlob": "116f17a16d1bc1d8fe8a8317ef27389e30780152",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/28-thinking-states.md",
+      "gitBlob": "1f133b6fcadbb681bea5cdd53d800d5846d9fb33",
+      "remoteBlob": "1f133b6fcadbb681bea5cdd53d800d5846d9fb33",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/29-reasoning-stream.md",
+      "gitBlob": "335e04e9ff71a2030a73da9a48941687243c1a6f",
+      "remoteBlob": "335e04e9ff71a2030a73da9a48941687243c1a6f",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/30-streaming-text.md",
+      "gitBlob": "2364c9d4025f5b799b22ebe3ffb07c158ea2265a",
+      "remoteBlob": "2364c9d4025f5b799b22ebe3ffb07c158ea2265a",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/31-matrix-loader.md",
+      "gitBlob": "8dffc9ed05101c11580d8ff493b58ee69d0777db",
+      "remoteBlob": "8dffc9ed05101c11580d8ff493b58ee69d0777db",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/32-banner-stacking.md",
+      "gitBlob": "c19228793c2fb6015b24b71d903077f4ebed2844",
+      "remoteBlob": "c19228793c2fb6015b24b71d903077f4ebed2844",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/33-text-morph.md",
+      "gitBlob": "71bd99d69ec0151547bb63c11055f0031e519cf6",
+      "remoteBlob": "71bd99d69ec0151547bb63c11055f0031e519cf6",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/34-text-swap-soft.md",
+      "gitBlob": "87fcb393a0f9cdb87782979d7cbc82d9671b3351",
+      "remoteBlob": "87fcb393a0f9cdb87782979d7cbc82d9671b3351",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/35-donut-chart.md",
+      "gitBlob": "78e6c7205128a3998062cd54e4506759b0a4f38d",
+      "remoteBlob": "78e6c7205128a3998062cd54e4506759b0a4f38d",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/LICENSE.txt",
+      "gitBlob": "4ad9539de645f33dfdeed6aa6ed06e1e803ac6ed",
+      "remoteBlob": "4ad9539de645f33dfdeed6aa6ed06e1e803ac6ed",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/SKILL.md",
+      "gitBlob": "a928208a79fe3905ebb9b1dbba662374fe23886f",
+      "remoteBlob": "a928208a79fe3905ebb9b1dbba662374fe23886f",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-dev/_root.css",
+      "gitBlob": "2a7137dba49fc8ea1fcb0776518f40150c8765a7",
+      "remoteBlob": "2a7137dba49fc8ea1fcb0776518f40150c8765a7",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-polish/LICENSE.txt",
+      "gitBlob": "4ad9539de645f33dfdeed6aa6ed06e1e803ac6ed",
+      "remoteBlob": "4ad9539de645f33dfdeed6aa6ed06e1e803ac6ed",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-polish/SKILL.md",
+      "gitBlob": "37b53a464edfab6bf4a04bf1af6186227f512101",
+      "remoteBlob": "37b53a464edfab6bf4a04bf1af6186227f512101",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-polish/_refine-rules.md",
+      "gitBlob": "dd2db9d86197dd0c70067c232bc3a159990fd2f0",
+      "remoteBlob": "dd2db9d86197dd0c70067c232bc3a159990fd2f0",
+      "matches": true
+    },
+    {
+      "path": "skills/transitions-polish/_root.css",
+      "gitBlob": "e5fa79f98e959b8b476c8432357a9c3a050b4d9a",
+      "remoteBlob": "e5fa79f98e959b8b476c8432357a9c3a050b4d9a",
+      "matches": true
+    }
+  ]
+}

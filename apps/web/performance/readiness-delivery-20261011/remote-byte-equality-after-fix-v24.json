@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-11T06:47:29.251730+00:00",
+  "revision": "81374707a4e11510ef8a7095541feeb5f8bb770b",
+  "repo": "twoimo/tzudong",
+  "packages": [],
+  "status": "failed",
+  "performanceAdmission": 0,
+  "hostedWrites": 0,
+  "fieldAdmission": 0,
+  "failureCode": "REMOTE_API_FAILED"
+}

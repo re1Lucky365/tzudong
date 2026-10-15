@@ -1,0 +1,683 @@
+{
+  "sourceSha256": "b8f06e7c5867b5ac2d8dfe5283e1ffdcf2a103a34f2e1d29333169fe4c5d38d8",
+  "inputSha256": "d2cdce112686331429b30dc3684e8ab950a8cde21f7486311445714d0104aa67",
+  "specSha256": "eda1be50b7159b622211fd7e58609ff7287ca7994e80b44580faab5ac71a3041",
+  "privatePlanSha256": "d0f1df7d8eda50f3145f0adb489aae39544bb2381ce5a43fb9b05455bba036ea",
+  "reviewedCandidates": 78,
+  "minimalDrafts": 23,
+  "preservedAdminEdits": 47,
+  "needsContext": 8,
+  "editorialDrafts": 15,
+  "sourceCorrectionDrafts": 8,
+  "metadataScriptMismatchHeuristic": [
+    {
+      "requestLabel": "2007",
+      "latinLetters": 4643,
+      "hangulLetters": 0,
+      "reportedTranslationUncertain": false,
+      "actualOriginalLanguageCertified": false
+    },
+    {
+      "requestLabel": "2023",
+      "latinLetters": 2376,
+      "hangulLetters": 0,
+      "reportedTranslationUncertain": false,
+      "actualOriginalLanguageCertified": false
+    },
+    {
+      "requestLabel": "2037",
+      "latinLetters": 7035,
+      "hangulLetters": 0,
+      "reportedTranslationUncertain": false,
+      "actualOriginalLanguageCertified": false
+    },
+    {
+      "requestLabel": "2068",
+      "latinLetters": 6827,
+      "hangulLetters": 0,
+      "reportedTranslationUncertain": false,
+      "actualOriginalLanguageCertified": false
+    },
+    {
+      "requestLabel": "2087",
+      "latinLetters": 463,
+      "hangulLetters": 0,
+      "reportedTranslationUncertain": false,
+      "actualOriginalLanguageCertified": false
+    },
+    {
+      "requestLabel": "2108",
+      "latinLetters": 3941,
+      "hangulLetters": 0,
+      "reportedTranslationUncertain": false,
+      "actualOriginalLanguageCertified": false
+    },
+    {
+      "requestLabel": "2124",
+      "latinLetters": 6177,
+      "hangulLetters": 0,
+      "reportedTranslationUncertain": false,
+      "actualOriginalLanguageCertified": false
+    }
+  ],
+  "modelCensusRepeated": false,
+  "semanticCertificationOfWholeReviews": false,
+  "operatingWrites": 0,
+  "observations": [
+    {
+      "key": "r0012",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0045",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0079",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0127",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0130",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0136",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0214",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0234",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0249",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0309",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0336",
+      "state": "needs_context",
+      "adminLocked": false,
+      "reasonCode": "SOURCE_CONTEXT_OR_VISUAL_UNRESOLVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0350",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0356",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0371",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0378",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0397",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0409",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "cecd79738c382c94d7d4d61f6d3a1c8863fd4f62e86d7709c2c2ad2808f36f99",
+      "lengthDeltaCharacters": 19
+    },
+    {
+      "key": "r0418",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0475",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0500",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0503",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "7fa5775d12d17535c87ec61a00a2405b1ba090b44a76da25a75bbb8bf9cae9d7",
+      "lengthDeltaCharacters": 13
+    },
+    {
+      "key": "r0540",
+      "state": "needs_context",
+      "adminLocked": false,
+      "reasonCode": "SOURCE_CONTEXT_OR_VISUAL_UNRESOLVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0571",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "dd4db696d3edc8f9ee385832a6818415c18789b0ea0f1c3c2c880d0583f68bc3",
+      "lengthDeltaCharacters": 6
+    },
+    {
+      "key": "r0600",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0607",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "NARROW_SOURCE_CONTEXT_CORRECTION",
+      "wholeReviewFactCertified": false,
+      "kind": "source_correction",
+      "afterSha256": "d2c2d3f2f48be0b2877d34d40c23e48b9ce09cb105a02ba19d976c3cc4ec6251",
+      "lengthDeltaCharacters": -15
+    },
+    {
+      "key": "r0613",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0631",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0632",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0672",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0697",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "c5d11a199717af39e26f413e57c7f12b461c5f84f5fa6c0691c4adbcd449ce90",
+      "lengthDeltaCharacters": 6
+    },
+    {
+      "key": "r0718",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0752",
+      "state": "needs_context",
+      "adminLocked": false,
+      "reasonCode": "SOURCE_CONTEXT_OR_VISUAL_UNRESOLVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0757",
+      "state": "needs_context",
+      "adminLocked": false,
+      "reasonCode": "SOURCE_CONTEXT_OR_VISUAL_UNRESOLVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0791",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0813",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "5f2c1e34f0ef10c7cf4508c7080abdddc852aa7424ca3e0ae3cdf53234b6dca2",
+      "lengthDeltaCharacters": 17
+    },
+    {
+      "key": "r0814",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0860",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0867",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0870",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "68cebe8b03264a95d6d7cf7469b8ebbd4b94377a2fa455064756d9548b7e00d9",
+      "lengthDeltaCharacters": 15
+    },
+    {
+      "key": "r0881",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "2b3d309dc7cd6cc861fd73a21712fc778f7fb0339717fe2417b27ca21e465ee8",
+      "lengthDeltaCharacters": 8
+    },
+    {
+      "key": "r0883",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0908",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0993",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0995",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r0999",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "9412cf474bcd99487618327da2ace58c03eff555a2f810e5de925009ad191815",
+      "lengthDeltaCharacters": -15
+    },
+    {
+      "key": "r1016",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1029",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "678b4f73ac73163d42f5bfed34e5a6319fbb4cb1d8c4fb2a8d3fb1039fa015df",
+      "lengthDeltaCharacters": -7
+    },
+    {
+      "key": "r1035",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1070",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1123",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "NARROW_SOURCE_CONTEXT_CORRECTION",
+      "wholeReviewFactCertified": false,
+      "kind": "source_correction",
+      "afterSha256": "2c2558b43c9352b2e8046534d08ca8c5d4946c065307389484c2e89a9336ed9b",
+      "lengthDeltaCharacters": 13
+    },
+    {
+      "key": "r1135",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "NARROW_SOURCE_CONTEXT_CORRECTION",
+      "wholeReviewFactCertified": false,
+      "kind": "source_correction",
+      "afterSha256": "a0ba5beb9e49727480a76c660ed49430e51ff17498cee9d5b9cba63213e9823e",
+      "lengthDeltaCharacters": -11
+    },
+    {
+      "key": "r1138",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "07c88f39ea9f5c8019b0b80498b88d44c48d12e391e26f98ac57d46e66f527f9",
+      "lengthDeltaCharacters": 0
+    },
+    {
+      "key": "r1139",
+      "state": "needs_context",
+      "adminLocked": false,
+      "reasonCode": "SOURCE_CONTEXT_OR_VISUAL_UNRESOLVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1165",
+      "state": "needs_context",
+      "adminLocked": false,
+      "reasonCode": "SOURCE_CONTEXT_OR_VISUAL_UNRESOLVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1169",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "294e22e3d72f0bbb26780d9f269751c162b96964a7c68eb202355a34e47b2ca6",
+      "lengthDeltaCharacters": 16
+    },
+    {
+      "key": "r1205",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1210",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1214",
+      "state": "needs_context",
+      "adminLocked": false,
+      "reasonCode": "SOURCE_CONTEXT_OR_VISUAL_UNRESOLVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1222",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1244",
+      "state": "needs_context",
+      "adminLocked": false,
+      "reasonCode": "SOURCE_CONTEXT_OR_VISUAL_UNRESOLVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1274",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "d5c6d56d86b53a8664d892c373272146af78506f44c5eb1c6290ec77aef29ecc",
+      "lengthDeltaCharacters": 20
+    },
+    {
+      "key": "r1294",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "NARROW_SOURCE_CONTEXT_CORRECTION",
+      "wholeReviewFactCertified": false,
+      "kind": "source_correction",
+      "afterSha256": "421878306e4f8cea74f54cd903bb7fe3a16fff4e69f29e04c9586d560c5a3bfa",
+      "lengthDeltaCharacters": 27
+    },
+    {
+      "key": "r1300",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "NARROW_SOURCE_CONTEXT_CORRECTION",
+      "wholeReviewFactCertified": false,
+      "kind": "source_correction",
+      "afterSha256": "6ffd98bb144c51479309ed8cdfbb44d16eb56f10d5450dba63ad3b779c8d4a80",
+      "lengthDeltaCharacters": 81
+    },
+    {
+      "key": "r1305",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1338",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "NARROW_SOURCE_CONTEXT_CORRECTION",
+      "wholeReviewFactCertified": false,
+      "kind": "source_correction",
+      "afterSha256": "2908bfba2ce9bd8f09eb155288265c195a4071bef33327ea819cff45a0d3f5d3",
+      "lengthDeltaCharacters": 18
+    },
+    {
+      "key": "r1349",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1363",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "d2be4a807323af5b589302de2d002e0c695011e553c8b91a824f22a14ec00b03",
+      "lengthDeltaCharacters": 6
+    },
+    {
+      "key": "r1394",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "88c259c1fe8022f15b00edb05cd9f052c9bbce7a7602ec03c0f6ca8f52f8df6d",
+      "lengthDeltaCharacters": 6
+    },
+    {
+      "key": "r1448",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "NARROW_SOURCE_CONTEXT_CORRECTION",
+      "wholeReviewFactCertified": false,
+      "kind": "source_correction",
+      "afterSha256": "8bf22b2ad8de44609e39b9097bcbc2bcef6c38d6c37e4d67254e7bdfc8f5d3e6",
+      "lengthDeltaCharacters": 40
+    },
+    {
+      "key": "r1468",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1497",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1542",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1568",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1605",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1611",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "NARROW_SOURCE_CONTEXT_CORRECTION",
+      "wholeReviewFactCertified": false,
+      "kind": "source_correction",
+      "afterSha256": "37a2cc7fa39ed89a9bf7901f6fa09e326fd4bdcf51a16025c7593247da1f2f1c",
+      "lengthDeltaCharacters": -5
+    },
+    {
+      "key": "r1625",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    },
+    {
+      "key": "r1631",
+      "state": "minimal_draft",
+      "adminLocked": false,
+      "reasonCode": "HONORIFIC_OR_TYPO_ONLY",
+      "wholeReviewFactCertified": false,
+      "kind": "editorial",
+      "afterSha256": "658d9baec9c016b2508f5aecc132a15c723306c741240499481f15c9cda5b530",
+      "lengthDeltaCharacters": 17
+    },
+    {
+      "key": "r1650",
+      "state": "preserve_admin_edit",
+      "adminLocked": true,
+      "reasonCode": "ADMIN_PREIMAGE_PRESERVED",
+      "wholeReviewFactCertified": false
+    }
+  ]
+}

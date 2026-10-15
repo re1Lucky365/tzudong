@@ -1,0 +1,13 @@
+{
+  "candidate": "6f9822f0053ab020c8f71234db4677d2c5dee3fa",
+  "baseline": "1893c854bc52c19633f6a772bcc3784f7fc59022",
+  "files": {
+    "apps/web/app/mypage/reviews/page.tsx": "0fb94f49f5e5387b75c4fb94eca7c3ef476a935b109418daf073d9b2be5e1b61",
+    "apps/web/lib/reviews/latest-owner-cleanup.ts": "3d95d0081c74c87ac43aa18c45105f9b964e24e841bd040b069e10aa8d396f9b",
+    "apps/web/lib/reviews/private-verification-handler.ts": "0421a96fbbd3296438ccd56298212dd7f5f23c424421c3d7703fd8759c2ea18d",
+    "apps/web/lib/reviews/private-verification.ts": "f2a5a6674f4124166e45f07360fa53113f3ded86f08d7ffdfc640d4f40714c79",
+    "apps/web/tests-unit/latest-owner-cleanup.test.ts": "b7b5bac87d5e31c681f61e2d0d3e9614fda68e2674bcd1116b0061ed29e739f9",
+    "apps/web/tests-unit/private-review-verification.test.ts": "8da755b6c2c3a71cc21ef4aa545b1d35d3f6cccb357306781b2af6077118cc28",
+    "docs/operations/nightly-regression.md": "5ffbcb0e3e84e36c0ebaf695506198747e83e2daf4b46972cedecd2891ae7be7"
+  }
+}

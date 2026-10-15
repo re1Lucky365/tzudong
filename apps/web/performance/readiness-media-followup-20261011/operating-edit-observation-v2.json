@@ -1,0 +1,27 @@
+{
+  "observedAtUtc": "2026-10-11 09:58:19 UTC",
+  "projectId": "aqlcofblfxdrjhhdmarw",
+  "operationIdentitySha256": "6a560d1962bfc269a238578ac1d93ee1b694e0113f718f84cf0025b7aafd9aeb",
+  "previewCalls": 1,
+  "applyAttempts": 1,
+  "resends": 0,
+  "observation": {
+    "state": "preview",
+    "expired": true,
+    "auditCount": 0,
+    "activeRecordCalls": 0
+  },
+  "operatingDDL": 0,
+  "deployment": 0,
+  "rawActorOrCredentialsPersisted": false,
+  "uiStillUncertain": true,
+  "remainingDraftsHeld": 22,
+  "diagnostic": {
+    "sqlstate": "21000",
+    "whereRequired": true,
+    "trigger": "pipeline_control.bump_admin_evaluation_revision",
+    "windowStart": "2026-10-11T09:24:00Z",
+    "windowEnd": "2026-10-11T09:29:00Z"
+  },
+  "statement": "Point-in-time DB observation; browser pending identity and failed attempt are preserved."
+}

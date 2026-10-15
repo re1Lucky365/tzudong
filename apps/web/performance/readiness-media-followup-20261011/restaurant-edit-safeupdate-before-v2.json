@@ -1,0 +1,15 @@
+{
+  "database": "readiness_restaurant_edit_v2_20261011",
+  "engine": "17.6",
+  "synthetic": true,
+  "operatingWrites": 0,
+  "exit": 0,
+  "sqlstates": [],
+  "fixedCodes": [],
+  "outcome": {
+    "state": "preview",
+    "auditCount": 0,
+    "reviewChanged": null
+  },
+  "diagnosticKeywords": []
+}

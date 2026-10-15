@@ -1,0 +1,18 @@
+{
+  "candidate": "1c672acae8d2554c0eca1698d0f28e123099fe84",
+  "files": {
+    "apps/web/app/globals.css": "593f9588727f36865e2d0edd9f7e9f70e07cae944570a9b0b1f477d51ab99f3d",
+    "apps/web/components/filters/CategoryFilter.tsx": "d60cc4072a7ed2147b3602fd35bda37778e7997ac73d16c95b12619931af1a5f",
+    "apps/web/components/ui/toast.tsx": "5a9e0853beb5ee5e376f5cb3cb7f5cf222de60f7de9d9e777628e952627da0e9",
+    "apps/web/hooks/use-toast.ts": "bd739ca81c170cc69921b2a3d205abc25d0a6ce8e6928bdb75b0c622d5848eb8",
+    "apps/web/styles/interface-motion.css": "3a3ad264bb10edc71ddc757fe226a3d2b83eca4814405be6f2adaae9b12796d0",
+    "apps/web/tests-unit/toast-retirement.test.ts": "94f675fc534323acedb5be9e917dd2927ccc05f274cc9e71803eff0ba6459f8c",
+    "apps/web/tests-unit/web-quality-performance-source.test.ts": "6848dadb0b67742c16217f3e57788d5004a65da589715e67f0f138dcccd2974c"
+  },
+  "packageLockSha256": "607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4",
+  "fixtureSha256": "346c9c865201a48b590c439a4e06306bfada92f91c73f9a83293a991a51058b5",
+  "dependencyFiles": {
+    "apps/web/performance/swipe-memory-diagnostic-20261011/fixture-query-v7.mjs": "346c9c865201a48b590c439a4e06306bfada92f91c73f9a83293a991a51058b5",
+    "apps/web/performance/swipe-memory-diagnostic-20261011/real-sdk-runtime-v7.mjs": "7ae9d1e598681af9b4679ec8b375572768749cc7fa1eee8dffa40d5cba498473"
+  }
+}

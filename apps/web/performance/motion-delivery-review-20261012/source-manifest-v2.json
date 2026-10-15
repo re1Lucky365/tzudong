@@ -1,0 +1,26 @@
+{
+  "base": "f71a473401b76a781e1f654120b4b34094ede74b",
+  "candidate": "cc14014db5d8199260aabc9b1e30f63c3fc1e134",
+  "files": {
+    ".github/scripts/build-nightly-local-publication.py": "c8c3d52c74282b4bd6e0e9e712e75a5d562d93a8c03c283446e1bca525f4420b",
+    ".github/scripts/verify-nightly-local-publication.py": "a8d0ba387d8bd04c40a0f1740c6b41862fd8318e11eee8e9682ee339f4fa440b",
+    "apps/web/app/stamp/page.tsx": "4418cc36774792e55e9ab910579f5665320f64ee77b169568e2083181c791da9",
+    "apps/web/scripts/run-nightly-regression.mjs": "cfd24158d2e083e47904a088d2ec1207e000cb18dce96f8f76a2a92375d66e0b",
+    "apps/web/tests-unit/auth-user-continuation.test.ts": "9424254db0cbae28eee4ebe3e8bec6cb27a9f5044a7e62d82011effe90f64cd6",
+    "apps/web/tests-unit/nightly-regression-workflow.test.ts": "cb22a7335cd16e07624caabf16d3c0766d50dbf5bf90c03a828deff7e3bdec10",
+    "backend/bin/tests/test_motion_evidence_verifiers.py": "4519a2abd5bd4366dca5ce32c2912c488962a6b02d9b1d3ef75063856a21571e",
+    "backend/bin/verify_readiness_followup_20261011.py": "3fa3c6952a78003846397abed6368344d7359c21b5b70b31622ad1cbab4441f7",
+    "backend/bin/verify_readiness_ocr_20261011_v3.py": "b5f2e770e22e80f07965e34e32cf72480167d6bfba1fb40d902e340c0b249bbb",
+    "backend/bin/verify_scroll_transitions_20261012.py": "d074f6d038fc3bccb71852c3c3435c278800d14eb84f12ba11da635cc057d072",
+    "backend/bin/verify_transitions_adoption_20261012.py": "9504376f0fb86c5c12406da5977d33c9f807247b4fbeae20a7df2f3494f9327d",
+    "backend/supabase/migrations/20261011175912_review_owner_cleanup_completion.sql": "9164be35fc17e67c3f1aaf98aad13139a8fd469130bd1315879bff5dac63ba26",
+    "backend/supabase/scripts/local-migrate.py": "1aab01cd189d98cad7cdf6d91cb5b1b78a68960098d68a756a40fcb32ed5c0c5",
+    "backend/supabase/scripts/local_catalog_readback.sql": "bdc0ab777bc917c839967876c2c43aa406fa7090a9b431e128efc47487e5ba5b",
+    "backend/supabase/tests/test_local_function_runtime_contract.py": "f609cc8dc4a662695aae076c067de5b0d9700d47cd5b591a808a55d1c8134b24",
+    "backend/supabase/tests/test_local_publication_verifier.py": "86797e735ea83af793855705ff46c8117f0307a8a6b35b5f40d09ae30a11b7ec",
+    "backend/supabase/tests/test_local_seed_receipt_contract.py": "60347c1e56962b5afb1a4d628a3a9866dcd447cc2683ae375d8eb4712ad2cae6",
+    "backend/supabase/tests/test_review_media_catalog_integration.py": "d5769859299a3ce60a9668d4387f90f3d9b91d6a52d14c5fbc9ca84fb84b1214"
+  },
+  "operatingDDL": 0,
+  "deployed": false
+}

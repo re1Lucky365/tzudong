@@ -1,0 +1,121 @@
+{
+  "sourceHead": "f358ed975bcf5d4c41b88bc660c35e5dc8b1fc72",
+  "node": "v24.21.0",
+  "bun": "1.4.0",
+  "python": "3.12.14",
+  "webUnit": {
+    "pass": 3414,
+    "skip": 11,
+    "fail": 0
+  },
+  "focusedReviewUnit": {
+    "pass": 31,
+    "fail": 0
+  },
+  "pythonInitial": {
+    "tests": 105,
+    "fail": 1,
+    "code": "LATEST_MANIFEST_EXPECTATION_STALE"
+  },
+  "pythonCorrectedAffected": {
+    "tests": 38,
+    "fail": 0
+  },
+  "targetedLintExit": 0,
+  "typeParityDiagnostics": 0,
+  "logicalInputs": 3142,
+  "operatingWrites": 0,
+  "fieldAdmission": 0,
+  "changedSources": [
+    {
+      "path": ".github/scripts/build-nightly-local-publication.py",
+      "bytes": 15253,
+      "sha256": "4f383df8401e8fdb15237aabd7cef977fb9b12d84111f34c81b9e34d5e40ab4d"
+    },
+    {
+      "path": ".github/scripts/verify-nightly-local-publication.py",
+      "bytes": 50352,
+      "sha256": "2b856a6be2138ab933c1687286b40d7c9720d33568d4d67320ed61f583a43b47"
+    },
+    {
+      "path": "apps/web/app/mypage/reviews/page.tsx",
+      "bytes": 29392,
+      "sha256": "bc457b20476ccd5044ab11eab9b5b06ec5047ef9b7e28421aa23aa040a59cc7e"
+    },
+    {
+      "path": "apps/web/components/reviews/ReviewEditModal.tsx",
+      "bytes": 65966,
+      "sha256": "e6dbd01fda19400a11d0d5a887d1342d0ebcd4f9517e0b52e6cf0461bd061b2e"
+    },
+    {
+      "path": "apps/web/lib/reviews/review-media-mutation.ts",
+      "bytes": 19468,
+      "sha256": "a503eaea5f0005ba877bb562f744e6dd7c93634a9d259fe4c51f1ca4295b8203"
+    },
+    {
+      "path": "apps/web/lib/reviews/review-upload-intents.ts",
+      "bytes": 4101,
+      "sha256": "7ece637ab6bf53ece360310f841c9aba1ae1e416096177ba301158fb4a4a30f5"
+    },
+    {
+      "path": "apps/web/scripts/run-nightly-regression.mjs",
+      "bytes": 75216,
+      "sha256": "0495ac6cd5af65c8f0834f84cf14839a57758fe76def428578a632165aa3a070"
+    },
+    {
+      "path": "apps/web/tests-unit/helpers/review-intent-storage.ts",
+      "bytes": 376,
+      "sha256": "f492e8bbb5dc4cc76909dd9e4a6839760ad619e18596ed43b74f003a331a40e9"
+    },
+    {
+      "path": "apps/web/tests-unit/nightly-regression-workflow.test.ts",
+      "bytes": 82997,
+      "sha256": "253b1275b1f2c98039b9b70eefd5f383ff87db3ad85c06e10003027c55bc630e"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-mutation.test.ts",
+      "bytes": 18845,
+      "sha256": "163842b7a7b52a2bef28a3c3f4e90f51e4a10105947e36606bfad4310ed1d2a4"
+    },
+    {
+      "path": "apps/web/tests-unit/review-upload-intents.test.ts",
+      "bytes": 3342,
+      "sha256": "eb711fa574e3485ca97fc015a10421c6a2661702552e68e4a97aaa12a9c8a053"
+    },
+    {
+      "path": "backend/supabase/migrations/20261011085342_review_legacy_shared_cleanup.sql",
+      "bytes": 7661,
+      "sha256": "623236ddbd87059b94c84486f9e14822dba0190d2448656259991bd1345a434f"
+    },
+    {
+      "path": "backend/supabase/scripts/local-migrate.py",
+      "bytes": 213326,
+      "sha256": "457536cd40936b821948a2b91d588f1099ac19c9b40e45d01b6c2f667ca4ddb6"
+    },
+    {
+      "path": "backend/supabase/scripts/local_catalog_readback.sql",
+      "bytes": 109643,
+      "sha256": "7b4cbd23cf2e3dab86e5485423adedc8f6cc8aa0c6efee21d16ebe5cb42a5c58"
+    },
+    {
+      "path": "backend/supabase/tests/test_local_function_runtime_contract.py",
+      "bytes": 24809,
+      "sha256": "85f535e1e4d737f90552b87656a97cd20e6e31f1ae70588801cd782fbddc5928"
+    },
+    {
+      "path": "backend/supabase/tests/test_local_publication_verifier.py",
+      "bytes": 72675,
+      "sha256": "f0de91b66fcd55f81eb0fdb9b5104ad673dd728e8906d3d9c2dab7fc68a7cce7"
+    },
+    {
+      "path": "backend/supabase/tests/test_local_seed_receipt_contract.py",
+      "bytes": 48072,
+      "sha256": "0ab5d44c345400ab328fd7a6d2482c01a836c63783a08e1179de8b784185a262"
+    },
+    {
+      "path": "backend/supabase/tests/test_review_media_catalog_integration.py",
+      "bytes": 17875,
+      "sha256": "d70606e12863987c8bed18e4280f84503949c7c614ab048ad7c291caff59583e"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "source": "6f9822f0053ab020c8f71234db4677d2c5dee3fa",
+  "checks": {
+    "fullUnit": {
+      "exit": 0,
+      "file": "full-unit-v2.log",
+      "sha256": "03ce79109d23b546981bf95724849eed2ae43861c3af609577a95a9987906501",
+      "totals": {
+        "pass": 3450,
+        "skip": 11,
+        "fail": 0
+      }
+    },
+    "focused": {
+      "exit": 0,
+      "file": "focused-v2.log",
+      "sha256": "e344ec0f46aef2b73bc9648abbcc22a6841dd3b4aa681e47f32f25eb396bc158",
+      "totals": {
+        "pass": 22,
+        "skip": 0,
+        "fail": 0
+      }
+    },
+    "parity": {
+      "exit": 0,
+      "file": "parity-v2.log",
+      "sha256": "e3889dfef99db5086566a18d6eec85565b9db4bd7e806bcc682c8e1db717bb54"
+    },
+    "lint": {
+      "exit": 0,
+      "file": "lint-v2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "build": "configured-build-review-v2.json",
+  "directBoundary": "boundary-comparison-v1.json",
+  "browser": "after-0.json",
+  "operatingWrites": 0,
+  "candidateDeployed": false,
+  "performanceAdmission": 0,
+  "physicalFieldAdmission": 0,
+  "firstLintFailed": true
+}

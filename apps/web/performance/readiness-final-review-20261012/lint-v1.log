@@ -1,0 +1,45 @@
+
+/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/app/mypage/reviews/page.tsx
+  154:8   error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/app/mypage/reviews/page.tsx:154:8
+  152 |   const [isCleaning, setIsCleaning] = useState(false);
+  153 |   const cleanupRunner = useRef<ReturnType<typeof createLatestOwnerCleanup> | null>(null);
+> 154 |   if (!cleanupRunner.current) cleanupRunner.current = createLatestOwnerCleanup({
+      |        ^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  155 |     owner: () => ownerRef.current,
+  156 |     run: (ownerId, cancelInterrupted) => retryReviewMediaCleanup(
+  157 |       createReviewMediaDependencies(supabase, () => ownerRef.current), ownerId, cancelInterrupted,
+
+To initialize a ref only once, check that the ref is null with the pattern `if (ref.current == null) { ref.current = ... }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react-hooks/refs
+  154:80  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/app/mypage/reviews/page.tsx:154:80
+  152 |   const [isCleaning, setIsCleaning] = useState(false);
+  153 |   const cleanupRunner = useRef<ReturnType<typeof createLatestOwnerCleanup> | null>(null);
+> 154 |   if (!cleanupRunner.current) cleanupRunner.current = createLatestOwnerCleanup({
+      |                                                                                ^
+> 155 |     owner: () => ownerRef.current,
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 156 |     run: (ownerId, cancelInterrupted) => retryReviewMediaCleanup(
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 157 |       createReviewMediaDependencies(supabase, () => ownerRef.current), ownerId, cancelInterrupted,
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 158 |     ),
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 159 |     result: (_ownerId, pending) => setCleanupPending(pending),
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 160 |     busy: setIsCleaning,
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 161 |   });
+      | ^^^^ Passing a ref to a function may read its value during render
+  162 |   const retryCleanup = useCallback((cancelInterrupted = false) => cleanupRunner.current!.request(cancelInterrupted), []);
+  163 |   const searchParams = useSearchParams() ?? EMPTY_SEARCH_PARAMS;
+  164 |   const [filterStatus, setFilterStatus] = useState<string>("all");  react-hooks/refs
+
+✖ 2 problems (2 errors, 0 warnings)
+

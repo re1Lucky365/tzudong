@@ -1,0 +1,10 @@
+{
+  "status": "failed",
+  "fixedCode": "ERR_MODULE_NOT_FOUND",
+  "package": "@google/genai",
+  "backendNodeModulesPresent": false,
+  "modelTestsPass": 4,
+  "clientTestFilesFail": 1,
+  "rawStdoutPersisted": false,
+  "externalProviderCalls": 0
+}

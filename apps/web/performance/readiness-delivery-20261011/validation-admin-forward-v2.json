@@ -1,0 +1,106 @@
+{
+  "sourceHead": "7cb7f73b00ce4de7efa92dff5b102ca8910a86a2",
+  "fullUnit": {
+    "pass": 3406,
+    "skip": 11,
+    "fail": 0,
+    "processLanes": 19
+  },
+  "catalogPython": {
+    "pass": 104,
+    "runtime": "Python3.12.14"
+  },
+  "finalCatalogSourceContract": {
+    "pass": 16
+  },
+  "focusedUnit": {
+    "pass": 60,
+    "assertions": 1325
+  },
+  "finalSdkMockIsolationChecks": {
+    "pass": 26,
+    "assertions": 284
+  },
+  "typecheck": {
+    "status": "passed",
+    "diagnostics": 0,
+    "logicalInputs": 3141,
+    "logicalInputNamesSha256": "5496317261aeb505a0a72e966a1cc47493f41d9a3740837661116d4a600bc952",
+    "nonLibraryContentSha256": "47aae1b0ad1b6b9f12058e8682d59b87e92bb1219546408cc32206a812daaf9a",
+    "standardLibraryContentSha256": {
+      "native": "d328ef5dcbac7d4c183cd37a26eb383e8e6921ab2147b20e5d73f3c149223a64",
+      "compat": "82afdd90154e9b315a83eb66f2d4ee59972c492094bbf66d7f0791f584e41eb0"
+    }
+  },
+  "changedLintExit": 0,
+  "productionBuild": {
+    "sourceHead": "7cb7f73b00ce4de7efa92dff5b102ca8910a86a2",
+    "node": "v24.21.0",
+    "next": "16.3.8",
+    "distDir": ".next-admin-media-forward-v1",
+    "buildId": "43sY3Nhp6RANXm1RL4bJm",
+    "buildExit": 0,
+    "cssExit": 0,
+    "elapsedBuildAndCssMs": 64895,
+    "packageLockSha256": "607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4",
+    "publicConfigurationOnly": true,
+    "credentialsPersisted": false,
+    "tsconfigPreserved": true,
+    "operatingWrites": 0,
+    "deploymentVerified": false
+  },
+  "operatingWrites": 0,
+  "phoneUsed": false,
+  "privateLogs": [
+    {
+      "name": "admin-forward-full-unit-v1.log",
+      "bytes": 442885,
+      "sha256": "8d085428ad619cdbf4059cc58e292ced5c4b857af51605af41339580c852df19"
+    },
+    {
+      "name": "admin-forward-catalog-unit-v3.log",
+      "bytes": 206,
+      "sha256": "bbab5563a5c6dac2df7c9199e96074ecb8d2434b6a231d431b11d4844841ce71"
+    },
+    {
+      "name": "admin-forward-catalog-unit-v4.log",
+      "bytes": 115,
+      "sha256": "f52fc233f13e746c3d9a3cb365e746816b24dfb2e92febf8567c246f5b2e30a7"
+    },
+    {
+      "name": "admin-forward-parity-v1.log",
+      "bytes": 428,
+      "sha256": "63ba309e06479f8d0febcc2f7ee545b50946cd44ad2dafa42e72c02f92a3352d"
+    },
+    {
+      "name": "admin-forward-unit-v3.log",
+      "bytes": 8707,
+      "sha256": "43e5f9e597f6da5e815a350c592bd06c8abd2142d04b68ba52c5a16da2329fdd"
+    },
+    {
+      "name": "account-delete-isolated-v2.log",
+      "bytes": 2598,
+      "sha256": "43e045d9c6cfea54c05d7f4eb678565f66f9e91002f5dbe9eb353520e102a043"
+    },
+    {
+      "name": "private-verification-real-export-v2.log",
+      "bytes": 1383,
+      "sha256": "0e60e7393fbcf8a65a3893dc4b44d3345658068cf43d6f010e6fefcca94eb9c5"
+    },
+    {
+      "name": "admin-forward-lint-v1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "admin-forward-build-v1.log",
+      "bytes": 1181,
+      "sha256": "bd507b6f653addd3c05ef5261efec4ceedf9a8d7c8d9a4c34b7177e0f8ea7cb7"
+    },
+    {
+      "name": "admin-forward-css-v1.log",
+      "bytes": 119,
+      "sha256": "e658b588eb4e25e19eb55c986c16594f823e19550a10d88f87afee4c53c6130e"
+    }
+  ]
+}

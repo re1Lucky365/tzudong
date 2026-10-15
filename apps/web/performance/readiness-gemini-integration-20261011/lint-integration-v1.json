@@ -1,0 +1,30 @@
+{
+  "exit": 0,
+  "files": [
+    "apps/web/lib/admin/storyboard/gemini-client.ts",
+    "apps/web/lib/admin/storyboard/gemini-models.ts",
+    "apps/web/lib/admin/storyboard/outbound-worker.ts",
+    "apps/web/lib/admin/storyboard/production-worker-auth.ts",
+    "apps/web/lib/ocr/gemini.ts",
+    "apps/web/tests-unit/gemini-ocr.test.ts",
+    "apps/web/tests-unit/storyboard-gemini-client.test.ts",
+    "apps/web/tests-unit/storyboard-outbound-worker.test.ts",
+    "apps/web/tests-unit/storyboard-production-api.test.ts"
+  ],
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "sourceHead": "723754e30948a1dacc6ac6e11df7ba889b0a3754",
+  "node": "v24.21.0",
+  "command": [
+    "/Users/twoimo/.npm/_npx/387698761821791d/node_modules/node/bin/node",
+    "node_modules/eslint/bin/eslint.js",
+    "lib/admin/storyboard/gemini-client.ts",
+    "lib/admin/storyboard/gemini-models.ts",
+    "lib/admin/storyboard/outbound-worker.ts",
+    "lib/admin/storyboard/production-worker-auth.ts",
+    "lib/ocr/gemini.ts",
+    "tests-unit/gemini-ocr.test.ts",
+    "tests-unit/storyboard-gemini-client.test.ts",
+    "tests-unit/storyboard-outbound-worker.test.ts",
+    "tests-unit/storyboard-production-api.test.ts"
+  ]
+}

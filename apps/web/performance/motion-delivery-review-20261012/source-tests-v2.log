@@ -1,0 +1,32 @@
+..............................................F............E................................................E
+======================================================================
+ERROR: test_two_reset_comparator_compares_ordered_ledger_and_digests (backend.supabase.tests.test_local_seed_receipt_contract.LocalSeedReceiptContractTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/backend/supabase/tests/test_local_seed_receipt_contract.py", line 530, in test_two_reset_comparator_compares_ordered_ledger_and_digests
+    self.enterContext(mock.patch.object(
+AttributeError: 'LocalSeedReceiptContractTests' object has no attribute 'enterContext'
+
+======================================================================
+ERROR: test_workflow_records_each_lifecycle_stage_before_failure_upload (backend.supabase.tests.test_local_publication_verifier.LocalPublicationVerifierTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/backend/supabase/tests/test_local_publication_verifier.py", line 329, in test_workflow_records_each_lifecycle_stage_before_failure_upload
+    zip(lifecycle_writer.STAGES, command_markers, strict=True),
+TypeError: zip() takes no keyword arguments
+
+======================================================================
+FAIL: test_manifest_contains_exactly_current_immutable_units (backend.supabase.tests.test_local_seed_receipt_contract.LocalSeedReceiptContractTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/backend/supabase/tests/test_local_seed_receipt_contract.py", line 489, in test_manifest_contains_exactly_current_immutable_units
+    self.assertEqual(
+AssertionError: 'back[21 chars]ns/20261011175912_review_owner_cleanup_completion.sql' != 'back[21 chars]ns/20261011110108_review_storage_caller_bound_admin_policy.sql'
+- backend/supabase/migrations/20261011175912_review_owner_cleanup_completion.sql
++ backend/supabase/migrations/20261011110108_review_storage_caller_bound_admin_policy.sql
+
+
+----------------------------------------------------------------------
+Ran 109 tests in 95.439s
+
+FAILED (failures=1, errors=2)

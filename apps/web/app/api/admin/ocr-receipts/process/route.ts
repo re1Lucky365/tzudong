@@ -3,6 +3,14 @@ import * as crypto from 'crypto';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { NextResponse } from 'next/server';
+import {
+    downloadReviewVerification,
+    REVIEW_VERIFICATION_BUCKET,
+    LEGACY_REVIEW_VERIFICATION_BUCKET,
+} from '@/lib/reviews/private-verification';
+import { canDiscardReceiptReplacement } from '@/lib/ocr/receipt-replacement-reconciliation';
+import { createAdminVerificationCleanupDependencies, drainAdminVerificationCleanup, uploadStagedAdminVerificationImage } from '@/lib/reviews/admin-verification-cleanup';
+import { buildReviewPhotoObjectPath, getOwnedReviewPhotoObjectPath } from '@/lib/review-photo-url';
 
 import {
     PRIVACY_UNSAFE_VALUE_REASON,
@@ -452,10 +460,10 @@ function assertSafeReceiptObjectPath(value: unknown): asserts value is string {
     }
 }
 
-function buildReplacementReceiptObjectPath(oldObjectPath: string): string {
-    const separatorIndex = oldObjectPath.lastIndexOf('/');
-    const directory = separatorIndex === -1 ? '' : oldObjectPath.slice(0, separatorIndex);
-    const newObjectPath = `${directory ? `${directory}/` : ''}ocr-${crypto.randomUUID()}.jpg`;
+function buildReplacementReceiptObjectPath(oldObjectPath: string, reviewId: string): string {
+    const ownerId = oldObjectPath.split('/')[0];
+    const newObjectPath = buildReviewPhotoObjectPath({ ownerId, reviewId, purpose: 'verification' }, `ocr-${crypto.randomUUID()}.jpg`);
+    if (!newObjectPath) throw new OcrPersistenceError();
     assertSafeReceiptObjectPath(newObjectPath);
     return newObjectPath;
 }
@@ -470,38 +478,33 @@ function hasExpectedReplacementReadback(
         && value.verification_photo === expectedObjectPath;
 }
 
-async function removeReplacementObject(
-    storageAdmin: ReturnType<typeof getSupabaseStorageAdmin>,
-    objectPath: string,
-): Promise<boolean> {
-    try {
-        const { error } = await storageAdmin.from('review-photos').remove([objectPath]);
-        return !error;
-    } catch {
-        return false;
-    }
-}
-
 async function replaceReceiptWithCompressedObject(
     supabase: ReturnType<typeof getSupabaseAdmin>,
     storageAdmin: ReturnType<typeof getSupabaseStorageAdmin>,
     reviewId: string,
+    oldStoredValue: string,
     oldObjectPath: string,
     canonicalImage: Buffer,
 ): Promise<string> {
-    const newObjectPath = buildReplacementReceiptObjectPath(oldObjectPath);
-    const storage = storageAdmin.from('review-photos');
+    const newObjectPath = buildReplacementReceiptObjectPath(oldObjectPath, reviewId);
+    const storage = storageAdmin.from(REVIEW_VERIFICATION_BUCKET);
+    const cleanup = createAdminVerificationCleanupDependencies(supabase, storageAdmin);
     let databaseUpdated = false;
     let replacementRemoved = false;
     let replacementStateIndeterminate = false;
+    let uploadConfirmed = false;
 
     try {
-        const { data: uploadData, error: uploadError } = await storage.upload(newObjectPath, canonicalImage, {
+        const accepted = await uploadStagedAdminVerificationImage(cleanup, reviewId, oldObjectPath.split('/')[0], newObjectPath, () => storage.upload(newObjectPath, canonicalImage, {
             cacheControl: '3600',
             contentType: 'image/jpeg',
             upsert: false,
-        });
-        if (uploadError || uploadData?.path !== newObjectPath) throw new OcrPersistenceError();
+        }));
+        if (!accepted) {
+            replacementStateIndeterminate = true;
+            throw new OcrPersistenceError();
+        }
+        uploadConfirmed = true;
 
         const uploadedImage = await downloadPrivateReceiptObject(() => storage.download(newObjectPath));
         if (
@@ -512,15 +515,27 @@ async function replaceReceiptWithCompressedObject(
             throw new OcrPersistenceError();
         }
 
-        const { data: updateReadback, error: updateError } = await supabase
-            .from('reviews')
-            .update({ verification_photo: newObjectPath })
-            .eq('id', reviewId)
-            .eq('verification_photo', oldObjectPath)
-            .select('id, verification_photo')
-            .maybeSingle();
+        // SQL integration dependency: the authoritative review-media UPDATE
+        // trigger must enqueue the old normalized key in the same transaction
+        // that replaces this reference. A transport error is never rollback
+        // proof, even when a following read still observes the old value.
+        let definiteNoMatch = false;
+        try {
+            const { data: updateReadback, error: updateError } = await supabase
+                .from('reviews')
+                .update({ verification_photo: newObjectPath })
+                .eq('id', reviewId)
+                .eq('verification_photo', oldStoredValue)
+                .select('id, verification_photo')
+                .maybeSingle();
+            if (!updateError && hasExpectedReplacementReadback(updateReadback, reviewId, newObjectPath)) {
+                databaseUpdated = true;
+            } else if (!updateError && updateReadback === null) {
+                definiteNoMatch = true;
+            }
+        } catch { /* authoritative readback below */ }
 
-        if (updateError || !hasExpectedReplacementReadback(updateReadback, reviewId, newObjectPath)) {
+        if (!databaseUpdated) {
             const { data: currentReadback, error: currentReadbackError } = await supabase
                 .from('reviews')
                 .select('id, verification_photo')
@@ -529,30 +544,30 @@ async function replaceReceiptWithCompressedObject(
 
             if (!currentReadbackError && hasExpectedReplacementReadback(currentReadback, reviewId, newObjectPath)) {
                 databaseUpdated = true;
-            } else if (
-                !currentReadbackError
-                && hasExpectedReplacementReadback(currentReadback, reviewId, oldObjectPath)
-            ) {
-                if (!(await removeReplacementObject(storageAdmin, newObjectPath))) {
+            } else if (canDiscardReceiptReplacement(
+                definiteNoMatch, Boolean(currentReadbackError), currentReadback, reviewId, newObjectPath,
+            )) {
+                if (!(await drainAdminVerificationCleanup(cleanup, reviewId, oldObjectPath.split('/')[0]))) {
                     throw new OcrPersistenceError();
                 }
                 replacementRemoved = true;
             } else {
                 replacementStateIndeterminate = true;
             }
-            throw new OcrPersistenceError();
+            if (!databaseUpdated) throw new OcrPersistenceError();
         }
 
-        databaseUpdated = true;
-        const { error: removeOldObjectError } = await storage.remove([oldObjectPath]);
-        if (removeOldObjectError) throw new OcrPersistenceError();
+        // The authoritative review-media UPDATE enqueues the original. Only
+        // its durable retirement fence may remove it after all references end.
+        // A privileged direct removal here would break another legacy review.
         return newObjectPath;
     } catch {
         if (
-            !databaseUpdated
+            uploadConfirmed
+            && !databaseUpdated
             && !replacementRemoved
             && !replacementStateIndeterminate
-            && !(await removeReplacementObject(storageAdmin, newObjectPath))
+            && !(await drainAdminVerificationCleanup(cleanup, reviewId, oldObjectPath.split('/')[0]))
         ) {
             throw new OcrPersistenceError();
         }
@@ -622,30 +637,42 @@ export async function POST(request: Request) {
     try {
         const { data: review, error: fetchError } = await supabase
             .from('reviews')
-            .select('id, verification_photo')
+            .select('id, user_id, verification_photo')
             .eq('id', body.reviewId)
             .single();
 
         if (fetchError || !review) return errorResponse('REVIEW_NOT_FOUND', 404);
         if (!review.verification_photo) return errorResponse('RECEIPT_NOT_FOUND', 400);
-        assertSafeReceiptObjectPath(review.verification_photo);
+        const receiptObjectPath = getOwnedReviewPhotoObjectPath(review.verification_photo, {
+            ownerId: review.user_id,
+            reviewId: body.reviewId,
+            purpose: 'verification',
+        });
+        if (!receiptObjectPath) return errorResponse('RECEIPT_NOT_FOUND', 400);
+        assertSafeReceiptObjectPath(receiptObjectPath);
 
-        const storage = storageAdmin.from('review-photos');
-        const downloadedImage = await downloadPrivateReceiptObject(
-            () => storage.download(review.verification_photo),
-        );
+        const cleanup = createAdminVerificationCleanupDependencies(supabase, storageAdmin);
+        // Reconcile prior committed replacements before another download/provider
+        // call. An absent migration or pending public object fails closed.
+        if (!await drainAdminVerificationCleanup(cleanup, body.reviewId, review.user_id)) throw new OcrPersistenceError();
+
+        const receiptDownload = await downloadReviewVerification(storageAdmin, receiptObjectPath);
+        const downloadedImage = await downloadPrivateReceiptObject(() => Promise.resolve(receiptDownload));
         const canonicalStorageImage = await canonicalizeReceiptImage(
             downloadedImage.bytes,
             downloadedImage.mimeType,
         );
-        if (canonicalStorageImage.bytes.byteLength < downloadedImage.bytes.byteLength) {
+        if (receiptDownload.bucket === LEGACY_REVIEW_VERIFICATION_BUCKET
+            || canonicalStorageImage.bytes.byteLength < downloadedImage.bytes.byteLength) {
             await replaceReceiptWithCompressedObject(
                 supabase,
                 storageAdmin,
                 body.reviewId,
                 review.verification_photo,
+                receiptObjectPath,
                 canonicalStorageImage.bytes,
             );
+            if (!await drainAdminVerificationCleanup(cleanup, body.reviewId, review.user_id)) throw new OcrPersistenceError();
         }
 
         tempRun = createAdminReceiptTempRun();

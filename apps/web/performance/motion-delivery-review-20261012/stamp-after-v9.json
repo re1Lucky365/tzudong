@@ -1,0 +1,129 @@
+{
+  "variant": "after",
+  "distDir": ".next-motion-delivery-review-v2",
+  "buildId": "mjio1rgGX_hXAqTZ6x-mZ",
+  "data": "Synthetic REST735/client Auth; cookie-free guest SSR",
+  "serverAuthenticationVerified": false,
+  "physicalDevice": false,
+  "operatingWrites": 0,
+  "fieldAdmission": 0,
+  "pageErrors": 0,
+  "consoleKinds": {
+    "other": 9
+  },
+  "unsupportedFixture": 0,
+  "mutationAttempts": 0,
+  "cases": [
+    {
+      "attempt": 0,
+      "width": 390,
+      "composerVisible": true,
+      "writeReviewConsumed": true,
+      "composerClosed": true,
+      "desktopRouted": true,
+      "passed": true,
+      "dialogState": {
+        "hiddenAncestors": 0
+      }
+    },
+    {
+      "attempt": 1,
+      "width": 820,
+      "composerVisible": true,
+      "writeReviewConsumed": true,
+      "composerClosed": true,
+      "desktopRouted": true,
+      "passed": true,
+      "dialogState": {
+        "hiddenAncestors": 0
+      }
+    },
+    {
+      "attempt": 2,
+      "width": 1440,
+      "composerVisible": true,
+      "writeReviewConsumed": true,
+      "composerClosed": true,
+      "desktopRouted": true,
+      "passed": true,
+      "dialogState": {
+        "hiddenAncestors": 0
+      }
+    },
+    {
+      "attempt": 3,
+      "width": 390,
+      "composerVisible": true,
+      "writeReviewConsumed": true,
+      "composerClosed": true,
+      "desktopRouted": true,
+      "passed": true,
+      "dialogState": {
+        "hiddenAncestors": 0
+      }
+    },
+    {
+      "attempt": 4,
+      "width": 820,
+      "composerVisible": true,
+      "writeReviewConsumed": true,
+      "composerClosed": true,
+      "desktopRouted": true,
+      "passed": true,
+      "dialogState": {
+        "hiddenAncestors": 0
+      }
+    },
+    {
+      "attempt": 5,
+      "width": 1440,
+      "composerVisible": true,
+      "writeReviewConsumed": true,
+      "composerClosed": true,
+      "desktopRouted": true,
+      "passed": true,
+      "dialogState": {
+        "hiddenAncestors": 0
+      }
+    },
+    {
+      "attempt": 6,
+      "width": 390,
+      "composerVisible": true,
+      "writeReviewConsumed": true,
+      "composerClosed": true,
+      "desktopRouted": true,
+      "passed": true,
+      "dialogState": {
+        "hiddenAncestors": 0
+      }
+    },
+    {
+      "attempt": 7,
+      "width": 820,
+      "composerVisible": true,
+      "writeReviewConsumed": true,
+      "composerClosed": true,
+      "desktopRouted": true,
+      "passed": true,
+      "dialogState": {
+        "hiddenAncestors": 0
+      }
+    },
+    {
+      "attempt": 8,
+      "width": 1440,
+      "composerVisible": true,
+      "writeReviewConsumed": true,
+      "composerClosed": true,
+      "desktopRouted": true,
+      "passed": true,
+      "dialogState": {
+        "hiddenAncestors": 0
+      }
+    }
+  ],
+  "passed": true,
+  "browser": "154.0.8037.98",
+  "browserHealthClean": false
+}

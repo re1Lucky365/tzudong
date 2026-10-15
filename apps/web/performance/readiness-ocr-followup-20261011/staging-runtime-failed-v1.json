@@ -1,0 +1,10 @@
+{
+  "sqlstate": "42501",
+  "permissionFunction": "is_user_admin",
+  "stagedKeyRows": 1,
+  "objects": 0,
+  "sourceMigrationAppliedLocally": true,
+  "fixtureAuthenticatedUploadAllowedHelper": true,
+  "actualAuthenticatedStorageRLSTested": false,
+  "operatingDDL": 0
+}

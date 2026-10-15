@@ -1,0 +1,53 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-unit/toast-retirement.test.ts:
+25 |     const id = `retirement-${i}`;
+26 |     state = reducer(state, { type: 'ADD_TOAST', toast: { id, title: 'Fixture', open: true } });
+27 |     state = reducer(state, { type: 'DISMISS_TOAST', toastId: id });
+28 |   }
+29 |   expect(state.toasts).toHaveLength(1);
+30 |   expect(pending.size).toBe(1);
+                            ^
+error: expect(received).toBe(expected)
+
+Expected: 1
+Received: 192
+
+      at <anonymous> (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/toast-retirement.test.ts:30:24)
+      at withClock (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/toast-retirement.test.ts:14:9)
+(fail) 192 show/dismiss cycles retain only the current toast retirement timer [0.79ms]
+36 | test('stale dismiss and duplicate dismiss cannot accumulate retirement timers', () => withClock(({ pending }) => {
+37 |   let state: ReturnType<typeof reducer> = { toasts: [] };
+38 |   state = reducer(state, { type: 'ADD_TOAST', toast: { id: 'current', open: true } });
+39 |   state = reducer(state, { type: 'DISMISS_TOAST', toastId: 'missing' });
+40 |   expect(state.toasts[0].open).toBe(true);
+41 |   expect(pending.size).toBe(0);
+                            ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/toast-retirement.test.ts:41:24)
+      at withClock (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/toast-retirement.test.ts:14:9)
+(fail) stale dismiss and duplicate dismiss cannot accumulate retirement timers [0.08ms]
+54 |   state = reducer(state, { type: 'UPDATE_TOAST', toast: { id: 'update', title: 'Updated' } });
+55 |   expect(pending.size).toBe(1);
+56 |   expect(state.toasts[0].title).toBe('Updated');
+57 |   state = reducer(state, { type: 'REMOVE_TOAST', toastId: 'update' });
+58 |   expect(state.toasts).toHaveLength(0);
+59 |   expect(pending.size).toBe(0);
+                            ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/toast-retirement.test.ts:59:24)
+      at withClock (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/toast-retirement.test.ts:14:9)
+(fail) explicit removal cancels the matching timer while update preserves retirement [0.07ms]
+
+ 0 pass
+ 3 fail
+ 8 expect() calls
+Ran 3 tests across 1 file. [86.00ms]

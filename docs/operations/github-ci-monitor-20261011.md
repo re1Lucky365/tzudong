@@ -100,3 +100,5 @@ run `38617798185`, attempt `2`는 attempt별 job 응답 6개 중 5개에서 `sta
 - reference 성공·source-tree 표본에서는 제외하고 `chronology_invalid_attempt` pending으로 창 전환을 막는다. 오류 코드는 1회성 `chronology:<run>:<attempt>:<code>` 경보로 노출한다. 이후 정상 attempt 수집과 분석은 계속한다.
 
 불변 입력을 별도 상태 디렉터리에서 재생한 결과 첫 tick은 69개 attempt를 수용했고 문제 attempt에 `JOB_START_PRECEDES_JOB_CREATION`, `JOB_COMPLETION_PRECEDES_JOB_CREATION`을 기록했다. 시간 지표는 모두 `null` 또는 빈 stage였고 reference는 성공 11개·source tree 7개가 있어도 pending 1개 때문에 `collecting_reference`를 유지했다. 같은 입력의 두 번째 tick은 신규 수용 0·중복 69·새 경보 0이었다. 직접 테스트 60개와 전체 CI Python 테스트 82개는 기준선 fail-closed, 현재 창 표본 제외, 동일 fingerprint 중복, 교정 가능한 비terminal 상태, 교정 후 불변화, 정상 신규 run 지속 수용, 준비된 후보의 재차단, reference 차단을 검증했다. 이는 격리 로컬 재생이며 GitHub 응답의 근본 생성 원인 해결이나 운영 창 전환을 뜻하지 않는다.
+
+후보를 `origin/develop` `ab9196b30f469ce34e9bda6e36db90098059a822`와 병합한 뒤 reconciliation 207개 entry의 현재 bytes에서 candidate content hash를 다시 계산했다. CI Python 82개, source classifier 6개, reconciliation 7개와 관련 workflow 3개의 actionlint 1.7.12가 통과했다. 저장소 전체 actionlint는 이 후보가 바꾸지 않은 `daily-crawler.yml`, `g035-hosted-recovery.yml`, `ts7-release-evidence.yml`의 기존 오류 4건으로 실패하므로 전체 workflow 무결성을 주장하지 않는다.

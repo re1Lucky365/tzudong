@@ -15,6 +15,8 @@ const MAX_FILENAME_LENGTH = 240;
 // purpose-bound, but carry no review binding.
 const LEGACY_REVIEW_PHOTO_FILENAME_PATTERN =
     /^\d{10,16}_(food_\d{1,3}|verification)_[A-Za-z0-9][A-Za-z0-9._-]{0,200}\.(?:avif|jpe?g|png|webp)$/;
+const LEGACY_VERIFICATION_GIF_PREVIEW_PATTERN =
+    /^\d{10,16}_(verification)_[A-Za-z0-9][A-Za-z0-9._-]{0,200}\.gif$/i;
 
 export type ReviewPhotoPurpose = 'food' | 'verification';
 
@@ -115,12 +117,21 @@ export function getCanonicalReviewPhotoObjectPaths(
 /**
  * Resolves the historical composer layout for display only. The stored value
  * must still address the requesting owner and the requested purpose, so a
- * legacy key can never expose another user's object. Cleanup and writes keep
- * using the canonical layout exclusively.
+ * legacy key can never expose another user's object. New uploads and direct
+ * compensation use canonical keys. A trusted DB cleanup queue may return an
+ * existing legacy key from an authorized review's authoritative pre-image.
  */
 export function getLegacyReviewPhotoObjectPath(
     value: string | null | undefined,
     ownership: ReviewPhotoOwnership | string | null | undefined,
+): string | null {
+    return resolveLegacyReviewPhotoObjectPath(value, ownership, LEGACY_REVIEW_PHOTO_FILENAME_PATTERN);
+}
+
+function resolveLegacyReviewPhotoObjectPath(
+    value: string | null | undefined,
+    ownership: ReviewPhotoOwnership | string | null | undefined,
+    filenamePattern: RegExp,
 ): string | null {
     if (
         typeof value !== 'string' ||
@@ -134,7 +145,7 @@ export function getLegacyReviewPhotoObjectPath(
     if (segments.length !== 2) return null;
 
     const [ownerId, filename] = segments;
-    const match = LEGACY_REVIEW_PHOTO_FILENAME_PATTERN.exec(filename);
+    const match = filenamePattern.exec(filename);
     if (!match || ownerId !== ownership.ownerId || !isCanonicalIdentifier(ownerId)) {
         return null;
     }
@@ -247,6 +258,7 @@ function extractSameOriginPublicReviewPhotoObjectPath(
     value: string | null | undefined,
     ownership: ReviewPhotoOwnership | string | null | undefined,
     configuredOrigin: string | null,
+    legacyResolver = getLegacyReviewPhotoObjectPath,
 ): string | null {
     if (typeof value !== 'string' || !configuredOrigin) return null;
 
@@ -279,20 +291,61 @@ function extractSameOriginPublicReviewPhotoObjectPath(
 
         const objectPath = segments.join('/');
         return getCanonicalReviewPhotoObjectPath(objectPath, ownership)
-            ?? getLegacyReviewPhotoObjectPath(objectPath, ownership);
+            ?? legacyResolver(objectPath, ownership);
     } catch {
         return null;
     }
 }
 
-function getOwnedReviewPhotoObjectPath(
+export function getOwnedReviewPhotoObjectPath(
     value: string | null | undefined,
     ownership: ReviewPhotoOwnership | string | null | undefined,
-    configuredOrigin: string | null,
+    configuredOrigin: string | null = resolveConfiguredSupabaseOrigin(),
 ): string | null {
     return getCanonicalReviewPhotoObjectPath(value, ownership)
         ?? getLegacyReviewPhotoObjectPath(value, ownership)
         ?? extractSameOriginPublicReviewPhotoObjectPath(value, ownership, configuredOrigin);
+}
+
+function getLegacyVerificationGifPreviewPath(
+    value: string | null | undefined,
+    ownership: ReviewPhotoOwnership | string | null | undefined,
+) {
+    return resolveLegacyReviewPhotoObjectPath(value, ownership, LEGACY_VERIFICATION_GIF_PREVIEW_PATTERN);
+}
+
+/** Historical GIF receipts are admitted only for verification display. Upload,
+ * mutation and compensation path validation keeps its existing format rules. */
+export function getOwnedReviewVerificationPreviewObjectPath(
+    value: string | null | undefined,
+    ownership: ReviewPhotoOwnership | string | null | undefined,
+    configuredOrigin: string | null = resolveConfiguredSupabaseOrigin(),
+): string | null {
+    if (!isCanonicalReviewPhotoOwnership(ownership) || ownership.purpose !== 'verification') return null;
+    return getOwnedReviewPhotoObjectPath(value, ownership, configuredOrigin)
+        ?? getLegacyVerificationGifPreviewPath(value, ownership)
+        ?? extractSameOriginPublicReviewPhotoObjectPath(value, ownership, configuredOrigin, getLegacyVerificationGifPreviewPath);
+}
+
+/**
+ * Keeps authoritative stored values byte-for-byte while admitting only values
+ * that resolve to an object owned by the requested review. Edit RPCs use the
+ * original values as their final-list contract; object-path normalization is
+ * reserved for Storage access and cleanup.
+ */
+export function getOwnedReviewPhotoValues(
+    values: unknown,
+    ownership: ReviewPhotoOwnership | string | null | undefined,
+    configuredOrigin: string | null = resolveConfiguredSupabaseOrigin(),
+): string[] {
+    if (!Array.isArray(values)) return [];
+
+    return values.flatMap((value) => (
+        typeof value === 'string'
+        && getOwnedReviewPhotoObjectPath(value, ownership, configuredOrigin)
+            ? [value]
+            : []
+    ));
 }
 
 export function resolveReviewPhotoUrl(
@@ -301,8 +354,16 @@ export function resolveReviewPhotoUrl(
     cacheBuster?: string | null,
 ): string | null {
     const configuredOrigin = resolveConfiguredSupabaseOrigin();
-    const objectPath = getOwnedReviewPhotoObjectPath(value, ownership, configuredOrigin);
+    const objectPath = typeof ownership === 'object' && ownership?.purpose === 'verification'
+        ? getOwnedReviewVerificationPreviewObjectPath(value, ownership, configuredOrigin)
+        : getOwnedReviewPhotoObjectPath(value, ownership, configuredOrigin);
     if (!objectPath || !configuredOrigin) return null;
+    // Verification images are served only through the authenticated admin
+    // route. Never construct a public URL or embed a signed bearer URL.
+    if (typeof ownership === 'object' && ownership?.purpose === 'verification') {
+        const cacheKey = getBoundedCacheBuster(cacheBuster);
+        return `/api/admin/review-verification/${encodeURIComponent(ownership.reviewId)}${cacheKey ? `?t=${cacheKey}` : ''}`;
+    }
 
     try {
         const expectedPath = `${REVIEW_PHOTO_PUBLIC_PATH}${objectPath

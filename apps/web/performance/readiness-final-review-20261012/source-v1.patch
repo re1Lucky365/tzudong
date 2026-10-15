@@ -1,0 +1,329 @@
+diff --git a/apps/web/app/mypage/reviews/page.tsx b/apps/web/app/mypage/reviews/page.tsx
+index 55bf8c1f..0e758040 100644
+--- a/apps/web/app/mypage/reviews/page.tsx
++++ b/apps/web/app/mypage/reviews/page.tsx
+@@ -2,6 +2,7 @@
+ 
+ import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, memo } from "react";
+ import Image from "next/image";
++import { createLatestOwnerCleanup } from '@/lib/reviews/latest-owner-cleanup';
+ import { Card, CardContent } from "@/components/ui/card";
+ import { Badge } from "@/components/ui/badge";
+ import { Button } from "@/components/ui/button";
+@@ -149,19 +150,17 @@ export default function ReviewsPage() {
+   const [deleteFailure, setDeleteFailure] = useState<string | null>(null);
+   const [cleanupPending, setCleanupPending] = useState(false);
+   const [isCleaning, setIsCleaning] = useState(false);
+-  const cleanupBusy = useRef(false);
+-  const retryCleanup = useCallback(async (cancelInterrupted = false) => {
+-    const ownerId = ownerRef.current;
+-    if (!ownerId || cleanupBusy.current) return;
+-    cleanupBusy.current = true;
+-    setIsCleaning(true);
+-    try {
+-      const complete = await retryReviewMediaCleanup(createReviewMediaDependencies(supabase, () => ownerRef.current), ownerId, cancelInterrupted);
+-      if (ownerRef.current === ownerId) setCleanupPending(!complete);
+-    } finally {
+-      cleanupBusy.current = false;
+-      setIsCleaning(false);
+-    }
++  const cleanupRunner = useRef<ReturnType<typeof createLatestOwnerCleanup> | null>(null);
++  const retryCleanup = useCallback((cancelInterrupted = false) => {
++    if (cleanupRunner.current === null) cleanupRunner.current = createLatestOwnerCleanup({
++      owner: () => ownerRef.current,
++      run: (ownerId, cancelInterrupted) => retryReviewMediaCleanup(
++        createReviewMediaDependencies(supabase, () => ownerRef.current), ownerId, cancelInterrupted,
++      ),
++      result: (_ownerId, pending) => setCleanupPending(pending),
++      busy: setIsCleaning,
++    });
++    return cleanupRunner.current.request(cancelInterrupted);
+   }, []);
+   const searchParams = useSearchParams() ?? EMPTY_SEARCH_PARAMS;
+   const [filterStatus, setFilterStatus] = useState<string>("all");
+diff --git a/apps/web/lib/reviews/latest-owner-cleanup.ts b/apps/web/lib/reviews/latest-owner-cleanup.ts
+new file mode 100644
+index 00000000..a0a80577
+--- /dev/null
++++ b/apps/web/lib/reviews/latest-owner-cleanup.ts
+@@ -0,0 +1,51 @@
++type Request = { ownerId: string; cancelInterrupted: boolean };
++
++/** Serialize MY cleanup and retain one request for the latest signed-in owner. */
++export function createLatestOwnerCleanup(deps: {
++    owner(): string | undefined;
++    run(ownerId: string, cancelInterrupted: boolean): Promise<boolean>;
++    result(ownerId: string, pending: boolean): void;
++    busy(value: boolean): void;
++}) {
++    let active: Promise<void> | null = null;
++    let activeOwner: string | null = null;
++    let queued: Request | null = null;
++
++    const drain = async (first: Request) => {
++        let next: Request | null = first;
++        while (next) {
++            const scan: Request = next;
++            activeOwner = scan.ownerId;
++            let complete = false;
++            try { complete = await deps.run(scan.ownerId, scan.cancelInterrupted); } catch { /* Retain retry feedback. */ }
++            if (deps.owner() === scan.ownerId) deps.result(scan.ownerId, !complete);
++            const pending = queued;
++            queued = null;
++            const ownerId = deps.owner();
++            next = pending?.ownerId === ownerId ? pending
++                : ownerId && ownerId !== scan.ownerId ? { ownerId, cancelInterrupted: false } : null;
++        }
++    };
++
++    return {
++        request(cancelInterrupted = false): Promise<void> {
++            const ownerId = deps.owner();
++            if (!ownerId) { queued = null; return active ?? Promise.resolve(); }
++            if (active) {
++                if (activeOwner !== ownerId || cancelInterrupted) {
++                    queued = { ownerId, cancelInterrupted: cancelInterrupted
++                        || Boolean(queued?.ownerId === ownerId && queued.cancelInterrupted) };
++                }
++                return active;
++            }
++            activeOwner = ownerId;
++            active = Promise.resolve().then(() => drain({ ownerId, cancelInterrupted })).finally(() => {
++                active = null;
++                activeOwner = null;
++                deps.busy(false);
++            });
++            deps.busy(true);
++            return active;
++        },
++    };
++}
+diff --git a/apps/web/lib/reviews/private-verification-handler.ts b/apps/web/lib/reviews/private-verification-handler.ts
+index 60dc0c89..e3b6cebd 100644
+--- a/apps/web/lib/reviews/private-verification-handler.ts
++++ b/apps/web/lib/reviews/private-verification-handler.ts
+@@ -1,4 +1,5 @@
+ import { getOwnedReviewPhotoObjectPath } from '@/lib/review-photo-url';
++import { isMissingReviewVerificationObject } from './private-verification';
+ 
+ export interface VerificationImageDependencies {
+     authorize(): Promise<{ ok: true } | { ok: false; response: Response }>;
+@@ -22,12 +23,15 @@ export async function readPrivateVerificationImage(
+         const { reviewId } = await params;
+         if (!uuid.test(reviewId)) return failure(400);
+         const row = await deps.read(reviewId);
+-        if (row.error || !row.data) return failure(404);
++        if (row.error) return failure(503);
++        if (!row.data) return failure(404);
+         const ownership = { ownerId: row.data.user_id, reviewId, purpose: 'verification' as const };
+         const path = getOwnedReviewPhotoObjectPath(row.data.verification_photo, ownership);
+         if (!path) return failure(404);
+         const image = await deps.download(path);
+-        if (image.error || !image.data || image.data.size > 5 * 1024 * 1024 || !allowedTypes.has(image.data.type)) return failure(404);
++        if (image.error) return failure(isMissingReviewVerificationObject(image.error) ? 404 : 503);
++        if (!image.data) return failure(503);
++        if (image.data.size > 5 * 1024 * 1024 || !allowedTypes.has(image.data.type)) return failure(404);
+         return new Response(image.data, { headers: { ...headers, 'Content-Type': image.data.type } });
+     } catch { return failure(503); }
+ }
+diff --git a/apps/web/lib/reviews/private-verification.ts b/apps/web/lib/reviews/private-verification.ts
+index 81ed8895..c19e4455 100644
+--- a/apps/web/lib/reviews/private-verification.ts
++++ b/apps/web/lib/reviews/private-verification.ts
+@@ -8,6 +8,13 @@ export type ReviewVerificationBucket = typeof REVIEW_VERIFICATION_BUCKET | typeo
+ type ReviewVerificationDownload = Awaited<ReturnType<ReturnType<SupabaseClient<Database>['storage']['from']>['download']>>
+     & { bucket: ReviewVerificationBucket };
+ 
++export function isMissingReviewVerificationObject(error: unknown): boolean {
++    return error instanceof StorageApiError
++        && (error.status === 404 || (error.status === 400 && error.statusCode === '404'))
++        && (error.code === 'NoSuchKey'
++            || (error.code === undefined && error.statusCode === '404' && error.message === 'Object not found'));
++}
++
+ /** Server-side transition support for pre-migration verification keys. The
+  * caller must authorize the review and validate its authoritative object key.
+  * New verification uploads always target the private bucket. */
+@@ -15,11 +22,7 @@ export async function downloadReviewVerification(storage: SupabaseClient<Databas
+     if (typeof window !== 'undefined') throw new Error('REVIEW_VERIFICATION_SERVER_ONLY');
+     const privateReply = await storage.from(REVIEW_VERIFICATION_BUCKET).download(path);
+     const error = privateReply.error;
+-    const missingObject = error instanceof StorageApiError
+-        && (error.status === 404 || (error.status === 400 && error.statusCode === '404'))
+-        && (error.code === 'NoSuchKey'
+-            || (error.code === undefined && error.statusCode === '404' && error.message === 'Object not found'));
+-    if (!missingObject) return { ...privateReply, bucket: REVIEW_VERIFICATION_BUCKET };
++    if (!isMissingReviewVerificationObject(error)) return { ...privateReply, bucket: REVIEW_VERIFICATION_BUCKET };
+     const publicReply = await storage.from(LEGACY_REVIEW_VERIFICATION_BUCKET).download(path);
+     return { ...publicReply, bucket: LEGACY_REVIEW_VERIFICATION_BUCKET };
+ }
+diff --git a/apps/web/tests-unit/latest-owner-cleanup.test.ts b/apps/web/tests-unit/latest-owner-cleanup.test.ts
+new file mode 100644
+index 00000000..4eb95077
+--- /dev/null
++++ b/apps/web/tests-unit/latest-owner-cleanup.test.ts
+@@ -0,0 +1,61 @@
++import { describe, expect, test } from 'bun:test';
++import { createLatestOwnerCleanup } from '../lib/reviews/latest-owner-cleanup';
++
++function deferred() {
++    let finish!: (value: boolean) => void;
++    const promise = new Promise<boolean>(resolve => { finish = resolve; });
++    return { promise, finish };
++}
++
++describe('latest-owner cleanup serialization', () => {
++    test('scans B after A completes and never publishes A feedback to B', async () => {
++        let owner: string | undefined = 'A';
++        const a = deferred(), b = deferred(), calls: string[] = [], results: unknown[] = [], busy: boolean[] = [];
++        const queue = createLatestOwnerCleanup({ owner: () => owner,
++            run: id => { calls.push(id); return id === 'A' ? a.promise : b.promise; },
++            result: (id, pending) => results.push([id, pending]), busy: value => busy.push(value) });
++        const task = queue.request(); await Promise.resolve();
++        owner = 'B'; const queued = queue.request();
++        expect(calls).toEqual(['A']); a.finish(true); await Promise.resolve(); await Promise.resolve();
++        expect(calls).toEqual(['A', 'B']); expect(results).toEqual([]);
++        b.finish(false); await Promise.all([task, queued]);
++        expect(results).toEqual([['B', true]]); expect(busy).toEqual([true, false]);
++    });
++    test('coalesces rapid A/B/C transitions to the latest owner without overlap', async () => {
++        let owner: string | undefined = 'A';
++        const gate = deferred(), calls: string[] = [], results: unknown[] = [];
++        let active = 0, maxActive = 0;
++        const queue = createLatestOwnerCleanup({ owner: () => owner, busy: () => undefined,
++            run: async id => { calls.push(id); maxActive = Math.max(maxActive, ++active);
++                const complete = id === 'A' ? await gate.promise : false; active--; return complete; },
++            result: (id, pending) => results.push([id, pending]) });
++        const task = queue.request(); await Promise.resolve(); owner = 'B'; void queue.request();
++        owner = 'C'; void queue.request(); gate.finish(true); await task;
++        expect(calls).toEqual(['A', 'C']); expect(maxActive).toBe(1); expect(results).toEqual([['C', true]]);
++    });
++    test('does not carry an explicit cancellation across owners', async () => {
++        let owner: string | undefined = 'A'; const gate = deferred(), calls: unknown[] = [];
++        const queue = createLatestOwnerCleanup({ owner: () => owner, busy: () => undefined, result: () => undefined,
++            run: (id, cancel) => { calls.push([id, cancel]); return id === 'A' ? gate.promise : Promise.resolve(true); } });
++        const task = queue.request(); await Promise.resolve(); void queue.request(true);
++        owner = 'B'; void queue.request(false); gate.finish(true); await task;
++        expect(calls).toEqual([['A', false], ['B', false]]);
++    });
++    test('coalesces duplicate automatic scans but retains same-owner explicit retry', async () => {
++        const gate = deferred(), calls: boolean[] = [];
++        const queue = createLatestOwnerCleanup({ owner: () => 'A', busy: () => undefined, result: () => undefined,
++            run: (_id, cancel) => { calls.push(cancel); return calls.length === 1 ? gate.promise : Promise.resolve(true); } });
++        const task = queue.request(); await Promise.resolve(); void queue.request(); void queue.request(true); void queue.request();
++        gate.finish(true); await task; expect(calls).toEqual([false, true]);
++    });
++    test('sign-out drops queued work and failed scans retain bounded retry feedback', async () => {
++        let owner: string | undefined = 'A'; const gate = deferred(), calls: string[] = [], results: unknown[] = [];
++        const queue = createLatestOwnerCleanup({ owner: () => owner, busy: () => undefined,
++            run: async id => { calls.push(id); if (id === 'A') return gate.promise; throw new Error('fixture transport failure'); },
++            result: (id, pending) => results.push([id, pending]) });
++        const task = queue.request(); await Promise.resolve(); owner = 'B'; void queue.request();
++        owner = undefined; void queue.request(); gate.finish(true); await task;
++        expect(calls).toEqual(['A']); expect(results).toEqual([]);
++        owner = 'B'; await queue.request(); expect(results).toEqual([['B', true]]);
++    });
++});
+diff --git a/apps/web/tests-unit/private-review-verification.test.ts b/apps/web/tests-unit/private-review-verification.test.ts
+index f901058a..41a98629 100644
+--- a/apps/web/tests-unit/private-review-verification.test.ts
++++ b/apps/web/tests-unit/private-review-verification.test.ts
+@@ -128,4 +128,38 @@ describe('private review verification image boundary', () => {
+             else process.env.NEXT_PUBLIC_SUPABASE_URL = prior;
+         }
+     });
++    test('resolved database failures are unavailable rather than authoritative absence', async () => {
++        const { deps, counts } = fixture();
++        deps.read = async () => ({ data: null, error: { code: 'fixture-timeout' } });
++        const response = await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), deps);
++        expect(response.status).toBe(503); expect(counts.download).toBe(0);
++        expect(await response.json()).toEqual({ code: 'REVIEW_IMAGE_UNAVAILABLE' });
++        expect(response.headers.get('cache-control')).toContain('no-store');
++    });
++    test('only definitive object absence is 404; provider and credential failures are 503', async () => {
++        for (const error of [
++            new StorageApiError('fixture', 401, '401', 'storage', 'InvalidJWT'),
++            new StorageApiError('fixture', 403, '403', 'storage', 'AccessDenied'),
++            new StorageApiError('fixture', 404, '404', 'storage', 'NoSuchBucket'),
++            new StorageApiError('fixture', 503, '503', 'storage', 'NoSuchKey'),
++            new StorageApiError('fixture', 504, '504', 'storage', 'DatabaseTimeout'),
++            new Error('fixture-timeout'),
++        ]) {
++            const { deps } = fixture(); deps.download = async () => ({ data: null, error });
++            const response = await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), deps);
++            expect(response.status).toBe(503);
++            expect(await response.json()).toEqual({ code: 'REVIEW_IMAGE_UNAVAILABLE' });
++        }
++        for (const error of [new StorageApiError('Object not found', 404, '404', 'storage', 'NoSuchKey'),
++            new StorageApiError('Object not found', 400, '404')]) {
++            const { deps } = fixture(); deps.download = async () => ({ data: null, error });
++            expect((await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), deps)).status).toBe(404);
++        }
++    });
++    test('authoritative row absence stays 404 while an empty successful transport stays 503', async () => {
++        const { deps } = fixture(); deps.read = async () => ({ data: null, error: null });
++        expect((await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), deps)).status).toBe(404);
++        const other = fixture(); other.deps.download = async () => ({ data: null, error: null });
++        expect((await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), other.deps)).status).toBe(503);
++    });
+ });
+diff --git a/docs/operations/nightly-regression.md b/docs/operations/nightly-regression.md
+index 2ee3999c..e3948b0c 100644
+--- a/docs/operations/nightly-regression.md
++++ b/docs/operations/nightly-regression.md
+@@ -209,23 +209,23 @@ This diagnostic does not repair ACLs, update the migration ledger, clear ambigui
+ 
+ ## Replay receipt version and source accounting
+ 
+-Admission requires accounting for 132 source units: 129 source applications, two `verified-existing` overlaps, and one `legacy-contract-preserved` PG15 contract. Each non-application row contains its full pinned verification proof and an independently read-back proof digest. These statuses do not assert that hosted PG17 repair SQL ran. A conflicting terminal proof is never overwritten; uncertain outcomes still require a fresh isolated database.
++Admission requires accounting for 140 source units: 137 source applications, two `verified-existing` overlaps, and one `legacy-contract-preserved` PG15 contract. Each non-application row contains its full pinned verification proof and an independently read-back proof digest. These statuses do not assert that hosted PG17 repair SQL ran. A conflicting terminal proof is never overwritten; uncertain outcomes still require a fresh isolated database.
+ 
+ Receipt content now uses `local-receipt-v2` with the unchanged `receipt-v1` row serializer. The historical artifact filename `local-receipt-v1.json` remains the workflow path, but readers reject v1 **content** and require the v2 `replay_proofs` field. The web, closure and publication checks validate the same exact source/proof bindings. These source changes do not establish a successful current full-stack replay.
+ 
+-### Review media catalog integration (2026-10-09)
++### Review media catalog integration (current contract: 2026-10-12)
+ 
+-The final three units are `20261008192455_review_media_commit_cleanup.sql`,
++The initial three review-media units are `20261008192455_review_media_commit_cleanup.sql`,
+ `20261008200719_review_verification_private.sql`, and
+ `20261008201635_review_media_catalog_integration.sql`. The last file was created
+-with the repository's Supabase CLI 2.117.0. It pins the final bodies of six public
+-RPCs and six private helpers, assigns the trusted workflow owner, and registers
++with the repository's Supabase CLI 2.117.0. It pins the initial bodies of seven public
++RPCs and seven private helpers, assigns the trusted workflow owner, and registers
+ exact authenticated-only public identities. G014 denies the workflow role auth-
+ schema access. Therefore the integration pins each parent body and replaces only
+ its `auth.uid()` calls with the existing private
+ `privacy_retention.g041_current_claim_user_id()` helper, whose body and metadata
+-are independently pinned. All six final RPC bodies have separate post-transition
+-hashes; the six media helper bodies are unchanged. The existing claim helper
++are independently pinned. All seven initial RPC bodies have separate post-transition
++hashes; the seven initial media helper bodies are unchanged. The existing claim helper
+ rejects missing/malformed subjects and non-authenticated claims. No auth-schema
+ or Auth-table privilege is restored. It preserves existing G014 assertion
+ bodies, all existing immutable manifest rows, and the runner's prior role memberships.
+@@ -257,11 +257,13 @@ absent. The actual policy command must succeed with existing authority or roll
+ back; no role/configuration fallback is attempted. Parent-reported stage 1
+ success in its exact 17.6 clone is local evidence, not hosted DDL evidence.
+ 
+-Canonical readback now serializes the policy permissive bit and twelve exact
++The subsequent forward units add the service-only admin cleanup RPC, shared-reference/staging and retirement safeguards, compatible Storage ownership predicates, and the owner-completion count correction. The current receipt checks 15 review-media functions (eight public and seven private) and 22 Storage policies; the source ledger is 140 units. Historical receipts with smaller inventories do not admit this source.
++
++Canonical readback now serializes the policy permissive bit and fifteen exact
+ `review_media_functions` rows. It rejects changed bodies, owners, grants,
+ overloads, full policy predicates, a broadened legacy public-media read policy,
+ and any change to the verification bucket's private flag, 5 MiB limit, or four
+-MIME types. A fresh nightly receipt contains 20 Storage policies and seven
++MIME types. A fresh nightly receipt contains 22 Storage policies and seven
+ buckets. The publication verifier enforces those counts independently. Old
+ 101-unit receipts are not current evidence.
+ 
+@@ -470,7 +472,7 @@ set +a
+ 
+ For ordinary development and generated schema types, do not source the file.
+ The wrappers validate owner-only provenance, current service readiness, and the
+-132-unit source ledger before exposing only mapped loopback values to the
++140-unit source ledger before exposing only mapped loopback values to the
+ child process:
+ 
+ ```sh

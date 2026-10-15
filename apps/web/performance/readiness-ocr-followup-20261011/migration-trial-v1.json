@@ -1,0 +1,9 @@
+{
+  "exit": 3,
+  "database": "readiness_admin_staging_v1_20261011",
+  "fixedErrors": [
+    "REVIEW_SHARED_SCHEMA_OWNER_DRIFT"
+  ],
+  "syntheticTemplate": true,
+  "operatingDDL": 0
+}

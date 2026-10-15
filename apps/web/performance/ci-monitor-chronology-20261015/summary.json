@@ -1,6 +1,7 @@
 {
   "schema": "tzudong-ci-chronology-replay/v1",
-  "sourceHead": "96807f6e77632f29e69d4eab6ffdcab5d219ad4c",
+  "fixSourceBase": "96807f6e77632f29e69d4eab6ffdcab5d219ad4c",
+  "mergedDevelop": "ab9196b30f469ce34e9bda6e36db90098059a822",
   "input": {
     "baselineSha256": "d8e08c6371f3dab93fdb3495d5b14266d457e6e0490876f1e2546177a0b89070",
     "currentSha256": "5b6e23a8e16ee7c262f0b2158044e187d4ffa8c8cb5d6840ea9a28efa23907d2",
@@ -51,9 +52,26 @@
     "directTestFailures": 0,
     "fullCiPythonTestCount": 82,
     "fullCiPythonTestFailures": 0,
+    "sourceClassifierTestCount": 6,
+    "sourceClassifierTestFailures": 0,
+    "reconciliationTestCount": 7,
+    "reconciliationTestFailures": 0,
+    "targetedActionlintPassed": true,
+    "targetedActionlintWorkflows": [
+      ".github/workflows/g014-catalog-contract-baseline.yml",
+      ".github/workflows/security-audit.yml",
+      ".github/workflows/web-admin-ci.yml"
+    ],
+    "fullRepositoryActionlintPassed": false,
+    "fullRepositoryActionlintPreExistingErrorCount": 4,
     "remoteMutations": 0,
     "productionStateMutated": false,
     "preservedV4CheckpointSha256": "b2ad1d79f608a4719ff51e3fbd2470b2d52e23ebc6a9dafcb4cf32eb177c0c96",
     "providerRootCauseConfirmed": false
+  },
+  "merge": {
+    "conflictCount": 1,
+    "conflictPath": ".kiro/specs/crawler-pipeline-operational-readiness/platform-modernization-reconciliation.v1.json",
+    "recomputedCandidateContentSha256": "8c7196c31600e64ad678b920f76e608443aa272efe15c6c5eacec009449d9be4"
   }
 }

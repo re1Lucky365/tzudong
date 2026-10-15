@@ -1,0 +1,173 @@
+{
+  "observedAtUtc": "2026-10-11T09:14:28.814Z",
+  "requests": 1,
+  "records": 23,
+  "unchanged": 23,
+  "changed": 0,
+  "privatePlanSha256": "d0f1df7d8eda50f3145f0adb489aae39544bb2381ce5a43fb9b05455bba036ea",
+  "operatingWrites": 0,
+  "freshReadIsNotTransactionalApproval": true,
+  "observations": [
+    {
+      "key": "r0409",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "90e939b63001e2a6c8aae930588f2b1d6ca81c2dcfa01d9d158a7474268d5f0b",
+      "currentRecordSha256": "c4300584c58024356e15b1203618e7801d7b171bf657de9f1259c307888628dd",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r0503",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "ad3bb5660fc4b7b9e73b5360b86cdbc34bea0d2410e7205f56944654f9f7df9b",
+      "currentRecordSha256": "3228964ed379664b498604db5f1c59737acd9d69cddd92b9f6d881fd68a199fc",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r0571",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "e1383d0cd43bc13bf7a1c702c3f36b335a0ff4d33483d6522f02aa45e5ee5914",
+      "currentRecordSha256": "57a50944caba3726f643eddac508a0bd9a912c4f3f7ec90bb56e2d9e5c2dbe6f",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r0607",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "67e465a5f84c1e9269a357670d7061ece4ca73ac5f5c7033ed38547984b4d272",
+      "currentRecordSha256": "34203f641efe44bbed91587dc86aaef7ce529328308e9d9e079a12972fa1f0de",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r0697",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "681f3c1278f538be23eb821da0addfc50a057533f9a1052e9e1eb1e9d241a2a9",
+      "currentRecordSha256": "995677a3aa4a2c8df0c91cd976f62968c955c875d2ab49d74fa31862cc8897da",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r0813",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "402a9d374156cf0e919144e863854a13254bcb3b0ef21db5e78adc806ff2a4b4",
+      "currentRecordSha256": "33f4056cc30e78491c79a1aa3963fc5894de3d7c188ee001e97c911f2bb6df23",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r0870",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "1b851175789cae638a06f0260a611a1bdd4fbea736b33992f5150c89889d3d16",
+      "currentRecordSha256": "1fc48658e774948da6d39af683229610dca9f67ff8b2d3c4f5750386f0069505",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r0881",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "45d5ef12b50fe9d5fb50a2133f55c10746d8307bc3e849511997aea72ac92201",
+      "currentRecordSha256": "a55d2fe54a729641ff6162633ee6ea8733caa4d38066fda423d8eefcde04703a",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r0999",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "3c869c0a5b5c36eb6553f06f134a9133af19de3f8737108844c755d25f7e81ca",
+      "currentRecordSha256": "c9d77e1d997e20f06e3e2ce8a4cf69a1a4b34ffd7a03110454a8085338a7b863",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1029",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "2fb6361b5a97b9df4f96014ba0ac766db37c150c5f18e9c98fd6bd66b1d3f9cc",
+      "currentRecordSha256": "2d0c0f4ca1fb815833ac64191b408907c80326458aba293510c9992f39d35753",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1123",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "905234e0b0f4d81f69da8aafdd1933ab99907fadf7a81d8f70fc901f93c1a471",
+      "currentRecordSha256": "cd8963b4580e4d0cd3f31469ef477ba8228bc621efb57678e36b22a801ebe649",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1135",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "5c8af27d9845ba0ecbbb223e241c847bf0ef1a6064b7bbd14dbaaf400557f0c6",
+      "currentRecordSha256": "c6b74c129fc1adc7e8d74eb0820665dfa72f98bb212d566b82d1d491981ba4f4",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1138",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "008e9527223d01162e877769708a36a4654fbabdc47d3d90eb71bf136f0936c2",
+      "currentRecordSha256": "7e2bf264952051144a4bb77f15a6a12265ba07ba01ab6da968e0a76f2cea9d84",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1169",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "1ec81a7d61a7fd5f4cd035269fd3917455ef3eb8850f40069dfb95bdb3c8a420",
+      "currentRecordSha256": "afd3f98f6c38cb32b4306d580693acbd587fa8145dfd1e2badab2432ba47c0c1",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1274",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "206e3c7646893e5f4d3bf18556d4576cf0ebe46ef5a08c41a77508af229bfd66",
+      "currentRecordSha256": "3e3c3811e455a275a235c1afe5cec7cd7a67a2b309481844f416410e2b2e78f9",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1294",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "a0e7b3997111c47835261804332db3c8e9a8d10473c527c38bbe3b45b11f88a6",
+      "currentRecordSha256": "75d7033a64219e0edc9a7e2cbb2aa020335f5a1fe21617d53a9184d31fdc9224",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1300",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "a223759d2ac52192a276baaa31805d43473c50407d90e16c793fd4b22a2e724f",
+      "currentRecordSha256": "fe919132c3dc0edb6d73011a22684a13ea5e38fa84de15c264878282071af6b7",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1338",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "d53aea8c4e320851a25deb7dcb59435c07d7314097a2db18deb34e457b7cb940",
+      "currentRecordSha256": "defcb5c0cc85348c683fed1c9e5244ec513eb227e35a9ae349898a99c77bd781",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1363",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "e94e9ddbf3c000869ee3549fadeb95a9ac9af614690ca2f887bfbe270f22ca0a",
+      "currentRecordSha256": "d1d5b90e4559d0055789bd55cace3b57680e000d5d8e3e593328f4e1f8bceb14",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1394",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "172d7e7325ad96c716808324996c53bb6516360946eb5154bb161af3bbaea49c",
+      "currentRecordSha256": "cc93a0b75bdddc6e1bc6050db94d5b22ee5da1ea298ba159a58a1c11667c23e8",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1448",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "5eae0ce59f122d0774023d3e1baba20be1532d9fd5f172f1c5b4323312119319",
+      "currentRecordSha256": "9a9d5c42b70cb368460711cc86bd6a9751c2b097f974f32784cc1ac8f1273667",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1611",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "70de16bd013b53cedc22ea4221fd6dcb6f29dd3103a6262d8c553771d326ecd4",
+      "currentRecordSha256": "b9604c1e25f14570d0be42db0e91caff5b4fff241e8a176b36f78939ef6f7c11",
+      "currentAdminLocked": false
+    },
+    {
+      "key": "r1631",
+      "exactPreimageUnchanged": true,
+      "currentReviewSha256": "70ce09b1a22b16194a29a0263402a8ccabe761e2ce9c2f5d4fe351d6069a1f8e",
+      "currentRecordSha256": "b7ed3143f783959cdd10e043e911633ae472dd66a630b8a4af2cc69563e5429e",
+      "currentAdminLocked": false
+    }
+  ]
+}

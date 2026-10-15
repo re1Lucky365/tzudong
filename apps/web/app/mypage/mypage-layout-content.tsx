@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHydration } from "@/hooks/useHydration";
 import dynamic from "next/dynamic";
 import {
   Bookmark,
@@ -162,7 +163,13 @@ export function MyPageLayoutContent({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading: userLoading, signOut } = useAuth();
+  const { user: authUser, isLoading: authLoading, signOut } = useAuth();
+  // Auth can finish before this streamed subtree hydrates. Its first client
+  // render must still match the server's loading shell; enable account actions
+  // after this subtree commits rather than regenerating its server HTML.
+  const isHydrated = useHydration();
+  const user = isHydrated ? authUser : null;
+  const userLoading = !isHydrated || authLoading;
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();

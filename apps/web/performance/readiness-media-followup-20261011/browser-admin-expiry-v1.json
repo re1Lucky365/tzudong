@@ -1,0 +1,60 @@
+{
+  "sourceHead": "ed8ad8abad196afa756ad846862d5869ab27966e",
+  "sourceScriptSha256": "f63d4323160748d7843a46b97864171df8e76840b46762f8ab83dd7797f5f66b",
+  "node": "v24.21.0",
+  "startedAtUtc": "2026-10-11T10:22:37.997Z",
+  "distDir": ".next-media-followup-v4",
+  "productionBuild": true,
+  "syntheticAuthAndRest": true,
+  "serverAuthMockedInOwnedProcess": true,
+  "myPageSourceSha256": "0efb2b61d531dc11e51d7fa3f548aaad6949ed54496c017367686b6328e5233e",
+  "operatingWrites": 0,
+  "physicalDevice": false,
+  "fieldAdmission": 0,
+  "pageErrors": 0,
+  "consoleErrors": 8,
+  "unsupportedFixture": 5,
+  "cases": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "uncertain preview recovery remains GET-only even after its deadline",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "server-confirmed expired unapplied operation clears matching pending identity",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "case": "terminal operation can close without replaying Apply",
+      "passed": true,
+      "recordGets": 2,
+      "recordPosts": 0
+    }
+  ],
+  "passed": false,
+  "browser": "154.0.8037.98",
+  "rpcNames": [
+    "announcements",
+    "get_current_privacy_eligibility",
+    "notifications",
+    "read_public_profile_summaries",
+    "restaurants",
+    "reviews",
+    "user_bookmarks",
+    "user_roles"
+  ],
+  "authFixtureCalls": 0,
+  "failureCode": "BROWSER_ADMISSION_FAILED",
+  "assertionKind": "Error"
+}

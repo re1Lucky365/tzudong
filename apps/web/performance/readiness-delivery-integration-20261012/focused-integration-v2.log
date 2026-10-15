@@ -1,0 +1,20 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-unit/admin-knowledge-graph.test.ts:
+(pass) bounded Tzudong knowledge graph reads > accepts the actual scope-only OSK export without treating its hub as analyzed video [1.31ms]
+(pass) bounded Tzudong knowledge graph reads > pages all nodes without loss or duplicates while preserving whole graph counts [1.17ms]
+(pass) bounded Tzudong knowledge graph reads > searches outside the first page and returns typed detail for the selected node [0.16ms]
+(pass) bounded Tzudong knowledge graph reads > rejects stale and cross-query cursors and bounded malformed queries [0.21ms]
+(pass) bounded Tzudong knowledge graph reads > refuses foreign scope, dangling edges, duplicate ids and invented coverage [0.65ms]
+(pass) bounded Tzudong knowledge graph reads > limits outbound evidence to the exact typed public video and timestamp [0.16ms]
+(pass) bounded Tzudong knowledge graph reads > admits backend canonical zero, fractional, rounded and exponent timestamps throughout the read contract [0.83ms]
+
+tests-unit/admin-knowledge-graph-evidence.test.ts:
+(pass) identifies the YouTube source without implying viewing coverage for untimed evidence [0.08ms]
+(pass) formats exact bounded and open timestamps without flooring fractional seconds [0.17ms]
+(pass) keeps a zero-length verified range as one exact timestamp [0.05ms]
+
+ 10 pass
+ 0 fail
+ 89 expect() calls
+Ran 10 tests across 2 files. [48.00ms]

@@ -1,0 +1,16 @@
+.......................................................................F.................................
+======================================================================
+FAIL: test_manifest_contains_exactly_current_immutable_units (backend.supabase.tests.test_local_seed_receipt_contract.LocalSeedReceiptContractTests.test_manifest_contains_exactly_current_immutable_units)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/backend/supabase/tests/test_local_seed_receipt_contract.py", line 489, in test_manifest_contains_exactly_current_immutable_units
+    self.assertEqual(
+AssertionError: 'backend/supabase/migrations/20261011085342_review_legacy_shared_cleanup.sql' != 'backend/supabase/migrations/20261011072824_admin_review_media_completion.sql'
+- backend/supabase/migrations/20261011085342_review_legacy_shared_cleanup.sql
++ backend/supabase/migrations/20261011072824_admin_review_media_completion.sql
+
+
+----------------------------------------------------------------------
+Ran 105 tests in 88.384s
+
+FAILED (failures=1)

@@ -1,0 +1,103 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-unit/mobile-sheet-frame.test.ts:
+(pass) mobile sheet frame presets > full form preset keeps long mobile forms locked to full height [0.02ms]
+(pass) mobile sheet frame presets > compact form preset keeps peek affordance for short flows
+(pass) visual viewport keyboard offset > keeps sheets above an on-screen keyboard [0.02ms]
+(pass) visual viewport keyboard offset > never returns a negative bottom offset
+(pass) MobileSheetHeader > renders ids, child meta content, and action slot for accessible sticky headers [6.76ms]
+(pass) MobileSheetHeader > uses the compact title treatment when compact mode is enabled [0.21ms]
+(pass) MobileSheetStepIndicator > marks the current step and keeps the progress list labelled [0.73ms]
+
+tests-unit/home-detail-stylesheet-ownership.test.ts:
+(pass) home detail stylesheet ownership > the deferred-panel barrel is the single carrier of the detail stylesheet [0.22ms]
+(pass) home detail stylesheet ownership > home-route panel modules load the panel through the barrel, not directly [0.68ms]
+(pass) home detail stylesheet ownership > the detail Tailwind entry emits the utilities the panel depends on [357.46ms]
+
+tests-unit/bottom-sheet-focus-trap.test.ts:
+(pass) bottom sheet focus trap helpers > collects the primary container first and appends allowed portal containers [0.28ms]
+(pass) bottom sheet focus trap helpers > treats targets inside allowed portal containers as inside the focus region [0.07ms]
+(pass) bottom sheet focus trap helpers > allows callers to disable portal allowances with an empty selector list [0.03ms]
+(pass) bottom sheet strict modal pointer blocking > blocks pointerdown outside the sheet when no backdrop is present [0.04ms]
+(pass) bottom sheet strict modal pointer blocking > keeps explicit portal allowances while preserving empty selector strictness [0.05ms]
+(pass) bottom sheet strict modal pointer blocking > allows backdrop pointer targets for the backdrop close handler [0.06ms]
+(pass) bottom sheet strict modal pointer blocking > allows nested modal portals even when generic portal allowances are disabled [0.02ms]
+(pass) bottom sheet modal sibling hiding > keeps the backdrop interactive while hiding app siblings [0.05ms]
+(pass) bottom sheet modal sibling hiding > hides bottom nav and fixed chrome siblings outside the modal branch [0.01ms]
+(pass) bottom sheet modal sibling hiding > does not hide the current modal branch or inert-safe document elements [0.01ms]
+(pass) bottom sheet height requests > expands a peek sheet to the requested height without shrinking current height [0.02ms]
+(pass) bottom sheet height requests > supports exact height requests for persistent peek sheets
+(pass) bottom sheet height requests > clamps requested height inside the sheet bounds
+(pass) bottom sheet centered presentation > does not attach sheet drag handlers to centered dialogs [0.12ms]
+
+tests-unit/web-quality-performance-source.test.ts:
+(pass) Tailwind v4 source contracts > parses exact source directives and compiles all production entries with retained utilities [482.84ms]
+(pass) route CSS boundary verifier fixtures > inventories shared and exclusive home, general, admin, and deferred assets [9.25ms]
+(pass) route CSS boundary verifier fixtures > rejects malformed, decoy, negated-media, and budget-bypass CSS [26.42ms]
+(pass) route CSS ceiling boundaries > enforces exact and one-over raw and transfer ceilings for every route [1560.69ms]
+(pass) web quality performance source contracts > map marker HTML keeps image markers with WebP delivery and PNG fallback [0.15ms]
+(pass) web quality performance source contracts > global map exposes bounded Google failure exploration fallback [0.24ms]
+(pass) web quality performance source contracts > map marker WebP assets are present and at least 75% smaller than PNG fallbacks [0.53ms]
+(pass) web quality performance source contracts > popup ad banners load immediately for first-screen exposure while distant media has no src [0.19ms]
+(pass) web quality performance source contracts > home filter count queries run before dropdown open so triggers do not show stale zero counts [0.12ms]
+(pass) web quality performance source contracts > home map runtime renders directly while supporting queries stay intent-gated [11.69ms]
+(pass) web quality performance source contracts > mobile toast dark tokens and G007 announcement width stay explicit [0.25ms]
+(pass) web quality performance source contracts > naver marker click centering avoids slow duplicate recenter loops [0.26ms]
+(pass) web quality performance source contracts > device location floating action does not show expanding circle animations [0.88ms]
+(pass) web quality performance source contracts > profile/stamp/map regressions stay fixed while preserving deferred map loading [1.56ms]
+(pass) web quality performance source contracts > review like heart keeps the previous feed-style mobile and desktop overlay layout [0.81ms]
+(pass) web quality performance source contracts > auth-gated review actions open UI prompts without uncaught LOGIN_REQUIRED throws [0.45ms]
+(pass) web quality performance source contracts > overlay and review icon buttons expose stable accessible names [1.54ms]
+(pass) web quality performance source contracts > desktop direct feature routes hand off to the home left panel and suppress popup blockers [2.62ms]
+(pass) web quality performance source contracts > direct utility routes render clear fallback states instead of blank or invalid panel configs [0.60ms]
+(pass) web quality performance source contracts > admin utility APIs stay behind admin auth and short URLs cannot become open redirects [0.64ms]
+(pass) web quality performance source contracts > feed direct route defers heavy modals and detail panels until interaction [1.40ms]
+(pass) web quality performance source contracts > /mypage avoids client-side redirect work and defers desktop-only sidebar cost [3.62ms]
+(pass) web quality performance source contracts > page-level loaders keep route fallbacks single-owner while map fallbacks stay embedded [11.51ms]
+(pass) web quality performance source contracts > route loading boundaries keep skeleton ownership single-pass [5.06ms]
+(pass) web quality performance source contracts > intent-loaded mobile modal shells do not render desktop dialog on the first client paint [1.46ms]
+(pass) web quality performance source contracts > auth user state lookups have Supabase index migration coverage [0.43ms]
+(pass) web quality performance source contracts > user-facing Supabase reads avoid wide fanout and redundant stamp fetches [0.85ms]
+(pass) web quality performance source contracts > admin review queue avoids fetching approved review history [0.18ms]
+(pass) web quality performance source contracts > Supabase reads use explicit response shapes instead of broad selects [36.84ms]
+4531 |     expect(toastSource).toContain("sm:right-4");
+4532 |     expect(toastSource).toContain("items-end");
+4533 |     expect(toastSource).toContain("sm:whitespace-nowrap");
+4534 |     expect(toastSource).not.toContain("pr-7");
+4535 |     expect(toastSource).not.toContain("absolute right-2 top-2");
+4536 |     expect(toastSource).toContain("data-[state=open]:fade-in-0");
+                               ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "data-[state=open]:fade-in-0"
+Received: "import * as React from \"react\";\nimport * as ToastPrimitives from \"@radix-ui/react-toast\";\nimport { cva, type VariantProps } from \"class-variance-authority\";\nimport { X } from \"lucide-react\";\n\nimport { cn } from \"@/lib/utils\";\nimport \"@/styles/interface-motion.css\";\n\nconst ToastProvider = ToastPrimitives.Provider;\n\nconst ToastViewport = React.forwardRef<\n  React.ElementRef<typeof ToastPrimitives.Viewport>,\n  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Viewport>\n>(({ className, ...props }, ref) => (\n  <ToastPrimitives.Viewport\n    ref={ref}\n    className={cn(\n      \"fixed bottom-4 right-3 z-[250] flex max-h-[calc(100dvh-2rem)] w-[min(360px,calc(100vw-1.5rem))] flex-col items-end gap-2 sm:right-4 sm:w-max sm:max-w-[min(42rem,calc(100vw-2rem))]\",\n      className,\n    )}\n    {...props}\n  />\n));\nToastViewport.displayName = ToastPrimitives.Viewport.displayName;\n\nconst toastVariants = cva(\n  \"t-toast group pointer-events-auto relative flex w-full items-start gap-2 overflow-hidden rounded-lg border p-3 text-sm leading-5 shadow-lg break-keep sm:w-max sm:max-w-[min(42rem,calc(100vw-2rem))]\",\n  {\n    variants: {\n      variant: {\n        default: \"border border-border bg-background text-foreground\",\n        destructive: \"destructive group border-destructive bg-destructive text-destructive-foreground\",\n      },\n    },\n    defaultVariants: {\n      variant: \"default\",\n    },\n  },\n);\n\nconst Toast = React.forwardRef<\n  React.ElementRef<typeof ToastPrimitives.Root>,\n  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> & VariantProps<typeof toastVariants>\n>(({ className, variant, ...props }, ref) => {\n  return <ToastPrimitives.Root ref={ref} className={cn(toastVariants({ variant }), className)} {...props} />;\n});\nToast.displayName = ToastPrimitives.Root.displayName;\n\nconst ToastAction = React.forwardRef<\n  React.ElementRef<typeof ToastPrimitives.Action>,\n  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Action>\n>(({ className, ...props }, ref) => (\n  <ToastPrimitives.Action\n    ref={ref}\n    className={cn(\n      \"inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors group-[.destructive]:border-muted/40 hover:bg-secondary group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 group-[.destructive]:focus:ring-destructive disabled:pointer-events-none disabled:opacity-50\",\n      className,\n    )}\n    {...props}\n  />\n));\nToastAction.displayName = ToastPrimitives.Action.displayName;\n\nconst ToastClose = React.forwardRef<\n  React.ElementRef<typeof ToastPrimitives.Close>,\n  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Close>\n>(({ className, ...props }, ref) => (\n  <ToastPrimitives.Close\n    ref={ref}\n    className={cn(\n      \"mt-[-0.125rem] mr-[-0.125rem] shrink-0 rounded-md p-1 text-foreground/55 opacity-100 transition-colors group-[.destructive]:text-red-200 hover:text-foreground group-[.destructive]:hover:text-red-50 focus:outline-none focus:ring-2 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600\",\n      className,\n    )}\n    toast-close=\"\"\n    {...props}\n  >\n    <X className=\"h-4 w-4\" />\n  </ToastPrimitives.Close>\n));\nToastClose.displayName = ToastPrimitives.Close.displayName;\n\nconst ToastTitle = React.forwardRef<\n  React.ElementRef<typeof ToastPrimitives.Title>,\n  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Title>\n>(({ className, ...props }, ref) => (\n  <ToastPrimitives.Title ref={ref} className={cn(\"min-w-0 text-sm font-semibold leading-5 sm:whitespace-nowrap\", className)} {...props} />\n));\nToastTitle.displayName = ToastPrimitives.Title.displayName;\n\nconst ToastDescription = React.forwardRef<\n  React.ElementRef<typeof ToastPrimitives.Description>,\n  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Description>\n>(({ className, ...props }, ref) => (\n  <ToastPrimitives.Description ref={ref} className={cn(\"min-w-0 text-sm leading-5 opacity-90 sm:whitespace-nowrap\", className)} {...props} />\n));\nToastDescription.displayName = ToastPrimitives.Description.displayName;\n\ntype ToastProps = React.ComponentPropsWithoutRef<typeof Toast>;\n\ntype ToastActionElement = React.ReactElement<typeof ToastAction>;\n\nexport {\n  type ToastProps,\n  type ToastActionElement,\n  ToastProvider,\n  ToastViewport,\n  Toast,\n  ToastTitle,\n  ToastDescription,\n  ToastClose,\n  ToastAction,\n};\n"
+
+      at <anonymous> (/Users/twoimo/.codex/worktrees/swipe-cache-control-20261009/tzudong/apps/web/tests-unit/web-quality-performance-source.test.ts:4536:25)
+(fail) web quality performance source contracts > global chrome assets stay small and cacheable without changing page UI [230.93ms]
+(pass) web quality performance source contracts > restaurant search controls keep accessible names and keyboard-safe rows [0.43ms]
+(pass) web quality performance source contracts > mobile leaderboard rows keep stats visible inside narrow viewports [0.13ms]
+(pass) web quality performance source contracts > direct mobile routes use a self-hosted Korean font before fallback stacks [0.16ms]
+
+tests-unit/mobile-home-map-regressions.test.ts:
+(pass) mobile home map regression guards > search-selected restaurant can still swipe to a different visible restaurant [0.13ms]
+(pass) mobile home map regression guards > marker render is not skipped when another marker takes over after a search selection [0.18ms]
+(pass) mobile home map regression guards > marker render is not skipped when the sheet closes and a new marker opens with cleared search state [0.02ms]
+(pass) mobile home map regression guards > single-visible post-search swipe falls back to the nearest restaurant [0.69ms]
+(pass) mobile home map regression guards > search ownership release keeps the current detail selection active [0.16ms]
+(pass) mobile home map regression guards > peek-state downward sheet gesture dismisses only after intentional distance or speed [0.04ms]
+(pass) mobile home map regression guards > blank map taps collapse the sheet, enter fullscreen map, then restore the peek sheet [0.03ms]
+(pass) mobile home map regression guards > blank map fullscreen toggle is inactive outside a mobile restaurant panel [0.01ms]
+(pass) mobile home map regression guards > cluster marker zoom jumps immediately without Naver morph animation [0.36ms]
+(pass) mobile home map regression guards > mobile restaurant detail sheet peeks on map interaction without skipping fullscreen tap sequence [0.96ms]
+(pass) mobile home map regression guards > mobile visible marker sheet receives map interaction epoch before requesting peek height [0.27ms]
+(pass) mobile home map regression guards > G002 mobile category sheet commits immediately without delayed apply affordance [0.22ms]
+(pass) mobile home map regression guards > G012 mobile sheets and details own fixed map-control safe area [0.17ms]
+(pass) mobile home map regression guards > home detail route history uses app-owned list/detail states and browser back restoration contracts [0.19ms]
+
+1 tests failed:
+(fail) web quality performance source contracts > global chrome assets stay small and cacheable without changing page UI [230.93ms]
+
+ 70 pass
+ 1 fail
+ 2381 expect() calls
+Ran 71 tests across 5 files. [2.90s]
