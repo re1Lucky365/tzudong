@@ -8,6 +8,7 @@ import {
   verifyReviewStorageForReceipt,
 } from '@/lib/ocr/review-storage-verification';
 import { prepareVerificationUploadFile } from '@/lib/ocr/receipt-upload-preparation';
+import { createLatestSelection } from '@/lib/ocr/latest-selection';
 import { buildReviewPhotoObjectPath } from '@/lib/review-photo-url';
 
 const OWNER = '00000000-0000-4000-8000-000000000001';
@@ -151,12 +152,41 @@ describe('receipt review storage verification', () => {
     expect(prepared.size).toBeLessThanOrEqual(OCR_REVIEW_VERIFICATION_MAX_BYTES);
   });
 
+  test('aborts deferred receipt compression before stale bytes can be committed', async () => {
+    const original = new File(
+      [new Uint8Array(OCR_REVIEW_VERIFICATION_MAX_BYTES + 1)],
+      'first-receipt.jpg',
+      { type: 'image/jpeg' },
+    );
+    const selection = createLatestSelection();
+    const first = selection.begin();
+    let compressorSignal: AbortSignal | undefined;
+    const preparation = prepareVerificationUploadFile({
+      file: original,
+      filename: 'prepared-first.jpg',
+      signal: first.signal,
+      compress: async (_file, options) => {
+        compressorSignal = options.signal;
+        return await new Promise<Blob>((_resolve, reject) => {
+          options.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true });
+        });
+      },
+    });
+
+    selection.begin();
+
+    expect(compressorSignal).toBe(first.signal);
+    expect(first.signal.aborted).toBe(true);
+    await expect(preparation).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   test('ReviewModal OCRs and uploads one finalized receipt file and save RPC receives server-only storage proof', () => {
     const modal = readFileSync(join(import.meta.dir, '../components/reviews/ReviewModal.tsx'), 'utf8');
     const route = readFileSync(join(import.meta.dir, '../app/api/ocr/reviews/save/route.ts'), 'utf8');
     const migration = readFileSync(join(import.meta.dir, '../../../backend/supabase/migrations/20261013190000_durable_receipt_ocr_results.sql'), 'utf8');
     const bucketMigration = readFileSync(join(import.meta.dir, '../../../backend/supabase/migrations/20261008200719_review_verification_private.sql'), 'utf8');
     expect(modal).toContain('preparedFile = await prepareVerificationUploadFile({');
+    expect(modal).toContain('signal: selection.signal');
     expect(modal).toContain('replaceVerificationPhoto(preparedFile, selectionGeneration)');
     expect(modal).toContain('void analyzeReceipt(preparedFile, selectionGeneration);');
     expect(modal).toContain('const receipt = draft.verificationPhoto;');

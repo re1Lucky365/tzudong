@@ -27,6 +27,7 @@ import {
     OCR_PROGRESS_STEPS,
     addAiFilledField,
     getOcrProgressRank,
+    reconcileInterruptedOcrReadback,
     shouldSuppressOcrAutoNavigation,
     canReplaceSelectedRestaurantFromOcr,
     type OcrProgressStage,
@@ -504,6 +505,9 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     const ocrRunGenerationRef = useRef(0);
     const ocrAbortControllerRef = useRef<AbortController | null>(null);
     const ocrRecoveryContextRef = useRef<{ file: File; restaurant: OcrRestaurantContextSource | null } | null>(null);
+    const verificationSelectionRef = useRef(createLatestSelection());
+    const receiptOcrPreparationRef = useRef(createLatestSelection());
+    const verificationInputModeRef = useRef<VerificationInputMode>("ai");
 
     useLayoutEffect(() => {
         if (draftScopeRef.current.ownerId !== user?.id || draftScopeRef.current.restaurantId !== reviewTargetRestaurant?.id || !isOpen) {
@@ -517,10 +521,15 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
 
     useLayoutEffect(() => {
         const operation = saveOperationRef.current!;
+        const verificationSelection = verificationSelectionRef.current;
+        const receiptOcrPreparation = receiptOcrPreparationRef.current;
         if (isOpen) {
             closeRequestedRef.current = false;
             consumerNotifiedRef.current = false;
-        } else void operation.cancel();
+        } else {
+            verificationSelection.invalidate();
+            void operation.cancel();
+        }
         return () => {
             composerOpenRef.current = false;
             saveOwnerRef.current = undefined;
@@ -529,6 +538,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
             // for it and preserves objects whenever its outcome stays unknown.
             operation.requestCancel();
             void operation.cancel();
+            verificationSelection.invalidate();
+            receiptOcrPreparation.invalidate();
             ocrRunGenerationRef.current += 1;
             ocrAbortControllerRef.current?.abort();
             ocrAbortControllerRef.current = null;
@@ -543,11 +554,27 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     const verificationFileInputRef = useRef<HTMLInputElement>(null);
     const foodPhotosFileInputRef = useRef<HTMLInputElement>(null);
     const verificationPhotoUrlRef = useRef<string | null>(null);
-    const verificationSelectionRef = useRef(createLatestSelection());
     const lastOcrRevealSignatureRef = useRef<string | null>(null);
     const lastManualOcrInteractionAtRef = useRef(0);
     const userStepOverrideDuringOcrRef = useRef(false);
     const manuallyEditedOcrFieldsRef = useRef<Set<ReviewOcrFieldKey>>(new Set());
+
+    const setReceiptVerificationInputMode = useCallback((mode: VerificationInputMode) => {
+        verificationInputModeRef.current = mode;
+        setVerificationInputMode(mode);
+        if (mode !== "manual") return;
+
+        // Keep the selected photo/preparation alive, but revoke every AI start or
+        // readback lease so a late compressor/status result cannot change the form.
+        receiptOcrPreparationRef.current.invalidate();
+        ocrRunGenerationRef.current += 1;
+        ocrAbortControllerRef.current?.abort();
+        ocrAbortControllerRef.current = null;
+        userStepOverrideDuringOcrRef.current = true;
+        setIsAnalyzing(false);
+        setOcrProgress(null);
+        setOcrFallbackNotice(null);
+    }, []);
     const mobileFrameRef = useRef<HTMLDivElement>(null);
     const mobileScrollRef = useRef<HTMLDivElement>(null);
     const desktopReviewMapPanelRef = useRef<HTMLElement>(null);
@@ -788,7 +815,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     // 모바일 파일 선택기 복귀 직후 바텀시트가 재계산되며 깜빡이는 일을 줄인다.
     const replaceVerificationPhoto = useCallback((file: File | null, expectedGeneration?: number) => {
         if (expectedGeneration === undefined) {
-            verificationSelectionRef.current.begin();
+            verificationSelectionRef.current.invalidate();
+            receiptOcrPreparationRef.current.invalidate();
         } else if (!verificationSelectionRef.current.isCurrent(expectedGeneration)) {
             return false;
         }
@@ -833,34 +861,51 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
 
     // 메모이제이션된 이벤트 핸들러들
     const handleVerificationPhotoSelected = async (file: File) => {
-        const selectionGeneration = verificationSelectionRef.current.begin();
+        const selection = verificationSelectionRef.current.begin();
+        const selectionGeneration = selection.generation;
+        const ocrPreparation = verificationInputModeRef.current === "ai"
+            ? receiptOcrPreparationRef.current.begin()
+            : null;
         ocrRunGenerationRef.current += 1;
         ocrAbortControllerRef.current?.abort();
         ocrAbortControllerRef.current = null;
         setIsAnalyzing(false);
         setOcrProgress(null);
-        if (featureHeld) {
-            toast({ title: "리뷰 기능 준비 중", description: FEATURE_DATABASE_HELD_MESSAGE });
-            return;
-        }
-        if (!isSupportedReceiptImage(file)) {
-            toast({
-                title: "지원하지 않는 영수증 형식",
-                description: "JPG, PNG, WebP 또는 AVIF 이미지를 선택해 주세요.",
-                variant: "destructive",
-            });
-            return;
-        }
-        let preparedFile: File;
         try {
+            if (featureHeld) {
+                toast({ title: "리뷰 기능 준비 중", description: FEATURE_DATABASE_HELD_MESSAGE });
+                return;
+            }
+            if (!isSupportedReceiptImage(file)) {
+                toast({
+                    title: "지원하지 않는 영수증 형식",
+                    description: "JPG, PNG, WebP 또는 AVIF 이미지를 선택해 주세요.",
+                    variant: "destructive",
+                });
+                return;
+            }
             const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-            preparedFile = await prepareVerificationUploadFile({
+            const preparedFile = await prepareVerificationUploadFile({
                 file,
                 filename: generateSafeFilename(`.${ext}`),
                 compress: imageCompression,
+                signal: selection.signal,
             });
+            if (!selection.isCurrent() || !replaceVerificationPhoto(preparedFile, selectionGeneration)) return;
+            verificationFileInputRef.current?.blur();
+            if (ocrPreparation?.isCurrent() && verificationInputModeRef.current === "ai") {
+                // Android 파일 선택기 복귀 직후 requestAnimationFrame이 누락되는 케이스가 있어
+                // macrotask로 OCR을 시작한다. 상태 업데이트는 이미 큐에 들어가므로 미리보기가 먼저 그려진다.
+                window.setTimeout(() => {
+                    if (verificationSelectionRef.current.isCurrent(selectionGeneration)
+                        && ocrPreparation.isCurrent()
+                        && verificationInputModeRef.current === "ai") {
+                        void analyzeReceipt(preparedFile, selectionGeneration);
+                    }
+                }, 0);
+            }
         } catch (error) {
-            if (!verificationSelectionRef.current.isCurrent(selectionGeneration)) return;
+            if (!selection.isCurrent() || selection.signal.aborted) return;
             toast({
                 title: "영수증 사진을 준비하지 못했습니다",
                 description: error instanceof ReceiptUploadPreparationError && error.code === 'too_large'
@@ -868,18 +913,9 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                     : "JPG, PNG, WebP 또는 AVIF 이미지를 선택해 주세요.",
                 variant: "destructive",
             });
-            return;
-        }
-        if (!replaceVerificationPhoto(preparedFile, selectionGeneration)) return;
-        verificationFileInputRef.current?.blur();
-        if (verificationInputMode === "ai") {
-            // Android 파일 선택기 복귀 직후 requestAnimationFrame이 누락되는 케이스가 있어
-            // macrotask로 OCR을 시작한다. 상태 업데이트는 이미 큐에 들어가므로 미리보기가 먼저 그려진다.
-            window.setTimeout(() => {
-                if (verificationSelectionRef.current.isCurrent(selectionGeneration)) {
-                    void analyzeReceipt(preparedFile, selectionGeneration);
-                }
-            }, 0);
+        } finally {
+            selection.complete();
+            ocrPreparation?.complete();
         }
     };
 
@@ -1342,7 +1378,12 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                     message: '분석 연결이 끊겨 저장된 결과를 확인하고 있어요.',
                     detail: '같은 사진을 AI에 다시 보내지 않습니다.',
                 });
-                data = await readReceiptOcrStatus(file, token, abortController.signal);
+                data = await reconcileInterruptedOcrReadback({
+                    signal: abortController.signal,
+                    readStatus: () => readReceiptOcrStatus(file, token, abortController.signal),
+                    isProcessingError: error => error instanceof OcrStreamHttpError
+                        && error.code === 'OCR_RESULT_PROCESSING',
+                });
             }
 
             if (!isCurrentOcrRun()) return;
@@ -1633,6 +1674,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
 
     const handleClose = useCallback(async () => {
         closeRequestedRef.current = true;
+        verificationSelectionRef.current.invalidate();
         const cancellation = await saveOperationRef.current!.cancel();
         if (cancellation.status === 'blocked') {
             closeRequestedRef.current = false;
@@ -1661,7 +1703,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         setContent("");
         replaceVerificationPhoto(null);
         setFoodPhotos([]);
-        setVerificationInputMode("ai");
+        setReceiptVerificationInputMode("ai");
         setForceOcrRefresh(false);
         setOcrFocusTarget(null);
         setOcrProgress(null);
@@ -1669,7 +1711,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         setAiFilledFields(new Set());
         setCurrentStep(1);
         onClose();
-    }, [onClose, replaceVerificationPhoto, clearDraft, notifySavedReview]);
+    }, [onClose, replaceVerificationPhoto, clearDraft, notifySavedReview, setReceiptVerificationInputMode]);
 
     const saveRecoveryNotice = saveRecovery ? (
         <div role="status" className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
@@ -1840,8 +1882,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     const featureHeld = featureReadiness?.status !== 'ready';
     const canForceOcrRefresh = process.env.NODE_ENV !== "production" || quota?.unlimited === true;
     const handleUseReceiptPhotoOnly = () => {
-        setVerificationInputMode("manual");
-        setOcrFallbackNotice(null);
+        setReceiptVerificationInputMode("manual");
         setCurrentStep(2);
     };
 
@@ -1958,8 +1999,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     useEffect(() => {
         if (!ocrLimitReached) return;
         if (verificationInputMode !== "ai") return;
-        setVerificationInputMode("manual");
-    }, [ocrLimitReached, verificationInputMode]);
+        setReceiptVerificationInputMode("manual");
+    }, [ocrLimitReached, setReceiptVerificationInputMode, verificationInputMode]);
 
     useEffect(() => {
         if (canForceOcrRefresh) return;
@@ -2172,7 +2213,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                                             size="sm"
                                             className="h-7 px-2 text-xs"
                                             disabled={ocrLimitReached}
-                                            onClick={() => setVerificationInputMode("ai")}
+                                            onClick={() => setReceiptVerificationInputMode("ai")}
                                         >
                                             AI 자동 입력
                                         </Button>
@@ -2181,7 +2222,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                                             variant={verificationInputMode === "manual" ? "default" : "outline"}
                                             size="sm"
                                             className="h-7 px-2 text-xs"
-                                            onClick={() => setVerificationInputMode("manual")}
+                                            onClick={() => setReceiptVerificationInputMode("manual")}
                                         >
                                             사진만 첨부
                                         </Button>
@@ -2685,7 +2726,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                                                     size="sm"
                                                     className="h-7 px-2 text-xs"
                                                     disabled={ocrLimitReached}
-                                                    onClick={() => setVerificationInputMode("ai")}
+                                                    onClick={() => setReceiptVerificationInputMode("ai")}
                                                 >
                                                     AI 자동 입력
                                                 </Button>
@@ -2694,7 +2735,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                                                     variant={verificationInputMode === "manual" ? "default" : "outline"}
                                                     size="sm"
                                                     className="h-7 px-2 text-xs"
-                                                    onClick={() => setVerificationInputMode("manual")}
+                                                    onClick={() => setReceiptVerificationInputMode("manual")}
                                                 >
                                                     사진만 첨부
                                                 </Button>
@@ -3279,7 +3320,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                                                     size="sm"
                                                     className="h-7 px-2 text-xs"
                                                     disabled={ocrLimitReached}
-                                                    onClick={() => setVerificationInputMode("ai")}
+                                                    onClick={() => setReceiptVerificationInputMode("ai")}
                                                 >
                                                     AI 자동 입력
                                                 </Button>
@@ -3288,7 +3329,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                                                     variant={verificationInputMode === "manual" ? "default" : "outline"}
                                                     size="sm"
                                                     className="h-7 px-2 text-xs"
-                                                    onClick={() => setVerificationInputMode("manual")}
+                                                    onClick={() => setReceiptVerificationInputMode("manual")}
                                                 >
                                                     사진만 첨부
                                                 </Button>

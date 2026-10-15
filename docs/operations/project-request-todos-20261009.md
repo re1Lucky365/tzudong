@@ -890,8 +890,13 @@ UI 커밋 뒤 `origin/develop`을 충돌 없이 병합한 HEAD `2d7e284df964e3f0
 - [x] Next16.3.8 production build와 route CSS boundary를 통과했다. 해당 실행 입력 1,592개 전후 drift 0, 자동 생성 설정 복구 오류 0이다. 이후 OCR 동시 초기화와 배치 문구 후속은 이 build와 구분한다.
 - [x] 현재 계약을 검증하는 합성 GET adapter로 지식 그래프·파이프라인·스토리보드 성공 상태 9개 화면을 추가 확인했다. 실제 사이드바 15개 목적지·접힌 rail/focus·모바일 메뉴·단계 선택·그래프/사용자 필터와 상세를 확인했다. 첫 상호작용 22/25 뒤 미검증 3개는 synthetic AuthContext 전제를 고쳐 별도 집중 4/4(인증 전제 1개 포함)로 확인했다. 기존 실패는 보존했고 실제 POST 전송·외부 요청은 0이다. 합성 read RPC를 브라우저에서만 응답했으며 운영 인증·생성·승인 검증이 아니다.
 - [x] OCR의 최대 50건 reset/worker 범위와 legacy 모델 정책을 맞추고 snapshot CAS·부분 충돌·pending 재시도를 검증했다. GitHub 204는 접수만 뜻하도록 안내했다. 전역 concurrency의 대기 run 대체 가능성, durable outbox/자동 연속 배치 부재와 완료 후 늦은 재시도 구분 한계는 유지·공개했다. exactly-once 전달이나 실제 유료 호출 성공을 주장하지 않는다.
-- [x] 최종 canonical unit 3,815 pass·0 fail·11 skip(466파일/22프로세스), ESLint 52+1파일, parity 진단 0, Next16.3.8 build·CSS 경계를 통과했다. 앱 manifest 1,593파일 drift 0. 이후 변경은 제외된 unit 테스트와 performance 검사 코드뿐이다.
+- [x] 디자인 전달본 `a6160a87`의 canonical unit 3,815 pass·0 fail·11 skip(466파일/22프로세스), ESLint 52+1파일, parity 진단 0, Next16.3.8 build·CSS 경계를 통과했다. 앱 manifest 1,593파일 drift 0. 이 전달본 build 이후 변경은 제외된 unit 테스트와 performance 검사 코드뿐이었다. 아래 리뷰 후속의 제품 소스 검증과 구분한다.
 - [x] production 번들의 밝은 화면 32개와 CSP로 차단된 mock transport를 브라우저 응답에서만 보완한 모바일 13개를 합쳐 45개를 확인했다. dark 12개·합성 성공 9개도 별도 확인했다. timeout과 console/network 실패를 보존하며 운영 인증·CSP·실사용 성공으로 확대하지 않는다.
 - [ ] PR 최신 head의 원격 검사/리뷰와 보호 승격·held/ready 배포·fresh 운영 적용 증빙 및 실제 업무 readback을 이어간다. 운영 DB/provider/Storage 쓰기는 이번 로컬 디자인 작업에서 0이며 전체 목표는 active다. 상세: `docs/operations/admin-taste-20261015.md`.
+
+- [x] PR #3215에 디자인 전달본 `a6160a87`을 정상 push했다. 원격 리뷰 후 이미지 준비의 abort/generation 경합, 끊긴 OCR 스트림의 상태 조회 복구, 스토리보드 모델 목록의 일시 실패 보류를 보강했다. 첫 영향 검사 11파일은 189 pass·0 fail·0 skip이었다. 독립 감사 후 모드 전환·직접 입력 취소와 catalog 재시도 상한을 보강한 최종 검사는 13파일 196 pass·0 fail·0 skip, source drift 0이다. 최종 production build·CSS boundary도 1,593입력 drift 0·설정 복구 오류 0, parity 진단 0을 확인했다. 이전 실행·전체 검사와 합산하지 않는다.
+- [x] 롱폼 materializer의 active stream·탭 overlap·출력 용량 경계를 수정했다. 분석 대상 집합과 consumer 건수를 맞추고 실제 CLI 진입 경로를 포함해 프로젝트 Python3.14.8의 관련50개 검사를 통과했다. 신규 YouTube 수집·추론은 실행하지 않았다.
+- [x] GitGuardian 신규 해시 오탐 세 건 `#38246983/#38246985/#38246984`의 case별 처리 승인 후 각각 한 번 처리하고 `Ignored / False positive`를 readback했다. 기존 증거 해시·원본 JSON·스캐너 설정과 이전 incident는 변경하지 않았다.
+- [x] 원격 Ubuntu·Windows의 frozen 독립 측정기 lint 오탐과 orchestration의 `.taste-skill` 명세 누락을 수정했다. 원본 측정기 바이트는 유지했고 일반 authored runner·나머지 Next 규칙은 계속 검사한다. 전체 ESLint와 후속 대상 lint, 설정 회귀1개, 구조 관련82개 및 tracked directories40·누락0을 확인했다. 최신 head의 원격 결과는 별도로 확인한다.
 
 증빙은 `apps/web/performance/admin-taste-20261015/`에 보존한다. 기존 before는 일부 로딩 화면을 포함하므로 제목/기하 측정만 허용하며, 데이터가 로드된 전체 화면·행 밀도·사용성 향상의 비교 근거로 사용하지 않는다.

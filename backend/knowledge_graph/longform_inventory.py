@@ -30,6 +30,7 @@ VIDEO_ID = re.compile(r"[A-Za-z0-9_-]{11}\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 MAX_SHARD_BYTES = 16 * 1024 * 1024
 MAX_SHARD_ROWS = 100_000
+MAX_INVENTORY_BYTES = MAX_SHARD_BYTES * 2
 _SHARD_KEYS = {
     "canonicalSourceOrQueueChanged", "channelId", "entryCount", "exitCode",
     "noMediaOrCaptionsDownloaded", "noPlaylistLimit", "observedAtUtc",
@@ -190,15 +191,24 @@ def _load_shard(path: Path, expected_sha256: str, tab: str) -> tuple[dict, dict]
         if row.get("channelId") not in (None, CHANNEL_ID):
             raise MaterializationError("SHARD_CHANNEL_CONFLICT")
         duration, live_status = row.get("duration"), row.get("liveStatus")
-        if tab in ("videos", "streams") and not _positive_integer(duration):
+        if tab == "videos" and not _positive_integer(duration):
             raise MaterializationError("SHARD_DURATION_INVALID")
         if tab == "shorts" and duration is not None:
             raise MaterializationError("SHORTS_DURATION_UNEXPECTED")
-        if tab == "streams" and live_status != "was_live":
-            raise MaterializationError("STREAM_NOT_COMPLETED")
+        if tab == "streams":
+            if live_status not in ("was_live", "is_live", "is_upcoming", "post_live"):
+                raise MaterializationError("STREAM_LIVE_STATUS_INVALID")
+            if live_status == "was_live" and not _positive_integer(duration):
+                raise MaterializationError("SHARD_DURATION_INVALID")
+            if live_status != "was_live" and duration is not None and not _positive_integer(duration):
+                raise MaterializationError("SHARD_DURATION_INVALID")
         if tab != "streams" and live_status is not None:
             raise MaterializationError("SHARD_LIVE_STATUS_INVALID")
-        normalized.append({"videoId": video_id, "durationSeconds": duration})
+        normalized.append({
+            "videoId": video_id,
+            "durationSeconds": duration,
+            **({"liveStatus": live_status} if tab == "streams" else {}),
+        })
     source = {
         "observedAtUtc": document["observedAtUtc"],
         "path": str(path.resolve()),
@@ -228,28 +238,28 @@ def build_inventory(
         "videosShorts": len(inputs["videos"][0]["ids"] & inputs["shorts"][0]["ids"]),
         "streamsShorts": len(inputs["streams"][0]["ids"] & inputs["shorts"][0]["ids"]),
     }
-    if any(overlaps.values()):
-        raise MaterializationError("TAB_MEMBERSHIP_OVERLAP")
-
-    result_rows = []
+    result_by_id = {}
     for tab in TABS:
         shard = inputs[tab][0]
-        evidence = {
-            "complete": True,
-            "evidenceSha256": shard["rawResponseSha256"],
-            "observedAt": shard["observedAt"],
-            "sourceUrl": shard["sourceUrl"],
-        }
-        if tab == "streams":
-            evidence["liveStatus"] = "was_live"
         for row in shard["rows"]:
-            membership = {name: evidence if name == tab else None for name in TABS}
-            item = {"membership": membership, "videoId": row["videoId"]}
-            if tab != "shorts":
+            evidence = {
+                "complete": True,
+                "evidenceSha256": shard["rawResponseSha256"],
+                "observedAt": shard["observedAt"],
+                "sourceUrl": shard["sourceUrl"],
+            }
+            if tab == "streams":
+                evidence["liveStatus"] = row["liveStatus"]
+            item = result_by_id.setdefault(row["videoId"], {
+                "membership": {name: None for name in TABS},
+                "videoId": row["videoId"],
+            })
+            item["membership"][tab] = evidence
+            if tab == "videos" or (tab == "streams" and row["durationSeconds"] is not None):
                 item["durationSeconds"] = row["durationSeconds"]
             if tab == "streams":
-                item["liveStatus"] = "was_live"
-            result_rows.append(item)
+                item["liveStatus"] = row["liveStatus"]
+    result_rows = list(result_by_id.values())
     result_rows.sort(key=lambda row: row["videoId"])
     inventory = {
         "channelId": CHANNEL_ID,
@@ -258,11 +268,20 @@ def build_inventory(
         "sources": {tab: inputs[tab][1] for tab in TABS},
         "videos": result_rows,
     }
+    video_ids = inputs["videos"][0]["ids"]
+    short_ids = inputs["shorts"][0]["ids"]
+    completed_stream_ids = {
+        row["videoId"] for row in inputs["streams"][0]["rows"]
+        if row["liveStatus"] == "was_live"
+    }
+    active_stream_ids = inputs["streams"][0]["ids"] - completed_stream_ids
+    eligible_ids = (video_ids | completed_stream_ids) - short_ids - active_stream_ids
+    eligible_video_ids = eligible_ids - completed_stream_ids
     counts = {
-        "videos": len(inputs["videos"][0]["rows"]),
-        "completedStreams": len(inputs["streams"][0]["rows"]),
-        "shortsExcluded": len(inputs["shorts"][0]["rows"]),
-        "eligibleLongform": len(inputs["videos"][0]["rows"]) + len(inputs["streams"][0]["rows"]),
+        "videos": len(eligible_video_ids),
+        "completedStreams": len(eligible_ids & completed_stream_ids),
+        "shortsExcluded": len(short_ids),
+        "eligibleLongform": len(eligible_ids),
         "inventoryRows": len(result_rows),
     }
     invariants = {
@@ -271,6 +290,9 @@ def build_inventory(
         "durationMissingEligibleCount": 0,
         "completedStreamStatus": "was_live",
         "shortsExcludedFromEligible": True,
+        "rawTabMembershipCounts": {
+            tab: len(inputs[tab][0]["rows"]) for tab in TABS
+        },
     }
     return inventory, {"counts": counts, "invariants": invariants}
 
@@ -279,7 +301,7 @@ def _existing_regular_bytes(path: Path) -> bytes | None:
     if not path.exists() and not path.is_symlink():
         return None
     try:
-        return read_snapshot(path, maximum=MAX_SHARD_BYTES * 2)
+        return read_snapshot(path, maximum=MAX_INVENTORY_BYTES)
     except MaterializationError as error:
         if error.code == "INPUT_UNAVAILABLE":
             raise MaterializationError("OUTPUT_INVALID") from None
@@ -375,6 +397,8 @@ def materialize(
         shorts_path, shorts_sha256,
     )
     inventory_data = canonical(inventory)
+    if len(inventory_data) > MAX_INVENTORY_BYTES:
+        raise MaterializationError("INVENTORY_CAPACITY_EXCEEDED")
     inventory_hash = sha256_bytes(inventory_data)
     receipt = {
         "schema": RECEIPT_SCHEMA,
@@ -453,7 +477,7 @@ def materialize(
 
 
 def readback(inventory_path: Path, receipt_path: Path) -> dict:
-    inventory_data = read_snapshot(inventory_path, maximum=MAX_SHARD_BYTES * 2)
+    inventory_data = read_snapshot(inventory_path, maximum=MAX_INVENTORY_BYTES)
     receipt_data = read_snapshot(receipt_path, maximum=1024 * 1024)
     receipt = _decode(receipt_data)
     if (

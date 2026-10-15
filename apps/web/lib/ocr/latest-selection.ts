@@ -1,13 +1,46 @@
-export type LatestSelection = Readonly<{
-  begin: () => number;
-  isCurrent: (generation: number) => boolean;
+export type LatestSelectionLease = Readonly<{
+  generation: number;
+  signal: AbortSignal;
+  isCurrent: () => boolean;
+  complete: () => boolean;
 }>;
 
-/** Rejects late async file preparation after a newer selection or clear action. */
+export type LatestSelection = Readonly<{
+  begin: () => LatestSelectionLease;
+  isCurrent: (generation: number) => boolean;
+  invalidate: () => void;
+}>;
+
+/** Keeps one abortable file preparation current across replace, clear, close and unmount. */
 export function createLatestSelection(): LatestSelection {
   let generation = 0;
+  let controller: AbortController | null = null;
+
+  const invalidate = () => {
+    generation += 1;
+    controller?.abort();
+    controller = null;
+  };
+
   return {
-    begin: () => ++generation,
+    begin: () => {
+      invalidate();
+      const candidate = generation;
+      const candidateController = new AbortController();
+      controller = candidateController;
+      const isCurrent = () => candidate === generation && !candidateController.signal.aborted;
+      return {
+        generation: candidate,
+        signal: candidateController.signal,
+        isCurrent,
+        complete: () => {
+          if (!isCurrent()) return false;
+          if (controller === candidateController) controller = null;
+          return true;
+        },
+      };
+    },
     isCurrent: (candidate) => candidate === generation,
+    invalidate,
   };
 }

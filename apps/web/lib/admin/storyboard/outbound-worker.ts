@@ -32,6 +32,9 @@ const PATHS = ['/api/storyboard-worker', '/api/storyboard-worker/images'] as con
 type WorkerPath = typeof PATHS[number];
 type Lease = { jobId: string; leaseToken: string };
 export const DEFAULT_STORYBOARD_GEMINI_CLIENT_PEAK_BYTES = 128 * 1024 ** 2;
+export const STORYBOARD_CATALOG_FAILURE_LIMIT = 3;
+export const STORYBOARD_CATALOG_COOLDOWN_MS = 30_000;
+export const STORYBOARD_CATALOG_MAX_COOLDOWN_MS = 120_000;
 const STORYBOARD_IMAGE_UPLOAD_PEAK_BYTES = MAX_STORYBOARD_IMAGE_BYTES * 4;
 
 export class StoryboardWorkerApiError extends Error {
@@ -254,10 +257,13 @@ export class OutboundStoryboardWorker {
   private readonly heartbeatMs: number;
   private readonly onEvent: (event: WorkerEvent) => void;
   private readonly admitMemory: (models: WorkerModel[]) => boolean;
+  private readonly now: () => number;
+  private catalogFailures = 0;
+  private catalogRetryAfter = 0;
   private running = false;
   constructor(options: {
     api: StoryboardWorkerApi; gemini?: GeminiModels; heartbeatMs?: number; onEvent?: (event: WorkerEvent) => void;
-    admitMemory?: (models: WorkerModel[]) => boolean;
+    admitMemory?: (models: WorkerModel[]) => boolean; now?: () => number;
   }) {
     this.api = options.api; this.gemini = options.gemini ?? new GeminiStoryboardClient();
     this.heartbeatMs = options.heartbeatMs ?? 15_000;
@@ -266,12 +272,43 @@ export class OutboundStoryboardWorker {
     }
     this.onEvent = options.onEvent ?? (() => undefined);
     this.admitMemory = options.admitMemory ?? ((models) => admitStoryboardWorkerMemory(models));
+    this.now = options.now ?? Date.now;
   }
 
   private async heartbeat(models: WorkerModel[], signal?: AbortSignal, lease?: Lease): Promise<void> {
     const result = heartbeatSchema.safeParse(await workerApiCall(() => this.api.operation({ action: 'heartbeat', models, ...lease }, signal)));
     if (!result.success) throw new StoryboardWorkerApiError('invalid_worker_response');
     if (lease && !result.data.leaseValid) throw new StoryboardWorkerApiError('worker_lease_lost');
+  }
+
+  private async verifiedModels(signal?: AbortSignal): Promise<WorkerModel[] | null> {
+    if (this.catalogFailures >= STORYBOARD_CATALOG_FAILURE_LIMIT) {
+      throw new StoryboardProductionError('provider_failed');
+    }
+    if (this.catalogFailures > 0 && this.now() < this.catalogRetryAfter) return null;
+    let models: WorkerModel[];
+    try {
+      models = await this.gemini.models(signal);
+    } catch (error) {
+      const transient = error instanceof StoryboardProductionError && error.code === 'provider_failed';
+      if (signal?.aborted || !transient) throw error;
+      this.catalogFailures += 1;
+      if (this.catalogFailures >= STORYBOARD_CATALOG_FAILURE_LIMIT) {
+        this.onEvent({ event: 'model_catalog_retry_exhausted', code: storyboardWorkerErrorCode(error) });
+        throw error;
+      }
+      const cooldownMs = Math.min(
+        STORYBOARD_CATALOG_COOLDOWN_MS * (2 ** (this.catalogFailures - 1)),
+        STORYBOARD_CATALOG_MAX_COOLDOWN_MS,
+      );
+      this.catalogRetryAfter = this.now() + cooldownMs;
+      this.onEvent({ event: 'model_catalog_deferred', code: storyboardWorkerErrorCode(error) });
+      return null;
+    }
+    assertVerifiedStoryboardModels(models);
+    this.catalogFailures = 0;
+    this.catalogRetryAfter = 0;
+    return models;
   }
 
   /** Only settled job outcomes continue polling; uncertain deliveries leave this loop. */
@@ -309,8 +346,10 @@ export class OutboundStoryboardWorker {
       // The client refreshes this verified catalog after its bounded five-minute
       // TTL. Idle polling reuses it so a five-second queue poll does not become
       // an unbounded provider metadata loop.
-      const availableModels = await this.gemini.models(signal);
-      assertVerifiedStoryboardModels(availableModels);
+      const availableModels = await this.verifiedModels(signal);
+      // A provider catalog outage cannot authorize a claim. Transient failures
+      // retry only after bounded cooldowns and terminate after the fixed limit.
+      if (!availableModels) return 'idle';
       await this.heartbeat(availableModels, signal);
       const claim = claimSchema.safeParse(await workerApiCall(() => this.api.operation({ action: 'claim' }, signal)));
       if (!claim.success) throw new StoryboardWorkerApiError('invalid_worker_response');

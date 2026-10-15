@@ -10,6 +10,10 @@ import type { ReviewDraft } from '../lib/reviewDraftDB';
 import { ReviewSaveOperation } from '../lib/reviews/review-save-operation';
 import { buildReviewPhotoObjectPath, cleanupCanonicalReviewPhotoObjects, normalizeReviewPhotoFilename } from '../lib/review-photo-url';
 import { getEditableFoodPhotoValues } from '../lib/reviews/review-edit-food-values';
+import { createLatestSelection, type LatestSelectionLease } from '../lib/ocr/latest-selection';
+import { prepareVerificationUploadFile, ReceiptUploadPreparationError } from '../lib/ocr/receipt-upload-preparation';
+import { OCR_REVIEW_VERIFICATION_MAX_BYTES } from '../lib/ocr/review-verification-contract';
+import { reconcileInterruptedOcrReadback } from '../lib/ocr/review-modal-ocr-ux';
 
 // Run the actual component handlers and Supabase adapter with offline boundaries.
 // This avoids global module mocks affecting other unit suites and never imports
@@ -118,6 +122,7 @@ function fixture() {
         draftScopeRef,
         submitInFlightRef: { current: false }, closeRequestedRef: { current: false }, composerOpenRef: { current: true },
         autoSaveInFlightRef: { current: null },
+        verificationSelectionRef: { current: { invalidate() {} } },
         latestSaveInputsRef: { current: fields }, setIsSubmitting() {}, toast: (message: {title: string}) => messages.push(message),
         fetchFeatureDatabaseReadiness: async () => featureReady
             ? { schemaVersion: 1, status: 'ready', code: 'FEATURE_DATABASE_READY' }
@@ -137,7 +142,7 @@ function fixture() {
         ...bindings, useCallback: (callback: unknown) => callback, onClose: () => { counts.closes++; },
         ocrAbortControllerRef: { current: null }, replaceVerificationPhoto() {},
         setVisitedDate() {}, setVisitedTime() {}, setCategories() {}, setContent() {}, setFoodPhotos() {},
-        setVerificationInputMode() {}, setForceOcrRefresh() {}, setOcrFocusTarget() {}, setOcrProgress() {},
+        setReceiptVerificationInputMode() {}, setForceOcrRefresh() {}, setOcrFocusTarget() {}, setOcrProgress() {},
         setOcrFallbackNotice() {}, setAiFilledFields() {}, setCurrentStep() {},
     }) as () => Promise<void>;
     const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, bindings) as () => Promise<void>;
@@ -150,6 +155,81 @@ function fixture() {
 }
 
 describe('actual receipt result recovery', () => {
+    test('switching to photo-only during deferred compression preserves the attachment without starting OCR', async () => {
+        const verificationSelectionRef = { current: createLatestSelection() };
+        const receiptOcrSelection = createLatestSelection();
+        let ocrPreparationLease: LatestSelectionLease | null = null;
+        const receiptOcrPreparationRef = {
+            current: {
+                ...receiptOcrSelection,
+                begin: () => {
+                    ocrPreparationLease = receiptOcrSelection.begin();
+                    return ocrPreparationLease;
+                },
+            },
+        };
+        const verificationInputModeRef = { current: 'ai' as 'ai' | 'manual' };
+        const ocrRunGenerationRef = { current: 0 };
+        const ocrAbortControllerRef: { current: AbortController | null } = { current: null };
+        const userStepOverrideDuringOcrRef = { current: false };
+        let renderedMode: 'ai' | 'manual' = 'ai';
+        let attached: File | null = null;
+        let analyzeCalls = 0;
+        let compressorSignal: AbortSignal | undefined;
+        let enterCompressor!: () => void;
+        let finishCompression!: (blob: Blob) => void;
+        const compressorEntered = new Promise<void>(resolve => { enterCompressor = resolve; });
+        const compressed = new Promise<Blob>(resolve => { finishCompression = resolve; });
+
+        const setMode = evaluate(`${nodeText(source, 'setReceiptVerificationInputMode')};`, {
+            useCallback: (callback: unknown) => callback,
+            verificationInputModeRef, receiptOcrPreparationRef, ocrRunGenerationRef, ocrAbortControllerRef,
+            userStepOverrideDuringOcrRef,
+            setVerificationInputMode(value: 'ai' | 'manual') { renderedMode = value; },
+            setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
+        }) as (mode: 'ai' | 'manual') => void;
+        const selectPhoto = evaluate(`${nodeText(source, 'handleVerificationPhotoSelected')};`, {
+            verificationSelectionRef, receiptOcrPreparationRef, verificationInputModeRef,
+            ocrRunGenerationRef, ocrAbortControllerRef,
+            setIsAnalyzing() {}, setOcrProgress() {}, featureHeld: false,
+            isSupportedReceiptImage: () => true, toast() {}, FEATURE_DATABASE_HELD_MESSAGE: 'held',
+            generateSafeFilename: () => 'prepared.jpg', prepareVerificationUploadFile,
+            imageCompression: async (_file: File, options: { signal?: AbortSignal }) => {
+                compressorSignal = options.signal;
+                enterCompressor();
+                return compressed;
+            },
+            replaceVerificationPhoto(file: File, generation: number) {
+                expect(verificationSelectionRef.current.isCurrent(generation)).toBe(true);
+                attached = file;
+                return true;
+            },
+            verificationFileInputRef: { current: null },
+            window: { setTimeout: (callback: () => void) => globalThis.setTimeout(callback, 0) },
+            analyzeReceipt() { analyzeCalls += 1; }, ReceiptUploadPreparationError,
+        }) as (file: File) => Promise<void>;
+        const original = new File(
+            [new Uint8Array(OCR_REVIEW_VERIFICATION_MAX_BYTES + 1)],
+            'slow-receipt.jpg',
+            { type: 'image/jpeg' },
+        );
+
+        const selection = selectPhoto(original);
+        await compressorEntered;
+        setMode('manual');
+        expect(ocrPreparationLease?.signal.aborted).toBe(true);
+        expect(compressorSignal?.aborted).toBe(false);
+        finishCompression(new Blob([new Uint8Array(1024)], { type: 'image/jpeg' }));
+        await selection;
+        await new Promise(resolve => globalThis.setTimeout(resolve, 0));
+
+        expect(attached?.size).toBe(1024);
+        expect(analyzeCalls).toBe(0);
+        expect(renderedMode).toBe('manual');
+        expect(verificationInputModeRef.current).toBe('manual');
+        expect(userStepOverrideDuringOcrRef.current).toBe(true);
+    });
+
     test('removing a receipt cancels analysis and clears its busy state', () => {
         const controller = new AbortController();
         const generation = { current: 4 };
@@ -158,7 +238,8 @@ describe('actual receipt result recovery', () => {
         let progress: unknown = { stage: 'model_start' };
         const replace = evaluate(`${nodeText(source, 'replaceVerificationPhoto')};`, {
             useCallback: (callback: unknown) => callback,
-            verificationSelectionRef: { current: { begin() {} } },
+            verificationSelectionRef: { current: { invalidate() {} } },
+            receiptOcrPreparationRef: { current: { invalidate() {} } },
             verificationPhotoUrlRef: { current: null },
             ocrRunGenerationRef: generation, ocrAbortControllerRef: { current: controller },
             ocrRecoveryContextRef: recovery,
@@ -234,6 +315,15 @@ describe('actual receipt result recovery', () => {
         const started = new Promise<void>(resolve => { enteredRead = resolve; });
         const pending = new Promise(resolve => { finishRead = resolve; });
         const effects = { result: 0, fields: 0, notices: 0 };
+        const receiptOcrPreparationRef = { current: createLatestSelection() };
+        const verificationInputModeRef = { current: 'ai' as 'ai' | 'manual' };
+        const userStepOverrideDuringOcrRef = { current: false };
+        const setMode = evaluate(`${nodeText(source, 'setReceiptVerificationInputMode')};`, {
+            useCallback: (callback: unknown) => callback,
+            verificationInputModeRef, receiptOcrPreparationRef, ocrRunGenerationRef, ocrAbortControllerRef,
+            userStepOverrideDuringOcrRef,
+            setVerificationInputMode() {}, setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
+        }) as (mode: 'ai' | 'manual') => void;
         const analyze = evaluate(`${nodeText(source, 'analyzeReceipt')}\nanalyzeReceipt;`, {
             AbortController, featureHeld: false, user: { id: 'fixture-owner' },
             canForceOcrRefresh: false, forceOcrRefresh: false,
@@ -252,14 +342,71 @@ describe('actual receipt result recovery', () => {
         }) as (file: File, generation: number | undefined, statusOnly: boolean) => Promise<void>;
         const run = analyze(new File(['old receipt'], 'old.jpg'), undefined, true);
         await started;
-        ocrRunGenerationRef.current++;
-        ocrAbortControllerRef.current!.abort();
+        setMode('manual');
         // A completed request can settle after cancellation; its payload must
         // still be ignored even if a transport/mock does not reject on abort.
         finishRead({ ocr_result_ref: '11111111-1111-4111-8111-111111111111',
             ocr_result_revision: '22222222-2222-4222-8222-222222222222' });
         await run;
         expect(effects).toEqual({ result: 0, fields: 0, notices: 0 });
+        expect(verificationInputModeRef.current).toBe('manual');
+        expect(userStepOverrideDuringOcrRef.current).toBe(true);
+        expect(ocrAbortControllerRef.current).toBeNull();
+    });
+
+    test('direct input cancels deferred status readback after an interrupted SSE stream', async () => {
+        const ocrRunGenerationRef = { current: 0 };
+        const ocrAbortControllerRef: { current: AbortController | null } = { current: null };
+        const receiptOcrPreparationRef = { current: createLatestSelection() };
+        const verificationInputModeRef = { current: 'ai' as 'ai' | 'manual' };
+        const userStepOverrideDuringOcrRef = { current: false };
+        const manuallyEditedOcrFieldsRef = { current: new Set<string>() };
+        const lastManualOcrInteractionAtRef = { current: 0 };
+        const lastOcrRevealSignatureRef = { current: null as string | null };
+        let finishRead!: (value: unknown) => void;
+        let enterRead!: () => void;
+        const readStarted = new Promise<void>(resolve => { enterRead = resolve; });
+        const delayedStatus = new Promise(resolve => { finishRead = resolve; });
+        const effects = { result: 0, fields: 0, navigation: 0 };
+        const setMode = evaluate(`${nodeText(source, 'setReceiptVerificationInputMode')};`, {
+            useCallback: (callback: unknown) => callback,
+            verificationInputModeRef, receiptOcrPreparationRef, ocrRunGenerationRef, ocrAbortControllerRef,
+            userStepOverrideDuringOcrRef,
+            setVerificationInputMode() {}, setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
+        }) as (mode: 'ai' | 'manual') => void;
+        const analyze = evaluate(`${nodeText(source, 'analyzeReceipt')}\nanalyzeReceipt;`, {
+            AbortController, featureHeld: false, user: { id: 'fixture-owner' },
+            canForceOcrRefresh: false, forceOcrRefresh: false,
+            ocrRunGenerationRef, ocrAbortControllerRef, manuallyEditedOcrFieldsRef,
+            lastManualOcrInteractionAtRef, lastOcrRevealSignatureRef, userStepOverrideDuringOcrRef,
+            setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {}, setAiFilledFields() {},
+            supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'offline-session-token' } } }) } },
+            analyzeReceiptWithStream: async () => { throw new Error('synthetic interrupted stream'); },
+            readReceiptOcrStatus: () => { enterRead(); return delayedStatus; },
+            reconcileInterruptedOcrReadback,
+            isTerminalOcrStreamError: () => false,
+            isPendingOcrStreamError: () => false,
+            isAbortError: (error: unknown) => error instanceof Error && error.name === 'AbortError',
+            setOcrResultRef() { effects.result += 1; }, setOcrResultRevision() { effects.result += 1; },
+            applyOcrFieldPatch() { effects.fields += 1; },
+            revealOcrAutoFillSequence() { effects.navigation += 1; },
+            canReplaceSelectedRestaurantFromOcr: () => false,
+            selectedRestaurant: null, restaurant: null, mutateQuota() {}, toast() {},
+        }) as (file: File) => Promise<void>;
+
+        const run = analyze(new File(['receipt'], 'receipt.jpg'));
+        await readStarted;
+        setMode('manual');
+        finishRead({
+            ocr_result_ref: '11111111-1111-4111-8111-111111111111',
+            ocr_result_revision: '22222222-2222-4222-8222-222222222222',
+        });
+        await run;
+
+        expect(effects).toEqual({ result: 0, fields: 0, navigation: 0 });
+        expect(verificationInputModeRef.current).toBe('manual');
+        expect(userStepOverrideDuringOcrRef.current).toBe(true);
+        expect(ocrAbortControllerRef.current).toBeNull();
     });
 
     test('status-only readback preserves manual edits and navigation without another model request', async () => {
@@ -449,6 +596,7 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         const f = fixture(); f.setMode('lost-read-fails'); await f.submit();
         const close = evaluate(`${nodeText(source, 'handleClose')};`, {
             ...f.bindings, useCallback: (callback: unknown) => callback, onClose: () => { f.counts.closes++; }, replaceVerificationPhoto() {},
+            setReceiptVerificationInputMode() {},
         }) as () => Promise<void>;
         await close(); expect(f.counts.closes).toBe(0); expect(f.objects.size).toBe(2);
         expect(f.bindings.closeRequestedRef.current).toBe(false);

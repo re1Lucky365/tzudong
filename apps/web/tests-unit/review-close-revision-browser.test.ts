@@ -77,13 +77,14 @@ async function bundle(sourceRoot: string) {
             const saveOwnerRef = useRef(user.id), saveOperationRef = useRef(null), submitInFlightRef = useRef(false);
             const closeRequestedRef = useRef(false), composerOpenRef = useRef(isOpen), consumerNotifiedRef = useRef(false), autoSaveInFlightRef = useRef(null);
             const ocrRunGenerationRef = useRef(0), ocrRecoveryContextRef = useRef(null);
+            const verificationSelectionRef = useRef({ invalidate() {} }), receiptOcrPreparationRef = useRef({ invalidate() {} });
             const draftScopeRef = useRef({ ownerId: user.id, restaurantId: restaurant.id, revision: null });
             const latestSaveInputsRef = useRef({ visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: restaurant.id, ocrResultRef, ocrResultRevision });
             ${lifecycle.join(';\n')};
             const onSuccess = () => { counts.success++; };
             const onClose = () => { counts.closes++; };
             const ocrAbortControllerRef = useRef(null);
-            const setVerificationInputMode = () => {}, setForceOcrRefresh = () => {}, setOcrFocusTarget = () => {}, setOcrProgress = () => {}, setOcrFallbackNotice = () => {}, setAiFilledFields = () => {};
+            const setReceiptVerificationInputMode = () => {}, setForceOcrRefresh = () => {}, setOcrFocusTarget = () => {}, setOcrProgress = () => {}, setOcrFallbackNotice = () => {}, setAiFilledFields = () => {};
             ${handlers}
             useLayoutEffect(() => { registry.set(label, { autoSave, loadDraft, handleSubmit, handleClose, setContent, draftScopeRef, content }); });
             return <output>{content}</output>;

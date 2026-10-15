@@ -13,6 +13,7 @@ type ReceiptImageCompressor = (file: File, options: {
   fileType: 'image/jpeg' | 'image/png' | 'image/webp';
   initialQuality: number;
   useWebWorker: boolean;
+  signal?: AbortSignal;
 }) => Promise<Blob>;
 
 export class ReceiptUploadPreparationError extends Error {
@@ -29,8 +30,10 @@ export async function prepareVerificationUploadFile(input: {
   file: File;
   filename: string;
   compress: ReceiptImageCompressor;
+  signal?: AbortSignal;
 }): Promise<File> {
-  const { file, filename, compress } = input;
+  const { file, filename, compress, signal } = input;
+  signal?.throwIfAborted();
   if (!SUPPORTED_RECEIPT_MIME_TYPES.has(file.type)) {
     throw new ReceiptUploadPreparationError('unsupported');
   }
@@ -44,12 +47,15 @@ export async function prepareVerificationUploadFile(input: {
         fileType: file.type as 'image/jpeg' | 'image/png' | 'image/webp',
         initialQuality: 1,
         useWebWorker: true,
+        signal,
       });
     } catch {
+      signal?.throwIfAborted();
       throw new ReceiptUploadPreparationError('too_large');
     }
   }
 
+  signal?.throwIfAborted();
   const prepared = new File([bytes], filename, { type: file.type });
   if (prepared.size < 1 || prepared.size > OCR_REVIEW_VERIFICATION_MAX_BYTES) {
     throw new ReceiptUploadPreparationError('too_large');

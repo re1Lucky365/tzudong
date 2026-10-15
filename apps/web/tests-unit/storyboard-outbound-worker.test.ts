@@ -11,6 +11,7 @@ import { GeminiStoryboardClient } from '../lib/admin/storyboard/gemini-client';
 import type { ProductionModel as WorkerModel } from '../lib/admin/storyboard/production-worker-auth';
 import {
   OutboundStoryboardWorker, StoryboardWorkerApiError, StoryboardWorkerTransport,
+  STORYBOARD_CATALOG_COOLDOWN_MS, STORYBOARD_CATALOG_FAILURE_LIMIT,
   readStoryboardWorkerToken, type StoryboardWorkerApi,
 } from '../lib/admin/storyboard/outbound-worker';
 import { validateStoryboardWorkerOrigin, type ClaimedStoryboardJob, type WorkerDestination } from '../lib/admin/storyboard/outbound-worker-contract';
@@ -217,11 +218,76 @@ describe('outbound worker lifecycle (fixture models, no live inference)', () => 
       expect(f.calls.at(-1)).toMatchObject({ action: 'finish', errorCode: code });
     }
   });
-  test('catalog authentication failure happens before heartbeat or claim and never generates', async () => {
+  test('transient catalog failure observes cooldown and the same idle worker can recover', async () => {
+    const f = fixture();
+    let now = 10_000;
+    let attempts = 0;
+    f.gemini.models = async () => {
+      attempts++;
+      if (attempts === 1) throw new StoryboardProductionError('provider_failed');
+      return models;
+    };
+    const events: Array<{ event: string; code?: string }> = [];
+    const worker = new OutboundStoryboardWorker({ ...f, now: () => now, onEvent: event => events.push(event) });
+    expect(await worker.runOnce()).toBe('idle');
+    expect(f.draftCalls()).toBe(0); expect(f.generated).toEqual([]);
+    expect(f.calls).toEqual([{ action: 'readiness' }]); expect(f.claimedJobs()).toBe(0);
+    expect(events).toEqual([{ event: 'model_catalog_deferred', code: 'provider_failed' }]);
+
+    now += STORYBOARD_CATALOG_COOLDOWN_MS - 1;
+    expect(await worker.runOnce()).toBe('idle');
+    expect(attempts).toBe(1); expect(f.claimedJobs()).toBe(0);
+
+    now += 1;
+    expect(await worker.runOnce()).toBe('completed');
+    expect(attempts).toBe(2); expect(f.claimedJobs()).toBe(1);
+  });
+  test('persistent transient catalog failure exhausts its bounded retries', async () => {
+    const f = fixture();
+    let now = 20_000;
+    let attempts = 0;
+    f.gemini.models = async () => {
+      attempts++;
+      throw new StoryboardProductionError('provider_failed');
+    };
+    const events: Array<{ event: string; code?: string }> = [];
+    const worker = new OutboundStoryboardWorker({ ...f, now: () => now, onEvent: event => events.push(event) });
+
+    for (let attempt = 1; attempt < STORYBOARD_CATALOG_FAILURE_LIMIT; attempt++) {
+      expect(await worker.runOnce()).toBe('idle');
+      expect(attempts).toBe(attempt);
+      now += STORYBOARD_CATALOG_COOLDOWN_MS * (2 ** (attempt - 1));
+    }
+    await expect(worker.runOnce()).rejects.toMatchObject({ code: 'provider_failed' });
+    expect(attempts).toBe(STORYBOARD_CATALOG_FAILURE_LIMIT);
+    expect(f.claimedJobs()).toBe(0);
+    expect(events.at(-1)).toEqual({ event: 'model_catalog_retry_exhausted', code: 'provider_failed' });
+    await expect(worker.runOnce()).rejects.toMatchObject({ code: 'provider_failed' });
+    expect(attempts).toBe(STORYBOARD_CATALOG_FAILURE_LIMIT);
+  });
+  test('catalog rate limits terminate continuous polling without automatic retry', async () => {
+    const f = fixture();
+    let attempts = 0;
+    f.gemini.models = async () => {
+      attempts++;
+      throw new StoryboardProductionError('provider_rate_limited');
+    };
+    await expect(new OutboundStoryboardWorker(f).run({ pollMs: 1 }))
+      .rejects.toMatchObject({ code: 'provider_rate_limited' });
+    expect(attempts).toBe(1);
+    expect(f.calls).toEqual([{ action: 'readiness' }]);
+    expect(f.claimedJobs()).toBe(0);
+  });
+  test('catalog authentication failure still stops before heartbeat or claim', async () => {
     const f = fixture();
     f.gemini.models = async () => { throw new StoryboardProductionError('provider_auth_failed'); };
     await expect(new OutboundStoryboardWorker(f).runOnce()).rejects.toThrow('provider_auth_failed');
-    expect(f.draftCalls()).toBe(0); expect(f.generated).toEqual([]);
+    expect(f.calls).toEqual([{ action: 'readiness' }]); expect(f.claimedJobs()).toBe(0);
+  });
+  test('an invalid catalog remains a hard failure before heartbeat or claim', async () => {
+    const f = fixture();
+    f.gemini.models = async () => [{ ...models[0], owned_by: 'mlx-serve' }];
+    await expect(new OutboundStoryboardWorker(f).runOnce()).rejects.toThrow('provider_failed');
     expect(f.calls).toEqual([{ action: 'readiness' }]); expect(f.claimedJobs()).toBe(0);
   });
   test('an unavailable selected model is advertised honestly and never claims or generates', async () => {

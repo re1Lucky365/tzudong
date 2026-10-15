@@ -656,6 +656,22 @@ describe('durable receipt OCR execution', () => {
     expect(adminProcessor).not.toContain('.from(\'reviews\')\n        .update(update)');
   });
 
+  test('binds an administrator reset to a fresh durable generation before processing', () => {
+    const migration = readFileSync(join(
+      import.meta.dir,
+      '../../../backend/supabase/migrations/20261013190000_durable_receipt_ocr_results.sql',
+    ), 'utf8');
+    const adminProcessor = readFileSync(join(import.meta.dir, '../lib/ocr/admin-receipt-processor.ts'), 'utf8');
+
+    expect(migration).toContain('CREATE TRIGGER review_ocr_generation_on_reset');
+    expect(migration).toContain('EXECUTE FUNCTION ocr_private.register_review_ocr_generation()');
+    expect(adminProcessor.indexOf('getReviewReceiptOcrGeneration(')).toBeLessThan(
+      adminProcessor.indexOf('executeDurableReceiptOcr({'),
+    );
+    expect(adminProcessor).toContain('generation,');
+    expect(adminProcessor).toContain('forceRefresh: false');
+  });
+
   test('serializes concurrent review saves and requires OCR reference readback', async () => {
     const entered = gate();
     const finish = gate();

@@ -2,8 +2,10 @@ import contextlib
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -57,6 +59,50 @@ class LongformInventoryTests(unittest.TestCase):
             "inventory_path": self.inventory, "receipt_path": self.receipt,
         }
 
+    @staticmethod
+    def analysis_args(inputs):
+        return SimpleNamespace(
+            inventory=None,
+            inventory_sha256=None,
+            expected_longform_count=None,
+            expected_inventory_rows=None,
+            membership_videos=inputs["videos_path"],
+            membership_videos_sha256=inputs["videos_sha256"],
+            membership_streams=inputs["streams_path"],
+            membership_streams_sha256=inputs["streams_sha256"],
+            membership_shorts=inputs["shorts_path"],
+            membership_shorts_sha256=inputs["shorts_sha256"],
+            materialized_inventory=inputs["inventory_path"],
+            materialization_receipt=inputs["receipt_path"],
+        )
+
+    def active_stream_inputs(self, status="is_live"):
+        args = self.inputs()
+        streams, streams_hash = self.shard("streams", [
+            self.row("LMNOPQRSTUV", duration=7201, live_status="was_live"),
+            self.row("LIVEstream1", duration=None, live_status=status),
+        ])
+        args.update(streams_path=streams, streams_sha256=streams_hash)
+        return args
+
+    def overlapping_inputs(self):
+        overlap = "ABCDEFGHIJK"
+        videos = self.shard("videos", [
+            self.row(overlap, duration=61),
+            self.row("VIDEOkeep01", duration=62),
+        ])
+        streams = self.shard("streams", [
+            self.row(overlap, duration=7201, live_status="was_live"),
+            self.row("STREAMkeep1", duration=7202, live_status="was_live"),
+        ])
+        shorts = self.shard("shorts", [self.row(overlap, duration=None)])
+        return overlap, {
+            "videos_path": videos[0], "videos_sha256": videos[1],
+            "streams_path": streams[0], "streams_sha256": streams[1],
+            "shorts_path": shorts[0], "shorts_sha256": shorts[1],
+            "inventory_path": self.inventory, "receipt_path": self.receipt,
+        }
+
     def test_materializes_deterministically_and_analysis_admits_exact_longform(self):
         args = self.inputs()
         first = module.materialize(**args)
@@ -68,6 +114,9 @@ class LongformInventoryTests(unittest.TestCase):
         self.assertEqual(first["counts"], {
             "videos": 1, "completedStreams": 1, "shortsExcluded": 1,
             "eligibleLongform": 2, "inventoryRows": 3,
+        })
+        self.assertEqual(first["invariants"]["rawTabMembershipCounts"], {
+            "videos": 1, "streams": 1, "shorts": 1,
         })
         readback = module.readback(self.inventory, self.receipt)
         self.assertEqual(readback["inventory"]["sha256"], module.sha256_bytes(before[0]))
@@ -102,12 +151,12 @@ class LongformInventoryTests(unittest.TestCase):
             module.materialize(**{**args, "videos_sha256": module.sha256_bytes(changed)})
         self.assertEqual(before, (self.inventory.read_bytes(), self.receipt.read_bytes()))
 
-    def test_overlap_duplicate_duration_and_stream_status_are_rejected(self):
+    def test_duplicate_duration_and_invalid_stream_status_are_rejected(self):
         cases = (
             ("SHARD_DUPLICATE_VIDEO_ID", "videos", [
                 self.row("ABCDEFGHIJK", duration=60), self.row("ABCDEFGHIJK", duration=60)]),
             ("SHARD_DURATION_INVALID", "videos", [self.row("ABCDEFGHIJK", duration=None)]),
-            ("STREAM_NOT_COMPLETED", "streams", [self.row("LMNOPQRSTUV", duration=60, live_status="is_live")]),
+            ("STREAM_LIVE_STATUS_INVALID", "streams", [self.row("LMNOPQRSTUV", duration=60, live_status="not_live")]),
         )
         for code, tab, rows in cases:
             with self.subTest(code=code):
@@ -118,11 +167,90 @@ class LongformInventoryTests(unittest.TestCase):
                 with self.assertRaisesRegex(module.MaterializationError, code):
                     module.materialize(**args)
 
+    def test_active_stream_memberships_are_preserved_then_excluded_by_analysis(self):
+        for status in ("is_live", "is_upcoming", "post_live"):
+            with self.subTest(status=status):
+                args = self.active_stream_inputs(status)
+                inventory, validation = module.build_inventory(
+                    args["videos_path"], args["videos_sha256"],
+                    args["streams_path"], args["streams_sha256"],
+                    args["shorts_path"], args["shorts_sha256"],
+                )
+                rows, info = longform_analysis.load_inventory(
+                    self.inventory, data=module.canonical(inventory),
+                )
+                active = next(row for row in inventory["videos"] if row["videoId"] == "LIVEstream1")
+                self.assertEqual(active["liveStatus"], status)
+                self.assertEqual(active["membership"]["streams"]["liveStatus"], status)
+                self.assertNotIn("durationSeconds", active)
+                self.assertEqual({row["videoId"] for row in rows}, {"ABCDEFGHIJK", "LMNOPQRSTUV"})
+                self.assertEqual(info["excludedLiveNotReady"], 1)
+                self.assertEqual(info["excludedLiveStatusCounts"][status], 1)
+                self.assertEqual(validation["counts"], {
+                    "videos": 1, "completedStreams": 1, "shortsExcluded": 1,
+                    "eligibleLongform": 2, "inventoryRows": 4,
+                })
+
+    def test_cross_tab_memberships_merge_and_shorts_exclusion_wins(self):
+        overlap, args = self.overlapping_inputs()
+        inventory, validation = module.build_inventory(
+            args["videos_path"], args["videos_sha256"],
+            args["streams_path"], args["streams_sha256"],
+            args["shorts_path"], args["shorts_sha256"],
+        )
+        merged = next(row for row in inventory["videos"] if row["videoId"] == overlap)
+        self.assertTrue(all(merged["membership"][tab] is not None for tab in module.TABS))
+        self.assertEqual(merged["liveStatus"], "was_live")
+        rows, info = longform_analysis.load_inventory(
+            self.inventory, data=module.canonical(inventory),
+        )
+        self.assertEqual({row["videoId"] for row in rows}, {"VIDEOkeep01", "STREAMkeep1"})
+        self.assertEqual((info["videoTabCount"], info["completedStreamCount"], info["excludedShorts"]), (1, 1, 1))
+        self.assertEqual(validation["counts"], {
+            "videos": 1, "completedStreams": 1, "shortsExcluded": 1,
+            "eligibleLongform": 2, "inventoryRows": 3,
+        })
+        self.assertEqual(validation["invariants"]["pairwiseIntersectionCounts"], {
+            "videosStreams": 1, "videosShorts": 1, "streamsShorts": 1,
+        })
+        self.assertEqual(validation["invariants"]["rawTabMembershipCounts"], {
+            "videos": 2, "streams": 2, "shorts": 1,
+        })
+
+    def test_inventory_from_args_accepts_active_stream_exclusion_counts(self):
+        rows, info = longform_analysis._inventory_from_args(
+            self.analysis_args(self.active_stream_inputs()),
+        )
+        self.assertEqual({row["videoId"] for row in rows}, {"ABCDEFGHIJK", "LMNOPQRSTUV"})
+        self.assertEqual((info["videoTabCount"], info["completedStreamCount"], info["excludedLiveNotReady"]), (1, 1, 1))
+        self.assertEqual(info["membershipCounts"]["videos"], info["videoTabCount"])
+
+    def test_inventory_from_args_accepts_overlap_with_consumer_aligned_counts(self):
+        _, args = self.overlapping_inputs()
+        rows, info = longform_analysis._inventory_from_args(self.analysis_args(args))
+        self.assertEqual({row["videoId"] for row in rows}, {"VIDEOkeep01", "STREAMkeep1"})
+        self.assertEqual((info["videoTabCount"], info["completedStreamCount"], info["excludedShorts"]), (1, 1, 1))
+        self.assertEqual(info["membershipCounts"]["videos"], info["videoTabCount"])
+        receipt = json.loads(self.receipt.read_text())
+        self.assertEqual(receipt["invariants"]["rawTabMembershipCounts"], {
+            "videos": 2, "streams": 2, "shorts": 1,
+        })
+
+    def test_oversized_inventory_is_rejected_before_existing_outputs_change(self):
         args = self.inputs()
-        path, digest = self.shard("shorts", [self.row("ABCDEFGHIJK", duration=None)])
-        args.update(shorts_path=path, shorts_sha256=digest)
-        with self.assertRaisesRegex(module.MaterializationError, "TAB_MEMBERSHIP_OVERLAP"):
-            module.materialize(**args)
+        inventory, _ = module.build_inventory(
+            args["videos_path"], args["videos_sha256"],
+            args["streams_path"], args["streams_sha256"],
+            args["shorts_path"], args["shorts_sha256"],
+        )
+        maximum = len(module.canonical(inventory)) - 1
+        self.inventory.write_bytes(b"preserve inventory")
+        self.receipt.write_bytes(b"preserve receipt")
+        before = (self.inventory.read_bytes(), self.receipt.read_bytes())
+        with patch.object(module, "MAX_INVENTORY_BYTES", maximum):
+            with self.assertRaisesRegex(module.MaterializationError, "INVENTORY_CAPACITY_EXCEEDED"):
+                module.materialize(**args)
+        self.assertEqual(before, (self.inventory.read_bytes(), self.receipt.read_bytes()))
 
     def test_corrupt_outputs_are_replaced_and_readback_rejects_partial_pair(self):
         args = self.inputs()
@@ -190,20 +318,20 @@ class LongformInventoryTests(unittest.TestCase):
             module.materialize(**{**args, "inventory_path": args["videos_path"]})
         self.assertEqual(original, {path: path.read_bytes() for path in source_paths})
 
-        self.inventory.hardlink_to(args["videos_path"])
+        os.link(args["videos_path"], self.inventory)
         with self.assertRaisesRegex(module.MaterializationError, "INPUT_OUTPUT_PATH_CONFLICT"):
             module.materialize(**args)
         self.assertEqual(original, {path: path.read_bytes() for path in source_paths})
         self.inventory.unlink()
 
-        self.receipt.hardlink_to(args["streams_path"])
+        os.link(args["streams_path"], self.receipt)
         with self.assertRaisesRegex(module.MaterializationError, "INPUT_OUTPUT_PATH_CONFLICT"):
             module.materialize(**args)
         self.assertEqual(original, {path: path.read_bytes() for path in source_paths})
         self.receipt.unlink()
 
         lock_path = self.inventory.parent / f".{self.inventory.name}.materialize.lock"
-        lock_path.hardlink_to(args["shorts_path"])
+        os.link(args["shorts_path"], lock_path)
         with self.assertRaisesRegex(module.MaterializationError, "INPUT_OUTPUT_PATH_CONFLICT"):
             module.materialize(**args)
         self.assertEqual(original, {path: path.read_bytes() for path in source_paths})

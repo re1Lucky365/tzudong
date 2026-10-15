@@ -344,6 +344,17 @@ describe('OCR extract route privacy and normalization contract', () => {
     expect(quotaRouteSource).not.toContain('console.error');
   });
 
+  test('passes the complete ordered model policy to both OCR provider entrypoints', () => {
+    const routeSource = source('app/api/ocr/extract/route.ts');
+    const streamRouteSource = source('app/api/ocr/extract/stream/route.ts');
+
+    for (const ocrRouteSource of [routeSource, streamRouteSource]) {
+      expect(ocrRouteSource).toContain('const modelPolicy = candidate ? getOcrModelPolicy(candidate)');
+      expect(ocrRouteSource).toContain("GEMINI_OCR_MODEL: modelPolicy.join(',')");
+      expect(ocrRouteSource).toContain('modelPolicy,');
+    }
+  });
+
   test('uses an authenticated atomic OCR quota reservation instead of count-then-act', () => {
     const routeSource = source('app/api/ocr/extract/route.ts');
     const streamRouteSource = source('app/api/ocr/extract/stream/route.ts');

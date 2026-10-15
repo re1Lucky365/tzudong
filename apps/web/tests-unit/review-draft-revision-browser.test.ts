@@ -77,6 +77,7 @@ async function bundle(sourceRoot: string) {
             const saveOwnerRef = useRef(user.id), saveOperationRef = useRef(null), submitInFlightRef = useRef(false);
             const closeRequestedRef = useRef(false), composerOpenRef = useRef(isOpen), consumerNotifiedRef = useRef(false), autoSaveInFlightRef = useRef(null);
             const ocrRunGenerationRef = useRef(0), ocrAbortControllerRef = useRef(null), ocrRecoveryContextRef = useRef(null);
+            const verificationSelectionRef = useRef({ invalidate() {} }), receiptOcrPreparationRef = useRef({ invalidate() {} });
             const draftScopeRef = useRef({ ownerId: user.id, restaurantId: restaurant.id, revision: null });
             const latestSaveInputsRef = useRef({ visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: restaurant.id, ocrResultRef, ocrResultRevision });
             ${lifecycle.join(';\n')};
