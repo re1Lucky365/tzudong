@@ -3,6 +3,114 @@
 CREATE SCHEMA IF NOT EXISTS ocr_private;
 REVOKE ALL ON SCHEMA ocr_private FROM PUBLIC, anon, authenticated;
 
+-- These four review columns already exist in the operating catalog, but their
+-- original creation was never captured by a repository migration. Reconstruct
+-- that exact nullable/default contract before any OCR trigger or function
+-- references it. IF NOT EXISTS keeps the operating transition additive; the
+-- immediate catalog assertion rejects a same-name object with another shape.
+ALTER TABLE public.reviews
+  ADD COLUMN IF NOT EXISTS receipt_hash text,
+  ADD COLUMN IF NOT EXISTS receipt_data jsonb,
+  ADD COLUMN IF NOT EXISTS is_duplicate boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS ocr_processed_at timestamptz;
+
+DO $review_ocr_column_contract$
+BEGIN
+  IF EXISTS (
+    WITH expected(column_name, data_type, not_null, default_expression) AS (
+      VALUES
+        ('receipt_hash'::name, 'text'::text, false, NULL::text),
+        ('receipt_data'::name, 'jsonb'::text, false, NULL::text),
+        ('is_duplicate'::name, 'boolean'::text, false, 'false'::text),
+        ('ocr_processed_at'::name, 'timestamp with time zone'::text, false, NULL::text)
+    ),
+    actual AS (
+      SELECT
+        attribute.attname,
+        pg_catalog.format_type(attribute.atttypid, attribute.atttypmod),
+        attribute.attnotnull,
+        pg_catalog.pg_get_expr(default_value.adbin, default_value.adrelid)
+      FROM pg_catalog.pg_attribute AS attribute
+      LEFT JOIN pg_catalog.pg_attrdef AS default_value
+        ON default_value.adrelid = attribute.attrelid
+       AND default_value.adnum = attribute.attnum
+      WHERE attribute.attrelid = 'public.reviews'::regclass
+        AND attribute.attnum > 0
+        AND NOT attribute.attisdropped
+        AND attribute.attname = ANY (ARRAY[
+          'receipt_hash',
+          'receipt_data',
+          'is_duplicate',
+          'ocr_processed_at'
+        ]::name[])
+    )
+    (SELECT * FROM expected EXCEPT SELECT * FROM actual)
+    UNION ALL
+    (SELECT * FROM actual EXCEPT SELECT * FROM expected)
+  ) THEN
+    RAISE EXCEPTION 'REVIEW_OCR_COLUMN_CONTRACT_DRIFT';
+  END IF;
+END;
+$review_ocr_column_contract$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_receipt_hash
+  ON public.reviews USING btree (receipt_hash)
+  WHERE receipt_hash IS NOT NULL;
+CREATE INDEX IF NOT EXISTS reviews_ocr_pending_idx
+  ON public.reviews USING btree (ocr_processed_at)
+  WHERE verification_photo IS NOT NULL;
+CREATE INDEX IF NOT EXISTS reviews_duplicate_idx
+  ON public.reviews USING btree (is_duplicate);
+
+DO $review_ocr_index_contract$
+BEGIN
+  IF EXISTS (
+    WITH expected(index_name, is_unique, key_name, predicate) AS (
+      VALUES
+        ('idx_reviews_receipt_hash'::name, true, 'receipt_hash'::text, '(receipt_hash IS NOT NULL)'::text),
+        ('reviews_ocr_pending_idx'::name, false, 'ocr_processed_at'::text, '(verification_photo IS NOT NULL)'::text),
+        ('reviews_duplicate_idx'::name, false, 'is_duplicate'::text, NULL::text)
+    ),
+    actual AS (
+      SELECT
+        index_relation.relname,
+        index_row.indisunique,
+        pg_catalog.pg_get_indexdef(index_relation.oid, 1, true),
+        pg_catalog.pg_get_expr(index_row.indpred, index_row.indrelid)
+      FROM pg_catalog.pg_class AS index_relation
+      JOIN pg_catalog.pg_namespace AS namespace
+        ON namespace.oid = index_relation.relnamespace
+      JOIN pg_catalog.pg_index AS index_row
+        ON index_row.indexrelid = index_relation.oid
+      JOIN pg_catalog.pg_am AS access_method
+        ON access_method.oid = index_relation.relam
+      WHERE namespace.nspname = 'public'
+        AND index_relation.relname = ANY (ARRAY[
+          'idx_reviews_receipt_hash',
+          'reviews_ocr_pending_idx',
+          'reviews_duplicate_idx'
+        ]::name[])
+        AND index_relation.relkind = 'i'
+        AND index_row.indrelid = 'public.reviews'::regclass
+        AND access_method.amname = 'btree'
+        AND index_row.indnkeyatts = 1
+        AND index_row.indnatts = 1
+        AND index_row.indexprs IS NULL
+        AND index_row.indisvalid
+        AND index_row.indisready
+        AND index_row.indislive
+        AND NOT index_row.indisprimary
+        AND NOT index_row.indisexclusion
+    )
+    (SELECT * FROM expected EXCEPT SELECT * FROM actual)
+    UNION ALL
+    (SELECT * FROM actual EXCEPT SELECT * FROM expected)
+  ) THEN
+    RAISE EXCEPTION 'REVIEW_OCR_INDEX_CONTRACT_DRIFT';
+  END IF;
+END;
+$review_ocr_index_contract$;
+
 CREATE TABLE ocr_private.receipt_results (
   id uuid PRIMARY KEY DEFAULT extensions.gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,

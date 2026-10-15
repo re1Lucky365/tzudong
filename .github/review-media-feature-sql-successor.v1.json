@@ -13,7 +13,7 @@
   "serverMajor": 17,
   "advisoryLockKey": "7311754282260212",
   "stateRootAlgorithm": "review-media-feature-successor-state/v1",
-  "sourceRoot": "8f6ac5bd658cdc75c1d0a5f2ea84772c528a5d4f9f551b0533d758c676bc95b5",
+  "sourceRoot": "c33f82c631d3a25b39d63f9e7137e07f163960d5bbd709781c9ac51120649751",
   "operatingTransition": {
     "beforeFour": 97,
     "afterFour": 101
@@ -62,12 +62,18 @@
       "version": "20261013093518"
     },
     {
-      "bytes": 47450,
+      "bytes": 51799,
       "id": "durable_receipt_ocr_results",
       "name": "durable_receipt_ocr_results",
       "originalStatementVector": [
         "-- Durable, server-owned OCR result claims. The table stores normalized receipt\n-- fields only; images, raw provider output and provider diagnostics stay out.\nCREATE SCHEMA IF NOT EXISTS ocr_private",
         "REVOKE ALL ON SCHEMA ocr_private FROM PUBLIC, anon, authenticated",
+        "-- These four review columns already exist in the operating catalog, but their\n-- original creation was never captured by a repository migration. Reconstruct\n-- that exact nullable/default contract before any OCR trigger or function\n-- references it. IF NOT EXISTS keeps the operating transition additive; the\n-- immediate catalog assertion rejects a same-name object with another shape.\nALTER TABLE public.reviews\n  ADD COLUMN IF NOT EXISTS receipt_hash text,\n  ADD COLUMN IF NOT EXISTS receipt_data jsonb,\n  ADD COLUMN IF NOT EXISTS is_duplicate boolean DEFAULT false,\n  ADD COLUMN IF NOT EXISTS ocr_processed_at timestamptz",
+        "DO $review_ocr_column_contract$\nBEGIN\n  IF EXISTS (\n    WITH expected(column_name, data_type, not_null, default_expression) AS (\n      VALUES\n        ('receipt_hash'::name, 'text'::text, false, NULL::text),\n        ('receipt_data'::name, 'jsonb'::text, false, NULL::text),\n        ('is_duplicate'::name, 'boolean'::text, false, 'false'::text),\n        ('ocr_processed_at'::name, 'timestamp with time zone'::text, false, NULL::text)\n    ),\n    actual AS (\n      SELECT\n        attribute.attname,\n        pg_catalog.format_type(attribute.atttypid, attribute.atttypmod),\n        attribute.attnotnull,\n        pg_catalog.pg_get_expr(default_value.adbin, default_value.adrelid)\n      FROM pg_catalog.pg_attribute AS attribute\n      LEFT JOIN pg_catalog.pg_attrdef AS default_value\n        ON default_value.adrelid = attribute.attrelid\n       AND default_value.adnum = attribute.attnum\n      WHERE attribute.attrelid = 'public.reviews'::regclass\n        AND attribute.attnum > 0\n        AND NOT attribute.attisdropped\n        AND attribute.attname = ANY (ARRAY[\n          'receipt_hash',\n          'receipt_data',\n          'is_duplicate',\n          'ocr_processed_at'\n        ]::name[])\n    )\n    (SELECT * FROM expected EXCEPT SELECT * FROM actual)\n    UNION ALL\n    (SELECT * FROM actual EXCEPT SELECT * FROM expected)\n  ) THEN\n    RAISE EXCEPTION 'REVIEW_OCR_COLUMN_CONTRACT_DRIFT';\n  END IF;\nEND;\n$review_ocr_column_contract$",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_receipt_hash\n  ON public.reviews USING btree (receipt_hash)\n  WHERE receipt_hash IS NOT NULL",
+        "CREATE INDEX IF NOT EXISTS reviews_ocr_pending_idx\n  ON public.reviews USING btree (ocr_processed_at)\n  WHERE verification_photo IS NOT NULL",
+        "CREATE INDEX IF NOT EXISTS reviews_duplicate_idx\n  ON public.reviews USING btree (is_duplicate)",
+        "DO $review_ocr_index_contract$\nBEGIN\n  IF EXISTS (\n    WITH expected(index_name, is_unique, key_name, predicate) AS (\n      VALUES\n        ('idx_reviews_receipt_hash'::name, true, 'receipt_hash'::text, '(receipt_hash IS NOT NULL)'::text),\n        ('reviews_ocr_pending_idx'::name, false, 'ocr_processed_at'::text, '(verification_photo IS NOT NULL)'::text),\n        ('reviews_duplicate_idx'::name, false, 'is_duplicate'::text, NULL::text)\n    ),\n    actual AS (\n      SELECT\n        index_relation.relname,\n        index_row.indisunique,\n        pg_catalog.pg_get_indexdef(index_relation.oid, 1, true),\n        pg_catalog.pg_get_expr(index_row.indpred, index_row.indrelid)\n      FROM pg_catalog.pg_class AS index_relation\n      JOIN pg_catalog.pg_namespace AS namespace\n        ON namespace.oid = index_relation.relnamespace\n      JOIN pg_catalog.pg_index AS index_row\n        ON index_row.indexrelid = index_relation.oid\n      JOIN pg_catalog.pg_am AS access_method\n        ON access_method.oid = index_relation.relam\n      WHERE namespace.nspname = 'public'\n        AND index_relation.relname = ANY (ARRAY[\n          'idx_reviews_receipt_hash',\n          'reviews_ocr_pending_idx',\n          'reviews_duplicate_idx'\n        ]::name[])\n        AND index_relation.relkind = 'i'\n        AND index_row.indrelid = 'public.reviews'::regclass\n        AND access_method.amname = 'btree'\n        AND index_row.indnkeyatts = 1\n        AND index_row.indnatts = 1\n        AND index_row.indexprs IS NULL\n        AND index_row.indisvalid\n        AND index_row.indisready\n        AND index_row.indislive\n        AND NOT index_row.indisprimary\n        AND NOT index_row.indisexclusion\n    )\n    (SELECT * FROM expected EXCEPT SELECT * FROM actual)\n    UNION ALL\n    (SELECT * FROM actual EXCEPT SELECT * FROM expected)\n  ) THEN\n    RAISE EXCEPTION 'REVIEW_OCR_INDEX_CONTRACT_DRIFT';\n  END IF;\nEND;\n$review_ocr_index_contract$",
         "CREATE TABLE ocr_private.receipt_results (\n  id uuid PRIMARY KEY DEFAULT extensions.gen_random_uuid(),\n  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,\n  image_hash text NOT NULL CHECK (image_hash ~ '^[0-9a-f]{64}$'),\n  input_context_hash text NOT NULL CHECK (input_context_hash ~ '^[0-9a-f]{64}$'),\n  provider text NOT NULL CHECK (provider = 'gemini'),\n  model_policy jsonb NOT NULL CHECK (\n    jsonb_typeof(model_policy) = 'array'\n    AND jsonb_array_length(model_policy) BETWEEN 1 AND 8\n  ),\n  generation uuid NOT NULL,\n  prompt_version text NOT NULL CHECK (length(prompt_version) BETWEEN 1 AND 160),\n  preprocess_version text NOT NULL CHECK (length(preprocess_version) BETWEEN 1 AND 160),\n  normalization_version text NOT NULL CHECK (length(normalization_version) BETWEEN 1 AND 160),\n  status text NOT NULL CHECK (status IN ('processing', 'succeeded', 'indeterminate')),\n  dispatch_stage text NOT NULL CHECK (dispatch_stage IN ('reserved', 'possibly_dispatched', 'completed', 'uncertain')),\n  claim_token uuid,\n  result_payload jsonb,\n  result_revision uuid,\n  claimed_at timestamptz NOT NULL DEFAULT now(),\n  completed_at timestamptz,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT receipt_results_state_check CHECK (\n    -- A forced refresh may retain the last verified payload while its replacement\n    -- is in flight. It is never returned until that claim resolves.\n    (status = 'processing' AND dispatch_stage IN ('reserved', 'possibly_dispatched') AND claim_token IS NOT NULL AND completed_at IS NULL\n      AND ((result_payload IS NULL AND result_revision IS NULL) OR (result_payload IS NOT NULL AND result_revision IS NOT NULL)))\n    OR (status = 'succeeded' AND dispatch_stage IN ('completed', 'uncertain') AND claim_token IS NULL\n      AND result_payload IS NOT NULL AND result_revision IS NOT NULL AND completed_at IS NOT NULL)\n    OR (status = 'indeterminate' AND dispatch_stage = 'uncertain' AND claim_token IS NULL\n      AND result_payload IS NULL AND result_revision IS NULL AND completed_at IS NOT NULL)\n  ),\n  CONSTRAINT receipt_results_fingerprint_key UNIQUE (\n    user_id,\n    image_hash,\n    input_context_hash,\n    provider,\n    model_policy,\n    generation,\n    prompt_version,\n    preprocess_version,\n    normalization_version\n  )\n)",
         "COMMENT ON TABLE ocr_private.receipt_results IS\n  'Owner-bound normalized receipt OCR results. Rows have no automatic TTL: account deletion cascades, version-bound fingerprints prevent stale reuse, undispatched reservations require explicit recovery, and possibly dispatched calls remain blocked from replay.'",
         "ALTER TABLE ocr_private.receipt_results ENABLE ROW LEVEL SECURITY",
@@ -125,9 +131,9 @@
         "GRANT EXECUTE ON FUNCTION public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamptz,text,text[],text[],uuid,uuid,uuid,text,timestamptz,text,jsonb) TO service_role"
       ],
       "path": "backend/supabase/migrations/20261013190000_durable_receipt_ocr_results.sql",
-      "sha256": "fb80c266cfbede8141da0c8adfc2b099ed835673684aa1f17af0d7e1439526e0",
-      "statementCount": 57,
-      "statementVectorSha256": "ed93265728774a193fe6924a85f8326f6f462bbf4f56be1b870ca4d3fe17b428",
+      "sha256": "0a99efa37fb87c425e420aca5a468f8995167e76ccc3e129d6fde2a49d3e582f",
+      "statementCount": 63,
+      "statementVectorSha256": "3b866cf833d15bcaccdc199bd9f51add3373411b99d20e4a636c4f029edd9e19",
       "version": "20261013190000"
     },
     {
@@ -223,7 +229,7 @@
   "toolchain": [
     {
       "path": "apps/web/scripts/review-media-feature-sql-successor.mjs",
-      "sha256": "53f14e005c7f0612db3b4db5b1549bef9cfc6097ad2edebed932292fed706748"
+      "sha256": "95efd6eee191aad38b46693ccb240768c6695af4cb3037e0fcf003917fda58ee"
     },
     {
       "path": "apps/web/scripts/review-media-sql-successor.mjs",

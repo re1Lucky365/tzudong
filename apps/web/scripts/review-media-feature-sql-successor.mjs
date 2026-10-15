@@ -403,6 +403,49 @@ export function buildFeatureSuccessorStateQuery(
    to_regprocedure('public.storyboard_production_reject_archived_write()') IS NOT NULL
     AND (SELECT count(*)=6 FROM pg_trigger WHERE tgname=ANY(ARRAY['storyboard_archive_projects_write_guard','storyboard_archive_jobs_write_guard','storyboard_archive_assets_write_guard','storyboard_archive_events_write_guard','storyboard_archive_revisions_write_guard','storyboard_archive_restores_write_guard']) AND NOT tgisinternal) AS storyboard_ready,
    to_regclass('ocr_private.receipt_results') IS NOT NULL
+    AND (SELECT count(*)=4 AND bool_and(
+      NOT a.attnotnull
+      AND a.atttypmod = -1
+      AND a.attidentity = ''
+      AND a.attgenerated = ''
+      AND CASE a.attname
+        WHEN 'receipt_hash' THEN a.atttypid='text'::regtype AND d.oid IS NULL
+        WHEN 'receipt_data' THEN a.atttypid='jsonb'::regtype AND d.oid IS NULL
+        WHEN 'is_duplicate' THEN a.atttypid='boolean'::regtype AND pg_get_expr(d.adbin,d.adrelid)='false'
+        WHEN 'ocr_processed_at' THEN a.atttypid='timestamp with time zone'::regtype AND d.oid IS NULL
+        ELSE false
+      END)
+     FROM pg_attribute a
+     LEFT JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum
+     WHERE a.attrelid='public.reviews'::regclass
+       AND a.attnum>0 AND NOT a.attisdropped
+       AND a.attname=ANY(ARRAY['receipt_hash','receipt_data','is_duplicate','ocr_processed_at']))
+    AND (SELECT count(*)=3 AND bool_and(
+      c.relkind='i'
+      AND i.indrelid='public.reviews'::regclass
+      AND am.amname='btree'
+      AND i.indnkeyatts=1 AND i.indnatts=1
+      AND i.indexprs IS NULL
+      AND i.indisvalid AND i.indisready AND i.indislive
+      AND NOT i.indisprimary AND NOT i.indisexclusion
+      AND CASE c.relname
+        WHEN 'idx_reviews_receipt_hash' THEN i.indisunique
+          AND pg_get_indexdef(c.oid,1,true)='receipt_hash'
+          AND pg_get_expr(i.indpred,i.indrelid)='(receipt_hash IS NOT NULL)'
+        WHEN 'reviews_ocr_pending_idx' THEN NOT i.indisunique
+          AND pg_get_indexdef(c.oid,1,true)='ocr_processed_at'
+          AND pg_get_expr(i.indpred,i.indrelid)='(verification_photo IS NOT NULL)'
+        WHEN 'reviews_duplicate_idx' THEN NOT i.indisunique
+          AND pg_get_indexdef(c.oid,1,true)='is_duplicate'
+          AND i.indpred IS NULL
+        ELSE false
+      END)
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid=c.relnamespace
+     JOIN pg_index i ON i.indexrelid=c.oid
+     JOIN pg_am am ON am.oid=c.relam
+     WHERE n.nspname='public'
+       AND c.relname=ANY(ARRAY['idx_reviews_receipt_hash','reviews_ocr_pending_idx','reviews_duplicate_idx']))
     AND NOT EXISTS(SELECT 1 FROM unnest(ARRAY[${ocrValues}]) signature WHERE to_regprocedure(signature) IS NULL) AS ocr_ready,
    (SELECT count(*)=11 FROM privacy_retention.g014_public_rpc_allowlist WHERE source_signature=ANY(ARRAY[${ocrValues}]) AND grantee='service_role') AS g014_ready,
    EXISTS(SELECT 1 FROM pg_policy WHERE polrelid='storage.objects'::regclass AND polname='review_verifications_immutable_update' AND polcmd='w' AND NOT polpermissive)

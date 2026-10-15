@@ -687,6 +687,18 @@ describe('durable receipt OCR execution', () => {
   test('migration keeps durable results private, version-bound and non-expiring on uncertainty', () => {
     const migration = readFileSync(join(import.meta.dir, '../../../backend/supabase/migrations/20261013190000_durable_receipt_ocr_results.sql'), 'utf8');
     expect(migration).toContain('CREATE SCHEMA IF NOT EXISTS ocr_private');
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS receipt_hash text');
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS receipt_data jsonb');
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS is_duplicate boolean DEFAULT false');
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS ocr_processed_at timestamptz');
+    expect(migration).toContain("RAISE EXCEPTION 'REVIEW_OCR_COLUMN_CONTRACT_DRIFT'");
+    expect(migration).toContain('CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_receipt_hash');
+    expect(migration).toContain('CREATE INDEX IF NOT EXISTS reviews_ocr_pending_idx');
+    expect(migration).toContain('CREATE INDEX IF NOT EXISTS reviews_duplicate_idx');
+    expect(migration).toContain("RAISE EXCEPTION 'REVIEW_OCR_INDEX_CONTRACT_DRIFT'");
+    expect(migration).toContain("access_method.amname = 'btree'");
+    expect(migration).toContain('index_row.indisvalid');
+    expect(migration).toContain('index_row.indisready');
     expect(migration).toContain('ALTER TABLE ocr_private.receipt_results FORCE ROW LEVEL SECURITY');
     expect(migration).toContain('REVOKE ALL ON TABLE ocr_private.receipt_results FROM PUBLIC, anon, authenticated');
     expect(migration).toContain('GRANT EXECUTE ON FUNCTION public.claim_receipt_ocr_result');
