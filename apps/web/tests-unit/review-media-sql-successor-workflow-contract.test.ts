@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 const workflowPath = new URL(
   '../../../.github/workflows/review-media-sql-successor.yml',
@@ -300,11 +300,13 @@ printf 'end:%s\\n' "$3" >> "$SERIALIZER_TEST_LOG"
     const createScenario = ({
       failurePhase = '',
       includePolicy = true,
-      observerMode = 'match',
+      tokenAvailable = true,
+      vendorMode = 'match',
     }: {
       failurePhase?: string;
       includePolicy?: boolean;
-      observerMode?: 'match' | 'timeout' | 'wrong-identity';
+      tokenAvailable?: boolean;
+      vendorMode?: 'match' | 'unavailable' | 'wrong-alias' | 'wrong-identity';
     } = {}) => {
       const runnerTemp = mkdtempSync(join(tmpdir(), 'tzudong-successor-feature-chain-'));
       temporaryDirectories.push(runnerTemp);
@@ -329,39 +331,10 @@ printf 'end:%s\\n' "$3" >> "$SERIALIZER_TEST_LOG"
       }));
       const fakeBin = join(runnerTemp, 'bin');
       expect(spawnSync('mkdir', ['-p', fakeBin]).status).toBe(0);
-      const observerProcessLog = join(runnerTemp, 'observer-process.log');
-      const observerFetchLog = join(runnerTemp, 'observer-fetch.log');
+      const baseDbLog = join(runnerTemp, 'base-db.log');
       const featureDbLog = join(runnerTemp, 'feature-db.log');
-      const observerHook = join(runnerTemp, 'observer-hook.mjs');
-      writeFileSync(observerHook, `import { appendFileSync } from 'node:fs';
-const observerProcessLog = ${JSON.stringify(observerProcessLog)};
-const observerFetchLog = ${JSON.stringify(observerFetchLog)};
-const observerMode = ${JSON.stringify(observerMode)};
-const isObserver = process.argv[1]?.endsWith('/apps/web/scripts/observe-storyboard-runtime-compatibility.mjs')
-  || process.argv[1] === 'apps/web/scripts/observe-storyboard-runtime-compatibility.mjs';
-if (isObserver) appendFileSync(observerProcessLog, 'observer\\n');
-globalThis.fetch = async (url, options = {}) => {
-  appendFileSync(observerFetchLog, String(url) + '\\n');
-  if (observerMode === 'timeout') {
-    return await new Promise((_, reject) => {
-      const abort = () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
-      if (options.signal?.aborted) abort();
-      else options.signal?.addEventListener('abort', abort, { once: true });
-    });
-  }
-  const wrong = observerMode === 'wrong-identity';
-  return new Response(JSON.stringify({
-    canonicalPolicySha256: '${policySha256}',
-    commit: wrong ? '${'f'.repeat(40)}' : '${sourceRevision}',
-    deploymentId: wrong ? 'dpl_WrongIdentity' : 'dpl_WorkflowContract',
-    kind: 'storyboard-runtime-compatibility',
-    schemaVersion: 1,
-  }), {
-    headers: { 'content-type': 'application/json' },
-    status: 200,
-  });
-};
-`);
+      const vendorLog = join(runnerTemp, 'vendor.log');
+      writeFileSync(join(runnerTemp, 'vendor-mode'), `${vendorMode}\n`);
       writeFileSync(join(fakeBin, 'psql'), `#!/usr/bin/env bash
 set -euo pipefail
 while IFS= read -r line
@@ -373,9 +346,54 @@ do
   esac
 done
 `, { mode: 0o700 });
+      writeFileSync(join(fakeBin, 'vercel'), `#!/usr/bin/env bash
+set -euo pipefail
+test "$#" = 7
+test "$1" = api
+test "$3" = --scope
+test "$4" = team_OUj64KeLxJI3PkEbOaFZnorA
+test "$5" = --raw
+test "$6" = --non-interactive
+test "$7" = --no-color
+test "$VERCEL_ORG_ID" = team_OUj64KeLxJI3PkEbOaFZnorA
+test "$VERCEL_PROJECT_ID" = prj_sau35J5uUtShIQ9OKofRtOVVnTSl
+test "$VERCEL_TOKEN" = "$(printf '%020d' 0)"
+test -z "\${SUPABASE_DB_URL:-}"
+test -z "\${GITHUB_TOKEN:-}"
+endpoint=$2
+vendor_mode="$(cat "$HOME/vendor-mode")"
+printf '%s\\n' "$endpoint" >> "$HOME/vendor.log"
+if [[ "$vendor_mode" = unavailable ]]
+then
+  exit 1
+fi
+deployment_id=dpl_WorkflowContract
+if [[ "$vendor_mode" = wrong-identity ]]
+then
+  deployment_id=dpl_WrongIdentity
+fi
+case "$endpoint" in
+  /v13/deployments/*)
+    printf '{"id":"%s","meta":{"githubCommitOrg":"twoimo","githubCommitRef":"main","githubCommitRepo":"tzudong","githubCommitSha":"${sourceRevision}"},"ownerId":"team_OUj64KeLxJI3PkEbOaFZnorA","projectId":"prj_sau35J5uUtShIQ9OKofRtOVVnTSl","readyState":"READY","target":"production","url":"tzudong-workflow-contract.vercel.app"}' "$deployment_id"
+    ;;
+  */aliases/tzudong.app*)
+    alias=tzudong.app
+    if [[ "$vendor_mode" = wrong-alias ]]; then alias=www.tzudong.app; fi
+    printf '{"alias":"%s","deployment":{"id":"%s"},"deploymentId":"%s","projectId":"prj_sau35J5uUtShIQ9OKofRtOVVnTSl"}' "$alias" "$deployment_id" "$deployment_id"
+    ;;
+  */aliases/www.tzudong.app*)
+    printf '{"alias":"www.tzudong.app","deployment":{"id":"%s"},"deploymentId":"%s","projectId":"prj_sau35J5uUtShIQ9OKofRtOVVnTSl"}' "$deployment_id" "$deployment_id"
+    ;;
+  *) exit 2 ;;
+esac
+`, { mode: 0o700 });
       writeFileSync(join(fakeBin, 'node'), `#!/usr/bin/env bash
 set -euo pipefail
 if [[ "$1" = --input-type=module ]]
+then
+  exec "$REAL_NODE" "$@"
+fi
+if [[ "$1" = "$VERCEL_CLI_PATH" ]]
 then
   exec "$REAL_NODE" "$@"
 fi
@@ -385,6 +403,7 @@ if [[ "$script" = apps/web/scripts/review-media-operating-orchestrator.mjs ]]
 then
   custody=$7
   mkdir "$custody"
+  printf '%s\n' base >> "$BASE_DB_LOG"
   printf '{"code":"SUCCESSOR_COMMITTED","custodyDirectory":"%s","expiresAt":"2030-01-01T00:15:00.000Z","mode":"apply","sourceRevision":"%s","status":"committed"}\\n' "$custody" "$EXPECTED_SOURCE_SHA"
   exit 0
 fi
@@ -433,26 +452,32 @@ esac
         encoding: 'utf8',
         env: {
           ...process.env,
+          BASE_DB_LOG: baseDbLog,
           EXPECTED_SOURCE_SHA: sourceRevision,
           FAIL_FEATURE_PHASE: failurePhase,
           FEATURE_DB_LOG: featureDbLog,
           FEATURE_PHASE_LOG: phaseLog,
+          HOME: runnerTemp,
           LOCAL_VERCEL_BUNDLE_SHA256: evidenceSha256,
-          NODE_OPTIONS: `--import=${pathToFileURL(observerHook).href}`,
           PATH: `${fakeBin}:${process.env.PATH}`,
           REAL_NODE: spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim(),
           SUPABASE_DB_URL: 'postgresql://workflow-contract.invalid/database',
           VERCEL_CLI_PATH: outputs.vercel_readback_adapter,
+          VERCEL_ORG_ID: 'team_OUj64KeLxJI3PkEbOaFZnorA',
+          VERCEL_PROJECT_ID: 'prj_sau35J5uUtShIQ9OKofRtOVVnTSl',
+          VERCEL_TOKEN: tokenAvailable ? '0'.repeat(20) : '',
+          VERCEL_VENDOR_CLI_PATH: join(fakeBin, 'vercel'),
+          GITHUB_ACTIONS: 'true',
         },
       });
       return {
+        baseDbLog,
         evidence,
         featureDbLog,
-        observerFetchLog,
-        observerProcessLog,
         outputs,
         phaseLog,
         result,
+        vendorLog,
       };
     };
 
@@ -471,10 +496,12 @@ esac
     expect(readFileSync(success.featureDbLog, 'utf8')).toBe(
       'db:prepare-rehearsal\ndb:rehearsal\ndb:prepare-apply\ndb:apply\n',
     );
-    expect(readFileSync(success.observerProcessLog, 'utf8')).toBe('observer\n'.repeat(12));
-    expect(readFileSync(success.observerFetchLog, 'utf8')).toBe(
-      'https://www.tzudong.app/api/runtime-compatibility/storyboard\n'.repeat(12),
+    expect(readFileSync(success.vendorLog, 'utf8')).toBe(
+      ('/v13/deployments/dpl_WorkflowContract?teamId=team_OUj64KeLxJI3PkEbOaFZnorA\n'
+      + '/v4/aliases/tzudong.app?teamId=team_OUj64KeLxJI3PkEbOaFZnorA\n'
+      + '/v4/aliases/www.tzudong.app?teamId=team_OUj64KeLxJI3PkEbOaFZnorA\n').repeat(5),
     );
+    expect(readFileSync(success.baseDbLog, 'utf8')).toBe('base\n');
     expect(readFileSync(success.outputs.operating_input, 'utf8')).toBe(success.evidence);
     expect(statSync(join(dirname(success.outputs.operating_input), 'feature-apply.stdout.json')).mode & 0o777).toBe(0o600);
 
@@ -486,26 +513,40 @@ esac
     expect(readFileSync(join(dirname(held.outputs.operating_input), 'feature-rehearsal.stderr'), 'utf8')).toBe('raw-feature-diagnostic\n');
 
     for (const scenario of [
-      { includePolicy: true, observerMode: 'wrong-identity' as const },
-      { includePolicy: true, observerMode: 'timeout' as const },
-      { includePolicy: false, observerMode: 'match' as const },
+      { includePolicy: true, vendorMode: 'wrong-identity' as const },
+      { includePolicy: true, vendorMode: 'wrong-alias' as const },
+      { includePolicy: true, vendorMode: 'unavailable' as const },
+      { includePolicy: false, vendorMode: 'match' as const },
     ]) {
       const rejected = createScenario(scenario);
       expect(rejected.result.status).not.toBe(0);
       expect(rejected.result.stderr).toBe('');
       expect(rejected.result.stdout).toBe(
-        '{"code":"SUCCESSOR_COMMITTED_FEATURE_HELD","featureStatus":"held","predecessorCode":"SUCCESSOR_COMMITTED","predecessorStatus":"committed","status":"partial"}\n',
+        '{"code":"SUCCESSOR_VERCEL_READBACK_UNCONFIRMED","status":"failed"}\n',
       );
+      expect(existsSync(rejected.baseDbLog)).toBe(false);
       expect(existsSync(rejected.featureDbLog)).toBe(false);
-      expect(readFileSync(rejected.observerProcessLog, 'utf8')).toBe('observer\n');
+      expect(existsSync(rejected.phaseLog)).toBe(false);
       if (scenario.includePolicy) {
-        expect(readFileSync(rejected.observerFetchLog, 'utf8')).toBe(
-          'https://www.tzudong.app/api/runtime-compatibility/storyboard\n',
+        const first = '/v13/deployments/dpl_WorkflowContract?teamId=team_OUj64KeLxJI3PkEbOaFZnorA\n';
+        const alias = '/v4/aliases/tzudong.app?teamId=team_OUj64KeLxJI3PkEbOaFZnorA\n';
+        expect(readFileSync(rejected.vendorLog, 'utf8')).toBe(
+          scenario.vendorMode === 'wrong-alias' ? first + alias : first,
         );
       } else {
-        expect(existsSync(rejected.observerFetchLog)).toBe(false);
+        expect(existsSync(rejected.vendorLog)).toBe(false);
       }
     }
+
+    const missingToken = createScenario({ tokenAvailable: false });
+    expect(missingToken.result.status).not.toBe(0);
+    expect(missingToken.result.stderr).toBe('');
+    expect(missingToken.result.stdout).toBe(
+      '{"code":"SUCCESSOR_VERCEL_READBACK_UNCONFIRMED","status":"failed"}\n',
+    );
+    expect(existsSync(missingToken.baseDbLog)).toBe(false);
+    expect(existsSync(missingToken.featureDbLog)).toBe(false);
+    expect(existsSync(missingToken.vendorLog)).toBe(false);
   }, 30_000);
 
   test('uses pinned Node 24 and bounded PostgreSQL-backed operating paths', () => {
@@ -515,6 +556,9 @@ esac
     expect(workflow).toContain("node-version: '24.21.0'");
     expect(workflow).toContain("manifest.engines?.node !== '24.x'");
     expect(workflow).toContain("manifest.packageManager !== 'npm@11.6.2'");
+    expect(workflow).toContain("VERCEL_CLI_VERSION: '56.5.0'");
+    expect(workflow).toContain('npm install --global --no-audit --no-fund --ignore-scripts "vercel@$VERCEL_CLI_VERSION"');
+    expect(workflow).toContain('test "$(vercel --version)" = "$VERCEL_CLI_VERSION"');
     expect(workflow).toContain('sudo apt-get -q install --no-install-recommends -y postgresql-client');
     expect(workflow).toContain('timeout --signal=TERM --kill-after=10s 840s');
     expect(workflow).toContain('timeout-minutes: 20');
@@ -528,7 +572,7 @@ esac
     expect(stepSource('Observe held successor state')).not.toContain('review-media-feature-sql-successor.mjs');
     expect(stepSource('Rehearse held successor transaction')).not.toContain('review-media-feature-sql-successor.mjs');
     expect(stepSource('Apply explicitly confirmed successor transaction')).toContain(
-      '"$SERIALIZED_RUNNER"\n          apply-chain "$OPERATING_INPUT" "$PRIVATE_CUSTODY_DIR"',
+      '"$SERIALIZED_RUNNER" \\\n            apply-chain "$OPERATING_INPUT" "$PRIVATE_CUSTODY_DIR"',
     );
     expect(workflow).toContain('for phase in prepare-rehearsal rehearsal prepare-apply apply');
     expect(workflow).toContain('apps/web/scripts/review-media-feature-sql-successor.mjs');
@@ -542,17 +586,26 @@ esac
     expect(workflow.match(/SERIALIZED_RUNNER: \$\{\{ steps\.custody\.outputs\.serialized_runner \}\}/g)).toHaveLength(3);
     expect(workflow.match(/VERCEL_CLI_PATH: \$\{\{ steps\.custody\.outputs\.vercel_readback_adapter \}\}/g)).toHaveLength(1);
     expect(workflow).toContain('LOCAL_VERCEL_BUNDLE_SHA256: ${{ inputs.local_vercel_bundle_sha256 }}');
-    expect(workflow).toContain('apps/web/scripts/observe-storyboard-runtime-compatibility.mjs');
-    expect(workflow).toContain("'--url', 'https://www.tzudong.app/api/runtime-compatibility/storyboard'");
-    expect(workflow).toContain('readyState: readback.readyState');
-    expect(workflow).toContain('env: observerEnvironment');
+    expect(workflow).toContain('const vendor = spawnSync(vendorCliPath');
+    expect(workflow).toContain('return vendor.stdout');
+    expect(workflow).not.toContain('process.stdout.write(JSON.stringify(result))');
+    expect(workflow).toContain('result?.readyState !== readback.readyState');
+    expect(workflow).toContain("CI: 'true'");
+    expect(workflow).not.toContain('SUPABASE_DB_URL: process.env.SUPABASE_DB_URL');
+    expect(workflow).not.toContain('GITHUB_TOKEN: process.env.GITHUB_TOKEN');
+    expect(workflow).toContain("if ! node \"$VERCEL_CLI_PATH\" verify >/dev/null 2>&1");
+    expect(workflow).toContain('SUCCESSOR_VERCEL_READBACK_UNCONFIRMED');
     expect(workflow).not.toContain('process.stdout.write(observer');
     expect(workflow.match(/secrets\.[A-Z0-9_]+/g)).toEqual([
       'secrets.SUPABASE_DB_URL',
       'secrets.SUPABASE_DB_URL',
       'secrets.SUPABASE_DB_URL',
+      'secrets.VERCEL_TOKEN',
     ]);
-    expect(workflow).not.toMatch(/VERCEL_(?:TOKEN|ORG_ID|PROJECT_ID)/);
+    expect(workflow).toContain("VERCEL_ORG_ID: 'team_OUj64KeLxJI3PkEbOaFZnorA'");
+    expect(workflow).toContain("VERCEL_PROJECT_ID: 'prj_sau35J5uUtShIQ9OKofRtOVVnTSl'");
+    expect(workflow).toContain('VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}');
+    expect(workflow).toContain('VERCEL_VENDOR_CLI_PATH: ${{ steps.vercel-cli.outputs.cli_path }}');
     expect(workflow).not.toContain('upload-artifact');
     expect(workflow).not.toContain('download-artifact');
   });

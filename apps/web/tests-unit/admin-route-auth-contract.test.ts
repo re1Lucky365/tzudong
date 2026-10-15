@@ -276,7 +276,7 @@ describe('admin route auth source contract', () => {
           /createSupabaseServiceRoleClient\s*\(|fetch\s*\(|\.from\s*\(|\.rpc\s*\(|request\.json\s*\(/,
         );
         expect(moduleSource.slice(moduleAuthIndex)).toMatch(
-          /await\s+requireAdminImpl\s*\(\s*\)\s*;[\s\S]*catch\s*\{\s*return\s+fixedResponse\s*\(\s*'STORYBOARD_POLICY_READBACK_AUTH_UNAVAILABLE'\s*,\s*503\s*\)\s*;\s*\}[\s\S]*return\s+responseAfterAuthentication\s*\(\s*auth\s*,\s*environment\s*,\s*evaluatePolicy\s*\)\s*;/,
+          /await\s+requireAdminImpl\s*\(\s*\)\s*;[\s\S]*catch\s*\{\s*return\s+fixedResponse\s*\(\s*'STORYBOARD_POLICY_READBACK_AUTH_UNAVAILABLE'\s*,\s*503\s*\)\s*;\s*\}[\s\S]*return\s+responseAfterAuthentication\s*\(\s*auth\s*,\s*environment\s*,\s*evaluatePolicy\s*,\s*sourceBindingSha256\s*\)\s*;/,
         );
         expect(moduleSource).toMatch(
           /if\s*\(\s*!auth\.ok\s*\)\s*return\s+fixedAuthFailure\s*\(\s*auth\.response\s*\)\s*;/,

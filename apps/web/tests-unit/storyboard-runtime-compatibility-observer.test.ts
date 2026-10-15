@@ -2,9 +2,12 @@ import { expect, test } from 'bun:test';
 
 import {
   StoryboardRuntimeObserverError,
+  STORYBOARD_PRODUCTION_COMPATIBILITY_URLS,
   expectedCompatibilityFromBundle,
   fetchLiveStoryboardCompatibility,
+  fetchLiveStoryboardCompatibilityAliases,
   observeStoryboardRuntimeCompatibility,
+  observeStoryboardRuntimeCompatibilityAliases,
   validateProductionCompatibilityUrl,
 } from '../scripts/observe-storyboard-runtime-compatibility.mjs';
 
@@ -86,6 +89,73 @@ test('compares live deployment, commit, and policy without inventing time or rea
     canonicalPolicySha256: policySha256,
   });
   expect(JSON.stringify(observation)).not.toMatch(/observed|ready|provider|database/i);
+});
+
+test('observes both exact production aliases independently before producing one bundle-bound result', async () => {
+  const calls: string[] = [];
+  const observation = await observeStoryboardRuntimeCompatibilityAliases({
+    bundle: bundle(),
+    bundleSha256,
+    fetchImpl: async (target: URL | RequestInfo) => {
+      calls.push(String(target));
+      if (String(target).startsWith('https://tzudong.app/')) {
+        return new Response(null, {
+          status: 308,
+          headers: { location: STORYBOARD_PRODUCTION_COMPATIBILITY_URLS[1] },
+        });
+      }
+      return response(live());
+    },
+  });
+  expect(calls).toEqual([...STORYBOARD_PRODUCTION_COMPATIBILITY_URLS]);
+  expect(observation).toEqual({
+    schemaVersion: 1,
+    kind: 'storyboard-runtime-compatibility-alias-set-observation',
+    aliasRoutes: [
+      {
+        productionAlias: 'tzudong.app',
+        redirectTarget: STORYBOARD_PRODUCTION_COMPATIBILITY_URLS[1],
+        route: 'redirect',
+      },
+      { productionAlias: 'www.tzudong.app', redirectTarget: null, route: 'direct' },
+    ],
+    bundleSha256,
+    deploymentId,
+    commit,
+    canonicalPolicySha256: policySha256,
+  });
+});
+
+test('does not synthesize an unobserved or drifted alias from the other alias response', async () => {
+  const missingCalls: string[] = [];
+  await expect(fetchLiveStoryboardCompatibilityAliases({
+    fetchImpl: async (target: URL | RequestInfo) => {
+      missingCalls.push(String(target));
+      if (String(target).startsWith('https://tzudong.app/')) throw new Error('apex unavailable');
+      return response(live());
+    },
+  })).rejects.toThrow('STORYBOARD_RUNTIME_OBSERVER_FETCH_FAILED');
+  expect(missingCalls).toEqual([STORYBOARD_PRODUCTION_COMPATIBILITY_URLS[0]]);
+
+  const driftCalls: string[] = [];
+  await expect(fetchLiveStoryboardCompatibilityAliases({
+    fetchImpl: async (target: URL | RequestInfo) => {
+      driftCalls.push(String(target));
+      return response(String(target).startsWith('https://tzudong.app/')
+        ? live({ deploymentId: 'dpl_OtherAliasDeployment123' })
+        : live());
+    },
+  })).rejects.toThrow('STORYBOARD_RUNTIME_OBSERVER_ALIAS_SET_MISMATCH');
+  expect(driftCalls).toEqual([...STORYBOARD_PRODUCTION_COMPATIBILITY_URLS]);
+
+  await expect(fetchLiveStoryboardCompatibilityAliases({
+    fetchImpl: async (target: URL | RequestInfo) => String(target).startsWith('https://tzudong.app/')
+      ? new Response(null, {
+        status: 308,
+        headers: { location: 'https://attacker.invalid/api/runtime-compatibility/storyboard' },
+      })
+      : response(live()),
+  })).rejects.toThrow('STORYBOARD_RUNTIME_OBSERVER_RESPONSE_INVALID');
 });
 
 test('rejects redirects instead of following an alias or authentication destination', async () => {

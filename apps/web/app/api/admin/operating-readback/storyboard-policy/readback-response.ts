@@ -1,25 +1,9 @@
 import 'server-only';
 
-import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 
 import { requireAdmin } from '@/lib/auth/require-admin';
-import {
-  STORYBOARD_GEMINI_DEFAULT_IMAGE_MODEL,
-  STORYBOARD_GEMINI_IMAGE_MODELS,
-  STORYBOARD_GEMINI_PROVIDER_ID,
-  STORYBOARD_GEMINI_TEXT_MODEL,
-  isAllowedStoryboardGeminiWorkerModel,
-  storyboardGeminiDeclaredModels,
-} from '@/lib/admin/storyboard/gemini-models';
-import {
-  STORYBOARD_ARCHIVE_WORKFLOW,
-  STORYBOARD_WORKFLOW,
-  assertGeminiStoryboardExecutionPolicy,
-  isExecutableStoryboardRequest,
-  storyboardStoredProductionRequestSchema,
-} from '@/lib/admin/storyboard/production-contract';
-import { storyboardGeminiHeartbeatModelsSchema } from '@/lib/admin/storyboard/production-worker-auth';
+import { evaluateStoryboardRuntimePolicy } from '@/lib/admin/storyboard/runtime-policy';
 
 const TZUDONG_VERCEL_PROJECT_ID = 'prj_sau35J5uUtShIQ9OKofRtOVVnTSl';
 const DEPLOYMENT_ID = /^dpl_[A-Za-z0-9]+$/;
@@ -34,6 +18,9 @@ const POLICY_SOURCE_PATHS = Object.freeze([
   ['production-request-admission', 'apps/web/lib/admin/storyboard/production-contract.ts'],
   ['worker-heartbeat-admission', 'apps/web/lib/admin/storyboard/production-worker-auth.ts'],
   ['outbound-worker-execution', 'apps/web/lib/admin/storyboard/outbound-worker.ts'],
+  ['production-store-admission', 'apps/web/lib/admin/storyboard/production-store.ts'],
+  ['production-api-admission', 'apps/web/lib/admin/storyboard/production-api.ts'],
+  ['gemini-client-execution', 'apps/web/lib/admin/storyboard/gemini-client.ts'],
 ] as const);
 
 type AdminResult = Awaited<ReturnType<typeof requireAdmin>>;
@@ -71,68 +58,15 @@ function readRuntimeIdentity(environment: NodeJS.ProcessEnv) {
   });
 }
 
-function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`;
-}
-
-export function evaluateStoryboardRuntimePolicy() {
-  const declaredModels = storyboardGeminiDeclaredModels();
-  if (!storyboardGeminiHeartbeatModelsSchema.safeParse(declaredModels).success
-    || declaredModels.some((model) => !isAllowedStoryboardGeminiWorkerModel(model))) {
-    throw new Error('storyboard_policy_drift');
-  }
-
-  const textModels = [STORYBOARD_GEMINI_TEXT_MODEL];
-  const imageModels = STORYBOARD_GEMINI_IMAGE_MODELS.map((model) => model.id);
-  for (const textModel of textModels) {
-    for (const imageModel of imageModels) {
-      assertGeminiStoryboardExecutionPolicy({
-        externalAI: true,
-        text: { id: STORYBOARD_GEMINI_PROVIDER_ID, model: textModel },
-        image: { id: STORYBOARD_GEMINI_PROVIDER_ID, model: imageModel },
-      });
-    }
-  }
-
-  const archivedRequest = storyboardStoredProductionRequestSchema.parse({
-    workflow: STORYBOARD_ARCHIVE_WORKFLOW,
-    requestId: '00000000-0000-4000-8000-000000000001',
-    prompt: 'readback-only',
-    sceneCount: 5,
-    retrieval: 'none',
-    sources: [],
-    imageWidth: 1024,
-    imageHeight: 576,
-    providers: {
-      externalAI: false,
-      text: { id: 'local-mlx', model: 'legacy-read-only' },
-      image: { id: 'manual', model: 'legacy-read-only' },
-    },
-  });
-  if (isExecutableStoryboardRequest(archivedRequest)) throw new Error('storyboard_legacy_admission_drift');
-
-  const canonicalPolicy = Object.freeze({
-    defaultImageModel: STORYBOARD_GEMINI_DEFAULT_IMAGE_MODEL,
-    executionWorkflow: STORYBOARD_WORKFLOW,
-    imageModels,
-    legacyExecutionAdmission: 'blocked' as const,
-    provider: STORYBOARD_GEMINI_PROVIDER_ID,
-    readableLegacyWorkflow: STORYBOARD_ARCHIVE_WORKFLOW,
-    textModels,
-  });
-  const canonicalPolicySha256 = createHash('sha256').update(canonicalJson(canonicalPolicy), 'utf8').digest('hex');
-  return Object.freeze({ canonicalPolicy, canonicalPolicySha256 });
-}
+export { evaluateStoryboardRuntimePolicy };
 
 type PolicyEvaluation = ReturnType<typeof evaluateStoryboardRuntimePolicy>;
 
 function responseAfterAuthentication(
   auth: AdminResult,
   environment: NodeJS.ProcessEnv,
-  evaluatePolicy: () => PolicyEvaluation,
+  evaluatePolicy: (sourceBindingSha256: string) => PolicyEvaluation,
+  sourceBindingSha256: string,
 ) {
   if (!auth.ok) return fixedAuthFailure(auth.response);
 
@@ -141,7 +75,7 @@ function responseAfterAuthentication(
 
   let evaluated: PolicyEvaluation;
   try {
-    evaluated = evaluatePolicy();
+    evaluated = evaluatePolicy(sourceBindingSha256);
   } catch {
     return fixedResponse('STORYBOARD_POLICY_READBACK_POLICY_UNAVAILABLE', 503);
   }
@@ -174,10 +108,12 @@ export async function createStoryboardPolicyReadbackResponse({
   environment = process.env,
   evaluatePolicy = evaluateStoryboardRuntimePolicy,
   requireAdminImpl = requireAdmin,
+  sourceBindingSha256 = process.env.STORYBOARD_RUNTIME_SOURCE_BINDING_SHA256 ?? '',
 }: {
   environment?: NodeJS.ProcessEnv;
-  evaluatePolicy?: () => PolicyEvaluation;
+  evaluatePolicy?: (sourceBindingSha256: string) => PolicyEvaluation;
   requireAdminImpl?: RequireAdmin;
+  sourceBindingSha256?: string;
 } = {}) {
   let auth: AdminResult;
   try {
@@ -185,5 +121,5 @@ export async function createStoryboardPolicyReadbackResponse({
   } catch {
     return fixedResponse('STORYBOARD_POLICY_READBACK_AUTH_UNAVAILABLE', 503);
   }
-  return responseAfterAuthentication(auth, environment, evaluatePolicy);
+  return responseAfterAuthentication(auth, environment, evaluatePolicy, sourceBindingSha256);
 }

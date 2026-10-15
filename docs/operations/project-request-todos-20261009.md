@@ -9,6 +9,21 @@
 
 상태 표기: **I 구현 / L 로컬 검증 / O 운영 반영 / R 실제 동작 확인**. `?`는 미확인이다. 검증 완료를 기록할 때 소스 SHA, 실제 실행 시각, 환경, 검증 결과와 증빙 경로를 함께 남긴다. 운영 대상이 없는 규칙·문서 항목은 이유를 적고 해당 칸을 적용 제외로 바꿀 수 있다. 과거 보고서는 탐색 근거이며 현재 운영 사실을 대신하지 않는다.
 
+## 2026-10-15 현재 실행 델타
+
+목표 상태를 다시 조회해 `active`를 확인했다. 아래의 10월 14일 `paused` 관측은 당시 기록이며 현재 상태가 아니다. 전체 333개 체크박스와 완료 조건은 유지한다.
+
+- UI PR #3195는 `develop`의 `97a94381303f5426892d686c94ef1bd23735c7a2`에 정상 병합됐다. 현재 운영 alias는 아직 `dpl_EUxJnWmDDozCSMWb2sqNSPgKJLM5` / main `1884f87e53c4567ead7c9a0fb394b09b91a70396`다. 병합과 배포를 구분한다.
+- Feature 후보의 최종 canonical unit은 Node24.21.0·Bun1.4.0에서 3,749 pass·0 fail·11 skip으로 종료했고 선택한 코드 입력 1,516개의 전후 SHA drift는 0건이다. 이것은 전체 runtime closure나 hosted 동작 증거가 아니다. 앞선 3,529 pass·1 fail·3 skip과 3,528 pass·3 fail·3 skip도 보존했다. 인증 helper의 새 source-binding 인자를 검사하도록 기존 계약을 갱신했고, CLI 실패 fixture는 임시 앱에서 패키지를 자동 해석하지 않도록 설치된 의존성과 Node24를 사용한다. 필수 검사와 timeout은 줄이지 않았다.
+- 현재 native7.0.2/compat6.0.2 parity는 3,161 inputs·diagnostics0이며 변경 테스트 3파일의 ESLint도 통과했다. `/s/[code]`는 실제 GET handler에 재결속했다. 논리 표면 27개와 page 파일 26개를 구분하며 과거 브라우저 캡처를 현재 화면 증거로 바꾸지 않는다.
+- 롱폼은 frozen 대상 1,071편 중 의미 분석·저장 성공 3편이다. 첫 성공 파일럿 1편 이후 bounded 3편 실행에서 2편이 성공하고 1편은 `ANALYSIS_PARTIAL`로 보존됐다. 이 추가 실행은 count4회·create4회·GET0회·재시도0회, 입력240,043·출력4,975·thinking1,829 tokens이며 공식 요율 산술은 $0.20554725다. 실제 청구·세금·크레딧 차감액은 미확인이다. 추가 성공 2편은 공유 OSK에 노드28개·엣지84개를 게시하고 멱등 readback을 확인했다. 관리자 전달 자산은 71노드·217엣지·근거87건이며 기존 샤드6개를 보존했다. 모든 모델 관찰은 `unverified`이고 독립 검증 완료는 0/1,071이다. 첫 실패 파일럿과 부분 결과를 재전송하지 않았다. 이는 전체 채널 분석 완료나 운영 배포 증거가 아니다.
+- CI PR #3168의 후속 소스 `2517b68c`는 Python110·Node classifier6·Bun source3 검증을 통과했고 새 원격 검사 대상이다. 운영 감시는 먼저 검증한 `c4d4cd79`를 전용 clean checkout에 고정한 v6로 전환해 설정 readback을 확인했다. 첫 live tick은 API22회·cache48개 재사용·16.795757초였으며 기준선은 불변이다. reference는 pending1 때문에 `collecting_reference`다. 첫 수집·분석과 미래 예약 실행, 성능 개선을 구분한다.
+- 현재 Supabase catalog는 PG17.6·migration86개이며 `review_media_private.cleanup`은 없다. 기존 Actions DB Secret의 읽기 전용 연결도 run38693415701에서 확인됐다. 로컬 IPv6 직접 연결 실패를 전체 DB 접근 부재로 해석하지 않는다. 실제 후속 SQL 쓰기는 아직 0회다.
+
+배포와 운영 SQL은 이 후보에서 직렬화한다. 별도 렌더링 작업의 PR #3213/#3214·워크트리·ports3000/3003은 보존하며 승격하지 않는다. 다음 단계는 feature source 보호 승격, 기존 DB에서 안전한 readiness 동작을 확인한 `held` 앱 배포, 신규 policy/hold API 및 vendor readback, 별도 `ready` release와 source-bound PG17.6 proof, fresh capture와 86→97→101 적용·readback이다. Actions의 live Vercel GET 재검증에는 아직 없는 `VERCEL_TOKEN` 등록이 필요하며 새 자격 증명을 임의 생성·공유하지 않는다. 카드0488 삭제도 제공자의 유효 대체 수단 요구로 미완료다.
+
+증빙은 `apps/web/performance/goal-followthrough-20261015/`와 `apps/web/performance/feature-completion-20261013/`에 구분해 보관한다. 이번 항목은 결정적 건수·설정·계약 관측이므로 성능 변화율이나 95% 신뢰구간을 만들지 않는다. 공급자 요율 산술과 실제 청구도 구분한다.
+
 ## 2026-10-14 최신 실행 Todo
 
 이 표는 원문 274개 조항과 추가 요구 A001–A020을 대체하거나 완료율을 계산하기 위한 목록이 아니다. 현재 임계 경로를 실행 가능한 12개 묶음으로 정리한 색인이다. 체크박스 333개 중 체크된 항목 수는 제품 기능 수나 전체 완료율의 분모·분자가 아니다. 아래의 `부분`은 해당 단계의 증거가 있으나 요구 전체를 충족하지 못했다는 뜻이다.

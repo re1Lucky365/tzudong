@@ -37,6 +37,9 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  VERCEL_CLI_VERSION: '56.5.0'
+  VERCEL_ORG_ID: 'team_OUj64KeLxJI3PkEbOaFZnorA'
+  VERCEL_PROJECT_ID: 'prj_sau35J5uUtShIQ9OKofRtOVVnTSl'
 
 concurrency:
   # Keep each accepted dispatch alive; the PostgreSQL transaction lock below
@@ -128,6 +131,19 @@ jobs:
           }
           NODE
 
+      - name: Install pinned Vercel CLI readback authority
+        id: vercel-cli
+        if: inputs.mode == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(npm --version)" = 11.6.2
+          npm install --global --no-audit --no-fund --ignore-scripts "vercel@$VERCEL_CLI_VERSION"
+          cli_path="$(command -v vercel)"
+          test -n "$cli_path"
+          test "$(vercel --version)" = "$VERCEL_CLI_VERSION"
+          printf 'cli_path=%s\n' "$cli_path" >> "$GITHUB_OUTPUT"
+
       - name: Install PostgreSQL client
         shell: bash
         run: |
@@ -190,92 +206,106 @@ jobs:
           import { spawnSync } from 'node:child_process';
           import { createHash } from 'node:crypto';
           import { readFileSync } from 'node:fs';
+          import { isAbsolute } from 'node:path';
 
           try {
             const args = process.argv.slice(2);
             const input = process.env.LOCAL_VERCEL_READBACK_INPUT ?? '';
             const bundleSha256 = process.env.LOCAL_VERCEL_BUNDLE_SHA256 ?? '';
-            if (args.length !== 5 || args[0] !== 'api' || args[2] !== '--scope'
-              || args[3] !== 'team_OUj64KeLxJI3PkEbOaFZnorA' || args[4] !== '--raw'
+            const vendorCliPath = process.env.VERCEL_VENDOR_CLI_PATH ?? '';
+            const token = process.env.VERCEL_TOKEN ?? '';
+            const teamId = 'team_OUj64KeLxJI3PkEbOaFZnorA';
+            const projectId = 'prj_sau35J5uUtShIQ9OKofRtOVVnTSl';
+            const verifyOnly = args.length === 1 && args[0] === 'verify';
+            const apiRead = args.length === 5 && args[0] === 'api' && args[2] === '--scope'
+              && args[3] === teamId && args[4] === '--raw';
+            if ((!verifyOnly && !apiRead)
+              || process.env.GITHUB_ACTIONS !== 'true'
+              || process.env.VERCEL_ORG_ID !== teamId
+              || process.env.VERCEL_PROJECT_ID !== projectId
+              || !/^[A-Za-z0-9._~-]{20,4096}$/.test(token)
+              || !isAbsolute(vendorCliPath) || /[\0-\x1f\x7f]/.test(vendorCliPath)
               || !input || !/^[0-9a-f]{64}$/.test(bundleSha256)) process.exit(2);
             const bytes = readFileSync(input);
             if (bytes.length < 2 || bytes.length > 8192
               || createHash('sha256').update(bytes).digest('hex') !== bundleSha256) process.exit(2);
             const bundle = JSON.parse(bytes.toString('utf8'));
             const readback = bundle.rollbackReadback;
-            if (!readback || readback.gitRef !== 'main'
+            const storyboardPolicy = bundle.storyboardPolicy;
+            if (bundle.kind !== 'review-media-successor-vercel-operating-bundle'
+              || bundle.schemaVersion !== 1
+              || !readback || readback.gitRef !== 'main'
               || readback.repository !== 'twoimo/tzudong'
-              || readback.projectId !== 'prj_sau35J5uUtShIQ9OKofRtOVVnTSl'
-              || readback.teamId !== 'team_OUj64KeLxJI3PkEbOaFZnorA'
+              || readback.projectId !== projectId
+              || readback.teamId !== teamId
               || readback.readyState !== 'READY' || readback.target !== 'production'
               || readback.gitSha !== bundle.sourceRevision
               || !Number.isFinite(Date.parse(readback.observedAt ?? ''))
-              || readback.productionAliases?.join('\0') !== 'tzudong.app\0www.tzudong.app') {
+              || readback.productionAliases?.join('\0') !== 'tzudong.app\0www.tzudong.app'
+              || storyboardPolicy?.schemaVersion !== 1
+              || storyboardPolicy?.deployment?.branch !== 'main'
+              || storyboardPolicy?.deployment?.deploymentId !== readback.deploymentId
+              || storyboardPolicy?.deployment?.sourceCommit !== readback.gitSha
+              || !/^[0-9a-f]{64}$/.test(storyboardPolicy?.policy?.canonicalPolicySha256 ?? '')) {
               process.exit(2);
             }
-            const deploymentEndpoint = `/v13/deployments/${readback.deploymentId}?teamId=${readback.teamId}`;
-            const alias = readback.productionAliases.find(host =>
-              args[1] === `/v4/aliases/${host}?teamId=${readback.teamId}`);
-            if (args[1] !== deploymentEndpoint && !alias) process.exit(2);
-            const observerEnvironment = process.env.NODE_OPTIONS
-              ? { NODE_OPTIONS: process.env.NODE_OPTIONS }
-              : {};
-            const observer = spawnSync(process.execPath, [
-              'apps/web/scripts/observe-storyboard-runtime-compatibility.mjs',
-              '--bundle', input,
-              '--bundle-sha256', bundleSha256,
-              '--url', 'https://www.tzudong.app/api/runtime-compatibility/storyboard',
-            ], {
-              encoding: null,
-              env: observerEnvironment,
-              killSignal: 'SIGKILL',
-              maxBuffer: 4096,
-              shell: false,
-              stdio: ['ignore', 'pipe', 'pipe'],
-              timeout: 7000,
-              windowsHide: true,
-            });
-            if (observer.status !== 0 || observer.error || observer.stderr.length !== 0
-              || observer.stdout.length < 2 || observer.stdout.length > 2048) process.exit(2);
-            const observation = JSON.parse(observer.stdout.toString('utf8'));
-            if (!observation || typeof observation !== 'object' || Array.isArray(observation)
-              || Object.keys(observation).sort().join('\0') !== [
-                'bundleSha256', 'canonicalPolicySha256', 'commit', 'deploymentId', 'kind',
-                'productionAlias', 'schemaVersion',
-              ].sort().join('\0')
-              || observation.schemaVersion !== 1
-              || observation.kind !== 'storyboard-runtime-compatibility-observation'
-              || observation.productionAlias !== 'www.tzudong.app'
-              || observation.bundleSha256 !== bundleSha256
-              || observation.deploymentId !== readback.deploymentId
-              || observation.commit !== readback.gitSha
-              || observation.canonicalPolicySha256
-                !== bundle.storyboardPolicy?.policy?.canonicalPolicySha256) process.exit(2);
-            let result;
-            if (args[1] === deploymentEndpoint) {
-              result = {
-                id: readback.deploymentId,
-                meta: {
-                  githubCommitOrg: 'twoimo',
-                  githubCommitRef: 'main',
-                  githubCommitRepo: 'tzudong',
-                  githubCommitSha: readback.gitSha,
-                },
-                ownerId: readback.teamId,
-                projectId: readback.projectId,
-                readyState: readback.readyState,
-                target: readback.target,
-                url: new URL(readback.deploymentUrl).hostname,
-              };
+            const deploymentEndpoint = `/v13/deployments/${readback.deploymentId}?teamId=${teamId}`;
+            const aliasEndpoints = readback.productionAliases.map(host =>
+              `/v4/aliases/${host}?teamId=${teamId}`);
+            const allowedEndpoints = [deploymentEndpoint, ...aliasEndpoints];
+            if (apiRead && !allowedEndpoints.includes(args[1])) process.exit(2);
+            const invoke = endpoint => {
+              const childEnvironment = Object.fromEntries(Object.entries({
+                CI: 'true',
+                HOME: process.env.HOME,
+                NO_COLOR: '1',
+                PATH: process.env.PATH,
+                TMPDIR: process.env.TMPDIR,
+                VERCEL_ORG_ID: teamId,
+                VERCEL_PROJECT_ID: projectId,
+                VERCEL_TOKEN: token,
+              }).filter(([, value]) => typeof value === 'string'));
+              const vendor = spawnSync(vendorCliPath, [
+                'api', endpoint, '--scope', teamId, '--raw', '--non-interactive', '--no-color',
+              ], {
+                encoding: null,
+                env: childEnvironment,
+                killSignal: 'SIGKILL',
+                maxBuffer: 262144,
+                shell: false,
+                stdio: ['ignore', 'pipe', 'ignore'],
+                timeout: 15000,
+                windowsHide: true,
+              });
+              if (vendor.status !== 0 || vendor.error || vendor.stdout.length < 2
+                || vendor.stdout.length > 262144) process.exit(2);
+              const result = JSON.parse(vendor.stdout.toString('utf8'));
+              if (endpoint === deploymentEndpoint) {
+                if (result?.id !== readback.deploymentId
+                  || result?.projectId !== readback.projectId
+                  || result?.ownerId !== readback.teamId
+                  || result?.readyState !== readback.readyState
+                  || result?.target !== readback.target
+                  || result?.url !== new URL(readback.deploymentUrl).hostname
+                  || result?.meta?.githubCommitOrg !== 'twoimo'
+                  || result?.meta?.githubCommitRepo !== 'tzudong'
+                  || result?.meta?.githubCommitRef !== readback.gitRef
+                  || result?.meta?.githubCommitSha !== readback.gitSha) process.exit(2);
+              } else {
+                const alias = readback.productionAliases.find(host =>
+                  endpoint === `/v4/aliases/${host}?teamId=${teamId}`);
+                if (!alias || result?.alias !== alias
+                  || result?.deploymentId !== readback.deploymentId
+                  || result?.deployment?.id !== readback.deploymentId
+                  || result?.projectId !== readback.projectId) process.exit(2);
+              }
+              return vendor.stdout;
+            };
+            if (verifyOnly) {
+              for (const endpoint of allowedEndpoints) invoke(endpoint);
             } else {
-              result = {
-                alias,
-                deployment: { id: readback.deploymentId },
-                deploymentId: readback.deploymentId,
-                projectId: readback.projectId,
-              };
+              process.stdout.write(invoke(args[1]));
             }
-            process.stdout.write(JSON.stringify(result));
           } catch {
             process.exit(2);
           }
@@ -383,6 +413,13 @@ jobs:
           }
 
           run_apply_chain() {
+            export LOCAL_VERCEL_READBACK_INPUT="$operating_input"
+            export VERCEL_CLI_PATH
+            if ! node "$VERCEL_CLI_PATH" verify >/dev/null 2>&1
+            then
+              printf '%s\n' '{"code":"SUCCESSOR_VERCEL_READBACK_UNCONFIRMED","status":"failed"}'
+              return 1
+            fi
             if ! run_private base-apply node \
               apps/web/scripts/review-media-operating-orchestrator.mjs \
               --mode apply --input "$operating_input" --custody-dir "$custody_dir"
@@ -391,8 +428,6 @@ jobs:
               return 1
             fi
             base_stdout="$(dirname "$operating_input")/base-apply.stdout.json"
-            export LOCAL_VERCEL_READBACK_INPUT="$operating_input"
-            export VERCEL_CLI_PATH
             for phase in prepare-rehearsal rehearsal prepare-apply apply
             do
               if ! run_private "feature-$phase" node \
@@ -532,7 +567,13 @@ jobs:
           SERIALIZED_RUNNER: ${{ steps.custody.outputs.serialized_runner }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           VERCEL_CLI_PATH: ${{ steps.custody.outputs.vercel_readback_adapter }}
-        run: >-
-          timeout --signal=TERM --kill-after=10s 840s
-          "$SERIALIZED_RUNNER"
-          apply-chain "$OPERATING_INPUT" "$PRIVATE_CUSTODY_DIR"
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_VENDOR_CLI_PATH: ${{ steps.vercel-cli.outputs.cli_path }}
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN"
+          test -x "$VERCEL_VENDOR_CLI_PATH"
+          test "$("$VERCEL_VENDOR_CLI_PATH" --version)" = "$VERCEL_CLI_VERSION"
+          timeout --signal=TERM --kill-after=10s 840s \
+            "$SERIALIZED_RUNNER" \
+            apply-chain "$OPERATING_INPUT" "$PRIVATE_CUSTODY_DIR"

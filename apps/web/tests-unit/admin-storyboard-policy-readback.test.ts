@@ -7,10 +7,14 @@ const {
   createStoryboardPolicyReadbackResponse,
   evaluateStoryboardRuntimePolicy,
 } = await import('../app/api/admin/operating-readback/storyboard-policy/readback-response');
+const { calculateStoryboardRuntimeSourceBinding } = await import(
+  '../lib/admin/storyboard/runtime-source-binding'
+);
 
 const deploymentId = 'dpl_StoryboardPolicyReadbackFixture123';
 const sourceCommit = 'b'.repeat(40);
 const projectId = 'prj_sau35J5uUtShIQ9OKofRtOVVnTSl';
+const sourceBindingSha256 = calculateStoryboardRuntimeSourceBinding().sha256;
 
 function runtimeEnvironment() {
   return {
@@ -38,10 +42,11 @@ test('authenticates first and binds the evaluated Gemini-only policy to every so
 
   const response = await createStoryboardPolicyReadbackResponse({
     environment,
-    evaluatePolicy: () => {
+    evaluatePolicy: (receivedSourceBindingSha256) => {
       expect(authenticated).toBe(true);
+      expect(receivedSourceBindingSha256).toBe(sourceBindingSha256);
       policyEvaluated = true;
-      return evaluateStoryboardRuntimePolicy();
+      return evaluateStoryboardRuntimePolicy(receivedSourceBindingSha256);
     },
     requireAdminImpl: async () => {
       expect(accesses).toEqual([]);
@@ -49,6 +54,7 @@ test('authenticates first and binds the evaluated Gemini-only policy to every so
       authenticated = true;
       return { ok: true, userId: 'must-not-be-returned' };
     },
+    sourceBindingSha256,
   });
 
   expect(response.status).toBe(200);
@@ -62,6 +68,8 @@ test('authenticates first and binds the evaluated Gemini-only policy to every so
     legacyExecutionAdmission: 'blocked',
     provider: 'gemini-api',
     readableLegacyWorkflow: 'storyboard-mlx-v1',
+    sourceBindingSchemaVersion: 1,
+    sourceBindingSha256,
     textModels: ['gemini-3.8-flash'],
   };
   const expectedHash = createHash('sha256').update(JSON.stringify(canonicalPolicy), 'utf8').digest('hex');
@@ -72,6 +80,9 @@ test('authenticates first and binds the evaluated Gemini-only policy to every so
     ['production-request-admission', 'apps/web/lib/admin/storyboard/production-contract.ts'],
     ['worker-heartbeat-admission', 'apps/web/lib/admin/storyboard/production-worker-auth.ts'],
     ['outbound-worker-execution', 'apps/web/lib/admin/storyboard/outbound-worker.ts'],
+    ['production-store-admission', 'apps/web/lib/admin/storyboard/production-store.ts'],
+    ['production-api-admission', 'apps/web/lib/admin/storyboard/production-api.ts'],
+    ['gemini-client-execution', 'apps/web/lib/admin/storyboard/gemini-client.ts'],
   ].map(([id, sourcePath]) => ({ canonicalPolicySha256: expectedHash, deploymentId, id, sourceCommit, sourcePath })));
   expect(body.verification).toEqual({
     databaseCutover: 'not-verified',
@@ -117,7 +128,7 @@ test('fails closed before policy evaluation when the production deployment ident
   let policyEvaluated = false;
   const response = await createStoryboardPolicyReadbackResponse({
     environment: { ...runtimeEnvironment(), VERCEL_GIT_COMMIT_REF: 'develop' },
-    evaluatePolicy: () => { policyEvaluated = true; return evaluateStoryboardRuntimePolicy(); },
+    evaluatePolicy: (binding) => { policyEvaluated = true; return evaluateStoryboardRuntimePolicy(binding); },
     requireAdminImpl: async () => ({ ok: true, userId: 'admin-fixture' }),
   });
   expect(policyEvaluated).toBe(false);
@@ -139,12 +150,23 @@ test('fails closed with a fixed response when runtime policy evaluation drifts',
 });
 
 test('evaluates the exact shared policy without performing provider or database work', () => {
-  const first = evaluateStoryboardRuntimePolicy();
-  const second = evaluateStoryboardRuntimePolicy();
+  const first = evaluateStoryboardRuntimePolicy(sourceBindingSha256);
+  const second = evaluateStoryboardRuntimePolicy(sourceBindingSha256);
   expect(first).toEqual(second);
   expect(first.canonicalPolicySha256).toMatch(/^[0-9a-f]{64}$/);
   expect(first.canonicalPolicy.provider).toBe('gemini-api');
   expect(first.canonicalPolicy.textModels).toEqual(['gemini-3.8-flash']);
   expect(first.canonicalPolicy.imageModels).toEqual(['gemini-3.1-flash-image', 'gemini-3-pro-image']);
   expect(first.canonicalPolicy.legacyExecutionAdmission).toBe('blocked');
+  expect(first.canonicalPolicy.sourceBindingSha256).toBe(sourceBindingSha256);
+});
+
+test('fails closed when the build-time execution-source binding is unavailable', async () => {
+  const response = await createStoryboardPolicyReadbackResponse({
+    environment: runtimeEnvironment(),
+    requireAdminImpl: async () => ({ ok: true, userId: 'admin-fixture' }),
+    sourceBindingSha256: '',
+  });
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({ code: 'STORYBOARD_POLICY_READBACK_POLICY_UNAVAILABLE' });
 });

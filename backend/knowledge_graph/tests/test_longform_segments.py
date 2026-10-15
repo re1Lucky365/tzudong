@@ -590,9 +590,104 @@ class SegmentExecutionTests(unittest.TestCase):
         self.assertEqual((result["unresolved"], result["readbackCalls"]), (1, 1))  # The second segment has not run.
         self.assertEqual(self.calls[-1]["response_id"], "v1_fixture_0")
         self.assertEqual(self.calls[-1]["request_digest"], "e" * 64)
+        first = m.segment_rows(self.row, self.config)[0]
+        _, receipt_path, _ = m.paths(self.state, first, self.config)
+        observation_path = receipt_path.with_name(receipt_path.name.replace(".receipt.json", ".observation.json"))
+        receipt, observation = m.checked_document(receipt_path), m.checked_document(observation_path)
+        self.assertEqual(receipt["observationSha256"], m.digest(observation))
+        self.assertFalse(m._readback_binding_path(receipt_path).exists())
         finished = self.execute(batch_id="after-readback")
         self.assertEqual(finished["succeeded"], 1)
         self.assertEqual([call["start"] for call in self.calls], [0, 0, 30])
+
+    def test_rejected_provider_readback_keeps_observation_and_receipt_committed_together(self):
+        self.scenario = "invalid"
+        self.execute()
+        with patch.dict(m.os.environ, {"GEMINI_API_KEY": "synthetic-key"}), patch.object(m, "verify_checkout"), \
+                patch.object(m, "project_budget", return_value=self.budget), \
+                patch.object(m.adapter, "invoke", side_effect=self.invoke):
+            result = m.readback([self.row], self.state, self.config, provider=True, max_calls=1)
+        self.assertEqual(result, {"phase": "readback", "recovered": 0, "unresolved": 1, "readbackCalls": 1})
+        first = m.segment_rows(self.row, self.config)[0]
+        _, receipt_path, evidence_path = m.paths(self.state, first, self.config)
+        observation_path = receipt_path.with_name(receipt_path.name.replace(".receipt.json", ".observation.json"))
+        receipt, observation = m.checked_document(receipt_path), m.checked_document(observation_path)
+        self.assertEqual((receipt["state"], receipt["code"], receipt["readbackCallsAttempted"]),
+                         ("rejected", "ANALYSIS_EVIDENCE_INVALID", 1))
+        self.assertEqual((observation["operation"], receipt["observationSha256"]),
+                         ("readback", m.digest(observation)))
+        self.assertFalse(evidence_path.exists())
+        self.assertFalse(m._readback_binding_path(receipt_path).exists())
+
+    def test_active_readback_pair_recovers_each_interrupted_commit_boundary_without_get(self):
+        original_state = self.state
+        for interrupted_name in ("binding", "observation", "receipt"):
+            with self.subTest(interrupted_name=interrupted_name), tempfile.TemporaryDirectory() as temporary:
+                self.state = Path(temporary) / "state"
+                self.scenario = "invalid"
+                self.execute()
+                self.scenario = "valid"
+                first = m.segment_rows(self.row, self.config)[0]
+                _, receipt_path, _ = m.paths(self.state, first, self.config)
+                observation_path = receipt_path.with_name(receipt_path.name.replace(".receipt.json", ".observation.json"))
+                binding_path = m._readback_binding_path(receipt_path)
+                targets = {"binding": binding_path, "observation": observation_path, "receipt": receipt_path}
+                original_atomic = m.atomic_document
+                armed = False
+                interrupted = False
+
+                def invoke(**kwargs):
+                    nonlocal armed
+                    armed = True
+                    return self.invoke(**kwargs)
+
+                def atomic(path, payload):
+                    nonlocal interrupted
+                    original_atomic(path, payload)
+                    if armed and not interrupted and path == targets[interrupted_name]:
+                        interrupted = True
+                        raise KeyboardInterrupt()
+
+                with patch.dict(m.os.environ, {"GEMINI_API_KEY": "synthetic-key"}), \
+                        patch.object(m, "verify_checkout"), \
+                        patch.object(m, "project_budget", return_value=self.budget), \
+                        patch.object(m.adapter, "invoke", side_effect=invoke), \
+                        patch.object(m, "atomic_document", side_effect=atomic), \
+                        self.assertRaises(KeyboardInterrupt):
+                    m.readback([self.row], self.state, self.config, provider=True, max_calls=1)
+
+                with patch.object(m.adapter, "invoke", side_effect=AssertionError("restart recovery must not call provider")):
+                    recovered = m.readback([self.row], self.state, self.config)
+                self.assertEqual(recovered, {"phase": "readback", "recovered": 0,
+                                             "unresolved": 1, "readbackCalls": 0})
+                receipt, observation = m.checked_document(receipt_path), m.checked_document(observation_path)
+                self.assertEqual(receipt["observationSha256"], m.digest(observation))
+                self.assertFalse(binding_path.exists())
+        self.state = original_state
+
+    def test_active_readback_not_sent_does_not_replace_durable_generation_observation(self):
+        self.scenario = "invalid"
+        self.execute()
+        first = m.segment_rows(self.row, self.config)[0]
+        _, receipt_path, _ = m.paths(self.state, first, self.config)
+        observation_path = receipt_path.with_name(receipt_path.name.replace(".receipt.json", ".observation.json"))
+        before = observation_path.read_bytes()
+
+        def not_sent(**kwargs):
+            previous = m.checked_document(observation_path)
+            kwargs["observe"]({**previous, "operation": "readback", "httpOutcome": "not_sent",
+                               "usage": m.adapter.usage(None)})
+            raise m.adapter.AdapterError("WATCH_TRANSPORT_UNCERTAIN")
+
+        with patch.dict(m.os.environ, {"GEMINI_API_KEY": "synthetic-key"}), patch.object(m, "verify_checkout"), \
+                patch.object(m, "project_budget", return_value=self.budget), \
+                patch.object(m.adapter, "invoke", side_effect=not_sent):
+            result = m.readback([self.row], self.state, self.config, provider=True, max_calls=1)
+        self.assertEqual(result, {"phase": "readback", "recovered": 0, "unresolved": 1, "readbackCalls": 1})
+        self.assertEqual(observation_path.read_bytes(), before)
+        receipt, observation = m.checked_document(receipt_path), m.checked_document(observation_path)
+        self.assertEqual(receipt["observationSha256"], m.digest(observation))
+        self.assertFalse(m._readback_binding_path(receipt_path).exists())
 
     def test_missing_or_corrupt_segment_receipt_cannot_support_full_coverage(self):
         self.execute()

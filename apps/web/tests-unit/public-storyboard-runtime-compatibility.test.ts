@@ -9,9 +9,13 @@ const {
 const { evaluateStoryboardRuntimePolicy } = await import(
   '../app/api/admin/operating-readback/storyboard-policy/readback-response'
 );
+const { calculateStoryboardRuntimeSourceBinding } = await import(
+  '../lib/admin/storyboard/runtime-source-binding'
+);
 
 const deploymentId = 'dpl_PublicStoryboardRuntimeFixture123';
 const commit = 'c'.repeat(40);
+const sourceBindingSha256 = calculateStoryboardRuntimeSourceBinding().sha256;
 
 function productionEnvironment() {
   return {
@@ -26,8 +30,10 @@ function productionEnvironment() {
 }
 
 test('returns only deployment identity and the code-shared canonical policy hash', async () => {
-  const expectedPolicySha256 = evaluateStoryboardRuntimePolicy().canonicalPolicySha256;
-  const response = createPublicStoryboardCompatibilityResponse({ environment: productionEnvironment() });
+  const expectedPolicySha256 = evaluateStoryboardRuntimePolicy(sourceBindingSha256).canonicalPolicySha256;
+  const response = createPublicStoryboardCompatibilityResponse({
+    environment: productionEnvironment(), sourceBindingSha256,
+  });
   expect(response.status).toBe(200);
   expect(response.headers.get('Cache-Control')).toBe('no-store, max-age=0');
   expect(response.headers.get('Pragma')).toBe('no-cache');
@@ -38,11 +44,13 @@ test('returns only deployment identity and the code-shared canonical policy hash
     commit,
     canonicalPolicySha256: expectedPolicySha256,
   });
-  expect(publicStoryboardCanonicalPolicySha256()).toBe(expectedPolicySha256);
+  expect(publicStoryboardCanonicalPolicySha256(sourceBindingSha256)).toBe(expectedPolicySha256);
 });
 
 test('does not expose model, provider, database, account, quota, hold, or readiness claims', async () => {
-  const response = createPublicStoryboardCompatibilityResponse({ environment: productionEnvironment() });
+  const response = createPublicStoryboardCompatibilityResponse({
+    environment: productionEnvironment(), sourceBindingSha256,
+  });
   const serialized = JSON.stringify(await response.json());
   for (const forbidden of [
     'gemini', 'model', 'provider', 'database', 'account', 'quota', 'hold', 'ready', 'key', 'token', 'user',
@@ -84,6 +92,19 @@ test('fails closed without leaking policy evaluation diagnostics', async () => {
     schemaVersion: 1,
     kind: 'storyboard-runtime-compatibility-unavailable',
   });
+});
+
+test('fails closed when the build-time execution-source binding is missing or malformed', async () => {
+  for (const sourceBindingSha256 of ['', 'a'.repeat(63), 'not-a-source-binding']) {
+    const response = createPublicStoryboardCompatibilityResponse({
+      environment: productionEnvironment(), sourceBindingSha256,
+    });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      schemaVersion: 1,
+      kind: 'storyboard-runtime-compatibility-unavailable',
+    });
+  }
 });
 
 test('rejects a malformed policy digest even when deployment identity is valid', async () => {

@@ -7,6 +7,10 @@ import { pathToFileURL } from 'node:url';
 
 const ALIASES = new Set(['tzudong.app', 'www.tzudong.app']);
 const ENDPOINT_PATH = '/api/runtime-compatibility/storyboard';
+export const STORYBOARD_PRODUCTION_COMPATIBILITY_URLS = Object.freeze([
+  `https://tzudong.app${ENDPOINT_PATH}`,
+  `https://www.tzudong.app${ENDPOINT_PATH}`,
+]);
 const DEPLOYMENT_ID = /^dpl_[A-Za-z0-9]+$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
@@ -152,6 +156,91 @@ export async function fetchLiveStoryboardCompatibility({
   ));
 }
 
+async function fetchProductionAliasRoute({ fetchImpl, timeoutMs, url }) {
+  const target = validateProductionCompatibilityUrl(url);
+  let response;
+  try {
+    response = await fetchImpl(target, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+      method: 'GET',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch {
+    fail('STORYBOARD_RUNTIME_OBSERVER_FETCH_FAILED');
+  }
+  if ([301, 302, 307, 308].includes(response.status)) {
+    const redirectTarget = response.headers.get('location') ?? '';
+    if (target.hostname !== 'tzudong.app'
+      || response.redirected
+      || redirectTarget !== STORYBOARD_PRODUCTION_COMPATIBILITY_URLS[1]) {
+      fail('STORYBOARD_RUNTIME_OBSERVER_RESPONSE_INVALID');
+    }
+    return Object.freeze({
+      productionAlias: target.hostname,
+      route: 'redirect',
+      redirectTarget,
+      value: null,
+    });
+  }
+  if (response.status !== 200 || response.redirected
+    || !/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? '')) {
+    fail('STORYBOARD_RUNTIME_OBSERVER_RESPONSE_INVALID');
+  }
+  const value = validateLiveCompatibility(parseJson(
+    await readBoundedBody(response),
+    'STORYBOARD_RUNTIME_OBSERVER_RESPONSE_INVALID',
+  ));
+  return Object.freeze({
+    productionAlias: target.hostname,
+    route: 'direct',
+    redirectTarget: null,
+    value,
+  });
+}
+
+function validateAliasSet(urls) {
+  if (!Array.isArray(urls)
+    || urls.length !== STORYBOARD_PRODUCTION_COMPATIBILITY_URLS.length
+    || urls.some((url, index) => url !== STORYBOARD_PRODUCTION_COMPATIBILITY_URLS[index])) {
+    fail('STORYBOARD_RUNTIME_OBSERVER_ARGUMENT_INVALID');
+  }
+  return urls;
+}
+
+export async function fetchLiveStoryboardCompatibilityAliases({
+  fetchImpl = fetch,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+  urls = STORYBOARD_PRODUCTION_COMPATIBILITY_URLS,
+} = {}) {
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > REQUEST_TIMEOUT_MS) {
+    fail('STORYBOARD_RUNTIME_OBSERVER_ARGUMENT_INVALID');
+  }
+  const observations = [];
+  for (const url of validateAliasSet(urls)) {
+    observations.push(await fetchProductionAliasRoute({ fetchImpl, timeoutMs, url }));
+  }
+  const apex = observations[0];
+  const canonical = observations[1];
+  if (!apex || !canonical || canonical.route !== 'direct' || !canonical.value
+    || (apex.route === 'direct' && (!apex.value
+      || apex.value.deploymentId !== canonical.value.deploymentId
+      || apex.value.commit !== canonical.value.commit
+      || !equalDigest(apex.value.canonicalPolicySha256, canonical.value.canonicalPolicySha256)))) {
+    fail('STORYBOARD_RUNTIME_OBSERVER_ALIAS_SET_MISMATCH');
+  }
+  return Object.freeze({
+    schemaVersion: 1,
+    kind: 'storyboard-runtime-compatibility-alias-set-readback',
+    aliasRoutes: Object.freeze(observations.map(({ productionAlias, route, redirectTarget }) =>
+      Object.freeze({ productionAlias, redirectTarget, route }))),
+    deploymentId: canonical.value.deploymentId,
+    commit: canonical.value.commit,
+    canonicalPolicySha256: canonical.value.canonicalPolicySha256,
+  });
+}
+
 export async function observeStoryboardRuntimeCompatibility({
   bundle,
   bundleSha256,
@@ -172,6 +261,33 @@ export async function observeStoryboardRuntimeCompatibility({
     schemaVersion: 1,
     kind: 'storyboard-runtime-compatibility-observation',
     productionAlias: validateProductionCompatibilityUrl(url).hostname,
+    bundleSha256,
+    deploymentId: live.deploymentId,
+    commit: live.commit,
+    canonicalPolicySha256: live.canonicalPolicySha256,
+  });
+}
+
+export async function observeStoryboardRuntimeCompatibilityAliases({
+  bundle,
+  bundleSha256,
+  fetchImpl = fetch,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+  urls = STORYBOARD_PRODUCTION_COMPATIBILITY_URLS,
+} = {}) {
+  if (!SHA256.test(bundleSha256 ?? '')) fail('STORYBOARD_RUNTIME_OBSERVER_ARGUMENT_INVALID');
+  const expected = expectedCompatibilityFromBundle(bundle);
+  const live = await fetchLiveStoryboardCompatibilityAliases({ fetchImpl, timeoutMs, urls });
+  if (live.deploymentId !== expected.deploymentId || live.commit !== expected.commit) {
+    fail('STORYBOARD_RUNTIME_OBSERVER_IDENTITY_MISMATCH');
+  }
+  if (!equalDigest(live.canonicalPolicySha256, expected.canonicalPolicySha256)) {
+    fail('STORYBOARD_RUNTIME_OBSERVER_POLICY_MISMATCH');
+  }
+  return Object.freeze({
+    schemaVersion: 1,
+    kind: 'storyboard-runtime-compatibility-alias-set-observation',
+    aliasRoutes: live.aliasRoutes,
     bundleSha256,
     deploymentId: live.deploymentId,
     commit: live.commit,
@@ -207,12 +323,12 @@ function cliArguments(argv) {
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index];
     const value = argv[index + 1];
-    if (!['--bundle', '--bundle-sha256', '--url'].includes(key) || value === undefined || Object.hasOwn(values, key)) {
+    if (!['--bundle', '--bundle-sha256'].includes(key) || value === undefined || Object.hasOwn(values, key)) {
       fail('STORYBOARD_RUNTIME_OBSERVER_ARGUMENT_INVALID');
     }
     values[key] = value;
   }
-  if (Object.keys(values).length !== 3) fail('STORYBOARD_RUNTIME_OBSERVER_ARGUMENT_INVALID');
+  if (Object.keys(values).length !== 2) fail('STORYBOARD_RUNTIME_OBSERVER_ARGUMENT_INVALID');
   return values;
 }
 
@@ -223,10 +339,9 @@ async function main() {
       bundlePath: args['--bundle'],
       bundleSha256: args['--bundle-sha256'],
     });
-    const observation = await observeStoryboardRuntimeCompatibility({
+    const observation = await observeStoryboardRuntimeCompatibilityAliases({
       bundle,
       bundleSha256: args['--bundle-sha256'],
-      url: args['--url'],
     });
     process.stdout.write(`${JSON.stringify(observation)}\n`);
   } catch (error) {

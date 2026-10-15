@@ -129,22 +129,30 @@ function vercelBundle() {
 
 function runtimeCompatibilityReadback() {
   return {
+    aliasRoutes: [
+      {
+        productionAlias: 'tzudong.app',
+        redirectTarget: 'https://www.tzudong.app/api/runtime-compatibility/storyboard',
+        route: 'redirect',
+      },
+      { productionAlias: 'www.tzudong.app', redirectTarget: null, route: 'direct' },
+    ],
     canonicalPolicySha256: policySha256,
     commit: rollbackRevision,
     deploymentId,
-    kind: 'storyboard-runtime-compatibility',
+    kind: 'storyboard-runtime-compatibility-alias-set-readback',
     schemaVersion: 1,
   };
 }
 
 function runtimeCompatibilityObservation(bundleSha256: string) {
   return {
+    aliasRoutes: runtimeCompatibilityReadback().aliasRoutes,
     bundleSha256,
     canonicalPolicySha256: policySha256,
     commit: rollbackRevision,
     deploymentId,
-    kind: 'storyboard-runtime-compatibility-observation',
-    productionAlias: 'www.tzudong.app',
+    kind: 'storyboard-runtime-compatibility-alias-set-observation',
     schemaVersion: 1,
   };
 }
@@ -319,9 +327,12 @@ test('local Vercel bundle is sanitized, source-bound, and limited to the origina
     })(),
     manifestRecord,
     protectedMainReadbackImpl: () => protectedMain(),
-    runtimeCompatibilityReadbackImpl: async ({ url }: any) => {
+    runtimeCompatibilityReadbackImpl: async ({ urls }: any) => {
       runtimeReadbackCalls += 1;
-      expect(url).toBe('https://www.tzudong.app/api/runtime-compatibility/storyboard');
+      expect(urls).toEqual([
+        'https://tzudong.app/api/runtime-compatibility/storyboard',
+        'https://www.tzudong.app/api/runtime-compatibility/storyboard',
+      ]);
       return runtimeCompatibilityReadback();
     },
     sourceRevision,
@@ -422,6 +433,14 @@ test('runtime-verified rollback callback rejects observation drift without chang
       ...runtimeCompatibilityObservation(bundleSha256),
       canonicalPolicySha256: 'f'.repeat(64),
     }),
+  })).rejects.toThrow('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
+  await expect(createRuntimeVerifiedRollbackReadback({
+    bundle,
+    bundleSha256,
+    observeRuntimeCompatibilityImpl: async () => {
+      const observation = runtimeCompatibilityObservation(bundleSha256);
+      return { ...observation, aliasRoutes: observation.aliasRoutes.slice(1) };
+    },
   })).rejects.toThrow('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
 });
 

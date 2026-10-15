@@ -914,40 +914,40 @@ def _wire_schema_predecessor_state(state, row, config):
         return "readback_required"
 
 
-def _predecessor_readback_binding_path(receipt_path):
+def _readback_binding_path(receipt_path):
     return receipt_path.with_name(receipt_path.name.replace(".receipt.json", ".readback.json"))
 
 
-def _predecessor_readback_binding(receipt, observation, normalized, contract):
-    value = {"kind": "wire_schema_predecessor_readback",
-             "receiptIdentitySha256": digest(contract["receiptIdentity"]),
-             "responseId": normalized["responseId"], "requestSha256": contract["requestSha256"],
+def _readback_binding(receipt, observation, normalized, *, kind, receipt_identity, request_sha256):
+    value = {"kind": kind, "receiptIdentitySha256": digest(receipt_identity),
+             "responseId": normalized["responseId"], "requestSha256": request_sha256,
              "previousObservationSha256": digest(observation), "nextObservationSha256": digest(normalized)}
-    if (receipt.get("identity") != contract["receiptIdentity"]
+    if (kind not in ("active_schema_readback", "wire_schema_predecessor_readback")
+            or receipt.get("identity") != receipt_identity
             or receipt.get("observationSha256") != value["previousObservationSha256"]
             or observation["responseId"] != normalized["responseId"]
-            or observation["requestSha256"] != contract["requestSha256"]
-            or normalized["requestSha256"] != contract["requestSha256"]
+            or observation["requestSha256"] != request_sha256
+            or normalized["requestSha256"] != request_sha256
             or normalized["operation"] != "readback" or normalized["httpOutcome"] == "not_sent"):
         raise AnalysisError("READBACK_REQUIRED")
     return value
 
 
-def _recover_predecessor_readback_binding(receipt_path, observation_path, receipt, contract):
-    binding_path = _predecessor_readback_binding_path(receipt_path)
+def _recover_readback_binding(receipt_path, observation_path, receipt, *, kind, receipt_identity):
+    binding_path = _readback_binding_path(receipt_path)
     if not binding_path.exists():
         return receipt
     binding = checked_document(binding_path)
     observation = validate_observation(checked_document(observation_path))
     expected = {"kind", "receiptIdentitySha256", "responseId", "requestSha256",
                 "previousObservationSha256", "nextObservationSha256"}
-    if (set(binding) != expected or binding["kind"] != "wire_schema_predecessor_readback"
-            or binding["receiptIdentitySha256"] != digest(contract["receiptIdentity"])
+    if (set(binding) != expected or binding["kind"] != kind
+            or binding["receiptIdentitySha256"] != digest(receipt_identity)
+            or receipt.get("identity") != receipt_identity
             or binding["responseId"] != observation["responseId"]
-            or binding["requestSha256"] != contract["requestSha256"]
             or not SHA256.fullmatch(str(binding["previousObservationSha256"]))
             or not SHA256.fullmatch(str(binding["nextObservationSha256"]))
-            or observation["requestSha256"] != contract["requestSha256"]
+            or observation["requestSha256"] != binding["requestSha256"]
             or observation["operation"] not in ("generate", "readback")
             or observation["httpOutcome"] == "not_sent"):
         raise AnalysisError("READBACK_REQUIRED")
@@ -966,6 +966,36 @@ def _recover_predecessor_readback_binding(receipt_path, observation_path, receip
         binding_path.unlink()
         return receipt
     raise AnalysisError("READBACK_REQUIRED")
+
+
+def _predecessor_readback_binding_path(receipt_path):
+    return _readback_binding_path(receipt_path)
+
+
+def _predecessor_readback_binding(receipt, observation, normalized, contract):
+    return _readback_binding(receipt, observation, normalized,
+                             kind="wire_schema_predecessor_readback",
+                             receipt_identity=contract["receiptIdentity"],
+                             request_sha256=contract["requestSha256"])
+
+
+def _recover_predecessor_readback_binding(receipt_path, observation_path, receipt, contract):
+    return _recover_readback_binding(receipt_path, observation_path, receipt,
+                                     kind="wire_schema_predecessor_readback",
+                                     receipt_identity=contract["receiptIdentity"])
+
+
+def _active_readback_binding(receipt, observation, normalized):
+    return _readback_binding(receipt, observation, normalized,
+                             kind="active_schema_readback",
+                             receipt_identity=receipt.get("identity"),
+                             request_sha256=observation["requestSha256"])
+
+
+def _recover_active_readback_binding(receipt_path, observation_path, receipt, receipt_identity):
+    return _recover_readback_binding(receipt_path, observation_path, receipt,
+                                     kind="active_schema_readback",
+                                     receipt_identity=receipt_identity)
 
 
 def _wire_schema_predecessor_readback(state, row, config, *, provider, max_calls, result):
@@ -1512,8 +1542,15 @@ def readback(rows, state, config, *, provider=False, max_calls=0):
                         validate_saved_evidence(part, span, config)
                     else:
                         observation_path = part_path.with_name(part_path.name.replace(".receipt.json", ".observation.json"))
+                        expected_part_identity = identity(span, config)
+                        part_receipt = _recover_active_readback_binding(
+                            part_path, observation_path, part_receipt, expected_part_identity)
                         observed = validate_observation(checked_document(observation_path))
-                        if (not provider or not observed["responseId"] or observed["operation"] not in ("generate", "readback")
+                        if (part_receipt.get("identity") != expected_part_identity
+                                or part_receipt.get("observationSha256") != digest(observed)
+                                or part_receipt.get("state") not in ("running", "uncertain", "rejected")
+                                or not provider or not observed["responseId"]
+                                or observed["operation"] not in ("generate", "readback")
                                 or result["readbackCalls"] >= max_calls):
                             raise AnalysisError("READBACK_REQUIRED")
                         key = os.environ.get("GEMINI_CREDITS_API_KEY") or os.environ.get("GEMINI_API_KEY")
@@ -1524,8 +1561,28 @@ def readback(rows, state, config, *, provider=False, max_calls=0):
                         atomic_document(part_path, part_receipt)
                         result["readbackCalls"] += 1
 
+                        durable_observation = observed
+
                         def observe(value):
-                            atomic_document(observation_path, validate_observation(value))
+                            nonlocal durable_observation, part_receipt
+                            normalized = validate_observation(value)
+                            if normalized["requestSha256"] != durable_observation["requestSha256"]:
+                                raise AnalysisError("READBACK_REQUIRED")
+                            if normalized["httpOutcome"] == "not_sent":
+                                return
+                            if (normalized["usage"]["totalTokens"] is None
+                                    and durable_observation["usage"]["totalTokens"] is not None):
+                                normalized = {**normalized, "usage": durable_observation["usage"]}
+                            binding_path = _readback_binding_path(part_path)
+                            atomic_document(binding_path, _active_readback_binding(
+                                part_receipt, durable_observation, normalized))
+                            atomic_document(observation_path, normalized)
+                            durable_observation = normalized
+                            updated_receipt = {**part_receipt, "usage": normalized["usage"],
+                                               "observationSha256": digest(normalized)}
+                            atomic_document(part_path, updated_receipt)
+                            part_receipt = updated_receipt
+                            binding_path.unlink()
 
                         recovered = adapter.invoke(checkout=config.checkout, model=config.model, video_id=row["videoId"],
                             start=span["segmentStartSeconds"], end=span["segmentEndSeconds"], prompt=segment_prompt(span),
