@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 1,
+  "buildId": "PAhiV2v8TfHlQW4XwMk4s",
+  "observedAt": "2026-10-11T17:02:23.616Z",
+  "sampleCount": 1,
+  "states": [
+    {
+      "step": "initial",
+      "state": {
+        "charts": 2,
+        "positiveWrappers": 2,
+        "series": [
+          {
+            "label": "조회수 숨기기",
+            "pressed": "true"
+          },
+          {
+            "label": "참여 숨기기",
+            "pressed": "true"
+          },
+          {
+            "label": "참여율 숨기기",
+            "pressed": "true"
+          }
+        ],
+        "wrappers": [
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 273.15625,
+            "ready": "true",
+            "width": 313.6875
+          },
+          {
+            "height": 273.15625,
+            "ready": "true",
+            "width": 433.609375
+          }
+        ]
+      }
+    },
+    {
+      "step": "table-with-view-series-hidden",
+      "state": {
+        "charts": 1,
+        "positiveWrappers": 1,
+        "series": [
+          {
+            "label": "조회수 보이기",
+            "pressed": "false"
+          },
+          {
+            "label": "참여 숨기기",
+            "pressed": "true"
+          },
+          {
+            "label": "참여율 숨기기",
+            "pressed": "true"
+          }
+        ],
+        "wrappers": [
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 845.984375,
+            "ready": "true",
+            "width": 309.1875
+          }
+        ]
+      }
+    },
+    {
+      "step": "graph-restored-series-state",
+      "state": {
+        "charts": 2,
+        "positiveWrappers": 2,
+        "series": [
+          {
+            "label": "조회수 보이기",
+            "pressed": "false"
+          },
+          {
+            "label": "참여 숨기기",
+            "pressed": "true"
+          },
+          {
+            "label": "참여율 숨기기",
+            "pressed": "true"
+          }
+        ],
+        "wrappers": [
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 845.984375,
+            "ready": "true",
+            "width": 309.1875
+          },
+          {
+            "height": 845.984375,
+            "ready": "true",
+            "width": 427.609375
+          }
+        ]
+      }
+    }
+  ],
+  "accepted": false,
+  "failure": "chart-height-remained-enlarged-after-table-to-graph",
+  "limitations": [
+    "Synthetic fixture and one transition only."
+  ]
+}

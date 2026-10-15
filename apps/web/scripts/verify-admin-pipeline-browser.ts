@@ -116,7 +116,9 @@ for (const width of (statesOnly ? [] : consoleProbe ? [390] : [390, 834, 1423]))
   assert.equal(await page.locator('[data-pipeline-stage-detail]').count(), 0);
   assert.equal(await page.locator('[data-admin-pipeline-jobs]').count(), 0);
   const observation = await panel.evaluate(root => {
-    const title = getComputedStyle(root.querySelector('[data-admin-page-header] h2')!);
+    const titleElement = root.querySelector('[data-admin-page-header] .admin-page-header-title');
+    if (!titleElement) throw new Error('PIPELINE_SHARED_HEADER_TITLE_MISSING');
+    const title = getComputedStyle(titleElement);
     const svg = root.querySelector('[data-pipeline-flow-diagram] svg')!;
     const svgBox = svg.getBoundingClientRect();
     const nodes = [...svg.querySelectorAll('g[role="button"]')];

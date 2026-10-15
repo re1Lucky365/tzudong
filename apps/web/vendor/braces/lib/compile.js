@@ -2,8 +2,10 @@
 
 const fill = require('fill-range');
 const utils = require('./utils');
+const { createBudget, reserveRange, assertOutputLength } = require('./resource-guard');
 
 const compile = (ast, options = {}) => {
+  const budget = createBudget();
   const walk = (node, parent = {}) => {
     const invalidBlock = utils.isInvalidBrace(parent);
     const invalidNode = node.invalid === true && options.escapeInvalid === true;
@@ -16,7 +18,6 @@ const compile = (ast, options = {}) => {
     }
 
     if (node.isClose === true) {
-      console.log('node.isClose', prefix, node.value);
       return prefix + node.value;
     }
 
@@ -38,23 +39,25 @@ const compile = (ast, options = {}) => {
 
     if (node.nodes && node.ranges > 0) {
       const args = utils.reduce(node.nodes);
+      reserveRange(args, options, budget, true);
       const range = fill(...args, { ...options, wrap: false, toRegex: true, strictZeros: true });
 
       if (range.length !== 0) {
-        return args.length > 1 && range.length > 1 ? `(${range})` : range;
+        return assertOutputLength(args.length > 1 && range.length > 1 ? `(${range})` : range);
       }
     }
 
     if (node.nodes) {
       for (const child of node.nodes) {
         output += walk(child, node);
+        assertOutputLength(output);
       }
     }
 
     return output;
   };
 
-  return walk(ast);
+  return assertOutputLength(walk(ast));
 };
 
 module.exports = compile;

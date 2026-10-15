@@ -1,0 +1,36 @@
+{
+  "schema": "tzudong-canonical-title-patterns/v1",
+  "receiptRecordedAt": "2026-10-13T11:17:07.778818+00:00",
+  "evidenceClass": "local-pure-script-block-execution",
+  "sourceBindings": [
+    {
+      "path": "apps/web/scripts/verify-admin-pipeline-browser.ts",
+      "bytes": 20713,
+      "sha256": "07e1134ccc7315cb93371d40b577eaf934e594ec3c7913c8a79e25fe88df4b8e"
+    },
+    {
+      "path": "apps/web/scripts/verify-admin-sidebar-pages-browser.ts",
+      "bytes": 42346,
+      "sha256": "8d81317901080253fc3335f71f04faf58e1b3bd2b5428df6dfe3025e750257f6"
+    },
+    {
+      "path": "apps/web/lib/admin/admin-module-metadata.ts",
+      "bytes": 881,
+      "sha256": "fa51249ba3430c3473840b2e73ca6bb2dcef6f9de69f449f0acd3c7a8d955520"
+    },
+    {
+      "path": "apps/web/components/admin/AdminPageHeader.tsx",
+      "bytes": 1497,
+      "sha256": "ac2621a32fbed7b801798675683a439b8900621ef86e6116034d71a1cfb40a73"
+    }
+  ],
+  "canonicalTitlesMatched": 15,
+  "missing": 0,
+  "titleSelector": "[data-admin-page-header] .admin-page-header-title",
+  "syntaxChecksPassed": 2,
+  "targetedEslint": "passed",
+  "browserConnections": 0,
+  "externalRequests": 0,
+  "browserMatrixReplayed": false,
+  "performanceClaim": null
+}

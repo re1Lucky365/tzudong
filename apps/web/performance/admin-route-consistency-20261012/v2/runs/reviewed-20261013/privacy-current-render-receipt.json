@@ -1,0 +1,59 @@
+{
+  "schema": "tzudong-current-privacy-native-render/v1",
+  "capturedAt": "2026-10-13T09:38:39.353Z",
+  "buildId": "VsVqwHP7JPw_Dah--3Lp1",
+  "buildReceiptSha256": "870f6bf66469dc0d29f741937f069171f6d38f29d83bb7db183d39be7cee2ab2",
+  "runtimeAttempt": "scenario-sweep-20261013",
+  "surface": "native-chrome-cua",
+  "data": "synthetic-loopback-only",
+  "viewportEvidence": [
+    "390×844",
+    "1024×844",
+    "1440×900"
+  ],
+  "observations": {
+    "initialFailure": [
+      "텍스트 사고 현황 미확인",
+      "텍스트 사고 목록을 불러오지 못했습니다. 새로고침하여 다시 확인하세요."
+    ],
+    "successfulEmpty": [
+      "텍스트 0건",
+      "텍스트 표시할 사고가 없습니다. 위 탐지 등록으로 첫 사고를 기록한 뒤 상태 전환을 진행하세요."
+    ],
+    "successfulBeforeRefresh": [
+      "텍스트 3건 · 기한 위험 2건"
+    ],
+    "refreshFailure": [
+      "텍스트 3건 · 기한 위험 2건 · 갱신 실패",
+      "텍스트 새로고침에 실패해 마지막 확인 결과를 표시합니다."
+    ],
+    "delayedPending": [
+      "텍스트 사고 현황 조회 중",
+      "버튼 (disabled) 개인정보 사고 목록 새로고침",
+      "텍스트 사고 목록을 불러오는 중입니다."
+    ],
+    "delayedFinal": [
+      "텍스트 3건 · 기한 위험 2건"
+    ]
+  },
+  "boundaries": {
+    "providerCalls": 0,
+    "hostedWrites": 0,
+    "applicationMutations": 0,
+    "deviceProof": false,
+    "performanceClaim": false,
+    "consoleVerification": false,
+    "exactGeometryVerification": false,
+    "delayedPendingScreenshot": false
+  },
+  "excludedEvidence": {
+    "privacy-cua-native-width24-failed-input.jpg": "input did not produce requested width; excluded from viewport acceptance"
+  },
+  "restoration": {
+    "responsiveWidth": 400,
+    "responsiveHeight": null,
+    "deviceToolbarOff": true,
+    "devtoolsClosed": true,
+    "confirmedAt": "2026-10-13T09:39:46.796Z"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "schema": "tzudong-merged-controller-verification/v1",
+  "parentHead": "7c2ad0c841193f5b2e4df9836be25afbce1f1068",
+  "initialInvocation": {
+    "passedBodies": 89,
+    "failedCleanupHooks": 1,
+    "assertions": 659,
+    "exitCode": 1,
+    "observedSeconds": 68.09
+  },
+  "change": "Release only suite-owned temporary directories after each test instead of retaining all fixtures until afterAll. Keep the failed path registered if deletion throws. No test body or default timeout is removed or relaxed.",
+  "affectedVerification": {
+    "files": 3,
+    "passed": 89,
+    "failed": 0,
+    "assertions": 659,
+    "exitCode": 0,
+    "observedSeconds": 47.57
+  },
+  "typecheckParity": {
+    "passed": true,
+    "diagnostics": 0,
+    "logicalInputs": 3152,
+    "logicalInputNamesSha256": "f4881c3f7a10caaad03adf1092a77a5766e3aca2e4c3f270e710e0e7da578575",
+    "nonLibraryContentSha256": "523c6354c4d0fce3e3ee9b36f1bfb1970be130898aa796d7e587d0342edea0c8",
+    "native": "7.0.2",
+    "compat": "6.0.2"
+  },
+  "sourceBindings": [
+    {
+      "path": "apps/web/tests-unit/review-media-operating-admission.test.ts",
+      "bytes": 22546,
+      "sha256": "fe831093e75071ec8851d1647a0cc6e9d1f8117ee189a0bf68671d7816c7bc42"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-sql-successor.test.ts",
+      "bytes": 87270,
+      "sha256": "2d29f4fc5385965bc572339d5dbcf64f25718194b7bb6e287bfcb5ed7e03b12c"
+    }
+  ],
+  "limits": [
+    "Single local invocations under different load are not paired performance evidence. No speed, RSS or monetary improvement is claimed.",
+    "The first parity CLI invocation used an unsupported flag and ran no compiler; the subsequent supported --compiler parity invocation passed.",
+    "No provider, hosted DB, deployment, workflow rerun or branch protection bypass."
+  ]
+}
