@@ -375,6 +375,9 @@ def analyze_record(
         isinstance(jobs_total_count, int)
         and not isinstance(jobs_total_count, bool)
         and jobs_total_count == len(jobs_raw)
+        and isinstance(jobs_attempt, int)
+        and not isinstance(jobs_attempt, bool)
+        and jobs_attempt > 0
         and jobs_attempt == attempt
     )
     jobs = [normalize_job(job) for job in jobs_raw]

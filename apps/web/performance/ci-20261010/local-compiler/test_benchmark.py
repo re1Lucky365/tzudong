@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import math
 import shutil
 import subprocess
@@ -18,6 +19,43 @@ SPEC.loader.exec_module(BENCHMARK)
 
 
 class CleanSourceAdmissionTests(unittest.TestCase):
+    def test_compiler_provenance_requires_every_executed_implementation_role(self) -> None:
+        provenance = {
+            role: f"compiler/{role}"
+            for role in BENCHMARK.COMPILER_PROVENANCE_ROLES
+        }
+        dependency_hashes = {
+            path: hashlib.sha256(path.encode("utf-8")).hexdigest()
+            for path in provenance.values()
+        }
+        validated = BENCHMARK.validate_compiler_provenance_contract(
+            {"compilerProvenance": provenance}, dependency_hashes
+        )
+        self.assertEqual(set(validated), BENCHMARK.COMPILER_PROVENANCE_ROLES)
+        for role, path in provenance.items():
+            self.assertEqual(
+                validated[role],
+                {"path": path, "sha256": dependency_hashes[path]},
+            )
+
+        for role in sorted(BENCHMARK.COMPILER_PROVENANCE_ROLES):
+            with self.subTest(missing_role=role):
+                incomplete = dict(provenance)
+                incomplete.pop(role)
+                with self.assertRaisesRegex(
+                    RuntimeError, "compiler provenance roles are incomplete"
+                ):
+                    BENCHMARK.validate_compiler_provenance_contract(
+                        {"compilerProvenance": incomplete}, dependency_hashes
+                    )
+
+        with self.assertRaisesRegex(
+            RuntimeError, "compiler provenance hash is missing"
+        ):
+            BENCHMARK.validate_compiler_provenance_contract(
+                {"compilerProvenance": provenance}, {}
+            )
+
     def make_repository(self, root: Path) -> Path:
         repository = root / "repository"
         source = repository / "apps/web"

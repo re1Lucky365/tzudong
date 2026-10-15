@@ -637,6 +637,25 @@ class MonitorCiPerformanceTests(unittest.TestCase):
                 run["attempt"] = invalid
                 self.assert_input_rejected(payload([run]), name=f"bad-attempt-{invalid!s}.json")
 
+    def test_jobs_attempt_requires_a_non_boolean_positive_integer(self) -> None:
+        for invalid in (True, False, 0, -1, "1", None):
+            with self.subTest(invalid=invalid):
+                run = make_run(1_046, 20, attempt=1)
+                run["jobsAttempt"] = invalid
+                observation = MONITOR.analyze_record(
+                    run,
+                    "after",
+                    ".github/workflows/web-admin-ci.yml",
+                    True,
+                    "3" * 64,
+                )
+                self.assertFalse(observation["timingUsable"])
+                self.assertFalse(observation["attemptJobSetComplete"])
+                self.assertFalse(observation["snapshotImmutable"])
+                self.assertIn(
+                    "incomplete_job_set", observation["timingExclusionReasons"]
+                )
+
     def test_run_envelope_violations_are_fixed_codes(self) -> None:
         cases = {
             "start": ("startedAt", -1, "RUN_START_PRECEDES_RUN_CREATION"),

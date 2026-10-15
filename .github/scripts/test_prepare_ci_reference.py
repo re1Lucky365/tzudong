@@ -169,7 +169,7 @@ class CiReferenceTests(unittest.TestCase):
         self.assertFalse(REFERENCE.attempt_resolved(pending))
         self.assertTrue(REFERENCE.attempt_resolved(tombstone))
 
-    def test_chronology_invalid_success_is_resolved_but_never_enters_candidate(self):
+    def test_chronology_invalid_success_blocks_candidate_until_corrected(self):
         successes = self.successes(start=400)
         defective = FIXTURE.make_run(499, 50, attempt=2)
         defective["jobs"][0]["createdAt"] = FIXTURE.timestamp(
@@ -184,12 +184,14 @@ class CiReferenceTests(unittest.TestCase):
         result = REFERENCE.evaluate_reference(
             self.state, self.checkpoint, "001"
         )
-        self.assertEqual(result["status"], "reference_candidate_ready")
+        self.assertEqual(result["status"], "collecting_reference")
         self.assertEqual(result["successCount"], 7)
         self.assertEqual(result["distinctSourceTreeCount"], 7)
         self.assertEqual(result["candidateAttemptCount"], 7)
-        self.assertEqual(result["blockingPendingCount"], 0)
-        self.assertEqual(result["pendingReasonCounts"], {})
+        self.assertEqual(result["blockingPendingCount"], 1)
+        self.assertEqual(
+            result["pendingReasonCounts"], {"chronology_invalid_attempt": 1}
+        )
         self.assertEqual(result["timingExcludedTerminalCount"], 1)
         self.assertEqual(
             result["timingExclusionReasonCounts"],
@@ -200,10 +202,10 @@ class CiReferenceTests(unittest.TestCase):
             result["chronologyIssueCodeCounts"],
             {"JOB_START_PRECEDES_JOB_CREATION": 1},
         )
-        self.assertEqual(result["pendingAssessments"], [])
-        self.assertTrue((self.state / "reference-candidates").exists())
+        self.assertEqual(len(result["pendingAssessments"]), 1)
+        self.assertFalse((self.state / "reference-candidates").exists())
 
-    def test_later_terminal_chronology_defect_does_not_replace_or_block_candidate(self):
+    def test_later_refreshable_chronology_defect_blocks_frozen_candidate(self):
         successes = self.successes(start=420)
         self.write_checkpoint(successes)
         self.write_tick("001", successes)
@@ -225,14 +227,14 @@ class CiReferenceTests(unittest.TestCase):
             self.state, self.checkpoint, "002"
         )
 
-        self.assertEqual(blocked["status"], "reference_candidate_ready")
-        self.assertEqual(blocked["blockingPendingCount"], 0)
+        self.assertEqual(blocked["status"], "collecting_reference")
+        self.assertEqual(blocked["blockingPendingCount"], 1)
         self.assertEqual(blocked["timingExcludedTerminalCount"], 1)
         self.assertEqual(
             blocked["candidateBaselineSha256"],
             ready["candidateBaselineSha256"],
         )
-        self.assertIn("notificationKey", blocked)
+        self.assertNotIn("notificationKey", blocked)
 
     def test_unverified_shape_or_revision_pending_blocks_reference(self):
         successes = self.successes(start=800)
@@ -343,6 +345,34 @@ class CiReferenceTests(unittest.TestCase):
         self.assertEqual(ready["status"], "reference_candidate_ready")
         self.assertEqual(ready["blockingPendingCount"], 0)
         self.assertFalse(ready["transitionPolicy"]["automaticPhaseMoveAllowed"])
+
+    def test_refreshable_success_blocks_freeze_until_snapshot_is_immutable(self):
+        successes = self.successes(start=1200)
+        refreshable = FIXTURE.make_run(1207, 50)
+        refreshable["jobs"][0]["createdAt"] = FIXTURE.timestamp(
+            REFERENCE.MONITOR.parse_timestamp(
+                refreshable["jobs"][0]["startedAt"]
+            ) + timedelta(seconds=1)
+        )
+        self.write_checkpoint(successes + [refreshable])
+        self.write_tick("001", successes + [refreshable])
+
+        collecting = REFERENCE.evaluate_reference(
+            self.state, self.checkpoint, "001"
+        )
+        self.assertEqual(collecting["status"], "collecting_reference")
+        self.assertEqual(collecting["blockingPendingCount"], 1)
+        self.assertEqual(
+            collecting["transitionPolicy"]["unresolvedAttemptCount"], 1
+        )
+
+        corrected = FIXTURE.make_run(1207, 50)
+        self.write_checkpoint(successes + [corrected])
+        self.write_tick("002", successes + [corrected])
+        ready = REFERENCE.evaluate_reference(self.state, self.checkpoint, "002")
+        self.assertEqual(ready["status"], "reference_candidate_ready")
+        self.assertEqual(ready["successCount"], 8)
+        self.assertEqual(ready["blockingPendingCount"], 0)
 
     def test_collecting_reference_reads_latest_tick_only(self):
         old = self.successes(start=450, count=1)

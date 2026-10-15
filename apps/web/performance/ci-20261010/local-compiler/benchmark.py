@@ -53,6 +53,16 @@ TIME_VALUE_RE = re.compile(
     r"^(real|user|sys)\s+(\d+(?:\.\d+)?)\s*$", re.MULTILINE
 )
 EXPERIMENT_CONFIG_SCHEMA = "tzudong-ci-performance/v2/local-compiler-experiment"
+COMPILER_PROVENANCE_ROLES = {
+    "nativeCliEntrypoint",
+    "nativeLauncherImplementation",
+    "nativeExecutableResolver",
+    "nativePlatformBinary",
+    "compatCliEntrypoint",
+    "compatBridgeImplementation",
+    "compatCliImplementation",
+    "compatCompilerImplementation",
+}
 
 
 def sha256_file(path: Path) -> str:
@@ -414,6 +424,30 @@ def verify_file_hashes(root: Path, expected: dict[str, Any], label: str) -> dict
     return actual
 
 
+def validate_compiler_provenance_contract(
+    config: dict[str, Any], dependency_hashes: dict[str, str]
+) -> dict[str, dict[str, str]]:
+    provenance = config.get("compilerProvenance")
+    if not isinstance(provenance, dict) or set(provenance) != COMPILER_PROVENANCE_ROLES:
+        raise RuntimeError("compiler provenance roles are incomplete")
+    validated: dict[str, dict[str, str]] = {}
+    for role in sorted(COMPILER_PROVENANCE_ROLES):
+        relative = provenance.get(role)
+        if (
+            not isinstance(relative, str)
+            or not relative
+            or Path(relative).is_absolute()
+            or "\\" in relative
+            or any(part in {"", ".", ".."} for part in Path(relative).parts)
+        ):
+            raise RuntimeError(f"compiler provenance path is malformed: {role}")
+        digest = dependency_hashes.get(relative)
+        if digest is None:
+            raise RuntimeError(f"compiler provenance hash is missing: {role}")
+        validated[role] = {"path": relative, "sha256": digest}
+    return validated
+
+
 def validate_acceptance_budgets(config: dict[str, Any]) -> dict[str, Any]:
     budgets = config.get("acceptanceBudgets")
     numeric_budgets = (
@@ -484,11 +518,15 @@ def validate_experiment_contract(
     dependency_hashes = verify_file_hashes(
         node_modules, config.get("expectedDependencyHashes"), "dependency"
     )
+    compiler_provenance = validate_compiler_provenance_contract(
+        config, dependency_hashes
+    )
     return {
         "gitHead": head_sha,
         "sourceTreeSha": source_tree_sha,
         "sourceHashes": source_hashes,
         "dependencyHashes": dependency_hashes,
+        "compilerProvenance": compiler_provenance,
         "nodeModulesTarget": str(dependency_target),
     }
 
@@ -767,6 +805,7 @@ def main() -> int:
         "loadAverageBefore": load_before,
         "sourceHashes": contract_before["sourceHashes"],
         "dependencyHashes": contract_before["dependencyHashes"],
+        "compilerProvenance": contract_before["compilerProvenance"],
         "nodeModulesTarget": contract_before["nodeModulesTarget"],
         "trackedSnapshotContract": snapshot_contract_before,
         "snapshotPruning": snapshot_pruning,

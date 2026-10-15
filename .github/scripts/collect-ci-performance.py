@@ -372,7 +372,19 @@ def collect_online(
             f"repos/{repository}/actions/runs/{run['id']}/jobs",
             {"per_page": 100},
         )
-        sanitized_runs.append(sanitize_run(run, jobs_payload.get("jobs") or []))
+        jobs = jobs_payload.get("jobs")
+        total_count = jobs_payload.get("total_count")
+        if (
+            not isinstance(jobs, list)
+            or not isinstance(total_count, int)
+            or isinstance(total_count, bool)
+            or total_count != len(jobs)
+        ):
+            raise CollectionError(
+                f"incomplete jobs response for run {run['id']}: "
+                "advertised count does not match collected jobs"
+            )
+        sanitized_runs.append(sanitize_run(run, jobs))
 
     successful: list[dict[str, Any]] = []
     excluded: list[dict[str, Any]] = []

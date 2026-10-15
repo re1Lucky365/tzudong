@@ -264,6 +264,8 @@ def select_current_cohort(observations: list[dict]) -> str | None:
 def attempt_resolved(observation: dict) -> bool:
     if observation.get("tombstone"):
         return True
+    if observation.get("conclusion") == "success":
+        return observation.get("snapshotImmutable") is True
     return bool(
         observation.get(
             "terminalOutcomeComplete",

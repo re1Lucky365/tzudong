@@ -85,6 +85,42 @@ def replay_payloads():
 
 
 class CollectorAdmissionTests(unittest.TestCase):
+    def test_online_collection_rejects_incomplete_or_malformed_job_counts(self):
+        source_runs = [complete_run(run_id, run_id) for run_id in range(1, 8)]
+        api_runs = []
+        jobs_by_run = {}
+        for source in source_runs:
+            run = copy.deepcopy(source)
+            jobs = run.pop("jobs")
+            api_runs.append(run)
+            jobs_by_run[run["id"]] = jobs
+
+        original = M.gh_api
+        try:
+            for advertised_count in (2, True, None):
+                with self.subTest(advertised_count=advertised_count):
+                    def fake_api(endpoint, fields=None):
+                        if endpoint.endswith("/runs"):
+                            return {"workflow_runs": api_runs}
+                        run_id = int(endpoint.split("/")[-2])
+                        return {
+                            "total_count": advertised_count,
+                            "jobs": jobs_by_run[run_id],
+                        }
+
+                    M.gh_api = fake_api
+                    with self.assertRaisesRegex(
+                        M.CollectionError, "advertised count does not match"
+                    ):
+                        M.collect_online(
+                            "twoimo/tzudong",
+                            "web-admin-ci.yml",
+                            7,
+                            "2026-10-15T00:00:00Z",
+                        )
+        finally:
+            M.gh_api = original
+
     def test_success_requires_every_non_skipped_step_to_be_terminal_and_timed(self):
         incomplete = complete_run(1, 0)
         step = incomplete["jobs"][0]["steps"][0]
