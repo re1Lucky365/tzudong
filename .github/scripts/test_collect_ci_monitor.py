@@ -470,6 +470,14 @@ class CollectorTests(unittest.TestCase):
             second_reader,
             terminal_probe_limit=1,
         )
+        third_reader = DiscoveryReader([], {10: originals[0], 20: originals[1]})
+        third = M.collect(
+            "twoimo/tzudong",
+            "web-admin-ci.yml",
+            self.cache,
+            third_reader,
+            terminal_probe_limit=1,
+        )
 
         self.assertEqual(first["coverage"]["knownTerminalRunCount"], 2)
         self.assertEqual(first["coverage"]["knownTerminalRunsExamined"], 1)
@@ -494,6 +502,17 @@ class CollectorTests(unittest.TestCase):
         ]
         self.assertEqual(direct_first, ["repos/twoimo/tzudong/actions/runs/10"])
         self.assertEqual(direct_second, ["repos/twoimo/tzudong/actions/runs/20"])
+        self.assertEqual(second["coverage"]["knownTerminalRunsExamined"], 2)
+        self.assertEqual(second["coverage"]["knownTerminalRunsExaminedThisTick"], 1)
+        self.assertTrue(second["coverage"]["knownTerminalRerunRefreshComplete"])
+        self.assertTrue(second["coverage"]["incrementalWindowComplete"])
+        self.assertNotIn(
+            "KNOWN_TERMINAL_RERUN_REFRESH_INCOMPLETE",
+            second["coverage"]["alerts"],
+        )
+        self.assertEqual(third["coverage"]["knownTerminalRunsExamined"], 1)
+        self.assertFalse(third["coverage"]["knownTerminalRerunRefreshComplete"])
+        self.assertFalse(third["coverage"]["incrementalWindowComplete"])
 
     def test_created_window_list_can_cover_terminal_ids_beyond_probe_slice(self):
         originals = [run(run_id=21), run(run_id=22, minute=1)]

@@ -944,6 +944,39 @@ class MonitorCiPerformanceTests(unittest.TestCase):
         self.assertEqual(cohort["failureSignal"], "insufficient_samples")
         self.assertIn("workflow_cohort_metadata_unverified", cohort["warnings"])
 
+    def test_unknown_event_cannot_verify_cohort_or_emit_signals(self) -> None:
+        before = self.write(
+            "unknown-event-before.json",
+            payload(
+                [
+                    make_run(1_450 + index, 100, event="unknown")
+                    for index in range(7)
+                ]
+            ),
+        )
+        after = self.write(
+            "unknown-event-after.json",
+            payload(
+                [
+                    make_run(1_550 + index, 50, event="unknown")
+                    for index in range(7)
+                ]
+                + [make_run(1_557, 50, conclusion="failure", event="unknown")]
+            ),
+        )
+        receipt = self.invoke(before, after)
+        cohort = receipt["analysis"]["cohorts"][0]
+        self.assertEqual(cohort["metrics"], {})
+        self.assertEqual(cohort["failureSignal"], "insufficient_samples")
+        self.assertIn("workflow_cohort_metadata_unverified", cohort["warnings"])
+        checkpoint = json.loads(self.checkpoint.read_text(encoding="utf-8"))
+        self.assertTrue(
+            all(
+                not observation["cohortMetadataVerified"]
+                for observation in checkpoint["runs"].values()
+            )
+        )
+
     def test_damaged_checkpoint_fails_without_overwriting_receipt(self) -> None:
         self.checkpoint.write_text("{broken", encoding="utf-8")
         self.receipt.write_text("unchanged", encoding="utf-8")

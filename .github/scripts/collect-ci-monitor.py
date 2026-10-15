@@ -244,6 +244,7 @@ def database(path):
     db.execute("CREATE TABLE IF NOT EXISTS runs (run_id INTEGER, attempt INTEGER, fingerprint TEXT, terminal INTEGER, record TEXT, PRIMARY KEY(run_id,attempt))")
     db.execute("CREATE TABLE IF NOT EXISTS sources (sha TEXT PRIMARY KEY, tree_sha TEXT, workflow_revision TEXT)")
     db.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
+    db.execute("CREATE TABLE IF NOT EXISTS terminal_refresh_cycle (run_id INTEGER PRIMARY KEY)")
     db.commit()
     return db
 
@@ -415,6 +416,16 @@ def collect(
             """
         ).fetchall()
         known_terminal_ids = [row[0] for row in terminal_rows]
+        terminal_inventory_digest = digest(known_terminal_ids)
+        inventory_row = db.execute(
+            "SELECT value FROM meta WHERE key='terminal_refresh_inventory_digest'"
+        ).fetchone()
+        if not inventory_row or inventory_row[0] != terminal_inventory_digest:
+            db.execute("DELETE FROM terminal_refresh_cycle")
+            db.execute(
+                "INSERT OR REPLACE INTO meta VALUES('terminal_refresh_inventory_digest',?)",
+                (terminal_inventory_digest,),
+            )
         cursor_row = db.execute(
             "SELECT value FROM meta WHERE key='terminal_probe_cursor'"
         ).fetchone()
@@ -427,33 +438,50 @@ def collect(
             known_terminal_ids[start_index:] + known_terminal_ids[:start_index]
         )
         probed_terminal_ids = ordered_terminal_ids[:terminal_probe_limit]
+        probed_terminal_ids_found = set()
         terminal_probe_not_found = 0
         terminal_probe_api_reads = 0
         for run_id in probed_terminal_ids:
             if run_id in checked_run_ids:
+                probed_terminal_ids_found.add(run_id)
                 continue
             terminal_probe_api_reads += 1
             try:
                 source_runs.append(
                     reader.get(f"repos/{repository}/actions/runs/{run_id}")
                 )
+                probed_terminal_ids_found.add(run_id)
             except ReadError as error:
                 if error.code != "NOT_FOUND":
                     raise
                 terminal_probe_not_found += 1
+                db.execute(
+                    "DELETE FROM terminal_refresh_cycle WHERE run_id=?", (run_id,)
+                )
                 alerts.append("KNOWN_TERMINAL_REFRESH_NOT_FOUND")
         if probed_terminal_ids:
             db.execute(
                 "INSERT OR REPLACE INTO meta VALUES('terminal_probe_cursor',?)",
                 (str(probed_terminal_ids[-1]),),
             )
-        terminal_ids_observed = set(known_terminal_ids) & (
-            checked_run_ids | set(probed_terminal_ids)
+        terminal_ids_observed_this_tick = set(known_terminal_ids) & (
+            checked_run_ids | probed_terminal_ids_found
         )
+        db.executemany(
+            "INSERT OR IGNORE INTO terminal_refresh_cycle VALUES(?)",
+            [(run_id,) for run_id in sorted(terminal_ids_observed_this_tick)],
+        )
+        terminal_ids_observed_in_cycle = db.execute(
+            "SELECT count(*) FROM terminal_refresh_cycle"
+        ).fetchone()[0]
         known_terminal_refresh_complete = bool(
-            len(terminal_ids_observed) == len(known_terminal_ids)
+            terminal_ids_observed_in_cycle == len(known_terminal_ids)
             and terminal_probe_not_found == 0
         )
+        if known_terminal_refresh_complete:
+            # This tick closes one stable-inventory cycle. Start the next cycle
+            # empty so no later tick claims freshness from an earlier rotation.
+            db.execute("DELETE FROM terminal_refresh_cycle")
         if not known_terminal_refresh_complete:
             alerts.append("KNOWN_TERMINAL_RERUN_REFRESH_INCOMPLETE")
         incremental_window_complete = bool(
@@ -563,7 +591,10 @@ def collect(
             "unlistedHistoricalRerunDiscoveryComplete": history_inventory_complete,
             "knownTerminalRerunRefreshComplete": known_terminal_refresh_complete,
             "knownTerminalRunCount": len(known_terminal_ids),
-            "knownTerminalRunsExamined": len(terminal_ids_observed),
+            "knownTerminalRunsExamined": terminal_ids_observed_in_cycle,
+            "knownTerminalRunsExaminedThisTick": len(
+                terminal_ids_observed_this_tick
+            ),
             "knownTerminalRunApiReads": terminal_probe_api_reads,
             "knownTerminalRefreshNotFoundCount": terminal_probe_not_found,
             "knownTerminalRerunMaxDiscoveryTicks": (

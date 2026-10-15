@@ -49,6 +49,12 @@ SAFE_SHA = re.compile(r"^[0-9a-fA-F]{40}$")
 SAFE_GIT_OBJECT_ID = re.compile(r"^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$")
 SAFE_SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 SAFE_EVENT = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+VERIFIED_WORKFLOW_EVENTS = {
+    "pull_request",
+    "push",
+    "schedule",
+    "workflow_dispatch",
+}
 VALID_CONCLUSIONS = {
     "success",
     "failure",
@@ -662,6 +668,7 @@ def analyze_record(
     families = sorted({job["runnerFamily"] for job in jobs})
     cohort_metadata_verified = bool(
         workflow_metadata_verified
+        and event in VERIFIED_WORKFLOW_EVENTS
         and source_tree
         and workflow_revision
         and job_topology
