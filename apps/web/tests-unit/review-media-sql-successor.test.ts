@@ -306,6 +306,15 @@ function custodyFiles(document = admission()) {
     schemaVersion: 1,
     sourceRevision: document.sourceRevision,
     sourceRoot: document.sourceRoot,
+    storyboardPolicy: {
+      deployment: {
+        branch: 'main',
+        deploymentId: document.rollback.deploymentId,
+        sourceCommit: document.sourceRevision,
+      },
+      policy: { canonicalPolicySha256: 'c'.repeat(64) },
+      schemaVersion: 1,
+    },
   };
   const inFlightQuiescence = {
     coverage: [
@@ -733,6 +742,21 @@ test('apply accepts rehearsal evidence completed after thirty seconds within its
     verifiedAt: '2026-10-12T08:08:05.000Z',
     publishedAt: '2026-10-12T08:08:10.000Z',
   });
+  const rehearsalAdmissionDocument = JSON.parse(readFileSync(
+    join(files.directory, 'rehearsal-admission.json'),
+    'utf8',
+  ));
+  for (const key of [
+    'adminRecordMutationsHold', 'browserRpc', 'dashboard', 'directSql', 'providerIngress',
+  ]) {
+    expect(files.document.writerFences[key]).toEqual(rehearsalAdmissionDocument.writerFences[key]);
+  }
+  for (const key of ['automaticReviewer', 'g037WriteFreeze']) {
+    expect(files.document.writerFences[key].state)
+      .toBe(rehearsalAdmissionDocument.writerFences[key].state);
+    expect(files.document.writerFences[key].evidenceSha256)
+      .not.toBe(rehearsalAdmissionDocument.writerFences[key].evidenceSha256);
+  }
   expect(validateSuccessorAdmission(files.document, executableRecord, {
     now: new Date('2026-10-12T08:09:00.000Z'),
     receiptDirectory: files.directory,
@@ -791,6 +815,19 @@ test('apply rejects a changed deployment in fresh machine evidence even when reh
   const machine = JSON.parse(readFileSync(machinePath, 'utf8'));
   machine.adminRuntimeHold.deploymentId = 'dpl_ChangedDuringRehearsal123';
   writeFileSync(machinePath, canonicalBytes(machine), { mode: 0o600 });
+  rehashApplyOperatingEvidence(files);
+  expect(() => validateSuccessorAdmission(files.document, executableRecord, {
+    now: fixedNow,
+    receiptDirectory: files.directory,
+  })).toThrow('SUCCESSOR_ADMISSION_INVALID');
+});
+
+test('apply rejects a rehashed storyboard runtime deployment mismatch', () => {
+  const files = custodyFiles();
+  const bundlePath = join(files.directory, 'vercel-operating-bundle.json');
+  const bundle = JSON.parse(readFileSync(bundlePath, 'utf8'));
+  bundle.storyboardPolicy.deployment.deploymentId = 'dpl_ChangedStoryboardRuntime123';
+  writeFileSync(bundlePath, canonicalBytes(bundle), { mode: 0o600 });
   rehashApplyOperatingEvidence(files);
   expect(() => validateSuccessorAdmission(files.document, executableRecord, {
     now: fixedNow,

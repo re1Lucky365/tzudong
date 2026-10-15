@@ -73,6 +73,9 @@ const PRIVATE_RECEIPT_FILES = Object.freeze({
 const OPERATOR_CUSTODY_FENCES = Object.freeze([
   'browserRpc', 'dashboard', 'directSql', 'providerIngress',
 ]);
+const PHASE_STABLE_FENCES = Object.freeze([
+  'adminRecordMutationsHold', ...OPERATOR_CUSTODY_FENCES,
+]);
 const QUIESCENCE_RELATIONS = Object.freeze([
   'pipeline_control.admin_record_media_cleanup',
   'pipeline_control.admin_record_operations',
@@ -736,7 +739,16 @@ function validateApplyOperatingEvidence(admission, manifestRecord, {
   exactKeys(bundle, [
     'adminRecordMutationsHold', 'createdAt', 'expiresAt', 'kind', 'manifestSha256',
     'protectedMain', 'rollbackPolicy', 'rollbackReadback', 'schemaVersion',
-    'sourceRevision', 'sourceRoot',
+    'sourceRevision', 'sourceRoot', 'storyboardPolicy',
+  ], 'SUCCESSOR_ADMISSION_INVALID');
+  exactKeys(bundle.storyboardPolicy, [
+    'deployment', 'policy', 'schemaVersion',
+  ], 'SUCCESSOR_ADMISSION_INVALID');
+  exactKeys(bundle.storyboardPolicy.deployment, [
+    'branch', 'deploymentId', 'sourceCommit',
+  ], 'SUCCESSOR_ADMISSION_INVALID');
+  exactKeys(bundle.storyboardPolicy.policy, [
+    'canonicalPolicySha256',
   ], 'SUCCESSOR_ADMISSION_INVALID');
   if (bundle.schemaVersion !== 1
     || bundle.kind !== 'review-media-successor-vercel-operating-bundle'
@@ -749,7 +761,12 @@ function validateApplyOperatingEvidence(admission, manifestRecord, {
     || bundle.adminRecordMutationsHold?.deploymentId !== admission.rollback.deploymentId
     || bundle.adminRecordMutationsHold?.commit !== admission.sourceRevision
     || bundle.rollbackReadback?.deploymentId !== admission.rollback.deploymentId
-    || bundle.rollbackReadback?.gitSha !== admission.rollback.deploymentSha) {
+    || bundle.rollbackReadback?.gitSha !== admission.rollback.deploymentSha
+    || bundle.storyboardPolicy.schemaVersion !== 1
+    || bundle.storyboardPolicy.deployment.branch !== 'main'
+    || bundle.storyboardPolicy.deployment.deploymentId !== admission.rollback.deploymentId
+    || bundle.storyboardPolicy.deployment.sourceCommit !== admission.sourceRevision
+    || !HEX_SHA256.test(bundle.storyboardPolicy.policy.canonicalPolicySha256 ?? '')) {
     fail('SUCCESSOR_ADMISSION_INVALID');
   }
 
@@ -940,7 +957,13 @@ function validatePrivateReceipts(admission, manifestRecord, {
       || rehearsalAdmission.sourceReceiptSha256 !== admission.sourceReceiptSha256
       || rehearsalAdmission.protectedMainReceiptSha256 !== admission.protectedMainReceiptSha256
       || !equal(rehearsalAdmission.rollback, admission.rollback)
-      || !equal(rehearsalAdmission.writerFences, admission.writerFences)
+      || Object.keys(manifest.requiredWriterFences).some(key => (
+        rehearsalAdmission.writerFences[key].state !== admission.writerFences[key].state
+      ))
+      || PHASE_STABLE_FENCES.some(key => (
+        rehearsalAdmission.writerFences[key].evidenceSha256
+          !== admission.writerFences[key].evidenceSha256
+      ))
       || rehearsalAdmission.journalPathSha256 !== sha256(Buffer.from(resolve(
         receiptDirectory, PRIVATE_RECEIPT_FILES.rehearsalJournal,
       )))

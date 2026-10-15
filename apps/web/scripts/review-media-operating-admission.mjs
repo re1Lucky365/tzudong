@@ -640,11 +640,16 @@ function validateApplyOperatingEvidence({
   exactKeys(bundle, [
     'adminRecordMutationsHold', 'createdAt', 'expiresAt', 'kind', 'manifestSha256',
     'protectedMain', 'rollbackPolicy', 'rollbackReadback', 'schemaVersion',
-    'sourceRevision', 'sourceRoot',
+    'sourceRevision', 'sourceRoot', 'storyboardPolicy',
   ]);
   exactKeys(bundle.adminRecordMutationsHold, [
     'commit', 'deploymentId', 'holdActive', 'observedAt',
   ]);
+  exactKeys(bundle.storyboardPolicy, ['deployment', 'policy', 'schemaVersion']);
+  exactKeys(bundle.storyboardPolicy.deployment, [
+    'branch', 'deploymentId', 'sourceCommit',
+  ]);
+  exactKeys(bundle.storyboardPolicy.policy, ['canonicalPolicySha256']);
   if (bundle.schemaVersion !== 1
     || bundle.kind !== 'review-media-successor-vercel-operating-bundle'
     || bundle.manifestSha256 !== manifestSha256
@@ -656,7 +661,12 @@ function validateApplyOperatingEvidence({
     || bundle.adminRecordMutationsHold.deploymentId !== rehearsal.rollback.deploymentId
     || bundle.adminRecordMutationsHold.commit !== rehearsal.sourceRevision
     || bundle.rollbackReadback?.deploymentId !== rehearsal.rollback.deploymentId
-    || bundle.rollbackReadback?.gitSha !== rehearsal.rollback.deploymentSha) {
+    || bundle.rollbackReadback?.gitSha !== rehearsal.rollback.deploymentSha
+    || bundle.storyboardPolicy.schemaVersion !== 1
+    || bundle.storyboardPolicy.deployment.branch !== 'main'
+    || bundle.storyboardPolicy.deployment.deploymentId !== rehearsal.rollback.deploymentId
+    || bundle.storyboardPolicy.deployment.sourceCommit !== rehearsal.sourceRevision
+    || !HEX_SHA256.test(bundle.storyboardPolicy.policy.canonicalPolicySha256 ?? '')) {
     fail('SUCCESSOR_OPERATING_ADMISSION_EVIDENCE_INVALID');
   }
 

@@ -61,14 +61,21 @@ import {
   TZUDONG_VERCEL_TEAM_ID,
   createScopedVercelApiTransport,
 } from './vercel-rollback-readback.mjs';
+import {
+  fetchLiveStoryboardCompatibility,
+  observeStoryboardRuntimeCompatibility,
+} from './observe-storyboard-runtime-compatibility.mjs';
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const CAPTURE_WINDOW_MS = 15 * 60 * 1000;
 const CLOCK_SKEW_MS = 30_000;
 const MAX_PRIVATE_FILE_BYTES = 1024 * 1024;
 const REVISION = /^[0-9a-f]{40}$/;
+const SHA256 = /^[0-9a-f]{64}$/;
 const DECIMAL_ID = /^[1-9][0-9]*$/;
 const DEPLOYMENT_ID = /^dpl_[A-Za-z0-9]+$/;
+const STORYBOARD_RUNTIME_COMPATIBILITY_URL =
+  'https://www.tzudong.app/api/runtime-compatibility/storyboard';
 
 export const OPERATOR_FENCES = Object.freeze([
   'browserRpc',
@@ -472,6 +479,103 @@ function validateRollbackReadback(readback, bundle) {
   }
 }
 
+function validateStoryboardCompatibilityReadback(readback, code) {
+  exactKeys(readback, [
+    'canonicalPolicySha256', 'commit', 'deploymentId', 'kind', 'schemaVersion',
+  ], code);
+  if (readback.schemaVersion !== 1
+    || readback.kind !== 'storyboard-runtime-compatibility'
+    || !DEPLOYMENT_ID.test(readback.deploymentId ?? '')
+    || !REVISION.test(readback.commit ?? '')
+    || !SHA256.test(readback.canonicalPolicySha256 ?? '')) fail(code);
+  return readback;
+}
+
+function validateStoryboardPolicy(storyboardPolicy, bundle, code) {
+  exactKeys(storyboardPolicy, ['deployment', 'policy', 'schemaVersion'], code);
+  exactKeys(storyboardPolicy.deployment, [
+    'branch', 'deploymentId', 'sourceCommit',
+  ], code);
+  exactKeys(storyboardPolicy.policy, ['canonicalPolicySha256'], code);
+  if (storyboardPolicy.schemaVersion !== 1
+    || storyboardPolicy.deployment.branch !== 'main'
+    || !DEPLOYMENT_ID.test(storyboardPolicy.deployment.deploymentId ?? '')
+    || !REVISION.test(storyboardPolicy.deployment.sourceCommit ?? '')
+    || !SHA256.test(storyboardPolicy.policy.canonicalPolicySha256 ?? '')
+    || storyboardPolicy.deployment.deploymentId !== bundle.adminRecordMutationsHold.deploymentId
+    || storyboardPolicy.deployment.deploymentId !== bundle.rollbackReadback.deploymentId
+    || storyboardPolicy.deployment.sourceCommit !== bundle.adminRecordMutationsHold.commit
+    || storyboardPolicy.deployment.sourceCommit !== bundle.rollbackReadback.gitSha) fail(code);
+}
+
+function storyboardPolicyFromRuntimeReadback(readback, rollbackReadback) {
+  validateStoryboardCompatibilityReadback(
+    readback,
+    'SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID',
+  );
+  if (readback.deploymentId !== rollbackReadback.deploymentId
+    || readback.commit !== rollbackReadback.gitSha) {
+    fail('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
+  }
+  return Object.freeze({
+    deployment: Object.freeze({
+      branch: 'main',
+      deploymentId: readback.deploymentId,
+      sourceCommit: readback.commit,
+    }),
+    policy: Object.freeze({ canonicalPolicySha256: readback.canonicalPolicySha256 }),
+    schemaVersion: 1,
+  });
+}
+
+function validateRuntimeCompatibilityObservation(observation, bundle, bundleSha256, url) {
+  let expectedAlias;
+  try { expectedAlias = new URL(url).hostname; } catch {
+    fail('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
+  }
+  exactKeys(observation, [
+    'bundleSha256', 'canonicalPolicySha256', 'commit', 'deploymentId', 'kind',
+    'productionAlias', 'schemaVersion',
+  ], 'SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
+  if (observation.schemaVersion !== 1
+    || observation.kind !== 'storyboard-runtime-compatibility-observation'
+    || observation.productionAlias !== expectedAlias
+    || observation.bundleSha256 !== bundleSha256
+    || observation.deploymentId !== bundle.storyboardPolicy.deployment.deploymentId
+    || observation.commit !== bundle.storyboardPolicy.deployment.sourceCommit
+    || observation.canonicalPolicySha256 !== bundle.storyboardPolicy.policy.canonicalPolicySha256) {
+    fail('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
+  }
+  return observation;
+}
+
+export async function createRuntimeVerifiedRollbackReadback({
+  bundle,
+  bundleSha256,
+  fetchImpl,
+  observeRuntimeCompatibilityImpl = observeStoryboardRuntimeCompatibility,
+  url = STORYBOARD_RUNTIME_COMPATIBILITY_URL,
+} = {}) {
+  if (!exactObject(bundle)
+    || !SHA256.test(bundleSha256 ?? '')
+    || typeof observeRuntimeCompatibilityImpl !== 'function') {
+    fail('SUCCESSOR_OPERATING_ORCHESTRATOR_ARGUMENT_INVALID');
+  }
+  let observation;
+  try {
+    observation = await observeRuntimeCompatibilityImpl({
+      bundle,
+      bundleSha256,
+      fetchImpl,
+      url,
+    });
+  } catch {
+    fail('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
+  }
+  validateRuntimeCompatibilityObservation(observation, bundle, bundleSha256, url);
+  return () => bundle.rollbackReadback;
+}
+
 export function validateLocalVercelBundle({
   bundle,
   manifestRecord,
@@ -481,7 +585,7 @@ export function validateLocalVercelBundle({
   exactKeys(bundle, [
     'adminRecordMutationsHold', 'createdAt', 'expiresAt', 'kind', 'manifestSha256',
     'protectedMain', 'rollbackPolicy', 'rollbackReadback', 'schemaVersion', 'sourceRevision',
-    'sourceRoot',
+    'sourceRoot', 'storyboardPolicy',
   ], 'SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
   if (bundle.schemaVersion !== 1
     || bundle.kind !== 'review-media-successor-vercel-operating-bundle'
@@ -512,6 +616,11 @@ export function validateLocalVercelBundle({
     fail('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
   }
   validateRollbackReadback(bundle.rollbackReadback, bundle);
+  validateStoryboardPolicy(
+    bundle.storyboardPolicy,
+    bundle,
+    'SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID',
+  );
   exactKeys(bundle.rollbackPolicy, [
     'basis', 'deploymentSha', 'kind', 'sourceRevision', 'state',
   ], 'SUCCESSOR_OPERATING_ORCHESTRATOR_ROLLBACK_POLICY_UNPROVED');
@@ -535,6 +644,9 @@ export async function captureLocalVercelBundle({
   clock = () => new Date(),
   manifestRecord = loadSuccessorManifest(),
   protectedMainReadbackImpl = currentProtectedMainReadback,
+  runtimeCompatibilityFetchImpl,
+  runtimeCompatibilityReadbackImpl = fetchLiveStoryboardCompatibility,
+  runtimeCompatibilityUrl = STORYBOARD_RUNTIME_COMPATIBILITY_URL,
   sourceRevision,
   vercelTransport,
 } = {}) {
@@ -568,6 +680,19 @@ export async function captureLocalVercelBundle({
   if (rollbackReadback.gitSha !== sourceRevision) {
     fail('SUCCESSOR_OPERATING_ORCHESTRATOR_ROLLBACK_POLICY_UNPROVED');
   }
+  let runtimeCompatibilityReadback;
+  try {
+    runtimeCompatibilityReadback = await runtimeCompatibilityReadbackImpl({
+      fetchImpl: runtimeCompatibilityFetchImpl,
+      url: runtimeCompatibilityUrl,
+    });
+  } catch {
+    fail('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
+  }
+  const storyboardPolicy = storyboardPolicyFromRuntimeReadback(
+    runtimeCompatibilityReadback,
+    rollbackReadback,
+  );
   const bundle = {
     adminRecordMutationsHold,
     createdAt,
@@ -586,6 +711,7 @@ export async function captureLocalVercelBundle({
     schemaVersion: 1,
     sourceRevision,
     sourceRoot: manifestRecord.manifest.sourceRoot,
+    storyboardPolicy,
   };
   validateLocalVercelBundle({
     bundle,
@@ -1024,10 +1150,13 @@ export async function runOperatingOrchestrator({
   clock = () => new Date(),
   fsyncImpl = fsyncSync,
   loadManifestImpl = loadSuccessorManifest,
+  observeRuntimeCompatibilityImpl = observeStoryboardRuntimeCompatibility,
   prepareApplyImpl = prepareReviewMediaApplyAdmission,
   prepareRehearsalImpl = prepareReviewMediaRehearsalAdmission,
   runApplyImpl = runReviewMediaSuccessor,
   runRehearsalImpl = runReviewMediaSuccessorRehearsal,
+  runtimeCompatibilityFetchImpl,
+  runtimeCompatibilityUrl = STORYBOARD_RUNTIME_COMPATIBILITY_URL,
 } = {}) {
   if (!['observe', 'rehearsal', 'apply'].includes(mode)
     || typeof custodyDirectory !== 'string'
@@ -1114,13 +1243,19 @@ export async function runOperatingOrchestrator({
   writeExclusiveCanonical(join(custody, PROVENANCE_FILES.map), evidenceMap, fsyncImpl);
   writeExclusiveCanonical(join(custody, PROVENANCE_FILES.vercel), bundle, fsyncImpl);
 
-  const rollbackReadbackImpl = () => bundle.rollbackReadback;
+  const rehearsalRollbackReadbackImpl = await createRuntimeVerifiedRollbackReadback({
+    bundle,
+    bundleSha256: sha256(bundleRecord.bytes),
+    fetchImpl: runtimeCompatibilityFetchImpl,
+    observeRuntimeCompatibilityImpl,
+    url: runtimeCompatibilityUrl,
+  });
   const rehearsalResult = await runRehearsalImpl({
     admissionPath: rehearsal.admissionPath,
     environment,
     journalPath: rehearsal.journalPath,
     receiptPath: rehearsal.receiptPath,
-  }, { rollbackReadbackImpl });
+  }, { rollbackReadbackImpl: rehearsalRollbackReadbackImpl });
   if (rehearsalResult?.code !== 'SUCCESSOR_REHEARSAL_PASSED'
     || rehearsalResult?.status !== 'rolled_back') {
     fail('SUCCESSOR_OPERATING_ORCHESTRATOR_INPUT_INVALID');
@@ -1203,11 +1338,18 @@ export async function runOperatingOrchestrator({
     manifestRecord,
     now: assertDate(clock()),
   });
+  const applyRollbackReadbackImpl = await createRuntimeVerifiedRollbackReadback({
+    bundle,
+    bundleSha256: sha256(bundleRecord.bytes),
+    fetchImpl: runtimeCompatibilityFetchImpl,
+    observeRuntimeCompatibilityImpl,
+    url: runtimeCompatibilityUrl,
+  });
   const result = await runApplyImpl({
     admissionPath: apply.admissionPath,
     environment,
     journalPath: apply.journalPath,
-  }, { rollbackReadbackImpl });
+  }, { rollbackReadbackImpl: applyRollbackReadbackImpl });
   return Object.freeze({
     code: result.code,
     custodyDirectory: custody,

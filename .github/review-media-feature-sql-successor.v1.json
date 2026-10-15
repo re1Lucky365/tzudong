@@ -21,6 +21,7 @@
   "predecessor": {
     "id": "review_media_sql_successor_v1",
     "manifestPath": ".github/review-media-sql-successor.v1.json",
+    "manifestSha256": "ad1da2db884229ea4b1fbcf6e4caaa04c30c6df7562e94fff01341736ee689d6",
     "sourceRoot": "61f9d7637c0714a7b0d9108c6f7959ea820175a7870dba681498b570296a1544",
     "afterLedger": 97
   },
@@ -189,11 +190,11 @@
   "toolchain": [
     {
       "path": "apps/web/scripts/review-media-feature-sql-successor.mjs",
-      "sha256": "f1e653911da29ec5713255da4aab77a003bbc409b895f0606774d07bf3130b62"
+      "sha256": "089ce227a95142deca4ca4d782a51f348ac2278659ebc10bd1d54cbcacd69d4b"
     },
     {
       "path": "apps/web/scripts/review-media-sql-successor.mjs",
-      "sha256": "45955ae43a615908d72785fa984cc1e737b8c6065fbe7e3a506ae713add822a0"
+      "sha256": "4f3dacb6f51a669bf64209b380b19e8274d2703101fc50f815153237f4a99d93"
     },
     {
       "path": "apps/web/scripts/supabase-migration-bundle.mjs",
@@ -206,6 +207,10 @@
     {
       "path": "apps/web/scripts/apply-supabase-migration.mjs",
       "sha256": "02c404e0be3e81b7c8d4d7766ff29e750b1797f5ad49b5f496168170e21192d4"
+    },
+    {
+      "path": "apps/web/scripts/vercel-rollback-readback.mjs",
+      "sha256": "fa3876153f0e949d23115612cb34bc545c6c29bccb6ba2fd6042a38e70555e04"
     }
   ],
   "requiredWriterFences": {

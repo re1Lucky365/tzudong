@@ -21,6 +21,7 @@ import {
   authenticatedOwnerAttestation,
   captureInFlightQuiescence,
   captureLocalVercelBundle,
+  createRuntimeVerifiedRollbackReadback,
   parseOperatingOrchestratorArguments,
   runOperatingOrchestrator,
   validateLocalVercelBundle,
@@ -37,6 +38,7 @@ const observedAt = '2026-10-14T01:00:01.000Z';
 const expiresAt = '2026-10-14T01:15:00.000Z';
 const fixedNow = new Date('2026-10-14T01:00:05.000Z');
 const deploymentId = 'dpl_OperatingOrchestratorFixture123';
+const policySha256 = 'c'.repeat(64);
 
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
@@ -113,7 +115,42 @@ function vercelBundle() {
     schemaVersion: 1,
     sourceRevision,
     sourceRoot: manifest.sourceRoot,
+    storyboardPolicy: {
+      deployment: {
+        branch: 'main',
+        deploymentId,
+        sourceCommit: rollbackRevision,
+      },
+      policy: { canonicalPolicySha256: policySha256 },
+      schemaVersion: 1,
+    },
   };
+}
+
+function runtimeCompatibilityReadback() {
+  return {
+    canonicalPolicySha256: policySha256,
+    commit: rollbackRevision,
+    deploymentId,
+    kind: 'storyboard-runtime-compatibility',
+    schemaVersion: 1,
+  };
+}
+
+function runtimeCompatibilityObservation(bundleSha256: string) {
+  return {
+    bundleSha256,
+    canonicalPolicySha256: policySha256,
+    commit: rollbackRevision,
+    deploymentId,
+    kind: 'storyboard-runtime-compatibility-observation',
+    productionAlias: 'www.tzudong.app',
+    schemaVersion: 1,
+  };
+}
+
+async function observeRuntimeCompatibility({ bundleSha256 }: any) {
+  return runtimeCompatibilityObservation(bundleSha256);
 }
 
 function workflowEnvironment() {
@@ -262,6 +299,7 @@ test('operator custody is accepted only from the authenticated repository owner 
 });
 
 test('local Vercel bundle is sanitized, source-bound, and limited to the original window', async () => {
+  let runtimeReadbackCalls = 0;
   const bundle = await captureLocalVercelBundle({
     adminHoldProbeTransport: {
       request: () => JSON.stringify({
@@ -281,6 +319,11 @@ test('local Vercel bundle is sanitized, source-bound, and limited to the origina
     })(),
     manifestRecord,
     protectedMainReadbackImpl: () => protectedMain(),
+    runtimeCompatibilityReadbackImpl: async ({ url }: any) => {
+      runtimeReadbackCalls += 1;
+      expect(url).toBe('https://www.tzudong.app/api/runtime-compatibility/storyboard');
+      return runtimeCompatibilityReadback();
+    },
     sourceRevision,
     vercelTransport: {
       request: (endpoint: string) => {
@@ -311,6 +354,14 @@ test('local Vercel bundle is sanitized, source-bound, and limited to the origina
   expect(bundle.sourceRevision).toBe(sourceRevision);
   expect(bundle.expiresAt).toBe(expiresAt);
   expect(bundle.rollbackReadback.gitSha).toBe(rollbackRevision);
+  expect(bundle.rollbackReadback.observedAt).toBe(observedAt);
+  expect(runtimeReadbackCalls).toBe(1);
+  expect(bundle.storyboardPolicy).toEqual({
+    deployment: { branch: 'main', deploymentId, sourceCommit: rollbackRevision },
+    policy: { canonicalPolicySha256: policySha256 },
+    schemaVersion: 1,
+  });
+  expect(bundle.storyboardPolicy).not.toHaveProperty('observedAt');
   expect(JSON.stringify(bundle)).not.toMatch(/cookie|token|query|credential/i);
 
   for (const mutate of [
@@ -318,6 +369,8 @@ test('local Vercel bundle is sanitized, source-bound, and limited to the origina
     (value: any) => { value.manifestSha256 = '0'.repeat(64); },
     (value: any) => { value.adminRecordMutationsHold.holdActive = false; },
     (value: any) => { value.rollbackReadback.productionAliases.reverse(); },
+    (value: any) => { value.storyboardPolicy.deployment.branch = 'develop'; },
+    (value: any) => { value.storyboardPolicy.policy.canonicalPolicySha256 = 'not-a-sha256'; },
     (value: any) => {
       value.rollbackReadback.gitSha = oldRollbackRevision;
       value.adminRecordMutationsHold.commit = oldRollbackRevision;
@@ -343,12 +396,33 @@ test('local Vercel bundle is sanitized, source-bound, and limited to the origina
   unsafeRollback.rollbackReadback.gitSha = oldRollbackRevision;
   unsafeRollback.adminRecordMutationsHold.commit = oldRollbackRevision;
   unsafeRollback.rollbackPolicy.deploymentSha = oldRollbackRevision;
+  unsafeRollback.storyboardPolicy.deployment.sourceCommit = oldRollbackRevision;
   expect(() => validateLocalVercelBundle({
     bundle: unsafeRollback,
     manifestRecord,
     now: fixedNow,
     sourceRevision,
   })).toThrow('SUCCESSOR_OPERATING_ORCHESTRATOR_ROLLBACK_POLICY_UNPROVED');
+});
+
+test('runtime-verified rollback callback rejects observation drift without changing vendor receipt time', async () => {
+  const bundle = vercelBundle();
+  const bundleSha256 = sha256(canonicalBytes(bundle));
+  const callback = await createRuntimeVerifiedRollbackReadback({
+    bundle,
+    bundleSha256,
+    observeRuntimeCompatibilityImpl: observeRuntimeCompatibility,
+  });
+  expect(callback()).toEqual(rollbackReadback());
+  expect(callback().observedAt).toBe(observedAt);
+  await expect(createRuntimeVerifiedRollbackReadback({
+    bundle,
+    bundleSha256,
+    observeRuntimeCompatibilityImpl: async () => ({
+      ...runtimeCompatibilityObservation(bundleSha256),
+      canonicalPolicySha256: 'f'.repeat(64),
+    }),
+  })).rejects.toThrow('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
 });
 
 test('quiescence takes SHARE NOWAIT locks over the exact writer relations and rejects gaps', async () => {
@@ -429,6 +503,7 @@ test('workflow observe mode records evidence without entering the rehearsal cont
     attestationImpl: () => attestation(),
     clock: () => fixedNow,
     loadManifestImpl: () => manifestRecord,
+    observeRuntimeCompatibilityImpl: observeRuntimeCompatibility,
     prepareRehearsalImpl: () => { controllerCalls += 1; return {}; },
     runRehearsalImpl: () => { controllerCalls += 1; return {}; },
   } as any);
@@ -465,6 +540,7 @@ test('rehearsal orchestration writes private provenance sidecars and delegates t
     attestationImpl: () => attestation(),
     clock: () => fixedNow,
     loadManifestImpl: () => manifestRecord,
+    observeRuntimeCompatibilityImpl: observeRuntimeCompatibility,
     runRehearsalImpl: async (_input: unknown, dependencies: any) => {
       controllerCalls += 1;
       expect(dependencies.rollbackReadbackImpl().deploymentId).toBe(deploymentId);
@@ -511,6 +587,34 @@ test('rehearsal orchestration writes private provenance sidecars and delegates t
   } as any)).rejects.toThrow('SUCCESSOR_OPERATING_ORCHESTRATOR_OUTPUT_EXISTS');
 });
 
+test('rehearsal rejects runtime identity drift before the rehearsal controller', async () => {
+  const root = privateRoot();
+  const bundlePath = join(root, 'vercel-bundle.json');
+  writePrivateCanonical(bundlePath, vercelBundle());
+  const assembled = await assembleOperatingEvidence(assemblyOptions() as any);
+  let controllerCalls = 0;
+  await expect(runOperatingOrchestrator({
+    custodyDirectory: join(root, 'custody'),
+    environment: workflowEnvironment(),
+    mode: 'rehearsal',
+    vercelBundlePath: bundlePath,
+  }, {
+    assembleImpl: async () => assembled,
+    attestationImpl: () => attestation(),
+    clock: () => fixedNow,
+    loadManifestImpl: () => manifestRecord,
+    observeRuntimeCompatibilityImpl: async ({ bundleSha256 }: any) => ({
+      ...runtimeCompatibilityObservation(bundleSha256),
+      deploymentId: 'dpl_ChangedRuntimeFixture123',
+    }),
+    runRehearsalImpl: async () => {
+      controllerCalls += 1;
+      return { code: 'SUCCESSOR_REHEARSAL_PASSED', status: 'rolled_back' };
+    },
+  } as any)).rejects.toThrow('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
+  expect(controllerCalls).toBe(0);
+});
+
 test('held apply stops before bundle, DB, admission, or controller access', async () => {
   const root = privateRoot();
   let touched = 0;
@@ -541,6 +645,8 @@ test('ready apply performs rehearsal before admission/apply and keeps journals i
   const readyRecord = structuredClone(manifestRecord);
   readyRecord.manifest.launchPolicy.state = 'ready';
   const calls: string[] = [];
+  const rollbackCallbacks: Array<() => any> = [];
+  let runtimeObservationCalls = 0;
   const result = await runOperatingOrchestrator({
     custodyDirectory,
     environment: workflowEnvironment(),
@@ -551,6 +657,10 @@ test('ready apply performs rehearsal before admission/apply and keeps journals i
     attestationImpl: () => attestation(),
     clock: () => fixedNow,
     loadManifestImpl: () => readyRecord,
+    observeRuntimeCompatibilityImpl: async (options: any) => {
+      runtimeObservationCalls += 1;
+      return observeRuntimeCompatibility(options);
+    },
     prepareApplyImpl: ({ custodyDirectory: custody }: any) => {
       calls.push('prepare-apply');
       return {
@@ -576,11 +686,14 @@ test('ready apply performs rehearsal before admission/apply and keeps journals i
     },
     runApplyImpl: async (_input: unknown, dependencies: any) => {
       calls.push('run-apply');
+      rollbackCallbacks.push(dependencies.rollbackReadbackImpl);
       expect(dependencies.rollbackReadbackImpl().deploymentId).toBe(deploymentId);
       return { code: 'SUCCESSOR_COMMITTED', status: 'committed' };
     },
-    runRehearsalImpl: async () => {
+    runRehearsalImpl: async (_input: unknown, dependencies: any) => {
       calls.push('run-rehearsal');
+      rollbackCallbacks.push(dependencies.rollbackReadbackImpl);
+      expect(dependencies.rollbackReadbackImpl().deploymentId).toBe(deploymentId);
       return { code: 'SUCCESSOR_REHEARSAL_PASSED', status: 'rolled_back' };
     },
   } as any);
@@ -590,6 +703,9 @@ test('ready apply performs rehearsal before admission/apply and keeps journals i
     'prepare-apply',
     'run-apply',
   ]);
+  expect(runtimeObservationCalls).toBe(2);
+  expect(rollbackCallbacks).toHaveLength(2);
+  expect(rollbackCallbacks[0]).not.toBe(rollbackCallbacks[1]);
   expect(result).toMatchObject({
     code: 'SUCCESSOR_COMMITTED',
     custodyDirectory: realpathSync(custodyDirectory),
@@ -597,6 +713,65 @@ test('ready apply performs rehearsal before admission/apply and keeps journals i
     status: 'committed',
   });
   expect(existsSync(join(custodyDirectory, 'rehearsal-journal.jsonl'))).toBe(true);
+});
+
+test('apply rejects a changed second runtime policy before the apply controller', async () => {
+  const root = privateRoot();
+  const bundlePath = join(root, 'vercel-bundle.json');
+  const custodyDirectory = join(root, 'custody');
+  writePrivateCanonical(bundlePath, vercelBundle());
+  const assembled = await assembleOperatingEvidence(assemblyOptions() as any);
+  const readyRecord = structuredClone(manifestRecord);
+  readyRecord.manifest.launchPolicy.state = 'ready';
+  let runtimeObservationCalls = 0;
+  let applyCalls = 0;
+  await expect(runOperatingOrchestrator({
+    custodyDirectory,
+    environment: workflowEnvironment(),
+    mode: 'apply',
+    vercelBundlePath: bundlePath,
+  }, {
+    assembleImpl: async () => assembled,
+    attestationImpl: () => attestation(),
+    clock: () => fixedNow,
+    loadManifestImpl: () => readyRecord,
+    observeRuntimeCompatibilityImpl: async ({ bundleSha256 }: any) => {
+      runtimeObservationCalls += 1;
+      const observation = runtimeCompatibilityObservation(bundleSha256);
+      return runtimeObservationCalls === 1
+        ? observation
+        : { ...observation, canonicalPolicySha256: 'f'.repeat(64) };
+    },
+    prepareApplyImpl: ({ custodyDirectory: custody }: any) => ({
+      admissionPath: join(custody, 'apply-admission.json'),
+      journalPath: join(custody, 'apply-journal.jsonl'),
+    }),
+    prepareRehearsalImpl: ({ custodyDirectory: custody }: any) => {
+      mkdirSync(custody, { mode: 0o700 });
+      chmodSync(custody, 0o700);
+      const paths = {
+        admissionPath: join(custody, 'rehearsal-admission.json'),
+        custodyDirectory: custody,
+        journalPath: join(custody, 'rehearsal-journal.jsonl'),
+        receiptPath: join(custody, 'rehearsal-receipt.json'),
+      };
+      for (const path of [paths.admissionPath, paths.journalPath, paths.receiptPath]) {
+        writeFileSync(path, '{}\n', { mode: 0o600 });
+        chmodSync(path, 0o600);
+      }
+      return paths;
+    },
+    runApplyImpl: async () => {
+      applyCalls += 1;
+      return { code: 'SUCCESSOR_COMMITTED', status: 'committed' };
+    },
+    runRehearsalImpl: async () => ({
+      code: 'SUCCESSOR_REHEARSAL_PASSED',
+      status: 'rolled_back',
+    }),
+  } as any)).rejects.toThrow('SUCCESSOR_OPERATING_ORCHESTRATOR_BUNDLE_INVALID');
+  expect(runtimeObservationCalls).toBe(2);
+  expect(applyCalls).toBe(0);
 });
 
 test('apply recaptures machine fences after rehearsal and stops before admission on change', async () => {
@@ -623,6 +798,7 @@ test('apply recaptures machine fences after rehearsal and stops before admission
     attestationImpl: () => attestation(),
     clock: () => fixedNow,
     loadManifestImpl: () => readyRecord,
+    observeRuntimeCompatibilityImpl: observeRuntimeCompatibility,
     prepareApplyImpl: () => {
       prepareApplyCalls += 1;
       throw new Error('unexpected apply admission');
@@ -668,6 +844,7 @@ test('provenance map hashes canonical source documents without raw provider or q
     attestationImpl: () => attestation(),
     clock: () => fixedNow,
     loadManifestImpl: () => manifestRecord,
+    observeRuntimeCompatibilityImpl: observeRuntimeCompatibility,
     runRehearsalImpl: async () => ({
       code: 'SUCCESSOR_REHEARSAL_PASSED',
       status: 'rolled_back',

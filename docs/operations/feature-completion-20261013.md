@@ -46,3 +46,21 @@ Node24.21.0/npm11.6.2/Next16.3.8의 격리 production build는 exit0, static52�
 `/api/admin/operating-readback/storyboard-policy`는 requireAdmin 이후 정확한 production/main/deployment/commit에서 공용 선언·요청·worker admission 함수를 실행해 정책을 확인한다. provider와 text/image 허용 집합, legacy 실행 차단을 policy SHA `d4e644ac12e3489a5f8074cbab8ed154bafb846f47db147ca5a4163ec175a804`에 결속하며 실제 provider 접근과DB 컷오버는 미검증으로 표시한다. 관련11 tests·ESLint·native/compat parity3,150 입력·진단0이다. 기존52페이지 build는 이 새route를 포함하지 않는 앞선 build 증거다.
 
 PG17 SQL acceptance의23개 input 중22개는 현재bytes/hash와 일치한다. 운영 evidence schema가 바뀐 manifest1개는 acceptance 당시61b4d002의 정확한Git blob을historical-61b4d002에 보존했다. frozen SQL4개와PG acceptance를 현재 운영controller 검증으로 승격하지 않는다.
+
+## 2026-10-14 Feature successor toolchain 통합
+
+11단계 parent controller의 현재 SHA가 `4f3dacb6f51a669bf64209b380b19e8274d2703101fc50f815153237f4a99d93`인데 feature manifest는 이전 SHA를 가리켜, 단독 feature suite가 시작 전 `FEATURE_SUCCESSOR_SOURCE_DRIFT`로 0 pass·1 fail을 재현했다. manifest를 현재 parent controller에 다시 결속하고, feature controller가 직접 사용하는 `vercel-rollback-readback.mjs`와 parent manifest 자체의 SHA도 추가로 고정했다. parent manifest의 SQL source root만 같고 writer fence·toolchain·terminal contract가 달라지는 경우를 허용하지 않도록 회귀 검사를 추가했다.
+
+최종 manifest SHA는 `87bb27af128b2c4d23c433a442598a1e83536fe1dd32d0ff783e2a554b42968c`, feature controller SHA는 `089ce227a95142deca4ca4d782a51f348ac2278659ebc10bd1d54cbcacd69d4b`다. 6개 toolchain entry의 기대/실제 SHA 불일치0건, parent manifest 기대/실제 SHA 불일치0건이다. 단독 suite는 11 pass·0 fail·67 assertions, parent admission/orchestrator/workflow/harness/feature를 합친8파일은167 pass·0 fail·1,075 assertions, TypeScript parity는3,152입력·진단0, targeted ESLint 오류0이다. 결정적 hash/계약 검증 1회이므로 변화율과95% 신뢰구간은 적용하지 않는다.
+
+launch held, 원래15분 evidence window, 7개 writer fence,97→101 전이와4개 SQL bytes는 변경하지 않았다. `apps/web/supabase/.temp/`도 보존했다. 운영 DB·provider·배포·원격 mutation은 모두0회이며, 이 검증은 hosted 적용이나 실제 production runtime 성공의 증거가 아니다. 별도 영수증은 `apps/web/performance/feature-completion-20261013/feature-successor-toolchain-integration-20261014.json`에 보관한다.
+
+## 2026-10-15 Parent runtime admission 결속 PG17.6 재생
+
+후속 전체 general group은 3,510 pass·3 skip·1 fail·89,552 assertions였고 유일 실패는 retained proof selector의 `LOCAL_REHEARSAL_ARTIFACT_SHA256_MISMATCH`였다. 불일치는 SQL이 아니라 현재 parent manifest·controller·직접 테스트 3개 source binding이었다. 이전 proof와 selector, artifact map을 historical 파일로 보존한 뒤 현재 map을 실제 source bytes에 결속했다. 기존 proof는 재생 전에 `retained-historical-evidence`로 분류됐으며 필드를 현재 SHA로 바꾸지 않았다.
+
+현재 parent manifest SHA `ad1da2db884229ea4b1fbcf6e4caaa04c30c6df7562e94fff01341736ee689d6`와 controller SHA `4f3dacb6f51a669bf64209b380b19e8274d2703101fc50f815153237f4a99d93`에 대해 격리 PostgreSQL 17.6 재생을 새로 수행했다. 11개 migration·112개 statement·12개 rollback stage, 강제 실패 rollback, 응답 유실 1회 복구, advisory-lock 경합 후 만료 거부, 최종 apply guard 만료 전 terminal readback과 전체 rollback이 통과했다. 임시 container 제거를 readback했고 hosted DB·provider·배포·원격 mutation은 0회다.
+
+새 proof SHA는 `6bd946be5b9e0a9a9ef1523112f535456955bc424eaf278c1e23812ce8efc75e`다. SQL source root `61f9d7637c0714a7b0d9108c6f7959ea820175a7870dba681498b570296a1544`와 compiled SQL SHA `285d0c859117006646389dbd2a22de9aef1c0b97bc796a9e4d4448a8a232b093`는 이전 proof와 동일해서 SQL bytes 변경은 0건이다. launch held, 원래 15분 window, 7개 writer fence도 유지했다. selector SHA는 `67d69712d0ded23baf81faac35bc277d3e38e156639b02030efe0f6c9276e89d`, rehearsal map SHA는 `fe2eee6bfa2f5ab20b17b10d4ca48d4e5351d57dd9330ccadab918aa183e5263`, successor map SHA는 `b173616092cee591ecba7aa363dd05d55cfb9f75a6ce880e9e690398b309f87f`이며 두 map의 67개 entry를 전부 재검증했다.
+
+selector 계약은 재생 전 14 pass·55 assertions, parent successor/rehearsal/migration/ownership의 affected 5파일은 재생 후 106 pass·0 fail·693 assertions다. 이는 결정적 1회 replay라 변화율·95% 신뢰구간을 계산하지 않는다. 전체 general group은 남은 root UI 변경을 합친 최종 source에서 다시 실행해야 하므로 여기서는 3,511 pass로 승격하지 않는다. 새 영수증은 `apps/web/performance/feature-completion-20261013/review-media-runtime-admission-retained-proof-20261015.json`에 보관한다.

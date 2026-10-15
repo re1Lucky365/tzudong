@@ -305,6 +305,15 @@ function writeApplyOperatingEvidence(custodyDirectory: string) {
     schemaVersion: 1,
     sourceRevision,
     sourceRoot: manifest.sourceRoot,
+    storyboardPolicy: {
+      deployment: {
+        branch: 'main',
+        deploymentId: 'dpl_TestOnlyAdmissionEvidence123',
+        sourceCommit: sourceRevision,
+      },
+      policy: { canonicalPolicySha256: 'c'.repeat(64) },
+      schemaVersion: 1,
+    },
   };
   const inFlightQuiescence = {
     coverage: [
@@ -619,6 +628,16 @@ test('apply producer binds the verified rehearsal artifacts without extending th
     join(prepared.custodyDirectory, 'rehearsal-admission.json'),
   )));
   expect(admission.rehearsalAdmissionSha256).toBe(published.receipt.admissionSha256);
+  for (const key of [
+    'adminRecordMutationsHold', 'browserRpc', 'dashboard', 'directSql', 'providerIngress',
+  ]) {
+    expect(admission.writerFences[key]).toEqual(published.admission.writerFences[key]);
+  }
+  for (const key of ['automaticReviewer', 'g037WriteFreeze']) {
+    expect(admission.writerFences[key].state).toBe(published.admission.writerFences[key].state);
+    expect(admission.writerFences[key].evidenceSha256)
+      .not.toBe(published.admission.writerFences[key].evidenceSha256);
+  }
   expect(admission.createdAt).toBe(createdAt);
   expect(admission.expiresAt).toBe(expiresAt);
   expect(admission.stageStates).toEqual(published.receipt.stageStates);
@@ -678,6 +697,26 @@ test('apply producer rejects a changed deployment after rehearsal even when reha
   writePrivateCanonical(machinePath, machine);
   rehashApplyOperatingEvidence(prepared.custodyDirectory, input);
   const inputPath = join(prepared.root, 'apply-input-changed-deployment.json');
+  writePrivateCanonical(inputPath, input);
+  expect(() => prepareReviewMediaApplyAdmission({
+    custodyDirectory: prepared.custodyDirectory,
+    inputPath,
+    manifestRecord,
+    now: fixedNow,
+  })).toThrow('SUCCESSOR_OPERATING_ADMISSION_EVIDENCE_INVALID');
+  expect(existsSync(join(prepared.custodyDirectory, 'apply-admission.json'))).toBe(false);
+});
+
+test('apply producer rejects a rehashed storyboard runtime identity drift', () => {
+  const prepared = prepareRehearsal();
+  const published = publishSyntheticRehearsal(prepared.custodyDirectory);
+  const input = applyInput(published);
+  const bundlePath = join(prepared.custodyDirectory, 'vercel-operating-bundle.json');
+  const bundle = JSON.parse(readFileSync(bundlePath, 'utf8'));
+  bundle.storyboardPolicy.deployment.sourceCommit = 'f'.repeat(40);
+  writePrivateCanonical(bundlePath, bundle);
+  rehashApplyOperatingEvidence(prepared.custodyDirectory, input);
+  const inputPath = join(prepared.root, 'apply-input-storyboard-policy-drift.json');
   writePrivateCanonical(inputPath, input);
   expect(() => prepareReviewMediaApplyAdmission({
     custodyDirectory: prepared.custodyDirectory,

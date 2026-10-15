@@ -225,16 +225,18 @@ export function loadFeatureSuccessorManifest({
   };
   if (!equal(manifest.requiredWriterFences, expectedFences)) fail('FEATURE_SUCCESSOR_MANIFEST_INVALID');
   exactKeys(manifest.predecessor, [
-    'afterLedger', 'id', 'manifestPath', 'sourceRoot',
+    'afterLedger', 'id', 'manifestPath', 'manifestSha256', 'sourceRoot',
   ], 'FEATURE_SUCCESSOR_MANIFEST_INVALID');
+  assertHex(manifest.predecessor.manifestSha256, 'FEATURE_SUCCESSOR_MANIFEST_INVALID');
   const predecessor = loadPredecessorImpl();
   if (manifest.predecessor.id !== predecessor.manifest.id
     || manifest.predecessor.manifestPath !== '.github/review-media-sql-successor.v1.json'
+    || manifest.predecessor.manifestSha256 !== predecessor.manifestSha256
     || manifest.predecessor.sourceRoot !== predecessor.manifest.sourceRoot
     || manifest.predecessor.afterLedger !== predecessor.manifest.operatingTransition.afterEleven
     || manifest.predecessor.afterLedger !== 97) fail('FEATURE_SUCCESSOR_SOURCE_DRIFT');
 
-  if (!Array.isArray(manifest.toolchain) || manifest.toolchain.length !== 5) {
+  if (!Array.isArray(manifest.toolchain) || manifest.toolchain.length !== 6) {
     fail('FEATURE_SUCCESSOR_MANIFEST_INVALID');
   }
   const expectedToolchain = [
@@ -243,6 +245,7 @@ export function loadFeatureSuccessorManifest({
     'apps/web/scripts/supabase-migration-bundle.mjs',
     'apps/web/scripts/supabase-migration-transaction.mjs',
     'apps/web/scripts/apply-supabase-migration.mjs',
+    'apps/web/scripts/vercel-rollback-readback.mjs',
   ];
   manifest.toolchain.forEach((entry, index) => {
     exactKeys(entry, ['path', 'sha256'], 'FEATURE_SUCCESSOR_MANIFEST_INVALID');
@@ -754,10 +757,12 @@ function validateParentCustody(custody, now, { predecessorRecord } = {}) {
 
 function validateFeatureEnvelope(admission, manifestRecord, custody, now, expectedKind) {
   const common = [
-    'attemptId', 'baseAdmissionSha256', 'baseJournalSha256', 'createdAt', 'expiresAt',
-    'id', 'journalPathSha256', 'kind', 'manifestSha256', 'predecessorSourceRoot',
-    'projectRef', 'purpose', 'rollback', 'schemaVersion', 'sourceRevision', 'sourceRoot',
-    'writerFences',
+    'attemptId', 'baseAdmissionSha256', 'baseApplyEvidenceMapSha256',
+    'baseApplyQuiescenceReadbackSha256', 'baseJournalSha256',
+    'baseRehearsalAdmissionSha256', 'createdAt', 'expiresAt', 'id',
+    'journalPathSha256', 'kind', 'manifestSha256', 'predecessorSourceRoot',
+    'projectRef', 'purpose', 'rollback', 'schemaVersion', 'sourceRevision',
+    'sourceRoot', 'writerFences',
   ];
   const keys = expectedKind === 'feature-successor-rehearsal-admission'
     ? [...common, 'receiptPathSha256']
@@ -777,7 +782,10 @@ function validateFeatureEnvelope(admission, manifestRecord, custody, now, expect
   const window = assertWindow(admission.createdAt, admission.expiresAt, now);
   validateRollback(admission.rollback, admission.sourceRevision);
   assertHex(admission.baseAdmissionSha256);
+  assertHex(admission.baseApplyEvidenceMapSha256);
+  assertHex(admission.baseApplyQuiescenceReadbackSha256);
   assertHex(admission.baseJournalSha256);
+  assertHex(admission.baseRehearsalAdmissionSha256);
   assertHex(admission.journalPathSha256);
   if (expectedKind === 'feature-successor-rehearsal-admission') {
     assertHex(admission.receiptPathSha256);
@@ -790,7 +798,12 @@ function validateFeatureEnvelope(admission, manifestRecord, custody, now, expect
     predecessorRecord: manifestRecord.predecessor,
   });
   if (parent.admissionSha256 !== admission.baseAdmissionSha256
+    || parent.admission.applyEvidenceMapSha256 !== admission.baseApplyEvidenceMapSha256
+    || parent.admission.applyQuiescenceReadbackSha256
+      !== admission.baseApplyQuiescenceReadbackSha256
     || parent.journalSha256 !== admission.baseJournalSha256
+    || parent.admission.rehearsalAdmissionSha256
+      !== admission.baseRehearsalAdmissionSha256
     || parent.admission.createdAt !== admission.createdAt
     || parent.admission.expiresAt !== admission.expiresAt
     || parent.admission.sourceRevision !== admission.sourceRevision
@@ -828,7 +841,10 @@ export function prepareFeatureRehearsalAdmission({
   const admission = {
     attemptId: randomUUID(),
     baseAdmissionSha256: parent.admissionSha256,
+    baseApplyEvidenceMapSha256: parent.admission.applyEvidenceMapSha256,
+    baseApplyQuiescenceReadbackSha256: parent.admission.applyQuiescenceReadbackSha256,
     baseJournalSha256: parent.journalSha256,
+    baseRehearsalAdmissionSha256: parent.admission.rehearsalAdmissionSha256,
     createdAt: parent.admission.createdAt,
     expiresAt: parent.admission.expiresAt,
     id: manifestRecord.manifest.id,
@@ -1294,7 +1310,11 @@ export function prepareFeatureApplyAdmission({
   const admission = {
     attemptId: randomUUID(),
     baseAdmissionSha256: rehearsalRecord.value.baseAdmissionSha256,
+    baseApplyEvidenceMapSha256: rehearsalRecord.value.baseApplyEvidenceMapSha256,
+    baseApplyQuiescenceReadbackSha256:
+      rehearsalRecord.value.baseApplyQuiescenceReadbackSha256,
     baseJournalSha256: rehearsalRecord.value.baseJournalSha256,
+    baseRehearsalAdmissionSha256: rehearsalRecord.value.baseRehearsalAdmissionSha256,
     createdAt: rehearsalRecord.value.createdAt,
     expiresAt: rehearsalRecord.value.expiresAt,
     id: manifestRecord.manifest.id,

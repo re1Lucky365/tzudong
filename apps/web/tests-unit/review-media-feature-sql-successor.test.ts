@@ -32,6 +32,7 @@ import {
   prepareReviewMediaRehearsalAdmission,
 } from '../scripts/review-media-operating-admission.mjs';
 import {
+  loadSuccessorManifest,
   protectedSourceReadbackBinding,
 } from '../scripts/review-media-sql-successor.mjs';
 import {
@@ -39,18 +40,8 @@ import {
   migrationBundleSuffixRoot,
 } from '../scripts/supabase-migration-bundle.mjs';
 
-const predecessorBytes = readFileSync(new URL(
-  '../../../.github/review-media-sql-successor.v1.json',
-  import.meta.url,
-));
-const predecessorRecord = Object.freeze({
-  bytes: predecessorBytes,
-  manifest: JSON.parse(predecessorBytes.toString('utf8')),
-  manifestSha256: createHash('sha256').update(predecessorBytes).digest('hex'),
-});
-const featureRecord = loadFeatureSuccessorManifest({
-  loadPredecessorImpl: () => predecessorRecord as any,
-});
+const predecessorRecord = loadSuccessorManifest();
+const featureRecord = loadFeatureSuccessorManifest();
 const featureManifest = featureRecord.manifest;
 const predecessor = predecessorRecord.manifest;
 const sourceRevision = 'a'.repeat(40);
@@ -266,7 +257,7 @@ function publishPredecessorApplyEvidence(custody: string, rollbackRevision = sou
     'storage.objects',
   ];
   const attestation = {
-    assertedAt: '2026-10-14T01:00:02.000Z',
+    assertedAt: observedAt,
     authority: 'authenticated-repository-owner-workflow-dispatch',
     basis: 'standing-custody-confirmation-bound-by-owner-dispatch',
     event: 'workflow_dispatch',
@@ -292,7 +283,7 @@ function publishPredecessorApplyEvidence(custody: string, rollbackRevision = sou
       commit: sourceRevision,
       deploymentId: 'dpl_FeatureSuccessorFixture123',
       holdActive: true,
-      observedAt: '2026-10-14T01:00:01.000Z',
+      observedAt,
     },
     createdAt,
     expiresAt,
@@ -307,12 +298,21 @@ function publishPredecessorApplyEvidence(custody: string, rollbackRevision = sou
     schemaVersion: 1,
     sourceRevision,
     sourceRoot: predecessor.sourceRoot,
+    storyboardPolicy: {
+      deployment: {
+        branch: 'main',
+        deploymentId: 'dpl_FeatureSuccessorFixture123',
+        sourceCommit: sourceRevision,
+      },
+      policy: { canonicalPolicySha256: 'c'.repeat(64) },
+      schemaVersion: 1,
+    },
   };
   const machine = {
     adminRuntimeHold: {
       deploymentId: 'dpl_FeatureSuccessorFixture123',
       holdActive: true,
-      observedAt: '2026-10-14T01:00:01.000Z',
+      observedAt,
     },
     automaticReviewer: { observedAt: freshObservedAt, state: 'stopped' },
     g037WriteFreeze: { observedAt: freshObservedAt, state: 'active' },
@@ -589,8 +589,26 @@ test('manifest freezes the exact four sources and ledger 97 to 101 while launch 
   expect(featureManifest.predecessor).toMatchObject({
     afterLedger: 97,
     id: predecessor.id,
+    manifestSha256: predecessorRecord.manifestSha256,
     sourceRoot: predecessor.sourceRoot,
   });
+  expect(featureManifest.toolchain.map((entry: any) => entry.path)).toEqual([
+    'apps/web/scripts/review-media-feature-sql-successor.mjs',
+    'apps/web/scripts/review-media-sql-successor.mjs',
+    'apps/web/scripts/supabase-migration-bundle.mjs',
+    'apps/web/scripts/supabase-migration-transaction.mjs',
+    'apps/web/scripts/apply-supabase-migration.mjs',
+    'apps/web/scripts/vercel-rollback-readback.mjs',
+  ]);
+});
+
+test('manifest rejects a predecessor manifest that changed outside the SQL source root', () => {
+  expect(() => loadFeatureSuccessorManifest({
+    loadPredecessorImpl: () => ({
+      ...predecessorRecord,
+      manifestSha256: '0'.repeat(64),
+    }),
+  })).toThrow('FEATURE_SUCCESSOR_SOURCE_DRIFT');
 });
 
 test('state contract binds G014, Storage, roles, catalog and cumulative feature readiness', () => {
@@ -659,6 +677,9 @@ test('feature admission reuses committed parent fences and window without creati
       custodyDirectory,
       FEATURE_SUCCESSOR_FILES.baseAdmission,
     ))),
+    baseApplyEvidenceMapSha256: parent.applyEvidenceMapSha256,
+    baseApplyQuiescenceReadbackSha256: parent.applyQuiescenceReadbackSha256,
+    baseRehearsalAdmissionSha256: parent.rehearsalAdmissionSha256,
     createdAt,
     expiresAt,
     kind: 'feature-successor-rehearsal-admission',
@@ -667,6 +688,10 @@ test('feature admission reuses committed parent fences and window without creati
   });
   expect(parent.applyEvidenceMapSha256).toMatch(/^[0-9a-f]{64}$/);
   expect(parent.applyQuiescenceReadbackSha256).toMatch(/^[0-9a-f]{64}$/);
+  expect(parent.rehearsalAdmissionSha256).toBe(sha256(readFileSync(join(
+    custodyDirectory,
+    'rehearsal-admission.json',
+  ))));
   expect(admission.rollback.deploymentSha).toBe(sourceRevision);
   expect([...after].filter(name => name.startsWith('writer-fence-')))
     .toEqual([...before].filter(name => name.startsWith('writer-fence-')));
@@ -680,6 +705,11 @@ test('feature admission reuses committed parent fences and window without creati
   const applyAdmission = JSON.parse(readFileSync(apply.admissionPath, 'utf8'));
   expect(applyAdmission.stageStates).toEqual(featureStageStates());
   expect(applyAdmission.expiresAt).toBe(expiresAt);
+  expect(applyAdmission).toMatchObject({
+    baseApplyEvidenceMapSha256: parent.applyEvidenceMapSha256,
+    baseApplyQuiescenceReadbackSha256: parent.applyQuiescenceReadbackSha256,
+    baseRehearsalAdmissionSha256: parent.rehearsalAdmissionSha256,
+  });
 });
 
 test('rehearsal records a bounded terminal failure when rollback restoration differs', () => {
@@ -748,7 +778,7 @@ test('unsafe rollback and expired custody fail before any feature admission is w
   );
 });
 
-test('tampered parent provenance and future commit journals cannot seed the feature phase', () => {
+test('tampered parent provenance, rehearsal admission, and future journals cannot seed the feature phase', () => {
   const tampered = createCommittedPredecessor();
   const machinePath = join(tampered.custodyDirectory, 'apply-machine-operating-observations.json');
   const machine = JSON.parse(readFileSync(machinePath, 'utf8'));
@@ -756,6 +786,17 @@ test('tampered parent provenance and future commit journals cannot seed the feat
   writeCanonical(machinePath, machine);
   expect(() => prepareFeatureRehearsalAdmission({
     custodyDirectory: tampered.custodyDirectory,
+    loadManifestImpl: () => featureRecord,
+    now: fixedNow,
+  })).toThrow('FEATURE_SUCCESSOR_ADMISSION_INVALID');
+
+  const relabeled = createCommittedPredecessor();
+  const rehearsalPath = join(relabeled.custodyDirectory, 'rehearsal-admission.json');
+  const rehearsal = JSON.parse(readFileSync(rehearsalPath, 'utf8'));
+  rehearsal.attemptId = '123e4567-e89b-42d3-a456-426614174299';
+  writeCanonical(rehearsalPath, rehearsal);
+  expect(() => prepareFeatureRehearsalAdmission({
+    custodyDirectory: relabeled.custodyDirectory,
     loadManifestImpl: () => featureRecord,
     now: fixedNow,
   })).toThrow('FEATURE_SUCCESSOR_ADMISSION_INVALID');
@@ -774,6 +815,36 @@ test('tampered parent provenance and future commit journals cannot seed the feat
     loadManifestImpl: () => featureRecord,
     now: fixedNow,
   })).toThrow('FEATURE_SUCCESSOR_PARENT_NOT_COMMITTED');
+});
+
+test('feature execution pins every parent apply and rehearsal digest before external reads', () => {
+  for (const field of [
+    'baseApplyEvidenceMapSha256',
+    'baseApplyQuiescenceReadbackSha256',
+    'baseRehearsalAdmissionSha256',
+  ]) {
+    const { custodyDirectory } = createCommittedPredecessor();
+    const prepared = prepareFeatureRehearsalAdmission({
+      custodyDirectory,
+      loadManifestImpl: () => featureRecord,
+      now: fixedNow,
+    });
+    const admission = JSON.parse(readFileSync(prepared.admissionPath, 'utf8'));
+    admission[field] = '0'.repeat(64);
+    writeCanonical(prepared.admissionPath, admission);
+    let touched = 0;
+    expect(() => runFeatureSuccessorRehearsal({
+      custodyDirectory,
+    }, {
+      clock: () => fixedNow,
+      gitFactsImpl: () => { touched += 1; return {}; },
+      loadManifestImpl: () => featureRecord,
+      protectedMainReadbackImpl: () => { touched += 1; return {}; },
+      rollbackReadbackImpl: () => { touched += 1; return {}; },
+      runPsqlImpl: () => { touched += 1; return ''; },
+    } as any)).toThrow('FEATURE_SUCCESSOR_ADMISSION_INVALID');
+    expect(touched).toBe(0);
+  }
 });
 
 test('held apply fails before custody, database, rollback, or controller access', () => {
