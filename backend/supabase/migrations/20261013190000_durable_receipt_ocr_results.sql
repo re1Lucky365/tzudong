@@ -15,39 +15,50 @@ ALTER TABLE public.reviews
   ADD COLUMN IF NOT EXISTS ocr_processed_at timestamptz;
 
 DO $review_ocr_column_contract$
+DECLARE
+  v_ready boolean;
 BEGIN
-  IF EXISTS (
-    WITH expected(column_name, data_type, not_null, default_expression) AS (
-      VALUES
-        ('receipt_hash'::name, 'text'::text, false, NULL::text),
-        ('receipt_data'::name, 'jsonb'::text, false, NULL::text),
-        ('is_duplicate'::name, 'boolean'::text, false, 'false'::text),
-        ('ocr_processed_at'::name, 'timestamp with time zone'::text, false, NULL::text)
-    ),
-    actual AS (
-      SELECT
-        attribute.attname,
-        pg_catalog.format_type(attribute.atttypid, attribute.atttypmod),
-        attribute.attnotnull,
-        pg_catalog.pg_get_expr(default_value.adbin, default_value.adrelid)
-      FROM pg_catalog.pg_attribute AS attribute
-      LEFT JOIN pg_catalog.pg_attrdef AS default_value
-        ON default_value.adrelid = attribute.attrelid
-       AND default_value.adnum = attribute.attnum
-      WHERE attribute.attrelid = 'public.reviews'::regclass
-        AND attribute.attnum > 0
-        AND NOT attribute.attisdropped
-        AND attribute.attname = ANY (ARRAY[
-          'receipt_hash',
-          'receipt_data',
-          'is_duplicate',
-          'ocr_processed_at'
-        ]::name[])
+  SELECT pg_catalog.count(*) = 4
+    AND pg_catalog.bool_and(
+      NOT attribute.attnotnull
+      AND attribute.atttypmod = -1
+      AND attribute.attidentity = ''
+      AND attribute.attgenerated = ''
+      AND CASE attribute.attname
+        WHEN 'receipt_hash' THEN
+          attribute.atttypid = 'text'::pg_catalog.regtype
+          AND default_value.oid IS NULL
+        WHEN 'receipt_data' THEN
+          attribute.atttypid = 'jsonb'::pg_catalog.regtype
+          AND default_value.oid IS NULL
+        WHEN 'is_duplicate' THEN
+          attribute.atttypid = 'boolean'::pg_catalog.regtype
+          AND pg_catalog.pg_get_expr(
+            default_value.adbin,
+            default_value.adrelid
+          ) = 'false'
+        WHEN 'ocr_processed_at' THEN
+          attribute.atttypid = 'timestamp with time zone'::pg_catalog.regtype
+          AND default_value.oid IS NULL
+        ELSE false
+      END
     )
-    (SELECT * FROM expected EXCEPT SELECT * FROM actual)
-    UNION ALL
-    (SELECT * FROM actual EXCEPT SELECT * FROM expected)
-  ) THEN
+  INTO v_ready
+  FROM pg_catalog.pg_attribute AS attribute
+  LEFT JOIN pg_catalog.pg_attrdef AS default_value
+    ON default_value.adrelid = attribute.attrelid
+   AND default_value.adnum = attribute.attnum
+  WHERE attribute.attrelid = 'public.reviews'::regclass
+    AND attribute.attnum > 0
+    AND NOT attribute.attisdropped
+    AND attribute.attname = ANY (ARRAY[
+      'receipt_hash',
+      'receipt_data',
+      'is_duplicate',
+      'ocr_processed_at'
+    ]::name[]);
+
+  IF NOT coalesce(v_ready, false) THEN
     RAISE EXCEPTION 'REVIEW_OCR_COLUMN_CONTRACT_DRIFT';
   END IF;
 END;
@@ -63,49 +74,60 @@ CREATE INDEX IF NOT EXISTS reviews_duplicate_idx
   ON public.reviews USING btree (is_duplicate);
 
 DO $review_ocr_index_contract$
+DECLARE
+  v_ready boolean;
 BEGIN
-  IF EXISTS (
-    WITH expected(index_name, is_unique, key_name, predicate) AS (
-      VALUES
-        ('idx_reviews_receipt_hash'::name, true, 'receipt_hash'::text, '(receipt_hash IS NOT NULL)'::text),
-        ('reviews_ocr_pending_idx'::name, false, 'ocr_processed_at'::text, '(verification_photo IS NOT NULL)'::text),
-        ('reviews_duplicate_idx'::name, false, 'is_duplicate'::text, NULL::text)
-    ),
-    actual AS (
-      SELECT
-        index_relation.relname,
-        index_row.indisunique,
-        pg_catalog.pg_get_indexdef(index_relation.oid, 1, true),
-        pg_catalog.pg_get_expr(index_row.indpred, index_row.indrelid)
-      FROM pg_catalog.pg_class AS index_relation
-      JOIN pg_catalog.pg_namespace AS namespace
-        ON namespace.oid = index_relation.relnamespace
-      JOIN pg_catalog.pg_index AS index_row
-        ON index_row.indexrelid = index_relation.oid
-      JOIN pg_catalog.pg_am AS access_method
-        ON access_method.oid = index_relation.relam
-      WHERE namespace.nspname = 'public'
-        AND index_relation.relname = ANY (ARRAY[
-          'idx_reviews_receipt_hash',
-          'reviews_ocr_pending_idx',
-          'reviews_duplicate_idx'
-        ]::name[])
-        AND index_relation.relkind = 'i'
-        AND index_row.indrelid = 'public.reviews'::regclass
-        AND access_method.amname = 'btree'
-        AND index_row.indnkeyatts = 1
-        AND index_row.indnatts = 1
-        AND index_row.indexprs IS NULL
-        AND index_row.indisvalid
-        AND index_row.indisready
-        AND index_row.indislive
-        AND NOT index_row.indisprimary
-        AND NOT index_row.indisexclusion
+  SELECT pg_catalog.count(*) = 3
+    AND pg_catalog.bool_and(
+      index_relation.relkind = 'i'
+      AND index_row.indrelid = 'public.reviews'::regclass
+      AND access_method.amname = 'btree'
+      AND index_row.indnkeyatts = 1
+      AND index_row.indnatts = 1
+      AND index_row.indexprs IS NULL
+      AND index_row.indisvalid
+      AND index_row.indisready
+      AND index_row.indislive
+      AND NOT index_row.indisprimary
+      AND NOT index_row.indisexclusion
+      AND CASE index_relation.relname
+        WHEN 'idx_reviews_receipt_hash' THEN
+          index_row.indisunique
+          AND pg_catalog.pg_get_indexdef(index_relation.oid, 1, true) = 'receipt_hash'
+          AND pg_catalog.pg_get_expr(
+            index_row.indpred,
+            index_row.indrelid
+          ) = '(receipt_hash IS NOT NULL)'
+        WHEN 'reviews_ocr_pending_idx' THEN
+          NOT index_row.indisunique
+          AND pg_catalog.pg_get_indexdef(index_relation.oid, 1, true) = 'ocr_processed_at'
+          AND pg_catalog.pg_get_expr(
+            index_row.indpred,
+            index_row.indrelid
+          ) = '(verification_photo IS NOT NULL)'
+        WHEN 'reviews_duplicate_idx' THEN
+          NOT index_row.indisunique
+          AND pg_catalog.pg_get_indexdef(index_relation.oid, 1, true) = 'is_duplicate'
+          AND index_row.indpred IS NULL
+        ELSE false
+      END
     )
-    (SELECT * FROM expected EXCEPT SELECT * FROM actual)
-    UNION ALL
-    (SELECT * FROM actual EXCEPT SELECT * FROM expected)
-  ) THEN
+  INTO v_ready
+  FROM pg_catalog.pg_class AS index_relation
+  JOIN pg_catalog.pg_namespace AS namespace
+    ON namespace.oid = index_relation.relnamespace
+  JOIN pg_catalog.pg_index AS index_row
+    ON index_row.indexrelid = index_relation.oid
+  JOIN pg_catalog.pg_am AS access_method
+    ON access_method.oid = index_relation.relam
+  WHERE namespace.nspname = 'public'
+    AND index_relation.relname = ANY (ARRAY[
+      'idx_reviews_receipt_hash',
+      'reviews_ocr_pending_idx',
+      'reviews_duplicate_idx'
+    ]::name[]);
+
+  IF NOT coalesce(v_ready, false) THEN
     RAISE EXCEPTION 'REVIEW_OCR_INDEX_CONTRACT_DRIFT';
   END IF;
 END;
@@ -946,6 +968,8 @@ AS $$
 DECLARE
   v_ready boolean;
   v_contracts_ready boolean;
+  v_review_ocr_columns_ready boolean;
+  v_review_ocr_indexes_ready boolean;
   v_trigger_helper_oid oid := pg_catalog.to_regprocedure(
     'ocr_private.register_review_ocr_generation()'
   );
@@ -997,6 +1021,102 @@ BEGIN
       OR pg_catalog.has_function_privilege('authenticated', procedure_row.oid, 'EXECUTE')
   ) INTO v_contracts_ready;
 
+  -- Keep the runtime decision tied to the same exact review-column contract
+  -- that the migration and successor controller admit. A later same-name
+  -- column with a different type, default, nullability, identity or generated
+  -- shape must put the feature back on hold.
+  SELECT pg_catalog.count(*) = 4
+    AND pg_catalog.bool_and(
+      NOT attribute.attnotnull
+      AND attribute.atttypmod = -1
+      AND attribute.attidentity = ''
+      AND attribute.attgenerated = ''
+      AND CASE attribute.attname
+        WHEN 'receipt_hash' THEN
+          attribute.atttypid = 'text'::pg_catalog.regtype
+          AND default_value.oid IS NULL
+        WHEN 'receipt_data' THEN
+          attribute.atttypid = 'jsonb'::pg_catalog.regtype
+          AND default_value.oid IS NULL
+        WHEN 'is_duplicate' THEN
+          attribute.atttypid = 'boolean'::pg_catalog.regtype
+          AND pg_catalog.pg_get_expr(
+            default_value.adbin,
+            default_value.adrelid
+          ) = 'false'
+        WHEN 'ocr_processed_at' THEN
+          attribute.atttypid = 'timestamp with time zone'::pg_catalog.regtype
+          AND default_value.oid IS NULL
+        ELSE false
+      END
+    )
+  INTO v_review_ocr_columns_ready
+  FROM pg_catalog.pg_attribute AS attribute
+  LEFT JOIN pg_catalog.pg_attrdef AS default_value
+    ON default_value.adrelid = attribute.attrelid
+   AND default_value.adnum = attribute.attnum
+  WHERE attribute.attrelid = 'public.reviews'::regclass
+    AND attribute.attnum > 0
+    AND NOT attribute.attisdropped
+    AND attribute.attname = ANY (ARRAY[
+      'receipt_hash',
+      'receipt_data',
+      'is_duplicate',
+      'ocr_processed_at'
+    ]::name[]);
+
+  -- Index identity is not enough: method, key, predicate and online-validity
+  -- flags are all part of the runtime contract.
+  SELECT pg_catalog.count(*) = 3
+    AND pg_catalog.bool_and(
+      index_relation.relkind = 'i'
+      AND index_row.indrelid = 'public.reviews'::regclass
+      AND access_method.amname = 'btree'
+      AND index_row.indnkeyatts = 1
+      AND index_row.indnatts = 1
+      AND index_row.indexprs IS NULL
+      AND index_row.indisvalid
+      AND index_row.indisready
+      AND index_row.indislive
+      AND NOT index_row.indisprimary
+      AND NOT index_row.indisexclusion
+      AND CASE index_relation.relname
+        WHEN 'idx_reviews_receipt_hash' THEN
+          index_row.indisunique
+          AND pg_catalog.pg_get_indexdef(index_relation.oid, 1, true) = 'receipt_hash'
+          AND pg_catalog.pg_get_expr(
+            index_row.indpred,
+            index_row.indrelid
+          ) = '(receipt_hash IS NOT NULL)'
+        WHEN 'reviews_ocr_pending_idx' THEN
+          NOT index_row.indisunique
+          AND pg_catalog.pg_get_indexdef(index_relation.oid, 1, true) = 'ocr_processed_at'
+          AND pg_catalog.pg_get_expr(
+            index_row.indpred,
+            index_row.indrelid
+          ) = '(verification_photo IS NOT NULL)'
+        WHEN 'reviews_duplicate_idx' THEN
+          NOT index_row.indisunique
+          AND pg_catalog.pg_get_indexdef(index_relation.oid, 1, true) = 'is_duplicate'
+          AND index_row.indpred IS NULL
+        ELSE false
+      END
+    )
+  INTO v_review_ocr_indexes_ready
+  FROM pg_catalog.pg_class AS index_relation
+  JOIN pg_catalog.pg_namespace AS namespace
+    ON namespace.oid = index_relation.relnamespace
+  JOIN pg_catalog.pg_index AS index_row
+    ON index_row.indexrelid = index_relation.oid
+  JOIN pg_catalog.pg_am AS access_method
+    ON access_method.oid = index_relation.relam
+  WHERE namespace.nspname = 'public'
+    AND index_relation.relname = ANY (ARRAY[
+      'idx_reviews_receipt_hash',
+      'reviews_ocr_pending_idx',
+      'reviews_duplicate_idx'
+    ]::name[]);
+
   SELECT EXISTS (
     SELECT 1
     FROM ocr_private.feature_runtime_capability AS capability
@@ -1004,6 +1124,8 @@ BEGIN
       AND capability.schema_version = 1
   )
   AND v_contracts_ready
+  AND coalesce(v_review_ocr_columns_ready, false)
+  AND coalesce(v_review_ocr_indexes_ready, false)
   AND pg_catalog.to_regprocedure('public.storyboard_production_admin(uuid,text,uuid,integer,jsonb)') IS NOT NULL
   AND pg_catalog.to_regprocedure('public.storyboard_production_worker(uuid,text,uuid,uuid,jsonb)') IS NOT NULL
   AND EXISTS (

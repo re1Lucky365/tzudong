@@ -583,7 +583,7 @@ test('manifest freezes the exact four sources and ledger 97 to 101 while launch 
     migration.sha256,
   ])).toEqual([
     ['20261013093518', 15228, '84d351dead86ef90040b6949fe4a6dc93eb91a783c1b7a78531c7f564ea4ff4e'],
-    ['20261013190000', 51799, '0a99efa37fb87c425e420aca5a468f8995167e76ccc3e129d6fde2a49d3e582f'],
+    ['20261013190000', 56061, '7a140594826c3375da71e74be44bdfe9c6e99c4465d8a9484a9d8180d696480d'],
     ['20261013190100', 25506, '0c3f8b4cadc1d4bb0d88b53de49be34ef8e2751a47bfc18ebad89ae543b4c370'],
     ['20261013190200', 14358, '0a060ca537d3558779fd0cb1b780e7965189eb129f5018987f157c1cb5f2cd3d'],
   ]);
@@ -618,9 +618,10 @@ test('state contract binds G014, Storage, roles, catalog and cumulative feature 
     "'catalogRoot'", "'g014Root'", "'storageRoot'", "'roleRoot'",
     "'storyboardReady'", "'ocrReady'", "'g014Ready'", "'immutableReady'", "'featureRuntimeReady'",
     'pg_auth_members', 'g014_public_rpc_allowlist', "polrelid='storage.objects'::regclass",
-    "a.attrelid='public.reviews'::regclass", "a.attidentity = ''", "a.attgenerated = ''",
+    "a.attrelid='public.reviews'::regclass", 'a.atttypmod = -1', "a.attidentity = ''", "a.attgenerated = ''",
     "WHEN 'idx_reviews_receipt_hash'", "pg_get_indexdef(c.oid,1,true)='receipt_hash'",
-    "WHEN 'reviews_ocr_pending_idx'", "WHEN 'reviews_duplicate_idx'",
+    "WHEN 'reviews_ocr_pending_idx'", "WHEN 'reviews_duplicate_idx'", "am.amname='btree'",
+    'i.indisvalid AND i.indisready AND i.indislive',
   ]) expect(query).toContain(token);
   const stages = featureStageStates();
   expect(validateFeatureStageStates(stages, featureManifest)).toEqual({

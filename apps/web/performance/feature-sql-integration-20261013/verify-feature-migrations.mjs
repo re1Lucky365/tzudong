@@ -884,6 +884,97 @@ function assertFeatureRuntimeCapability(state, ready) {
   }
 }
 
+function verifyRuntimeCapabilityCatalogDrift() {
+  const cases = [
+    {
+      kind: 'column',
+      name: 'receipt_hash',
+      drift: "ALTER TABLE public.reviews ALTER COLUMN receipt_hash SET DEFAULT 'runtime-drift'::text;",
+      restore: 'ALTER TABLE public.reviews ALTER COLUMN receipt_hash DROP DEFAULT;',
+    },
+    {
+      kind: 'column',
+      name: 'receipt_data',
+      drift: "ALTER TABLE public.reviews ALTER COLUMN receipt_data SET DEFAULT '{}'::jsonb;",
+      restore: 'ALTER TABLE public.reviews ALTER COLUMN receipt_data DROP DEFAULT;',
+    },
+    {
+      kind: 'column',
+      name: 'is_duplicate',
+      drift: 'ALTER TABLE public.reviews ALTER COLUMN is_duplicate SET DEFAULT true;',
+      restore: 'ALTER TABLE public.reviews ALTER COLUMN is_duplicate SET DEFAULT false;',
+    },
+    {
+      kind: 'column',
+      name: 'ocr_processed_at',
+      drift: "ALTER TABLE public.reviews ALTER COLUMN ocr_processed_at SET DEFAULT 'epoch'::timestamptz;",
+      restore: 'ALTER TABLE public.reviews ALTER COLUMN ocr_processed_at DROP DEFAULT;',
+    },
+    {
+      kind: 'index',
+      name: 'idx_reviews_receipt_hash',
+      drift: `DROP INDEX public.idx_reviews_receipt_hash;
+CREATE INDEX idx_reviews_receipt_hash
+  ON public.reviews USING btree (receipt_hash)
+  WHERE receipt_hash IS NOT NULL;`,
+      restore: `DROP INDEX public.idx_reviews_receipt_hash;
+CREATE UNIQUE INDEX idx_reviews_receipt_hash
+  ON public.reviews USING btree (receipt_hash)
+  WHERE receipt_hash IS NOT NULL;`,
+    },
+    {
+      kind: 'index',
+      name: 'reviews_ocr_pending_idx',
+      drift: `DROP INDEX public.reviews_ocr_pending_idx;
+CREATE INDEX reviews_ocr_pending_idx
+  ON public.reviews USING btree (receipt_hash)
+  WHERE verification_photo IS NOT NULL;`,
+      restore: `DROP INDEX public.reviews_ocr_pending_idx;
+CREATE INDEX reviews_ocr_pending_idx
+  ON public.reviews USING btree (ocr_processed_at)
+  WHERE verification_photo IS NOT NULL;`,
+    },
+    {
+      kind: 'index',
+      name: 'reviews_duplicate_idx',
+      drift: `DROP INDEX public.reviews_duplicate_idx;
+CREATE INDEX reviews_duplicate_idx
+  ON public.reviews USING hash (is_duplicate);`,
+      restore: `DROP INDEX public.reviews_duplicate_idx;
+CREATE INDEX reviews_duplicate_idx
+  ON public.reviews USING btree (is_duplicate);`,
+    },
+  ];
+  const receipts = [];
+  const initial = featureRuntimeCapabilityState('catalog-drift-initial');
+  assertFeatureRuntimeCapability(initial, true);
+  for (const item of cases) {
+    psql(item.drift);
+    let held;
+    try {
+      held = featureRuntimeCapabilityState(`${item.kind}-${item.name}-held`);
+    } finally {
+      // Keep the disposable harness internally recoverable even when the
+      // held-state assertion exposes a regression. Later cases and cleanup
+      // must observe the admitted catalog, not the intentionally damaged one.
+      psql(item.restore);
+    }
+    assertFeatureRuntimeCapability(held, false);
+    const ready = featureRuntimeCapabilityState(`${item.kind}-${item.name}-restored`);
+    assertFeatureRuntimeCapability(ready, true);
+    receipts.push(Object.freeze({
+      kind: item.kind,
+      name: item.name,
+      heldStatus: held.status,
+      restoredStatus: ready.status,
+    }));
+  }
+  return Object.freeze({
+    initialStatus: initial.status,
+    cases: Object.freeze(receipts),
+  });
+}
+
 async function checkFeatureRollbacks(featureBytes) {
   const verified = {};
   let storyboardCutoverRace = null;
@@ -1797,6 +1888,7 @@ try {
     frozenSourceBytes.get(path).toString('utf8'),
   ]));
   const rollback = await checkFeatureRollbacks(featureBytes);
+  const runtimeCapabilityCatalogDrift = verifyRuntimeCapabilityCatalogDrift();
   const storyboard = verifyStoryboard();
   const ocr = await verifyOcr();
 
@@ -1970,6 +2062,7 @@ try {
       migrationRollbackExact: rollback.migrations,
       storyboardCutoverRace: rollback.storyboardCutoverRace,
       runtimeCapabilityStages: rollback.runtimeCapabilityStages,
+      runtimeCapabilityCatalogDrift,
       storyboard,
       ocr,
       preexistingReviewAndAdminCorrectionExact: true,
