@@ -96,7 +96,7 @@ async function run(check: (page: Page) => Promise<void>, width = 1423, id?: stri
     await page.goto(`http://storyboard-library.fixture.test/admin?module=storyboard${id ? `&storyboardProject=${id}` : ""}`);
     await page.addStyleTag({ content: css });
     await page.addScriptTag({ content: script });
-    await page.getByRole("heading", { name: "스토리보드", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "스토리보드 생성", exact: true }).waitFor();
     await browserExpect(page.getByLabel("프로젝트 선택", { exact: true }).locator("option")).toHaveCount(3);
     await check(page);
     expect(errors).toEqual([]); expect(blocked).toEqual([]);

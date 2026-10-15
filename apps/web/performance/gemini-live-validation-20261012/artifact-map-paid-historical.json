@@ -1,0 +1,212 @@
+{
+  "kind": "gemini-live-validation-artifact-map",
+  "dateKst": "2026-10-12",
+  "existingFundedProjectVerified": true,
+  "sample": {
+    "inputClass": "synthetic",
+    "sampleCountPerPhase": 1,
+    "n1": true
+  },
+  "providerMeasurement": {
+    "providerRequestsStarted": 5,
+    "generationCallsStarted": 4,
+    "measuredGenerationElapsedMs": 63315.711291,
+    "metadataElapsedMs": null,
+    "metadataElapsedIncludedInAggregate": false,
+    "usage": {
+      "promptTokenCount": 1825,
+      "outputTokenCount": 4236,
+      "thoughtsTokenCount": 2648,
+      "totalTokenCount": 8709,
+      "independentTotalRecalculation": "2007 + 3705 + 1537 + 1460 = 8709"
+    },
+    "requests": [
+      {
+        "phase": "ocr-metadata",
+        "requestCount": 1,
+        "elapsedMs": null,
+        "tokenUsage": null
+      },
+      {
+        "phase": "ocr-generation",
+        "model": "gemini-3.6-flash",
+        "requestCount": 1,
+        "elapsedMs": 4187.453750000001,
+        "usage": {
+          "promptTokenCount": 1495,
+          "outputTokenCount": 127,
+          "thoughtsTokenCount": 385,
+          "totalTokenCount": 2007
+        }
+      },
+      {
+        "phase": "storyboard-draft",
+        "model": "gemini-3.8-flash",
+        "requestCount": 1,
+        "elapsedMs": 28306.274999999998,
+        "usage": {
+          "promptTokenCount": 266,
+          "outputTokenCount": 1389,
+          "thoughtsTokenCount": 2050,
+          "totalTokenCount": 3705
+        }
+      },
+      {
+        "phase": "storyboard-image",
+        "model": "gemini-3.1-flash-image",
+        "requestCount": 1,
+        "elapsedMs": 11799.955332999998,
+        "usage": {
+          "promptTokenCount": 32,
+          "outputTokenCount": 1505,
+          "thoughtsTokenCount": 0,
+          "totalTokenCount": 1537
+        }
+      },
+      {
+        "phase": "pro-image",
+        "model": "gemini-3-pro-image",
+        "requestCount": 1,
+        "elapsedMs": 19022.027208,
+        "usage": {
+          "promptTokenCount": 32,
+          "outputTokenCount": 1215,
+          "thoughtsTokenCount": 213,
+          "totalTokenCount": 1460
+        }
+      }
+    ],
+    "sdkAttemptsPerPhase": 1
+  },
+  "phaseResults": {
+    "ocr": {
+      "measuredAtUtc": "2026-10-11T15:47:40.017Z",
+      "passed": true,
+      "pending": null,
+      "syntheticInput": true,
+      "operationalDatabaseWrites": 0
+    },
+    "storyboard": {
+      "measuredAtUtc": "2026-10-11T15:48:04.705Z",
+      "passed": true,
+      "pending": null,
+      "syntheticInput": true,
+      "operationalDatabaseWrites": 0
+    },
+    "proImage": {
+      "measuredAtUtc": "2026-10-11T15:49:14.078Z",
+      "passed": true,
+      "pending": null,
+      "syntheticInput": true,
+      "operationalDatabaseWrites": 0
+    }
+  },
+  "sourceBinding": {
+    "gitHead": "bd80988fb925e7c47d4fe202da8d929d119a6cca",
+    "gitTree": "998d3a5568190d2fc0ba3e3634c302313f3c5b9c",
+    "workingTreeDirty": true,
+    "currentSourceHashesVerified": true,
+    "sourceHashMismatchCount": 0,
+    "phases": {
+      "ocr": {
+        "configurationSha256": "6748727560a176b3482ebca41aa51a6fe68b88cd86f19a81ce8cde870a17b121",
+        "sourceHashes": {
+          "lib/ocr/gemini.ts": "b49104ad4b9ab50180877ceedec3bdc467888e42c6e9ef500b414a25adab9c1d",
+          "lib/ocr/receipt-prompt.ts": "b970646c0936d8660108c09ed87a4259eadc7ea834ef4e3774b05ceb591e88a2",
+          "lib/ocr/runtime-config.ts": "cff9c05631ac5506099c1f8892bdd7e8edeb87e8ef404e38a3a46c9c8efc86fd",
+          "package-lock.json": "ce2e7d9dee5cb837a77f504028452b5e04f9f96a3413bfa2e9a005fa5de7531d",
+          "scripts/gemini-live-verification-io.ts": "d20727d9f964b9472d4bd7f3cce706b6a77cf8afc120883646649833631192d3",
+          "scripts/verify-ocr-gemini-live.ts": "718b708b65fa62dc231cd4e889e0f4aba88ac5d72da32b8b70cb31d259c77799"
+        }
+      },
+      "storyboard": {
+        "configurationSha256": "d792ed798244eff4426d2a395eb835e59952ec17509e12499b4d9c5c38d95cb4",
+        "sourceHashes": {
+          "lib/admin/storyboard/gemini-client.ts": "6272b4f09ff0bcd760513f129d33606c3690217d8a4c1ce3384c9a8dfc47c654",
+          "lib/admin/storyboard/gemini-models.ts": "560c65361a7131ac7dc5a64a8dfb244de3030cf51aa5e4f7e9811cca0057b7fc",
+          "lib/admin/storyboard/production-contract.ts": "6eaaf879cd439e9ccbc421e6345950a663b87e624df0a43d4092cdd4546b4717",
+          "package-lock.json": "ce2e7d9dee5cb837a77f504028452b5e04f9f96a3413bfa2e9a005fa5de7531d",
+          "scripts/gemini-live-verification-io.ts": "d20727d9f964b9472d4bd7f3cce706b6a77cf8afc120883646649833631192d3",
+          "scripts/verify-storyboard-gemini-live.ts": "9586109f3ffe2fcab671350431c2fa98288419552326c27e3061b969cd7b5676"
+        }
+      },
+      "proImage": {
+        "configurationSha256": "163dcd015543e8daa2fdda1339cafe93f97b44e97dea9eabb5a40fd7d952a956",
+        "sourceHashes": {
+          "lib/admin/storyboard/gemini-client.ts": "6272b4f09ff0bcd760513f129d33606c3690217d8a4c1ce3384c9a8dfc47c654",
+          "lib/admin/storyboard/gemini-models.ts": "560c65361a7131ac7dc5a64a8dfb244de3030cf51aa5e4f7e9811cca0057b7fc",
+          "lib/admin/storyboard/production-contract.ts": "6eaaf879cd439e9ccbc421e6345950a663b87e624df0a43d4092cdd4546b4717",
+          "package-lock.json": "ce2e7d9dee5cb837a77f504028452b5e04f9f96a3413bfa2e9a005fa5de7531d",
+          "scripts/gemini-live-verification-io.ts": "d20727d9f964b9472d4bd7f3cce706b6a77cf8afc120883646649833631192d3",
+          "scripts/verify-storyboard-gemini-live.ts": "9586109f3ffe2fcab671350431c2fa98288419552326c27e3061b969cd7b5676"
+        }
+      }
+    }
+  },
+  "privacyReview": {
+    "receiptsContainRawProviderDiagnostics": false,
+    "canonicalFilesContainCredentialMaterial": false,
+    "imagesVisuallyReviewed": true,
+    "visiblePeopleOrFaces": false,
+    "visibleText": false,
+    "visibleLogos": false,
+    "visibleIdentifyingPersonalData": false
+  },
+  "artifacts": [
+    {
+      "path": "performance/gemini-live-validation-20261012/README.md",
+      "role": "canonical-summary",
+      "sha256": "fb383d92177a190b9c1edebff8208761ae351ffd972137d39845a74af77b2465",
+      "bytes": 3708
+    },
+    {
+      "path": "performance/gemini-ocr-live-20261012/ocr-live-readback.json",
+      "role": "immutable-phase-receipt",
+      "sha256": "ac8f0d1ea13b07c0f9fc3be8f389db66a2f67895b261bd613d747df6cd28ecc2",
+      "bytes": 2497,
+      "mode": "0600"
+    },
+    {
+      "path": "performance/gemini-storyboard-live-20261012/gemini-live-generation.json",
+      "role": "immutable-phase-receipt",
+      "sha256": "687527a5eac9c9f1224e879531ee7125f4923f74a39d51a12fd9ff9ff68b9379",
+      "bytes": 2722,
+      "mode": "0600"
+    },
+    {
+      "path": "performance/gemini-storyboard-live-20261012/gemini-live-image.jpg",
+      "role": "generated-image",
+      "sha256": "126c591f8772d5c06f4f104ecf9975d9e11e5cf6ce5a0686e8290f167d6db033",
+      "bytes": 812434,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1376,
+      "height": 768
+    },
+    {
+      "path": "performance/gemini-storyboard-pro-live-20261012/gemini-live-pro-image.json",
+      "role": "immutable-phase-receipt",
+      "sha256": "2ab51e9e66b96d5011ee4b4da70a30dfa6a35d2dfb5d1041094673aae6b17740",
+      "bytes": 2324,
+      "mode": "0600"
+    },
+    {
+      "path": "performance/gemini-storyboard-pro-live-20261012/gemini-live-pro-image.jpg",
+      "role": "generated-image",
+      "sha256": "4c90ba26de03adbe9196216082b5299e9fa60e5b83377394235f8e9afad398cc",
+      "bytes": 728835,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1376,
+      "height": 768
+    }
+  ],
+  "notProven": [
+    "billing charge or deduction",
+    "cost savings",
+    "general accuracy or reliability beyond n=1 per phase",
+    "full user or authentication flows",
+    "database, storage, or worker behavior",
+    "deployment state"
+  ]
+}

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useEffect, useRef, useState } from "react";
 import { RefreshCw, ChevronRight, SlidersHorizontal, Workflow } from "lucide-react";
@@ -114,7 +115,7 @@ export function AdminPipelineDashboard() {
   };
   return <section data-admin-pipeline-dashboard="true" className={styles.workspace}>
     <Sheet open={controlsOpen} onOpenChange={changeControlsOpen}>
-      <AdminPageHeader title="크롤러 파이프라인" titleAs="h2" icon={Workflow}
+      <AdminPageHeader title={getAdminModuleTitle("pipeline")} icon={Workflow}
         data-admin-module-header="compact" data-admin-module-header-module="pipeline"
         summary={<span role="status" className="rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground">{statusLabel}</span>}
         actions={<>

@@ -1,6 +1,7 @@
 'use client';
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -73,7 +74,7 @@ export function AdminSentryPanel() {
   </aside> : null;
 
   return <div className="flex h-full min-h-[320px] min-w-0 flex-col overflow-hidden" data-admin-sentry-panel data-admin-sentry-state={query.isPending ? "loading" : query.isError ? "unavailable" : data?.state ?? "unavailable"}>
-    <AdminPageHeader title="Sentry 오류 모니터링" icon={Bug} summary={connectionLabel}
+    <AdminPageHeader title={getAdminModuleTitle("sentry")} icon={Bug} summary={connectionLabel}
       actions={<><Button size="sm" variant="ghost" onClick={() => void query.refetch()} disabled={query.isFetching} aria-label="오류 목록 새로고침"><RefreshCw className={`h-3.5 w-3.5 ${query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden="true" /></Button>{data?.dashboardUrl ? <Button size="sm" variant="outline" asChild><a href={data.dashboardUrl} target="_blank" rel="noopener noreferrer">Sentry 열기<ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" /></a></Button> : null}</>}
     />
     <div className="admin-cms-toolbar shrink-0">

@@ -1,0 +1,88 @@
+{
+  "schema": "tzudong-goal-delivery-ci-followup/v1",
+  "observedAtUtc": "2026-10-12 10:50:39 UTC",
+  "baseRevision": "6bc5391b5f88e97435f0c645cb405b4b217b6a30",
+  "failedWorkflow": {
+    "runId": 38206854390,
+    "attempt": 1,
+    "jobId": 114672127350,
+    "job": "Ubuntu npm",
+    "step": "test:unit",
+    "reason": "stale assertions required the old skeleton invocation and removed explanatory copy"
+  },
+  "reviewThread": {
+    "id": "PRRT_kwDOQGRyNc6rVfP9",
+    "path": "apps/web/scripts/gemini-live-verification-io.ts",
+    "reason": "path-limited git status could report clean while an executed unlisted dependency was modified",
+    "resolution": "inspect dirty state across the whole worktree; preserve the selected source hashes"
+  },
+  "changes": [
+    {
+      "path": "apps/web/scripts/gemini-live-verification-io.ts",
+      "beforeSha256": "011794294f92d45206601382809465ba3ceb3e5f61a25b270587d768d06678ed",
+      "afterSha256": "bb5eaa78f9ce988c81217f1c65937a75d3ba70370ba0f24477df8511272bc734",
+      "bytes": 25026
+    },
+    {
+      "path": "apps/web/tests-unit/admin-evaluation-status-filter-options.test.ts",
+      "beforeSha256": "8ada21519fc15c09f4e6dc5178fb3cb4401cb9a2b5438f117b08e0eaf3f1aacf",
+      "afterSha256": "7d0fab38e414fdfba585e2ca98d1b8b13c012293c1e44edb2700c89e3598af28",
+      "bytes": 14966
+    },
+    {
+      "path": "apps/web/tests-unit/gemini-live-verification-boundary.test.ts",
+      "beforeSha256": "33ce11392aa64c24e524e915ada410d34b6608c89152f4f84c5a8f338789113c",
+      "afterSha256": "6d5212bf7839ec2bfe92fc71ad4344d41fe9efa12209bb8efc5077a3489dab03",
+      "bytes": 13432
+    }
+  ],
+  "checks": {
+    "statusFilter": {
+      "executor": "root",
+      "command": "/Users/twoimo/.bun/bin/bun test tests-unit/admin-evaluation-status-filter-options.test.ts",
+      "exitCode": 0,
+      "pass": 6,
+      "fail": 0,
+      "assertions": 108,
+      "output": "bun test v1.4.0 (34cbb9a40)\n\ntests-unit/admin-evaluation-status-filter-options.test.ts:\n(pass) PRIMARY_STATUS_FILTER_OPTIONS > keeps the visible primary status menu in the approved order [0.46ms]\n(pass) PRIMARY_STATUS_FILTER_OPTIONS > sanitizes only visible primary status values [0.41ms]\n(pass) PRIMARY_STATUS_FILTER_OPTIONS > classifies lifecycle and data-quality filters from the full admin DB record set [0.28ms]\n(pass) PRIMARY_STATUS_FILTER_OPTIONS > queues geo-true insufficient_evidence from the shared reason set, not a leftover literal [2.52ms]\n(pass) PRIMARY_STATUS_FILTER_OPTIONS > keeps table and slide approval gates on the shared address-consistency helper [0.72ms]\n(pass) PRIMARY_STATUS_FILTER_OPTIONS > keeps mobile status filters clickable and view toggles icon-only [2.95ms]\n\n 6 pass\n 0 fail\n 108 expect() calls\nRan 6 tests across 1 file. [129.00ms]\n"
+    },
+    "statusFilterEslint": {
+      "executor": "root",
+      "exitCode": 0
+    },
+    "geminiBoundary": {
+      "executor": "collaboration:/root/cms_header_audit_oct11",
+      "pass": 19,
+      "fail": 0,
+      "assertions": 106,
+      "eslint": "passed",
+      "sourceSha256": "bb5eaa78f9ce988c81217f1c65937a75d3ba70370ba0f24477df8511272bc734",
+      "testSha256": "6d5212bf7839ec2bfe92fc71ad4344d41fe9efa12209bb8efc5077a3489dab03"
+    },
+    "typecheckParity": {
+      "executor": "root",
+      "exitCode": 0,
+      "status": "passed",
+      "diagnostics": 0,
+      "logicalInputs": 3149,
+      "logicalInputNamesSha256": "a26d22d6f960374753769956be9663ec8e3c23afb96c653f4fcb75fd49409ed4",
+      "nonLibraryContentSha256": "595323a03f0dbc557964d781aa8cb449dea85440fe7985ea950ada526c63b01b",
+      "standardLibraryContentSha256": {
+        "native": "d328ef5dcbac7d4c183cd37a26eb383e8e6921ab2147b20e5d73f3c149223a64",
+        "compat": "82afdd90154e9b315a83eb66f2d4ee59972c492094bbf66d7f0791f584e41eb0"
+      }
+    }
+  },
+  "originalPublishedArtifactMap": {
+    "sha256": "d45cfe77af130fa7b01df6c04188f754e138ca10b6891c189ec52e121f88b0cb",
+    "unchanged": true
+  },
+  "limits": {
+    "newProviderCalls": 0,
+    "remoteDatabaseWrites": 0,
+    "applicationUiSourceChanged": false,
+    "priorRenderedBuild": "HcJtq7WT9AGLOOijoRGrZ",
+    "olderCanariesProveCompleteExecutionClosure": false,
+    "hostedChecksForNextHead": "pending"
+  }
+}

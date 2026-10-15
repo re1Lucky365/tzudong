@@ -1,0 +1,102 @@
+{
+  "schema": "tzudong-pr3195-ci-typecheck-historical-input-delta/v1",
+  "evidenceClass": "local-source-and-toolchain-verification",
+  "candidate": {
+    "head": "a077a1f211e0494a98d9d9a0564b4aba37686d45",
+    "githubRun": 38403378099,
+    "attempt": 1
+  },
+  "rootCause": {
+    "summary": "A preserved historical Bun test kept its .test.ts suffix under performance/, so the app-wide TypeScript include and Bun test discovery treated immutable evidence as active source.",
+    "historicalPath": "apps/web/performance/admin-route-consistency-20261012/historical-c503483d02c97c9a/tests-unit/privacy-fixture-runtime.test.ts",
+    "historicalSha256BeforeAndAfter": "a8b2c19e8ef64f46d934d9240317bbdeccf9bfe2b298b74379b1144f70f79ed0",
+    "compilerDiagnosticsBefore": {
+      "total": 4,
+      "codes": {
+        "TS2307": 2,
+        "TS2339": 2
+      }
+    },
+    "affectedJobs": [
+      "Ubuntu npm",
+      "Ubuntu Bun",
+      "Windows npm",
+      "Windows Bun",
+      "Admin"
+    ]
+  },
+  "change": {
+    "typescript": "Exclude only performance/**/historical-*/** from active app compilation.",
+    "bun": "Apply the same historical-only pattern through Bun test.pathIgnorePatterns.",
+    "currentPerformanceSourcesRemainEligible": true,
+    "historicalEvidenceBytesChanged": false,
+    "officialBunReference": "https://bun.com/docs/test/configuration#path-ignore-patterns"
+  },
+  "sourceBindings": [
+    {
+      "path": "apps/web/bunfig.toml",
+      "bytes": 63,
+      "sha256": "3b49f3e9081826d620c036167072a9dbaf5b7eb4316e43b71dd7823671d22ccf"
+    },
+    {
+      "path": "apps/web/tsconfig.json",
+      "bytes": 1298,
+      "sha256": "42fa4271abb1177f6c171d2740f71012247c8f75dd05fd58ffa288231d9f2bc6"
+    },
+    {
+      "path": "apps/web/tests-unit/typescript-toolchain-source.test.ts",
+      "bytes": 8803,
+      "sha256": "294b043f83c8aba726b29279002d79c7d1b93a45050aa8c98cc473d3c5c9aa57"
+    }
+  ],
+  "verification": {
+    "environment": {
+      "node": "24.21.0",
+      "bun": "1.4.0",
+      "nativeTypeScript": "7.0.2",
+      "compatTypeScript": "6.0.2",
+      "platform": "macOS local candidate worktree"
+    },
+    "nativeTypecheck": {
+      "exitCode": 0,
+      "diagnostics": 0
+    },
+    "compatTypecheck": {
+      "exitCode": 0,
+      "diagnostics": 0
+    },
+    "adminTsc": {
+      "exitCode": 0,
+      "diagnostics": 0
+    },
+    "parity": {
+      "exitCode": 0,
+      "diagnostics": 0,
+      "logicalInputs": 3152,
+      "logicalInputNamesSha256": "f4881c3f7a10caaad03adf1092a77a5766e3aca2e4c3f270e710e0e7da578575",
+      "nonLibraryContentSha256": "a84b25482aa45b9a573c81329118065d23dd8bc3dbb3ba7458677db4d8f0b7d1"
+    },
+    "targetedTests": {
+      "filesDiscovered": 2,
+      "testsPassed": 20,
+      "testsFailed": 0,
+      "assertions": 505
+    },
+    "toolchainProvenance": {
+      "status": "passed",
+      "nativeCli": "7.0.2",
+      "compatCli": "6.0.2",
+      "programmaticApi": "6.0.2"
+    },
+    "targetedEslint": "passed",
+    "diffCheck": "passed"
+  },
+  "limits": {
+    "githubCiRerun": false,
+    "windowsLocalExecution": false,
+    "hostedWrites": 0,
+    "deployments": 0,
+    "performanceClaim": null,
+    "confidenceIntervalApplicable": false
+  }
+}

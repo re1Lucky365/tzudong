@@ -1,0 +1,79 @@
+{
+  "kind": "live-funded-gemini-generation",
+  "measuredAt": "2026-10-11T15:48:04.705Z",
+  "environment": {
+    "sdk": "2.24.0"
+  },
+  "syntheticInput": true,
+  "operationalDatabaseWrites": 0,
+  "maximumGenerationCalls": 2,
+  "generationCallsStarted": 2,
+  "sdkAttempts": 1,
+  "usage": [
+    {
+      "model": "gemini-3.8-flash",
+      "promptTokens": 266,
+      "outputTokens": 1389,
+      "thoughtTokens": 2050,
+      "totalTokens": 3705
+    },
+    {
+      "model": "gemini-3.1-flash-image",
+      "promptTokens": 32,
+      "outputTokens": 1505,
+      "thoughtTokens": null,
+      "totalTokens": 1537
+    }
+  ],
+  "credentialSourceName": "GEMINI_API_KEY",
+  "configuration": {
+    "proImage": false,
+    "sceneCount": 5,
+    "imageWidth": 1024,
+    "imageHeight": 576,
+    "textModel": "gemini-3.8-flash",
+    "imageModel": "gemini-3.1-flash-image",
+    "imageSize": "1K",
+    "sdkAttempts": 1
+  },
+  "configurationSha256": "d792ed798244eff4426d2a395eb835e59952ec17509e12499b4d9c5c38d95cb4",
+  "sourceBinding": {
+    "gitHead": "bd80988fb925e7c47d4fe202da8d929d119a6cca",
+    "gitTree": "998d3a5568190d2fc0ba3e3634c302313f3c5b9c",
+    "workingTreeDirty": true,
+    "workingTreeStatus": [
+      "M apps/web/scripts/verify-storyboard-gemini-live.ts",
+      "?? apps/web/scripts/gemini-live-verification-io.ts"
+    ],
+    "sourceHashes": {
+      "lib/admin/storyboard/gemini-client.ts": "6272b4f09ff0bcd760513f129d33606c3690217d8a4c1ce3384c9a8dfc47c654",
+      "lib/admin/storyboard/gemini-models.ts": "560c65361a7131ac7dc5a64a8dfb244de3030cf51aa5e4f7e9811cca0057b7fc",
+      "lib/admin/storyboard/production-contract.ts": "6eaaf879cd439e9ccbc421e6345950a663b87e624df0a43d4092cdd4546b4717",
+      "package-lock.json": "ce2e7d9dee5cb837a77f504028452b5e04f9f96a3413bfa2e9a005fa5de7531d",
+      "scripts/gemini-live-verification-io.ts": "d20727d9f964b9472d4bd7f3cce706b6a77cf8afc120883646649833631192d3",
+      "scripts/verify-storyboard-gemini-live.ts": "9586109f3ffe2fcab671350431c2fa98288419552326c27e3061b969cd7b5676"
+    }
+  },
+  "pending": null,
+  "limitations": [
+    "Single request per modality; no speed comparison or confidence interval.",
+    "Credit application and billed cost require a billing receipt."
+  ],
+  "draft": {
+    "elapsedMs": 28306.274999999998,
+    "sceneCount": 5,
+    "sha256": "86cc39ff1d66c259ad35b286107d7380123e28ca63486e5d945e745cbdd06a1d",
+    "responseModel": "gemini-3.8-flash",
+    "verified": true
+  },
+  "image": {
+    "elapsedMs": 11799.955332999998,
+    "bytes": 812434,
+    "width": 1376,
+    "height": 768,
+    "sha256": "126c591f8772d5c06f4f104ecf9975d9e11e5cf6ce5a0686e8290f167d6db033",
+    "responseModel": "gemini-3.1-flash-image",
+    "verified": true
+  },
+  "passed": true
+}

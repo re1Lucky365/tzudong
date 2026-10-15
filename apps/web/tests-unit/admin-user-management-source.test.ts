@@ -8,9 +8,11 @@ const repoSource = (relativePath: string) => readFileSync(join(import.meta.dir, 
 describe('admin user-management source contract', () => {
   test('embeds user management as a URL-backed admin console module', () => {
     const consoleSource = source('components/admin/AdminConsoleOverview.tsx');
+    const metadataSource = source('lib/admin/admin-module-metadata.ts');
 
     expect(consoleSource).toContain('"users"');
-    expect(consoleSource).toContain('title: "사용자 관리"');
+    expect(consoleSource).toContain('title: getAdminModuleTitle("users")');
+    expect(metadataSource).toContain('users: "사용자 관리"');
     expect(consoleSource).toContain('/admin?module=users');
     expect(consoleSource).toContain('AdminUsersModule');
     expect(consoleSource).toContain('components/admin/AdminUsersPanel');
@@ -22,7 +24,7 @@ describe('admin user-management source contract', () => {
   test('keeps user-management UI Korean, guarded, and accessible', () => {
     const panelSource = source('components/admin/AdminUsersPanel.tsx');
 
-    expect(panelSource).toContain('사용자 관리');
+    expect(panelSource).toContain('getAdminModuleTitle("users")');
     expect(panelSource).toContain('xl:grid-cols-[minmax(0,1fr)_360px]');
     expect(panelSource).toContain('권한 변경 전 확인');
     expect(panelSource).toContain('계정 처리 전 확인');
@@ -39,7 +41,7 @@ describe('admin user-management source contract', () => {
     expect(panelSource).not.toContain('new-user-email');
     expect(panelSource).not.toContain('type="password"');
     expect(panelSource).toContain('자기 잠금 방지');
-    expect(panelSource).toContain('<AdminPageHeader title="사용자 관리"');
+    expect(panelSource).toContain('<AdminPageHeader title={getAdminModuleTitle("users")}');
     expect(panelSource).toContain('titleId="admin-users-title"');
     expect(panelSource).toContain('data-admin-users-summary');
     expect(panelSource).toContain('admin-cms-inspector');

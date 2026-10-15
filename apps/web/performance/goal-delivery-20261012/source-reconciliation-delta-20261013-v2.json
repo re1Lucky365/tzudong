@@ -1,0 +1,110 @@
+{
+  "schema": "tzudong-goal-delivery-source-reconciliation-delta/v2",
+  "recordedAt": "2026-10-13T11:14:40.837143+00:00",
+  "historicalPackage": {
+    "artifactMapSha256": "d45cfe77af130fa7b01df6c04188f754e138ca10b6891c189ec52e121f88b0cb",
+    "baseSha": "dd0c790be7ffc94a86f95126aa60019ded8ff9b7",
+    "buildId": "HcJtq7WT9AGLOOijoRGrZ",
+    "sourceManifestSha256": "2cc2a16f055ce9bbcb3cd1c75ac05c90cc0cbd36d29661d1967260ccf8dc3cfa",
+    "classification": "historical-build-and-readback-package"
+  },
+  "previousReconciliation": {
+    "path": "source-reconciliation-delta-20261013.json",
+    "sha256": "fe0da048921eb9729738aa607efdb0d9ecb149d2a580c0528fe67b5117dede0a",
+    "preserved": true
+  },
+  "currentReconciliation": {
+    "head": "bb6f9228209c9a4a8251ca2e182428f7021d6a3e",
+    "workingTreeDirty": true,
+    "scope": "selected-reviewed-source-counterparts-only",
+    "selectedHistoricalRowsChecked": 5,
+    "selectedMismatchCount": 5,
+    "items": [
+      {
+        "path": "apps/web/scripts/gemini-live-verification-io.ts",
+        "historicalBuildBinding": {
+          "bytes": 25023,
+          "sha256": "011794294f92d45206601382809465ba3ceb3e5f61a25b270587d768d06678ed"
+        },
+        "currentSource": {
+          "bytes": 25668,
+          "sha256": "165cc1d223eb55b2dd54e8b3fbd2363cf138b401730caa7963e6615accb25dca"
+        },
+        "matches": false
+      },
+      {
+        "path": "apps/web/scripts/verify-admin-sidebar-pages-browser.ts",
+        "historicalBuildBinding": {
+          "bytes": 42359,
+          "sha256": "7500adb0f2ae2878fb0c87f9c2a50e2603635843e6795c748d8faae8057dfafe"
+        },
+        "currentSource": {
+          "bytes": 42346,
+          "sha256": "8d81317901080253fc3335f71f04faf58e1b3bd2b5428df6dfe3025e750257f6"
+        },
+        "matches": false
+      },
+      {
+        "path": "apps/web/scripts/verify-ocr-gemini-live.ts",
+        "historicalBuildBinding": {
+          "bytes": 8308,
+          "sha256": "718b708b65fa62dc231cd4e889e0f4aba88ac5d72da32b8b70cb31d259c77799"
+        },
+        "currentSource": {
+          "bytes": 9029,
+          "sha256": "a572d29f612039186c453953d2ac9e7cdeb31609f0f448020f661ac39a940573"
+        },
+        "matches": false
+      },
+      {
+        "path": "apps/web/tests-unit/gemini-live-verification-boundary.test.ts",
+        "historicalBuildBinding": {
+          "bytes": 12827,
+          "sha256": "33ce11392aa64c24e524e915ada410d34b6608c89152f4f84c5a8f338789113c"
+        },
+        "currentSource": {
+          "bytes": 15429,
+          "sha256": "49e4d6e487ddb86dd79ee757f6b71b9b6c8232d735f7f8555954466204691361"
+        },
+        "matches": false
+      },
+      {
+        "path": "apps/web/tests-unit/ocr-live-verification-cli.test.ts",
+        "historicalBuildBinding": {
+          "bytes": 5185,
+          "sha256": "861695d5e9fcc169143ce2c38bca7c9a7deabddf4623f90806cb779aeba290c6"
+        },
+        "currentSource": {
+          "bytes": 8380,
+          "sha256": "b85ca3eada7b001fb06f5410c8418c954cef5188cd0c0f58d0d9225641e28b95"
+        },
+        "matches": false
+      }
+    ],
+    "currentOnlyRelatedSources": [
+      {
+        "path": "apps/web/scripts/ocr-gemini-live-attempt.ts",
+        "bytes": 2070,
+        "sha256": "ea7118e2173ce480a0235ac0a65ff4840f85ca120e1e08d9aad1f04247b38b00",
+        "historicalChangedSourcesBinding": "absent"
+      },
+      {
+        "path": "apps/web/scripts/verify-admin-pipeline-browser.ts",
+        "bytes": 20713,
+        "sha256": "07e1134ccc7315cb93371d40b577eaf934e594ec3c7913c8a79e25fe88df4b8e",
+        "historicalChangedSourcesBinding": "absent"
+      }
+    ],
+    "fullChangedSourcesInventoryVerified": false,
+    "fullBuildSourceManifestVerified": false
+  },
+  "boundaries": {
+    "historicalSourceHashesOverwritten": false,
+    "historicalBuildReplayed": false,
+    "historicalReadbackReplayed": false,
+    "fullBuildRun": false,
+    "browserRun": false,
+    "providerCalls": 0,
+    "hostedWrites": 0
+  }
+}

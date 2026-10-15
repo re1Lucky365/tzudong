@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 
 import { useState, useRef, useMemo, Suspense, useEffect, useLayoutEffect } from 'react';
 import { useFilledSkeletonCount } from '@/lib/use-filled-skeleton-count';
@@ -768,15 +769,12 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             )}
 
             <div className={cn("relative z-10 flex min-h-0 flex-1 flex-col", embedded ? "h-full" : "container mx-auto min-h-screen max-w-7xl p-3 md:p-4")}>
-                <AdminPageHeader title="배너 관리" icon={ImageIcon}
+                <AdminPageHeader title={getAdminModuleTitle("banners")} icon={ImageIcon}
                     data-admin-module-header={embedded ? "compact" : undefined} data-admin-module-header-module={embedded ? "banners" : undefined}
-                    summary={<>전체 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(sortedBanners.length, '개')} · 활성 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(activeBannerCount, '개')} · 비활성 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(inactiveBannerCount, '개')}</>}
-                    actions={<div className="flex w-full min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center lg:w-auto" data-admin-module-actions={embedded ? "top-right" : undefined}>
-                        <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
-                            <Badge variant="secondary" className="shrink-0 whitespace-nowrap rounded-full border border-border bg-muted/50 text-muted-foreground"><Monitor className="mr-1 h-3.5 w-3.5" aria-hidden="true" />데스크톱 배너 {bannersLoading ? <InlineCountSkeleton className="ml-1 w-5" /> : formatBannerCount(sidebarTargetCount)}</Badge>
-                            <Badge variant="secondary" className="shrink-0 whitespace-nowrap rounded-full border border-border bg-muted/50 text-muted-foreground"><Smartphone className="mr-1 h-3.5 w-3.5" aria-hidden="true" />모바일 팝업 {bannersLoading ? <InlineCountSkeleton className="ml-1 w-5" /> : formatBannerCount(mobileTargetCount)}</Badge>
-                        </div>
-                        <Button onClick={openCreatePanel} disabled={isBusy || Boolean(pendingReadback)} className="h-9 w-full rounded-md bg-primary px-3 text-primary-foreground hover:bg-primary/90 sm:w-auto">
+                    summary={<>전체 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(sortedBanners.length, '개')} · 활성 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(activeBannerCount, '개')} · 비활성 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(inactiveBannerCount, '개')} · 데스크톱 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(sidebarTargetCount)} · 모바일 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(mobileTargetCount)}</>}
+                    actions={<div className="flex min-w-0 items-center gap-1.5" data-admin-module-actions={embedded ? "top-right" : undefined}>
+                        <Button type="button" variant="ghost" size="sm" aria-label="배너 목록 새로고침" disabled={bannersFetching || isBusy} onClick={() => void refreshBannerList()}><RefreshCw className={cn("h-4 w-4", bannersFetching && "animate-spin")} aria-hidden="true" />새로고침</Button>
+                        <Button onClick={openCreatePanel} disabled={isBusy || Boolean(pendingReadback)} className="h-9 w-auto shrink-0 rounded-md bg-primary px-3 text-primary-foreground hover:bg-primary/90">
                             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />새 배너
                         </Button>
                     </div>}
@@ -793,7 +791,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                             <div className="flex w-full min-w-0 gap-2"><div className="relative min-w-0 flex-1">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                                 <Input id="admin-banner-search" aria-label="배너 제목·설명 검색" placeholder="제목·설명 검색" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} className="h-9 pl-9" />
-                            </div><Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" aria-label="배너 목록 새로고침" disabled={bannersFetching || isBusy} onClick={() => void refreshBannerList()}><RefreshCw className={cn("h-4 w-4", bannersFetching && "animate-spin")} aria-hidden="true" /></Button></div>
+                            </div></div>
                             <div className="flex w-full flex-wrap items-center gap-2">
                                 <select aria-label="배너 활성 상태 필터" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs"><option value="all">모든 상태</option><option value="active">활성</option><option value="inactive">비활성</option></select>
                                 <select aria-label="배너 표시 위치 필터" value={targetFilter} onChange={(event) => setTargetFilter(event.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs"><option value="all">모든 위치</option><option value="sidebar">데스크톱 배너</option><option value="mobile_popup">모바일 팝업</option></select>

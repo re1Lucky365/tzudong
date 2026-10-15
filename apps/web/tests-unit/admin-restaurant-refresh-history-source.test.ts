@@ -20,11 +20,17 @@ function repoSource(path: string) {
 describe("admin restaurant refresh history source contracts", () => {
   test("retains legacy refresh routes while mounting refresh inside restaurant management", () => {
     const consoleSource = source("components/admin/AdminConsoleOverview.tsx");
+    const metadataSource = source("lib/admin/admin-module-metadata.ts");
     const sidebarOrderSource = source("lib/admin/sidebar-order.ts");
     const routeSource = source("lib/admin/admin-module-routing.ts");
 
     expect(routeSource).toContain('"restaurant-refresh-history"');
-    expect(consoleSource).toContain('title: "맛집 최신화"');
+    expect(consoleSource).toContain(
+      'title: getAdminModuleTitle("restaurant-refresh-history")',
+    );
+    expect(metadataSource).toContain(
+      '"restaurant-refresh-history": "맛집 관리"',
+    );
     expect(consoleSource).toContain(
       'href: "/admin?module=restaurant-refresh-history"',
     );
