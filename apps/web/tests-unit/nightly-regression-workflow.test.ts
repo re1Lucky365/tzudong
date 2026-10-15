@@ -201,11 +201,11 @@ describe("nightly regression package and source contracts", () => {
     expect(hostedWorkflowSource).not.toMatch(/^\s*uses:\s+\S+@v\d+\b/gm);
   });
 
-  test("routes publication script changes through web admin pull and push CI", () => {
+  test("routes GitHub workflow inputs through web admin pull and push CI", () => {
     const pullPaths = sourceBlock(webAdminWorkflowSource, "  pull_request:", "  push:");
     const pushPaths = sourceBlock(webAdminWorkflowSource, "  push:", "  schedule:");
-    expect(pullPaths).toContain("      - '.github/scripts/**'");
-    expect(pushPaths).toContain("      - '.github/scripts/**'");
+    expect(pullPaths).toContain("      - '.github/**'");
+    expect(pushPaths).toContain("      - '.github/**'");
   });
 
   test("parses local and hosted mode only from explicit command arguments", () => {

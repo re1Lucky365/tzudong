@@ -412,9 +412,9 @@
       "sha256": "f7baefbedefeadd7751c480e5e5a3ae26a9faadb948c4f293c2673c116484223"
     },
     {
-      "bytes": 83156,
+      "bytes": 83136,
       "path": "apps/web/tests-unit/nightly-regression-workflow.test.ts",
-      "sha256": "c2b2450aaff508659aa99371cb83e01d92178f40dee6f047d39911e8024cec0f"
+      "sha256": "d4b259553eeebcd6aeb951815dbd11e0070be1a62fdfc8b18889c13bb46c69f9"
     },
     {
       "bytes": 16654,
