@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto';
 import {
+  closeSync,
+  constants,
   existsSync,
+  fstatSync,
   lstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
   readdirSync,
   readlinkSync,
@@ -12,7 +16,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 const GENERATED_NEXT_ENV_LINES = new Set([
   '',
@@ -23,6 +27,12 @@ const GENERATED_NEXT_ENV_LINES = new Set([
   '// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.',
 ]);
 const GENERATED_NEXT_ENV_IMPORT = /^import ["']\.\/\.next[^"']*\/types\/(?:routes|root-params)\.d\.ts["'];$/;
+const BUILD_RUNTIME_CLOSURE_SCHEMA = 'tzudong-next-runtime-artifact-closure/v1';
+const BUILD_RUNTIME_MUTABLE_EXCLUSIONS = Object.freeze([
+  Object.freeze({ path: 'cache', scope: 'subtree', reason: 'next-runtime-cache' }),
+  Object.freeze({ path: 'trace', scope: 'file', reason: 'next-runtime-trace' }),
+  Object.freeze({ path: 'trace-build', scope: 'file', reason: 'next-build-trace' }),
+]);
 
 function boundedCode(error, fallback) {
   try {
@@ -41,6 +51,117 @@ function lstatIfPresent(path) {
     if (boundedCode(error, 'LSTAT_FAILED') === 'ENOENT') return null;
     throw error;
   }
+}
+
+function runtimeClosureFailure(code) {
+  return Object.assign(new Error(code), { code });
+}
+
+function isBoundedRuntimePath(path) {
+  return typeof path === 'string'
+    && path.length > 0
+    && !isAbsolute(path)
+    && !path.includes('\\')
+    && path.split('/').every((segment) => segment.length > 0 && segment !== '.' && segment !== '..');
+}
+
+function readRuntimeArtifactSnapshot(root, realRoot, path) {
+  if (!isBoundedRuntimePath(path)) throw runtimeClosureFailure('BUILD_RUNTIME_ARTIFACT_PATH_INVALID');
+  const absolute = resolve(root, path);
+  if (!absolute.startsWith(`${root}${sep}`)) throw runtimeClosureFailure('BUILD_RUNTIME_ARTIFACT_PATH_INVALID');
+  const real = realpathSync(absolute);
+  if (!real.startsWith(`${realRoot}${sep}`)) throw runtimeClosureFailure('BUILD_RUNTIME_ARTIFACT_PATH_INVALID');
+  const fd = openSync(absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    if (!fstatSync(fd).isFile()) throw runtimeClosureFailure('BUILD_RUNTIME_ARTIFACT_ENTRY_INVALID');
+    const content = readFileSync(fd);
+    return {
+      path,
+      bytes: content.byteLength,
+      sha256: createHash('sha256').update(content).digest('hex'),
+    };
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function runtimeClosureDigest(files) {
+  const hash = createHash('sha256');
+  for (const file of files) hash.update(`file\0${file.path}\0${file.bytes}\0${file.sha256}\0`);
+  return hash.digest('hex');
+}
+
+export function captureBuildRuntimeArtifactClosure({ buildDirectory }) {
+  const root = resolve(buildDirectory);
+  const rootEntry = lstatIfPresent(root);
+  if (rootEntry === null || !rootEntry.isDirectory() || rootEntry.isSymbolicLink()) {
+    throw runtimeClosureFailure('BUILD_RUNTIME_ARTIFACT_ROOT_INVALID');
+  }
+  const realRoot = realpathSync(root);
+  const files = [];
+
+  function walk(directory, prefix = '') {
+    const realDirectory = realpathSync(directory);
+    if (realDirectory !== realRoot && !realDirectory.startsWith(`${realRoot}${sep}`)) {
+      throw runtimeClosureFailure('BUILD_RUNTIME_ARTIFACT_PATH_INVALID');
+    }
+    for (const name of readdirSync(directory).sort()) {
+      const path = prefix ? `${prefix}/${name}` : name;
+      if (!isBoundedRuntimePath(path)) throw runtimeClosureFailure('BUILD_RUNTIME_ARTIFACT_PATH_INVALID');
+      const absolute = join(directory, name);
+      const entry = lstatSync(absolute);
+      const exclusion = BUILD_RUNTIME_MUTABLE_EXCLUSIONS.find((candidate) => candidate.path === path);
+      if (exclusion) {
+        const validType = exclusion.scope === 'subtree' ? entry.isDirectory() : entry.isFile();
+        if (entry.isSymbolicLink() || !validType) {
+          throw runtimeClosureFailure('BUILD_RUNTIME_MUTABLE_ENTRY_INVALID');
+        }
+        continue;
+      }
+      if (entry.isSymbolicLink()) throw runtimeClosureFailure('BUILD_RUNTIME_LINK_NOT_ADMITTED');
+      if (entry.isDirectory()) walk(absolute, path);
+      else if (entry.isFile()) files.push(readRuntimeArtifactSnapshot(root, realRoot, path));
+      else throw runtimeClosureFailure('BUILD_RUNTIME_ARTIFACT_ENTRY_INVALID');
+    }
+  }
+
+  walk(root);
+  const bytes = files.reduce((total, file) => total + file.bytes, 0);
+  return {
+    schema: BUILD_RUNTIME_CLOSURE_SCHEMA,
+    mutableExclusions: BUILD_RUNTIME_MUTABLE_EXCLUSIONS.map((entry) => ({ ...entry })),
+    fileCount: files.length,
+    bytes,
+    sha256: runtimeClosureDigest(files),
+    files,
+  };
+}
+
+export function verifyBuildRuntimeArtifactClosure({ buildDirectory, expected }) {
+  if (expected?.schema !== BUILD_RUNTIME_CLOSURE_SCHEMA
+    || JSON.stringify(expected.mutableExclusions) !== JSON.stringify(BUILD_RUNTIME_MUTABLE_EXCLUSIONS)
+    || !Array.isArray(expected.files)
+    || !Number.isSafeInteger(expected.fileCount) || expected.fileCount < 1
+    || !Number.isSafeInteger(expected.bytes) || expected.bytes < 1
+    || typeof expected.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(expected.sha256)) {
+    throw runtimeClosureFailure('BUILD_RUNTIME_CLOSURE_INVALID');
+  }
+  for (const entry of expected.files) {
+    if (!isBoundedRuntimePath(entry?.path)
+      || !Number.isSafeInteger(entry?.bytes) || entry.bytes < 0
+      || typeof entry?.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(entry.sha256)) {
+      throw runtimeClosureFailure('BUILD_RUNTIME_CLOSURE_INVALID');
+    }
+  }
+  const actual = captureBuildRuntimeArtifactClosure({ buildDirectory });
+  if (expected.fileCount !== expected.files.length
+    || expected.fileCount !== actual.fileCount
+    || expected.bytes !== actual.bytes
+    || expected.sha256 !== actual.sha256
+    || JSON.stringify(expected.files) !== JSON.stringify(actual.files)) {
+    throw runtimeClosureFailure('BUILD_RUNTIME_CLOSURE_MISMATCH');
+  }
+  return actual;
 }
 
 export function dependencyOverride(argv) {

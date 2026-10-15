@@ -23,6 +23,7 @@ import {
   resolveFixtureRun,
   sanitizeFixtureOutput,
   validateFixtureDependencies,
+  verifyBuildRuntimeArtifactClosure,
 } from '../privacy-fixture-runtime.mjs';
 
 const NODE = process.execPath;
@@ -42,7 +43,13 @@ const DIST = run.dist;
 const FIXTURE_SERVER = resolve(EVIDENCE_ROOT, 'v2/fixture-server.mjs');
 const BUILD_RECEIPT = join(BUILD_OUT, 'privacy-build-receipt.json');
 const EXPECTED_LOCK_SHA256 = '607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4';
-const EXPECTED_BUILD_ARTIFACTS = Object.freeze([
+const REQUIRED_BUILD_ARTIFACTS = Object.freeze([
+  'BUILD_ID',
+  'build-manifest.json',
+  'routes-manifest.json',
+  'required-server-files.json',
+]);
+const BUILD_ARTIFACT_CANDIDATES = Object.freeze([
   'BUILD_ID',
   'build-manifest.json',
   'app-build-manifest.json',
@@ -60,9 +67,11 @@ function revalidateBuildArtifacts(receipt) {
   if (!buildDirectoryStat.isDirectory() || buildDirectoryStat.isSymbolicLink()) {
     throw new Error('BUILD_ARTIFACT_ROOT_INVALID');
   }
-  if (!Array.isArray(receipt.artifacts)
-    || receipt.artifacts.length !== EXPECTED_BUILD_ARTIFACTS.length
-    || receipt.artifacts.some((entry, index) => entry?.path !== EXPECTED_BUILD_ARTIFACTS[index])) {
+  const expectedBuildArtifacts = BUILD_ARTIFACT_CANDIDATES.filter((path) => existsSync(join(buildDirectory, path)));
+  if (!REQUIRED_BUILD_ARTIFACTS.every((path) => expectedBuildArtifacts.includes(path))
+    || !Array.isArray(receipt.artifacts)
+    || receipt.artifacts.length !== expectedBuildArtifacts.length
+    || receipt.artifacts.some((entry, index) => entry?.path !== expectedBuildArtifacts[index])) {
     throw new Error('BUILD_ARTIFACT_LIST_INVALID');
   }
 
@@ -89,6 +98,10 @@ function revalidateBuildArtifacts(receipt) {
   });
   const buildId = snapshots.find((entry) => entry.path === 'BUILD_ID')?.bytes.toString('utf8').trim() ?? '';
   if (!buildId || receipt.buildId !== buildId) throw new Error('BUILD_RECEIPT_INVALID');
+  const runtimeArtifactClosure = verifyBuildRuntimeArtifactClosure({
+    buildDirectory,
+    expected: receipt.runtimeArtifactClosure,
+  });
   return {
     buildId,
     artifacts: snapshots.map(({ path, sha256: artifactSha256, size }) => ({
@@ -96,6 +109,13 @@ function revalidateBuildArtifacts(receipt) {
       sha256: artifactSha256,
       size,
     })),
+    runtimeArtifactClosure: {
+      schema: runtimeArtifactClosure.schema,
+      mutableExclusions: runtimeArtifactClosure.mutableExclusions,
+      fileCount: runtimeArtifactClosure.fileCount,
+      bytes: runtimeArtifactClosure.bytes,
+      sha256: runtimeArtifactClosure.sha256,
+    },
   };
 }
 
@@ -323,6 +343,7 @@ try {
       launcherSha256: sha256(readFileSync(fileURLToPath(import.meta.url))),
       buildReceiptSha256: sha256(buildReceiptBytes),
       buildArtifacts: buildSnapshot.artifacts,
+      buildRuntimeArtifactClosure: buildSnapshot.runtimeArtifactClosure,
     },
     boundaries: {
       loopbackOnly: true,

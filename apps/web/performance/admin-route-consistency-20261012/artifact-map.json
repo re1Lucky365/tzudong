@@ -1,11 +1,11 @@
 {
   "schema": "tzudong-admin-route-consistency-artifact-map/v3",
-  "baseHead": "a45a6bb4989e588ddb02ac6c23ada44eb11cfdb0",
-  "scope": "Current source identity and source-only fixture-startup closure evidence, plus immutable historical execution evidence. Historical build, unit/parity, runtime, and render receipts were not rerun after the launcher changes and are not current-render proof.",
+  "baseHead": "1f97ab6daf8dcb27045f5c6e8bba0e6e70e2f545",
+  "scope": "Current source identity, a successful Next 16.3.8 runtime-closure build, one failed and one successful synthetic loopback lifecycle, and immutable historical evidence. Two test-only files changed after the build, so fc14-02 is not current full-source proof. Historical render, PostgreSQL, provider, and performance receipts remain historical.",
   "artifactRoot": "apps/web/performance/admin-route-consistency-20261012",
-  "artifactCount": 75,
-  "artifactBytes": 3052646,
-  "currentSourceCount": 21,
+  "artifactCount": 87,
+  "artifactBytes": 5167858,
+  "currentSourceCount": 25,
   "sourceBindings": [
     {
       "path": "apps/web/app/admin/layout.tsx",
@@ -34,23 +34,23 @@
     },
     {
       "path": "apps/web/performance/admin-route-consistency-20261012/build-privacy-fixture.mjs",
-      "bytes": 8027,
-      "sha256": "a3b241db992172b5d0f97d6a59c000d9ca3d6ee8ccaa97a0e75888858f0635c7"
+      "bytes": 8250,
+      "sha256": "3c48ac44f69ab9c65d71b9b5e501f02b646506041356957e2ed17fadb1b9a111"
     },
     {
       "path": "apps/web/performance/admin-route-consistency-20261012/privacy-fixture-runtime.mjs",
-      "bytes": 19211,
-      "sha256": "bdfd6cff688a8ee99a6e9bdfcdcbad1f07774e457a6af86dcfbf120bc2be4a4c"
+      "bytes": 24373,
+      "sha256": "8fc5d1a354f88a1e350c468e7efafa41ac6e2f5d99aad2aca8d173b79bbc1beb"
     },
     {
       "path": "apps/web/performance/admin-route-consistency-20261012/start-loopback.mjs",
-      "bytes": 12913,
-      "sha256": "01aa085b3b9c7eda6764ad6abb37a0c47cba6354c645f606ef54500bf69d67f5"
+      "bytes": 13804,
+      "sha256": "c62c6de56953415156f688a3ebb0b653419b014efd42f97ddbf45fed19c64c49"
     },
     {
       "path": "apps/web/performance/admin-route-consistency-20261012/v2/build-privacy-fixture.mjs",
-      "bytes": 8052,
-      "sha256": "802880be620366640f93e1c4f9e2fc3bb529a971e2f753c6bd9942a8f8c9344b"
+      "bytes": 8275,
+      "sha256": "745cd1848976b2dbdd843e456ceb19075543a06b01906ae092322169c6dd71dd"
     },
     {
       "path": "apps/web/performance/admin-route-consistency-20261012/v2/fixture-server.mjs",
@@ -59,8 +59,8 @@
     },
     {
       "path": "apps/web/performance/admin-route-consistency-20261012/v2/start-loopback.mjs",
-      "bytes": 12938,
-      "sha256": "63a395f7c25388c11a527517bdd8c372639b5c41baee914c0176a7a7942c2a03"
+      "bytes": 13829,
+      "sha256": "bb9e2f4e295400e6bd9ae89cb5da15c0821e13bda186fdc9b602ea3fe78960d4"
     },
     {
       "path": "apps/web/scripts/gemini-live-verification-io.ts",
@@ -104,8 +104,28 @@
     },
     {
       "path": "apps/web/tests-unit/privacy-loopback-start-integrity.test.ts",
-      "bytes": 14020,
-      "sha256": "dc2b98c3317780ab673e9de883cd211adcfa91d98ff119042e15e3e9f75187c0"
+      "bytes": 19882,
+      "sha256": "d69eb578f9d0a9abb3dd126ed7f3211a6db06af574cc1e2d25f0249682b8fe6c"
+    },
+    {
+      "path": "apps/web/app/api/admin/operating-readback/record-mutations-hold/readback-response.ts",
+      "bytes": 2357,
+      "sha256": "199988711df39cf256ee5c7d9b686c9d0b320bd7c74394fbeecd68646dc6395d"
+    },
+    {
+      "path": "apps/web/app/api/admin/operating-readback/record-mutations-hold/route.ts",
+      "bytes": 202,
+      "sha256": "ae470f7e9ee26c4a4cc55f57a00d695cb94343c21fe4df06bcbfe89e5d70ba61"
+    },
+    {
+      "path": "apps/web/tests-unit/admin-operating-readback-route.test.ts",
+      "bytes": 3851,
+      "sha256": "26cf7f3b6c53cb74ecd957b9a3b5a2b6454a06ca3fccc6cb2c3d4a9cf91fb864"
+    },
+    {
+      "path": "apps/web/tests-unit/admin-route-auth-contract.test.ts",
+      "bytes": 16290,
+      "sha256": "d39e53635ddd6f71f4816d68596208a71bd392a8a47aac538c5270d83ee7c6bb"
     },
     {
       "path": "apps/web/tsconfig.json",
@@ -211,8 +231,8 @@
     },
     {
       "path": "build-privacy-fixture.mjs",
-      "bytes": 8027,
-      "sha256": "a3b241db992172b5d0f97d6a59c000d9ca3d6ee8ccaa97a0e75888858f0635c7",
+      "bytes": 8250,
+      "sha256": "3c48ac44f69ab9c65d71b9b5e501f02b646506041356957e2ed17fadb1b9a111",
       "role": "current-reproduction-tool"
     },
     {
@@ -379,9 +399,9 @@
     },
     {
       "path": "privacy-fixture-runtime.mjs",
-      "bytes": 19211,
-      "sha256": "bdfd6cff688a8ee99a6e9bdfcdcbad1f07774e457a6af86dcfbf120bc2be4a4c",
-      "role": "historical-reproduction-helper"
+      "bytes": 24373,
+      "sha256": "8fc5d1a354f88a1e350c468e7efafa41ac6e2f5d99aad2aca8d173b79bbc1beb",
+      "role": "current-reproduction-helper"
     },
     {
       "path": "privacy-fixture-startup-closure-delta-20261013.json",
@@ -421,8 +441,8 @@
     },
     {
       "path": "start-loopback.mjs",
-      "bytes": 12913,
-      "sha256": "01aa085b3b9c7eda6764ad6abb37a0c47cba6354c645f606ef54500bf69d67f5",
+      "bytes": 13804,
+      "sha256": "c62c6de56953415156f688a3ebb0b653419b014efd42f97ddbf45fed19c64c49",
       "role": "current-reproduction-tool"
     },
     {
@@ -433,8 +453,8 @@
     },
     {
       "path": "v2/build-privacy-fixture.mjs",
-      "bytes": 8052,
-      "sha256": "802880be620366640f93e1c4f9e2fc3bb529a971e2f753c6bd9942a8f8c9344b",
+      "bytes": 8275,
+      "sha256": "745cd1848976b2dbdd843e456ceb19075543a06b01906ae092322169c6dd71dd",
       "role": "current-reproduction-tool"
     },
     {
@@ -625,9 +645,81 @@
     },
     {
       "path": "v2/start-loopback.mjs",
-      "bytes": 12938,
-      "sha256": "63a395f7c25388c11a527517bdd8c372639b5c41baee914c0176a7a7942c2a03",
+      "bytes": 13829,
+      "sha256": "bb9e2f4e295400e6bd9ae89cb5da15c0821e13bda186fdc9b602ea3fe78960d4",
       "role": "current-reproduction-tool"
+    },
+    {
+      "path": "historical-1f97ab6d-index/artifact-map.json",
+      "bytes": 29959,
+      "sha256": "efef71b148ecb8ab5a9fc2f219de41fff3a0a6138894ee356313297b072eed2b",
+      "role": "immutable-prior-index"
+    },
+    {
+      "path": "historical-1f97ab6d-index/artifact-map.sha256",
+      "bytes": 84,
+      "sha256": "5b607b3e4e1f1afdb6c98c9abeab46044856ce7c5a295fd209d17cdde9e6598f",
+      "role": "immutable-prior-index-sidecar"
+    },
+    {
+      "path": "v2/runs/fc14-02/privacy-build-receipt.json",
+      "bytes": 1003456,
+      "sha256": "5c895f6b3869151a4e1cd5412c21b845bf5f9f438203c6d9e68b2dab58bbf40e",
+      "role": "successful-local-build-with-post-build-test-only-drift"
+    },
+    {
+      "path": "v2/runs/fc14-02/privacy-build-source-before.json",
+      "bytes": 267959,
+      "sha256": "c3ba2de64106c2492012fab3f04cdfeee5a134bd6316e250e0a972b2c8699f67",
+      "role": "successful-local-build-source-before"
+    },
+    {
+      "path": "v2/runs/fc14-02/privacy-build-source-after.json",
+      "bytes": 267922,
+      "sha256": "81c656a9d00d73dbe99f78be8279f01c5f615bd9a5b4b5c07db3f8d448d28415",
+      "role": "successful-local-build-source-after"
+    },
+    {
+      "path": "v2/runs/fc14-02/runtime-attempts/smoke-01/privacy-runtime-start.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "role": "preserved-empty-failed-start-receipt"
+    },
+    {
+      "path": "v2/runs/fc14-02/runtime-attempts/smoke-01/privacy-runtime-stop.json",
+      "bytes": 76,
+      "sha256": "9c3bee6b8969f0927f371f949f09fa6311a748424eaa065a6dd8d8b312384e7a",
+      "role": "failed-runtime-lifecycle-stop"
+    },
+    {
+      "path": "v2/runs/fc14-02/runtime-attempts/smoke-02/privacy-runtime-start.json",
+      "bytes": 2464,
+      "sha256": "1e512e816bd018e93658d248f845bdb4b49d3b15ceeab04bda583414a7ce2548",
+      "role": "successful-runtime-closure-start"
+    },
+    {
+      "path": "v2/runs/fc14-02/runtime-attempts/smoke-02/privacy-runtime-stop.json",
+      "bytes": 76,
+      "sha256": "98a8fc4186d5d8c86d552ab20aad52b8fa134a67ea869474d190227739d32dbd",
+      "role": "successful-runtime-lifecycle-stop"
+    },
+    {
+      "path": "v2/runs/full-closure-20261014-01/privacy-build-receipt.json",
+      "bytes": 1127,
+      "sha256": "1fc1c8850eba6d00f1a0f50fb114993e8a0c34b7d713d572f312aa81add90500",
+      "role": "preserved-invalid-distdir-attempt"
+    },
+    {
+      "path": "v2/runs/full-closure-20261014-01/privacy-build-source-before.json",
+      "bytes": 267368,
+      "sha256": "1f72fc5b935c8d5cf9778fc737126f8ad7346921c039286b66a6592b7cd3e3c5",
+      "role": "invalid-distdir-source-before"
+    },
+    {
+      "path": "v2/runs/full-closure-20261014-01/privacy-build-source-after.json",
+      "bytes": 267331,
+      "sha256": "584edac8ade27c3827e675632fc9117cc8bb1d3dfa75738be9faef27a6dbb7aa",
+      "role": "invalid-distdir-source-after"
     }
   ],
   "historicalInventory": "artifact-map-31-historical.json",
@@ -676,15 +768,17 @@
     }
   ],
   "currentReproductionBindings": {
-    "helperSha256": "bdfd6cff688a8ee99a6e9bdfcdcbad1f07774e457a6af86dcfbf120bc2be4a4c",
+    "helperSha256": "8fc5d1a354f88a1e350c468e7efafa41ac6e2f5d99aad2aca8d173b79bbc1beb",
     "scenarioFixtureSha256": "7a7cc9cd4c028462d274ce874e52adb168cf244835871feed340d96f07eafbee",
     "archivedScenarioFixtureSha256": "3b9684c3dda38715b788c564fbaed8f0e002edbf9a46821a65b574bb602d8e09",
-    "buildLauncherSha256": "a3b241db992172b5d0f97d6a59c000d9ca3d6ee8ccaa97a0e75888858f0635c7",
-    "startLauncherSha256": "01aa085b3b9c7eda6764ad6abb37a0c47cba6354c645f606ef54500bf69d67f5",
-    "v2BuildLauncherSha256": "802880be620366640f93e1c4f9e2fc3bb529a971e2f753c6bd9942a8f8c9344b",
-    "v2StartLauncherSha256": "63a395f7c25388c11a527517bdd8c372639b5c41baee914c0176a7a7942c2a03",
+    "buildLauncherSha256": "3c48ac44f69ab9c65d71b9b5e501f02b646506041356957e2ed17fadb1b9a111",
+    "startLauncherSha256": "c62c6de56953415156f688a3ebb0b653419b014efd42f97ddbf45fed19c64c49",
+    "v2BuildLauncherSha256": "745cd1848976b2dbdd843e456ceb19075543a06b01906ae092322169c6dd71dd",
+    "v2StartLauncherSha256": "bb9e2f4e295400e6bd9ae89cb5da15c0821e13bda186fdc9b602ea3fe78960d4",
     "runtimeTestSha256": "f3d8342e97fc57c555223d59efe83b505b8fc5e176565f3e1d16b62287f965ec",
-    "startupClosureDeltaSha256": "adf255f8240f7599911dc79bb71187548fc95d341344f2e40ac91c3648d4d661"
+    "startupClosureDeltaSha256": "adf255f8240f7599911dc79bb71187548fc95d341344f2e40ac91c3648d4d661",
+    "runtimeArtifactClosureSha256": "c21d6f81577cdd477e52a9b2649ff66e1332c86829a1630a2409d1fbe671b886",
+    "successfulBuildReceiptSha256": "5c895f6b3869151a4e1cd5412c21b845bf5f9f438203c6d9e68b2dab58bbf40e"
   },
   "exclusions": {
     "mapSelfReference": [
@@ -692,6 +786,10 @@
       "artifact-map.sha256"
     ],
     "currentLogsNotAdmitted": [
+      "v2/runs/fc14-02/privacy-build-output.log",
+      "v2/runs/fc14-02/runtime-attempts/smoke-01/privacy-runtime.log",
+      "v2/runs/fc14-02/runtime-attempts/smoke-02/privacy-runtime.log",
+      "v2/runs/full-closure-20261014-01/privacy-build-output.log",
       "v2/runs/reviewed-20261013/privacy-build-output.log",
       "v2/runs/reviewed-20261013/privacy-runtime.log",
       "v2/runs/reviewed-20261013/runtime-attempts/resume-20261013/privacy-runtime.log",
@@ -729,7 +827,7 @@
       "session tokens"
     ]
   },
-  "packageSourceHead": "c503483d02c97c9abe6a19eddd8cd3f5715ebc42",
+  "packageSourceHead": "1f97ab6daf8dcb27045f5c6e8bba0e6e70e2f545",
   "frozenHistoricalC503": {
     "path": "historical-c503483d02c97c9a",
     "sourceCommit": "c503483d02c97c9abe6a19eddd8cd3f5715ebc42",
@@ -740,8 +838,8 @@
     "exactGitBlobMatch": true
   },
   "previousIndex": {
-    "path": "historical-3777eca3-index/artifact-map.json",
-    "sha256": "f8ee56863632052c88e4369ebbbcd0de9abb10420e26f8ac2539b78b4303a7ea",
+    "path": "historical-1f97ab6d-index/artifact-map.json",
+    "sha256": "efef71b148ecb8ab5a9fc2f219de41fff3a0a6138894ee356313297b072eed2b",
     "classification": "past byte snapshot; source labels describe its capture and are not current-source evidence"
   }
 }

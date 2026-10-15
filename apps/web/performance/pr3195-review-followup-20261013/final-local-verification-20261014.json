@@ -1,0 +1,255 @@
+{
+  "schema": "tzudong-pr3195-final-local-verification/v1",
+  "recordedAt": "2026-10-14T04:40:00Z",
+  "candidateHeadBeforeEvidenceRefresh": "1f97ab6daf8dcb27045f5c6e8bba0e6e70e2f545",
+  "evidenceClass": "local source, production build, synthetic loopback lifecycle, and retained-proof integrity",
+  "changes": [
+    "bind the complete immutable Next runtime artifact closure before any child process starts",
+    "treat app-build-manifest.json as optional when Next 16.3.8 omits it while retaining four mandatory startup artifacts",
+    "expose the existing record-mutations hold through an authenticated private no-store admin readback",
+    "refresh the detached retained-proof checksum lists without relabeling prior PostgreSQL or render evidence"
+  ],
+  "sourceBindings": [
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/privacy-fixture-runtime.mjs",
+      "bytes": 24373,
+      "sha256": "8fc5d1a354f88a1e350c468e7efafa41ac6e2f5d99aad2aca8d173b79bbc1beb"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/build-privacy-fixture.mjs",
+      "bytes": 8250,
+      "sha256": "3c48ac44f69ab9c65d71b9b5e501f02b646506041356957e2ed17fadb1b9a111"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/start-loopback.mjs",
+      "bytes": 13804,
+      "sha256": "c62c6de56953415156f688a3ebb0b653419b014efd42f97ddbf45fed19c64c49"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/v2/build-privacy-fixture.mjs",
+      "bytes": 8275,
+      "sha256": "745cd1848976b2dbdd843e456ceb19075543a06b01906ae092322169c6dd71dd"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/v2/start-loopback.mjs",
+      "bytes": 13829,
+      "sha256": "bb9e2f4e295400e6bd9ae89cb5da15c0821e13bda186fdc9b602ea3fe78960d4"
+    },
+    {
+      "path": "apps/web/tests-unit/privacy-loopback-start-integrity.test.ts",
+      "bytes": 19882,
+      "sha256": "d69eb578f9d0a9abb3dd126ed7f3211a6db06af574cc1e2d25f0249682b8fe6c"
+    },
+    {
+      "path": "apps/web/app/api/admin/operating-readback/record-mutations-hold/route.ts",
+      "bytes": 202,
+      "sha256": "ae470f7e9ee26c4a4cc55f57a00d695cb94343c21fe4df06bcbfe89e5d70ba61"
+    },
+    {
+      "path": "apps/web/app/api/admin/operating-readback/record-mutations-hold/readback-response.ts",
+      "bytes": 2357,
+      "sha256": "199988711df39cf256ee5c7d9b686c9d0b320bd7c74394fbeecd68646dc6395d"
+    },
+    {
+      "path": "apps/web/tests-unit/admin-operating-readback-route.test.ts",
+      "bytes": 3851,
+      "sha256": "26cf7f3b6c53cb74ecd957b9a3b5a2b6454a06ca3fccc6cb2c3d4a9cf91fb864"
+    },
+    {
+      "path": "apps/web/tests-unit/admin-route-auth-contract.test.ts",
+      "bytes": 16290,
+      "sha256": "d39e53635ddd6f71f4816d68596208a71bd392a8a47aac538c5270d83ee7c6bb"
+    },
+    {
+      "path": "apps/web/tests-unit/storyboard-project-library-browser.test.ts",
+      "bytes": 12452,
+      "sha256": "799164193874a247317e6158513968719f77081dd15241cb0d5384d91e6ef471"
+    }
+  ],
+  "productionBuild": {
+    "receipt": "apps/web/performance/admin-route-consistency-20261012/v2/runs/fc14-02/privacy-build-receipt.json",
+    "receiptSha256": "5c895f6b3869151a4e1cd5412c21b845bf5f9f438203c6d9e68b2dab58bbf40e",
+    "status": 0,
+    "node": "24.21.0",
+    "next": "16.3.8",
+    "buildId": "eOeHIjll95bAtBcBUVaXn",
+    "sourceFileCount": 1539,
+    "sourceManifestSha256": "0bee3e6af23239c4a7beb22d090fc841420c9e3606736bd580cfdf795d6d1b6c",
+    "sourceUnchanged": true,
+    "tsconfigRestored": true,
+    "dependencyLinkRemoved": true,
+    "mandatoryStartupArtifacts": 4,
+    "optionalAppBuildManifestPresent": false,
+    "freshApplicationBundleRequired": false,
+    "freshFullSourceProofWouldRequireRebuild": true,
+    "runtimeArtifactClosure": {
+      "fileCount": 4540,
+      "bytes": 160202737,
+      "sha256": "c21d6f81577cdd477e52a9b2649ff66e1332c86829a1630a2409d1fbe671b886",
+      "mutableExclusions": [
+        "cache subtree",
+        "trace file",
+        "trace-build file"
+      ]
+    },
+    "currentFullSourceProof": false,
+    "postBuildSourceDrift": {
+      "manifestEntries": 1539,
+      "missing": 0,
+      "count": 2,
+      "rows": [
+        {
+          "path": "tests-unit/privacy-loopback-start-integrity.test.ts",
+          "receiptSha256": "eaf09d47cbfdea6d1126cc2f5c39d3760a4a9d5e592e170d1fa568e8f048d955",
+          "currentSha256": "d69eb578f9d0a9abb3dd126ed7f3211a6db06af574cc1e2d25f0249682b8fe6c"
+        },
+        {
+          "path": "tests-unit/storyboard-project-library-browser.test.ts",
+          "receiptSha256": "37979ae0d436d207ffdc17062dcafc83e736986c99dfc7ab6c3b872da7b89788",
+          "currentSha256": "799164193874a247317e6158513968719f77081dd15241cb0d5384d91e6ef471"
+        }
+      ],
+      "classification": "test-only corrections after the build; the old bundle must not be called current full-source proof"
+    }
+  },
+  "failedAttempts": [
+    {
+      "kind": "invalid distDir before application compilation",
+      "receipt": "apps/web/performance/admin-route-consistency-20261012/v2/runs/full-closure-20261014-01/privacy-build-receipt.json",
+      "receiptSha256": "1fc1c8850eba6d00f1a0f50fb114993e8a0c34b7d713d572f312aa81add90500",
+      "status": 1,
+      "sourceUnchanged": true,
+      "tsconfigRestored": true,
+      "dependencyLinkRemoved": true,
+      "classification": "caller-input failure; not an application compile result"
+    },
+    {
+      "kind": "initial loopback launcher failure",
+      "startReceipt": "apps/web/performance/admin-route-consistency-20261012/v2/runs/fc14-02/runtime-attempts/smoke-01/privacy-runtime-start.json",
+      "startReceiptBytes": 0,
+      "startReceiptSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stopReceipt": "apps/web/performance/admin-route-consistency-20261012/v2/runs/fc14-02/runtime-attempts/smoke-01/privacy-runtime-stop.json",
+      "stopReceiptSha256": "9c3bee6b8969f0927f371f949f09fa6311a748424eaa065a6dd8d8b312384e7a",
+      "exitCode": 1,
+      "dependencyLinkRemoved": true,
+      "classification": "preserved failed lifecycle attempt; raw console output excluded"
+    }
+  ],
+  "successfulLoopback": {
+    "startReceipt": "apps/web/performance/admin-route-consistency-20261012/v2/runs/fc14-02/runtime-attempts/smoke-02/privacy-runtime-start.json",
+    "startReceiptSha256": "1e512e816bd018e93658d248f845bdb4b49d3b15ceeab04bda583414a7ce2548",
+    "stopReceipt": "apps/web/performance/admin-route-consistency-20261012/v2/runs/fc14-02/runtime-attempts/smoke-02/privacy-runtime-stop.json",
+    "stopReceiptSha256": "98a8fc4186d5d8c86d552ab20aad52b8fa134a67ea869474d190227739d32dbd",
+    "verifiedRuntimeClosureSha256": "c21d6f81577cdd477e52a9b2649ff66e1332c86829a1630a2409d1fbe671b886",
+    "httpStatusObservedByExecutor": 200,
+    "httpResponseReceiptPersisted": false,
+    "exitCode": 0,
+    "dependencyLinkRemoved": true,
+    "cleanupSignal": "SIGTERM",
+    "classification": "synthetic loopback process and HTTP observation; not a browser render, OAuth, hosted database, provider, deployment, or production-service readback"
+  },
+  "retainedProofChecksums": [
+    {
+      "path": "apps/web/performance/review-db-rehearsal-20261012/SHA256SUMS",
+      "bytes": 5536,
+      "sha256": "9462963988db565d066807a59d049c943e740e29f86df429938d04eb530103ca"
+    },
+    {
+      "path": "apps/web/performance/review-db-rehearsal-20261012/SHA256SUMS.sha256",
+      "bytes": 65,
+      "sha256": "5d92de01074654036cea16b7c2f0b0c80a467f663ef652a9db15cb3fed3d6434"
+    },
+    {
+      "path": "apps/web/performance/review-db-successor-20261012/SHA256SUMS",
+      "bytes": 3743,
+      "sha256": "aff9374a0e6a6964b2d32f6cb5c6069296c5155b94c2ec1015460d2386fb4e88"
+    },
+    {
+      "path": "apps/web/performance/review-db-successor-20261012/SHA256SUMS.sha256",
+      "bytes": 65,
+      "sha256": "7fdf6871b6182fe7ca66e23ba8b94a03a69c2ec303d5e5dda6a429755c896efd"
+    }
+  ],
+  "retainedProofVerification": {
+    "rehearsalEntries": 38,
+    "rehearsalMismatches": 0,
+    "rehearsalDetachedChecksumMatch": true,
+    "successorEntries": 25,
+    "successorMismatches": 0,
+    "successorDetachedChecksumMatch": true,
+    "method": "read each listed file once, compare SHA-256, then verify the detached checksum of each list"
+  },
+  "fullUnitVerification": {
+    "status": "passed",
+    "firstInvocation": {
+      "runnerExitCode": 1,
+      "passed": 3401,
+      "skipped": 3,
+      "failed": 7,
+      "assertions": 90226,
+      "files": 428,
+      "observedSeconds": 276.89,
+      "failureClassification": {
+        "staleStoryboardHeadingLocator": 6,
+        "childRuntimeResolvedNode26FromPath": 1
+      }
+    },
+    "storyboardBrowserTargetedAfterLocatorFix": {
+      "runnerExitCode": 0,
+      "passed": 6,
+      "failed": 0,
+      "assertions": 42,
+      "classification": "targeted overlap; not added to the canonical totals"
+    },
+    "privacyRuntimeAndClosureTargeted": {
+      "runnerExitCode": 0,
+      "passed": 32,
+      "failed": 0,
+      "assertions": 291,
+      "classification": "targeted overlap; not added to the canonical totals"
+    },
+    "finalCanonicalInvocation": {
+      "runnerExitCode": 0,
+      "groups": 20,
+      "fileExecutions": 447,
+      "passed": 3650,
+      "skipped": 11,
+      "failed": 0,
+      "assertions": 92611,
+      "node": "24.21.0",
+      "bun": "1.4.0",
+      "explicitChildNode24": true,
+      "fixedPath": true,
+      "rawLogPersistedInArtifact": false
+    },
+    "parity": {
+      "native": "7.0.2",
+      "compat": "6.0.2",
+      "logicalInputs": 3154,
+      "diagnostics": 0,
+      "logicalInputNamesSha256": "08890a89db914376a02e56efbe294bcd2833bc67a154149c1c39fb656ac2d8ef",
+      "nonLibraryContentSha256": "bafdbcb73480bedfbff13953087701494be11e838d0196eeeff94ecaaa4b286f",
+      "recordedBeforeStoryboardTitleLocatorCorrection": true,
+      "classification": "diagnostics-free compiler parity evidence for the preceding source snapshot; not a post-locator-fix parity rerun"
+    },
+    "interpretation": "The first failed invocation is retained. The final canonical totals are reported once; targeted overlap is not added and no performance claim is made."
+  },
+  "historicalEvidence": {
+    "adminRoutePreviousIndex": "apps/web/performance/admin-route-consistency-20261012/historical-1f97ab6d-index/artifact-map.json",
+    "adminRoutePreviousIndexSha256": "efef71b148ecb8ab5a9fc2f219de41fff3a0a6138894ee356313297b072eed2b",
+    "reviewPreviousIndex": "apps/web/performance/pr3195-review-followup-20261013/historical-1f97ab6d-index/artifact-map.json",
+    "reviewPreviousIndexSha256": "275901823df966fe094678dfd00a15d53e925c121209157b3875aa76584164d9",
+    "previousRenderRelabeled": false,
+    "previousPostgreSQLRelabeled": false
+  },
+  "limits": [
+    "The complete runtime artifact closure is an exact deterministic inventory, so no statistical confidence interval applies.",
+    "One successful local build and one successful synthetic loopback lifecycle are functional observations, not latency or throughput samples.",
+    "The production build receipt has two post-build test-only source drifts and is therefore not current full-source proof until a fresh build is recorded.",
+    "Those two test-only drifts do not alter the compiled application bundle, so no fresh application build is required for the runtime-code claim; a fresh build is required only for an exact current-full-source claim.",
+    "The diagnostics-free parity result predates the storyboard title-locator-only test correction and is not relabeled as a post-correction compiler run.",
+    "The HTTP 200 observation has no persisted response-body receipt and therefore supports only the executor-observed local reachability claim.",
+    "No browser render, OAuth, hosted database, provider, production deployment, cost, or performance improvement is claimed.",
+    "Earlier unit, render, PostgreSQL, provider, and performance evidence remains historical and is not promoted by this receipt."
+  ]
+}
