@@ -967,6 +967,31 @@ class MonitorCiPerformanceTests(unittest.TestCase):
             receipt["analysis"]["warnings"],
         )
 
+    def test_unresolved_cohort_attempt_blocks_timing_and_failure_signals(self) -> None:
+        before = self.write(
+            "resolved-before.json",
+            payload([make_run(1_210 + index, 100) for index in range(7)]),
+        )
+        after = self.write(
+            "censored-after.json",
+            payload(
+                [make_run(1_310 + index, 50) for index in range(7)]
+                + [
+                    make_run(
+                        1_317,
+                        50,
+                        status="in_progress",
+                        conclusion="success",
+                    )
+                ]
+            ),
+        )
+        receipt = self.invoke(before, after)
+        cohort = receipt["analysis"]["cohorts"][0]
+        self.assertEqual(cohort["metrics"], {})
+        self.assertEqual(cohort["failureSignal"], "insufficient_samples")
+        self.assertIn("unresolved_cohort_attempts", cohort["warnings"])
+
     def test_missing_frozen_baseline_workflow_metadata_blocks_comparison(self) -> None:
         before = self.write(
             "before.json",

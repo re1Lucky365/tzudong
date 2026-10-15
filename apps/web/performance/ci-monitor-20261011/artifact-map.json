@@ -3,8 +3,8 @@
   "files": [
     {
       "path": ".github/scripts/collect-ci-monitor.py",
-      "sha256": "a4b082d5036d07dd8649ceaec7bb7535c25145d95c5f2edd4fb19c6c68304d78",
-      "bytes": 34790
+      "sha256": "0f225d142015b8845213030872ac22fc4dcc9bd6ec3dcf10ab37ac6e8e515718",
+      "bytes": 35685
     },
     {
       "path": ".github/scripts/collect-ci-performance.py",
@@ -13,8 +13,8 @@
     },
     {
       "path": ".github/scripts/monitor-ci-performance.py",
-      "sha256": "0ed4a804cf226224530e6b5471f7f12d129d1dbd384d817239f0cb2a12a6df64",
-      "bytes": 55550
+      "sha256": "4682c6f7903506e1f2dbda4377fbae5fd9244d01db5de38cf7f7b12b3343aa21",
+      "bytes": 56191
     },
     {
       "path": ".github/scripts/prepare-ci-reference.py",
@@ -33,8 +33,8 @@
     },
     {
       "path": ".github/scripts/test_collect_ci_monitor.py",
-      "sha256": "13bacff8939f625d7fc137dafaa7a95ef3f7eed4502a2516b300484aecd78f44",
-      "bytes": 30410
+      "sha256": "d64292b6fee8d6185969d43521443ec63fd796ec9521ca74537c0cfd481a35a1",
+      "bytes": 32216
     },
     {
       "path": ".github/scripts/test_collect_ci_performance.py",
@@ -43,8 +43,8 @@
     },
     {
       "path": ".github/scripts/test_monitor_ci_performance.py",
-      "sha256": "4b63f3b7bfecd4984535152103313b90ba221ea4d6ac4e6906e5364b50531140",
-      "bytes": 44597
+      "sha256": "25b7e329ced39fff478d9ccff207961c943e0e7fdf5706508176f4bf8299984b",
+      "bytes": 45544
     },
     {
       "path": ".github/scripts/test_prepare_ci_reference.py",

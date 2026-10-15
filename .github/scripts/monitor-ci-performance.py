@@ -974,6 +974,16 @@ def failure_rate(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def attempt_resolved_for_analysis(run: dict[str, Any]) -> bool:
+    if run.get("attemptBoundaryVerified", True) is not True:
+        return False
+    if run.get("tombstone"):
+        return True
+    if run.get("conclusion") == "success":
+        return run.get("snapshotImmutable") is True
+    return run.get("terminalOutcomeComplete") is True
+
+
 def stage_profile(runs: Sequence[dict[str, Any]]) -> dict[str, Any]:
     stage_names = sorted(
         {stage for run in runs for stage in run.get("stageSeconds", {})}
@@ -1021,6 +1031,12 @@ def build_analysis(
         warnings: list[str] = []
         if any(not run["cohortMetadataVerified"] for run in phases["before"] + phases["after"]):
             warnings.append("workflow_cohort_metadata_unverified")
+        cohort_attempts_resolved = all(
+            attempt_resolved_for_analysis(run)
+            for run in phases["before"] + phases["after"]
+        )
+        if not cohort_attempts_resolved:
+            warnings.append("unresolved_cohort_attempts")
         if len(before_success) < MIN_COHORT_SUCCESSES or len(after_success) < MIN_COHORT_SUCCESSES:
             warnings.append("minimum_7_before_and_7_after_successes_not_met")
         before_shas = {run["sourceTree"] for run in before_success if run["sourceTree"]}
@@ -1088,6 +1104,7 @@ def build_analysis(
         if (
             cohort_metadata_verified
             and attempt_boundaries_verified
+            and cohort_attempts_resolved
             and before_failure["n"] >= MIN_COHORT_SUCCESSES
             and after_failure["n"] >= MIN_COHORT_SUCCESSES
         ):

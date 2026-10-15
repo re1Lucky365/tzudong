@@ -12,9 +12,9 @@
       "sha256": "d7d62d467752b7e7f8ec48e83304663866bdf1d4ad563287ff21ecce65b2778d"
     },
     {
-      "bytes": 34790,
+      "bytes": 35685,
       "path": ".github/scripts/collect-ci-monitor.py",
-      "sha256": "a4b082d5036d07dd8649ceaec7bb7535c25145d95c5f2edd4fb19c6c68304d78"
+      "sha256": "0f225d142015b8845213030872ac22fc4dcc9bd6ec3dcf10ab37ac6e8e515718"
     },
     {
       "bytes": 41295,
@@ -22,9 +22,9 @@
       "sha256": "b62e60b3dbb150c2300c39d2ca77d337e32bdb14aa2ae52e9c93caeddb044577"
     },
     {
-      "bytes": 55550,
+      "bytes": 56191,
       "path": ".github/scripts/monitor-ci-performance.py",
-      "sha256": "0ed4a804cf226224530e6b5471f7f12d129d1dbd384d817239f0cb2a12a6df64"
+      "sha256": "4682c6f7903506e1f2dbda4377fbae5fd9244d01db5de38cf7f7b12b3343aa21"
     },
     {
       "bytes": 27749,
@@ -42,9 +42,9 @@
       "sha256": "3d73b9461350255dc1c4696ad13889cc14e74674b69724c0cfe72383d989eb9d"
     },
     {
-      "bytes": 30410,
+      "bytes": 32216,
       "path": ".github/scripts/test_collect_ci_monitor.py",
-      "sha256": "13bacff8939f625d7fc137dafaa7a95ef3f7eed4502a2516b300484aecd78f44"
+      "sha256": "d64292b6fee8d6185969d43521443ec63fd796ec9521ca74537c0cfd481a35a1"
     },
     {
       "bytes": 10200,
@@ -52,9 +52,9 @@
       "sha256": "d9019ff7f6f38e2c55536ac861806c29275fcf72265daa769dbc8637db275c9f"
     },
     {
-      "bytes": 44597,
+      "bytes": 45544,
       "path": ".github/scripts/test_monitor_ci_performance.py",
-      "sha256": "4b63f3b7bfecd4984535152103313b90ba221ea4d6ac4e6906e5364b50531140"
+      "sha256": "25b7e329ced39fff478d9ccff207961c943e0e7fdf5706508176f4bf8299984b"
     },
     {
       "bytes": 29019,
@@ -384,12 +384,12 @@
     {
       "bytes": 16004,
       "path": "apps/web/performance/ci-monitor-20261011/artifact-map.json",
-      "sha256": "d7feb0485f1ce9791579222f931f7d5db1501d8531f8f4c0b35c53a01f777b67"
+      "sha256": "c3f1557bead7abb5a1a0ae75bfcdb0000772995b13a74913e42a3137774a89ed"
     },
     {
       "bytes": 84,
       "path": "apps/web/performance/ci-monitor-20261011/artifact-map.json.sha256",
-      "sha256": "35c84949ab4d6cdc752951257d27137670f5f1c31e3e323ce2b240c6438416e1"
+      "sha256": "4d883123c0320aef5f5c2de98ab8933e118daca11eeb65d956b70473afae3f1d"
     },
     {
       "bytes": 14678,

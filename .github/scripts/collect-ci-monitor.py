@@ -245,6 +245,7 @@ def database(path):
     db.execute("CREATE TABLE IF NOT EXISTS sources (sha TEXT PRIMARY KEY, tree_sha TEXT, workflow_revision TEXT)")
     db.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
     db.execute("CREATE TABLE IF NOT EXISTS bootstrap_inventory (run_id INTEGER PRIMARY KEY)")
+    db.execute("CREATE TABLE IF NOT EXISTS terminal_refresh_inventory (run_id INTEGER PRIMARY KEY)")
     db.execute("CREATE TABLE IF NOT EXISTS terminal_refresh_cycle (run_id INTEGER PRIMARY KEY)")
     db.commit()
     return db
@@ -502,8 +503,29 @@ def collect(
         inventory_row = db.execute(
             "SELECT value FROM meta WHERE key='terminal_refresh_inventory_digest'"
         ).fetchone()
-        if not inventory_row or inventory_row[0] != terminal_inventory_digest:
+        prior_terminal_inventory = {
+            row[0]
+            for row in db.execute("SELECT run_id FROM terminal_refresh_inventory")
+        }
+        prior_inventory_bound = bool(
+            inventory_row
+            and inventory_row[0] == digest(sorted(prior_terminal_inventory))
+        )
+        current_terminal_inventory = set(known_terminal_ids)
+        if (
+            not prior_inventory_bound
+            or not prior_terminal_inventory.issubset(current_terminal_inventory)
+        ):
             db.execute("DELETE FROM terminal_refresh_cycle")
+        if (
+            not prior_inventory_bound
+            or prior_terminal_inventory != current_terminal_inventory
+        ):
+            db.execute("DELETE FROM terminal_refresh_inventory")
+            db.executemany(
+                "INSERT INTO terminal_refresh_inventory VALUES(?)",
+                [(run_id,) for run_id in known_terminal_ids],
+            )
             db.execute(
                 "INSERT OR REPLACE INTO meta VALUES('terminal_refresh_inventory_digest',?)",
                 (terminal_inventory_digest,),

@@ -571,6 +571,47 @@ class CollectorTests(unittest.TestCase):
         self.assertTrue(result["coverage"]["knownTerminalRerunRefreshComplete"])
         self.assertTrue(result["coverage"]["incrementalWindowComplete"])
 
+    def test_terminal_refresh_progress_survives_append_only_inventory_growth(self):
+        originals = [
+            run(run_id=10),
+            run(run_id=20, minute=1),
+            run(run_id=30, minute=2),
+        ]
+        M.collect(
+            "twoimo/tzudong", "web-admin-ci.yml", self.cache,
+            PagingReader(originals), terminal_probe_limit=1,
+        )
+        latest = {item["id"]: item for item in originals}
+        first = M.collect(
+            "twoimo/tzudong", "web-admin-ci.yml", self.cache,
+            DiscoveryReader([], latest), terminal_probe_limit=1,
+        )
+        self.assertEqual(first["coverage"]["knownTerminalRunsExamined"], 1)
+
+        added = run(run_id=40, minute=3)
+        latest[40] = added
+        growth = M.collect(
+            "twoimo/tzudong", "web-admin-ci.yml", self.cache,
+            DiscoveryReader([added], latest), terminal_probe_limit=1,
+        )
+        self.assertEqual(growth["coverage"]["knownTerminalRunsExamined"], 2)
+
+        continued = M.collect(
+            "twoimo/tzudong", "web-admin-ci.yml", self.cache,
+            DiscoveryReader([], latest), terminal_probe_limit=1,
+        )
+        self.assertEqual(continued["coverage"]["knownTerminalRunCount"], 4)
+        self.assertEqual(continued["coverage"]["knownTerminalRunsExamined"], 3)
+        self.assertFalse(continued["coverage"]["knownTerminalRerunRefreshComplete"])
+
+        completed = M.collect(
+            "twoimo/tzudong", "web-admin-ci.yml", self.cache,
+            DiscoveryReader([], latest), terminal_probe_limit=1,
+        )
+        self.assertEqual(completed["coverage"]["knownTerminalRunsExamined"], 4)
+        self.assertTrue(completed["coverage"]["knownTerminalRerunRefreshComplete"])
+        self.assertTrue(completed["coverage"]["incrementalWindowComplete"])
+
     def test_never_inventoried_old_rerun_keeps_coverage_incomplete(self):
         visible = run(run_id=30)
         hidden = run(attempt=2, run_id=99, minute=-10_000)
