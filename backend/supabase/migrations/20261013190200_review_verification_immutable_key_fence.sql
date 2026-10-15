@@ -436,4 +436,14 @@ BEGIN
 END;
 $readback$;
 
+-- The owner-scoped runtime probe remains held through stages 97-100. Activate
+-- it only after this final immutable-key fence and its readback both succeed.
+INSERT INTO ocr_private.feature_runtime_capability (
+  capability_version,
+  schema_version
+) VALUES (
+  'review-media-feature-v1',
+  1
+);
+
 COMMIT;

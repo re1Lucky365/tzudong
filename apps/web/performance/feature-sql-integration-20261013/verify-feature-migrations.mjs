@@ -59,12 +59,16 @@ const REQUIRED_ROLES = Object.freeze([
 ]);
 const SUCCESSOR_MANIFEST_PATH = '.github/review-media-sql-successor.v1.json';
 const EXPECTED_FEATURE_RPC_ALLOWLIST = Object.freeze([
-  'public.claim_receipt_ocr_result(uuid,text,text,text,text,text,text,text,uuid,boolean)',
+  'public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean)',
   'public.complete_receipt_ocr_result(uuid,uuid,jsonb)',
   'public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamptz,text,text[],text[],uuid,uuid,uuid,text,timestamptz,text,jsonb)',
+  'public.get_feature_runtime_capability(uuid)',
   'public.get_owned_review_storage_objects(uuid,uuid,text,text[])',
+  'public.get_review_receipt_ocr_generation(uuid,uuid)',
   'public.mark_receipt_ocr_dispatched(uuid,uuid)',
   'public.mark_receipt_ocr_result_indeterminate(uuid,uuid)',
+  'public.publish_review_receipt_ocr_result(uuid,uuid,uuid,uuid,uuid,text,jsonb,boolean)',
+  'public.read_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text)',
   'public.release_receipt_ocr_claim(uuid,uuid)',
 ]);
 
@@ -99,6 +103,13 @@ const ids = Object.freeze({
   deleteWinsFoodObject: '00000000-0000-4000-8000-000000000128',
   deleteWinsReview: '00000000-0000-4000-8000-000000000129',
   orphanVerificationObject: '00000000-0000-4000-8000-000000000130',
+  authenticatedReview: '00000000-0000-4000-8000-000000000131',
+  authenticatedOcrOperation: '00000000-0000-4000-8000-000000000132',
+  authenticatedRefreshOperation: '00000000-0000-4000-8000-000000000133',
+  authenticatedVerificationObject: '00000000-0000-4000-8000-000000000134',
+  authenticatedFoodObject: '00000000-0000-4000-8000-000000000135',
+  authenticatedBarrierOperation: '00000000-0000-4000-8000-000000000136',
+  authenticatedOwnerEditOperation: '00000000-0000-4000-8000-000000000137',
 });
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
@@ -473,6 +484,7 @@ function g014FeatureRpcCatalogState() {
       'wrapperSecurityDefiner',wrapper.prosecdef,
       'wrapperLanguage',wrapper_language.lanname,
       'wrapperConfig',wrapper.proconfig,
+      'wrapperVolatility',wrapper.provolatile,
       'wrapperReturnType',wrapper.prorettype::regtype::text,
       'wrapperReturnsSet',wrapper.proretset,
       'wrapperServiceRoleExecute',has_function_privilege('service_role',catalog.wrapper_oid,'EXECUTE'),
@@ -486,6 +498,7 @@ function g014FeatureRpcCatalogState() {
       'helperSecurityDefiner',helper.prosecdef,
       'helperLanguage',helper_language.lanname,
       'helperConfig',helper.proconfig,
+      'helperVolatility',helper.provolatile,
       'helperReturnType',helper.prorettype::regtype::text,
       'helperReturnsSet',helper.proretset,
       'helperWorkflowOwnerExecute',has_function_privilege('privacy_workflow_owner',catalog.helper_oid,'EXECUTE'),
@@ -500,6 +513,30 @@ function g014FeatureRpcCatalogState() {
     JOIN pg_language wrapper_language ON wrapper_language.oid=wrapper.prolang
     JOIN pg_proc helper ON helper.oid=catalog.helper_oid
     JOIN pg_language helper_language ON helper_language.oid=helper.prolang),'[]'::jsonb),
+    'generationTrigger',(
+      SELECT jsonb_build_object(
+        'owner',pg_get_userbyid(procedure.proowner),
+        'securityDefiner',procedure.prosecdef,
+        'language',language.lanname,
+        'config',procedure.proconfig,
+        'returnType',procedure.prorettype::regtype::text,
+        'returnsSet',procedure.proretset,
+        'triggerCount',(SELECT count(*) FROM pg_trigger trigger_row
+          WHERE trigger_row.tgfoid=procedure.oid
+            AND trigger_row.tgrelid='public.reviews'::regclass
+            AND trigger_row.tgname IN ('review_ocr_generation_on_insert','review_ocr_generation_on_reset')
+            AND trigger_row.tgenabled='O'
+            AND NOT trigger_row.tgisinternal),
+        'serviceRoleExecute',has_function_privilege('service_role',procedure.oid,'EXECUTE'),
+        'anonExecute',has_function_privilege('anon',procedure.oid,'EXECUTE'),
+        'authenticatedExecute',has_function_privilege('authenticated',procedure.oid,'EXECUTE'),
+        'nestedAllowlistCount',(SELECT count(*) FROM privacy_retention.g014_nested_helper_allowlist allowed
+          WHERE allowed.source_signature='ocr_private.register_review_ocr_generation()')
+      )
+      FROM pg_proc procedure
+      JOIN pg_language language ON language.oid=procedure.prolang
+      WHERE procedure.oid=to_regprocedure('ocr_private.register_review_ocr_generation()')
+    ),
     'archiveTrigger',(
       SELECT jsonb_build_object(
         'owner',pg_get_userbyid(procedure.proowner),
@@ -535,12 +572,19 @@ function g014FeatureRpcCatalogVerified(state) {
     : sourceSignature.includes('create_review_with_receipt_ocr')
       ? ['uuid', false]
       : ['jsonb', false];
+  const expectedVolatility = sourceSignature => (
+    sourceSignature.includes('read_receipt_ocr_result')
+      || sourceSignature.includes('get_review_receipt_ocr_generation')
+      || sourceSignature.includes('get_feature_runtime_capability')
+  ) ? 's' : 'v';
   if (state.rpcs.some(row => {
     const [returnType, returnsSet] = expectedType(row.sourceSignature);
+    const volatility = expectedVolatility(row.sourceSignature);
     return row.wrapperOwner !== 'privacy_workflow_owner'
       || row.wrapperSecurityDefiner !== true
       || row.wrapperLanguage !== 'sql'
       || JSON.stringify(row.wrapperConfig) !== JSON.stringify(['search_path=""'])
+      || row.wrapperVolatility !== volatility
       || row.wrapperReturnType !== returnType
       || row.wrapperReturnsSet !== returnsSet
       || row.wrapperServiceRoleExecute !== true
@@ -552,6 +596,7 @@ function g014FeatureRpcCatalogVerified(state) {
       || row.helperSecurityDefiner !== true
       || row.helperLanguage !== 'plpgsql'
       || JSON.stringify(row.helperConfig) !== JSON.stringify(['search_path=""'])
+      || row.helperVolatility !== volatility
       || row.helperReturnType !== returnType
       || row.helperReturnsSet !== returnsSet
       || row.helperWorkflowOwnerExecute !== true
@@ -560,6 +605,18 @@ function g014FeatureRpcCatalogVerified(state) {
       || row.helperAuthenticatedExecute !== false
       || Number(row.nestedHelperAllowlistCount) !== 1;
   })) return false;
+  const generationTrigger = state.generationTrigger;
+  if (generationTrigger?.owner !== 'postgres'
+    || generationTrigger.securityDefiner !== true
+    || generationTrigger.language !== 'plpgsql'
+    || JSON.stringify(generationTrigger.config) !== JSON.stringify(['search_path=""'])
+    || generationTrigger.returnType !== 'trigger'
+    || generationTrigger.returnsSet !== false
+    || Number(generationTrigger.triggerCount) !== 2
+    || generationTrigger.serviceRoleExecute !== false
+    || generationTrigger.anonExecute !== false
+    || generationTrigger.authenticatedExecute !== false
+    || Number(generationTrigger.nestedAllowlistCount) !== 1) return false;
   const trigger = state.archiveTrigger;
   return trigger?.owner === 'postgres'
     && trigger.securityDefiner === false
@@ -798,9 +855,40 @@ async function applyStoryboardWithLateInvocations(storyboardBytes) {
   }
 }
 
+function featureRuntimeCapabilityState(stage) {
+  const rpcInstalled = scalar(
+    "SELECT (to_regprocedure('public.get_feature_runtime_capability(uuid)') IS NOT NULL)::text;",
+  ) === 'true';
+  if (!rpcInstalled) return Object.freeze({ stage, rpcInstalled: false, status: 'held' });
+  const receipt = json(
+    `SELECT public.get_feature_runtime_capability('${ids.owner}')::text;`,
+    'service_role',
+  );
+  return Object.freeze({ stage, rpcInstalled: true, ...receipt });
+}
+
+function assertFeatureRuntimeCapability(state, ready) {
+  if (state.status !== (ready ? 'ready' : 'held')) {
+    fail('FEATURE_SQL_RUNTIME_CAPABILITY_STATUS_INVALID', state.stage);
+  }
+  if (!state.rpcInstalled) {
+    if (ready) fail('FEATURE_SQL_RUNTIME_CAPABILITY_RPC_MISSING', state.stage);
+    return;
+  }
+  if (state.schema_version !== 1
+    || state.code !== (ready ? 'FEATURE_DATABASE_READY' : 'FEATURE_DATABASE_HELD')
+    || state.capability_version !== 'review-media-feature-v1'
+    || Object.keys(state).sort().join(',')
+      !== 'capability_version,code,rpcInstalled,schema_version,stage,status') {
+    fail('FEATURE_SQL_RUNTIME_CAPABILITY_RECEIPT_INVALID', state.stage);
+  }
+}
+
 async function checkFeatureRollbacks(featureBytes) {
   const verified = {};
   let storyboardCutoverRace = null;
+  const runtimeCapabilityStages = [featureRuntimeCapabilityState('base97')];
+  assertFeatureRuntimeCapability(runtimeCapabilityStages[0], false);
   for (const [index, path] of FEATURE_PATHS.entries()) {
     const bytes = featureBytes.get(path);
     if (typeof bytes !== 'string' || bytes.length === 0) fail('FEATURE_SQL_SOURCE_EMPTY', path);
@@ -814,9 +902,16 @@ async function checkFeatureRollbacks(featureBytes) {
     if (index === 0) storyboardCutoverRace = await applyStoryboardWithLateInvocations(bytes);
     else applyFile(path, bytes);
     insertLedger(path);
+    const capability = featureRuntimeCapabilityState(`feature${98 + index}`);
+    assertFeatureRuntimeCapability(capability, index === FEATURE_PATHS.length - 1);
+    runtimeCapabilityStages.push(capability);
     verified[path] = true;
   }
-  return Object.freeze({ migrations: Object.freeze(verified), storyboardCutoverRace });
+  return Object.freeze({
+    migrations: Object.freeze(verified),
+    storyboardCutoverRace,
+    runtimeCapabilityStages: Object.freeze(runtimeCapabilityStages),
+  });
 }
 
 function verifyStoryboard() {
@@ -1068,9 +1163,169 @@ async function verifyOcrStorageRaces({ resultId, resultRevision, imageHash }) {
   });
 }
 
+async function verifyOcrPublishResetLocks({
+  reviewId,
+  generation,
+  resultId,
+  resultRevision,
+  receiptData,
+  modelPolicySql,
+  payload,
+}) {
+  const deadlocksBefore = Number(scalar(
+    "SELECT deadlocks FROM pg_stat_database WHERE datname=current_database();",
+  ));
+  const blockingGraph = applications => json(`SELECT coalesce(jsonb_agg(jsonb_build_object(
+      'application',activity.application_name,
+      'waitType',activity.wait_event_type,
+      'waitEvent',activity.wait_event,
+      'blockers',coalesce((
+        SELECT jsonb_agg(blocker.application_name ORDER BY blocker.application_name)
+        FROM unnest(pg_blocking_pids(activity.pid)) blocker_pid
+        JOIN pg_stat_activity blocker ON blocker.pid=blocker_pid
+      ),'[]'::jsonb)
+    ) ORDER BY activity.application_name),'[]'::jsonb)::text
+    FROM pg_stat_activity activity
+    WHERE activity.datname=current_database()
+      AND activity.application_name = ANY(ARRAY[${applications.map(quote).join(',')}]);`);
+
+  const publishFirst = startPsqlSession('feature_ocr_publish_first');
+  const resetSecond = startPsqlSession('feature_ocr_reset_second');
+  let publishFirstGraph;
+  try {
+    publishFirst.child.stdin.write(`BEGIN;
+SET ROLE service_role;
+SELECT public.publish_review_receipt_ocr_result(
+  '${ids.owner}','${reviewId}','${generation}','${resultId}','${resultRevision}',NULL,
+  ${quote(JSON.stringify(receiptData))}::jsonb,false
+)::text;
+SELECT 'publish_locked';
+`);
+    await waitUntil(
+      () => publishFirst.output().stdout.includes('publish_locked'),
+      'FEATURE_OCR_PUBLISH_FIRST_LOCK_NOT_ACQUIRED',
+    );
+    resetSecond.child.stdin.end(`BEGIN;
+SET ROLE service_role;
+UPDATE public.reviews
+SET ocr_processed_at=NULL,receipt_data=NULL,receipt_hash=NULL,is_duplicate=false
+WHERE id='${reviewId}' AND user_id='${ids.owner}';
+COMMIT;
+\\q
+`);
+    publishFirstGraph = await waitUntil(() => {
+      const rows = blockingGraph(['feature_ocr_publish_first', 'feature_ocr_reset_second']);
+      const reset = rows.find(row => row.application === 'feature_ocr_reset_second');
+      return reset?.waitType === 'Lock'
+        && reset.blockers?.includes('feature_ocr_publish_first') ? rows : null;
+    }, 'FEATURE_OCR_PUBLISH_FIRST_BLOCKING_UNPROVEN');
+    publishFirst.child.stdin.end('COMMIT;\n\\q\n');
+    const [publishResult, resetResult] = await Promise.all([
+      publishFirst.completed,
+      resetSecond.completed,
+    ]);
+    if (publishResult.status !== 0 || resetResult.status !== 0
+      || /40P01|deadlock detected/i.test(`${publishResult.stderr}\n${resetResult.stderr}`)) {
+      fail('FEATURE_OCR_PUBLISH_FIRST_DEADLOCK_OR_FAILURE');
+    }
+  } finally {
+    await Promise.allSettled([closePsqlSession(publishFirst), closePsqlSession(resetSecond)]);
+  }
+
+  const afterPublishFirstReset = json(`SELECT public.get_review_receipt_ocr_generation(
+    '${ids.owner}','${reviewId}'
+  )::text;`, 'service_role');
+  if (afterPublishFirstReset.status !== 'ready'
+    || afterPublishFirstReset.generation === generation) {
+    fail('FEATURE_OCR_PUBLISH_FIRST_RESET_GENERATION_INVALID');
+  }
+
+  const barrierImageHash = 'f'.repeat(64);
+  const barrierContextHash = 'a'.repeat(64);
+  const barrierClaim = json(`SELECT public.claim_receipt_ocr_result(
+    '${ids.owner}','${barrierImageHash}','${barrierContextHash}','gemini',${modelPolicySql},
+    '${afterPublishFirstReset.generation}','receipt-public-ocr-v1','receipt-image-v1',
+    'receipt-normalization-v1','${ids.authenticatedBarrierOperation}',false
+  )::text;`, 'service_role');
+  if (barrierClaim.status !== 'claimed' || !barrierClaim.result_ref || !barrierClaim.claim_token) {
+    fail('FEATURE_OCR_BARRIER_CLAIM_INVALID');
+  }
+  json(`SELECT public.mark_receipt_ocr_dispatched(
+    '${barrierClaim.result_ref}','${barrierClaim.claim_token}'
+  )::text;`, 'service_role');
+  const barrierCompleted = json(`SELECT public.complete_receipt_ocr_result(
+    '${barrierClaim.result_ref}','${barrierClaim.claim_token}',${quote(JSON.stringify(payload))}::jsonb
+  )::text;`, 'service_role');
+  if (barrierCompleted.status !== 'succeeded' || !barrierCompleted.result_revision) {
+    fail('FEATURE_OCR_BARRIER_COMPLETE_INVALID');
+  }
+
+  const resetFirst = startPsqlSession('feature_ocr_reset_first');
+  const publishSecond = startPsqlSession('feature_ocr_publish_second');
+  let resetFirstGraph;
+  try {
+    resetFirst.child.stdin.write(`BEGIN;
+SET ROLE service_role;
+UPDATE public.reviews
+SET ocr_processed_at=NULL,receipt_data=NULL,receipt_hash=NULL,is_duplicate=false
+WHERE id='${reviewId}' AND user_id='${ids.owner}';
+SELECT 'reset_locked';
+`);
+    await waitUntil(
+      () => resetFirst.output().stdout.includes('reset_locked'),
+      'FEATURE_OCR_RESET_FIRST_LOCK_NOT_ACQUIRED',
+    );
+    publishSecond.child.stdin.end(`BEGIN;
+SET ROLE service_role;
+SELECT public.publish_review_receipt_ocr_result(
+  '${ids.owner}','${reviewId}','${afterPublishFirstReset.generation}',
+  '${barrierClaim.result_ref}','${barrierCompleted.result_revision}',NULL,
+  ${quote(JSON.stringify(receiptData))}::jsonb,false
+);
+COMMIT;
+\\q
+`);
+    resetFirstGraph = await waitUntil(() => {
+      const rows = blockingGraph(['feature_ocr_reset_first', 'feature_ocr_publish_second']);
+      const publisher = rows.find(row => row.application === 'feature_ocr_publish_second');
+      return publisher?.waitType === 'Lock'
+        && publisher.blockers?.includes('feature_ocr_reset_first') ? rows : null;
+    }, 'FEATURE_OCR_RESET_FIRST_BLOCKING_UNPROVEN');
+    resetFirst.child.stdin.end('COMMIT;\n\\q\n');
+    const [resetResult, publishResult] = await Promise.all([
+      resetFirst.completed,
+      publishSecond.completed,
+    ]);
+    if (resetResult.status !== 0
+      || publishResult.status === 0
+      || !/review_ocr_generation_stale/.test(publishResult.stderr)
+      || /40P01|deadlock detected/i.test(`${resetResult.stderr}\n${publishResult.stderr}`)) {
+      fail('FEATURE_OCR_RESET_FIRST_STALE_REJECTION_INVALID');
+    }
+  } finally {
+    await Promise.allSettled([closePsqlSession(resetFirst), closePsqlSession(publishSecond)]);
+  }
+
+  const deadlocksAfter = Number(scalar(
+    "SELECT deadlocks FROM pg_stat_database WHERE datname=current_database();",
+  ));
+  if (deadlocksAfter !== deadlocksBefore) fail('FEATURE_OCR_RESET_PUBLISH_DEADLOCK_RECORDED');
+  return Object.freeze({
+    deadlocksBefore,
+    deadlocksAfter,
+    publishFirstGraph,
+    resetFirstGraph,
+    publishFirstThenResetSucceeded: true,
+    resetFirstStalePublishRejected: true,
+  });
+}
+
 async function verifyOcr() {
   const imageHash = 'b'.repeat(64);
   const contextHash = 'c'.repeat(64);
+  const defaultGeneration = '00000000-0000-0000-0000-000000000000';
+  const modelPolicy = ['gemini-3.8-flash', 'gemini-3.7-flash'];
+  const modelPolicySql = `${quote(JSON.stringify(modelPolicy))}::jsonb`;
   const verificationPath = `${ids.owner}/reviews/${ids.createdReview}/verification/receipt.jpg`;
   const foodPath = `${ids.owner}/reviews/${ids.createdReview}/food/meal.jpg`;
   const staleVerificationPath = `${ids.owner}/reviews/${ids.staleReview}/verification/receipt.jpg`;
@@ -1080,15 +1335,17 @@ async function verifyOcr() {
   const deleteWinsVerificationPath = `${ids.owner}/reviews/${ids.deleteWinsReview}/verification/receipt.jpg`;
   const deleteWinsFoodPath = `${ids.owner}/reviews/${ids.deleteWinsReview}/food/meal.jpg`;
   const orphanVerificationPath = `${ids.owner}/reviews/${ids.staleReview}/verification/orphan.jpg`;
+  const authenticatedVerificationPath = `${ids.owner}/reviews/${ids.authenticatedReview}/verification/receipt.jpg`;
+  const authenticatedFoodPath = `${ids.owner}/reviews/${ids.authenticatedReview}/food/meal.jpg`;
   const claim = json(`SELECT public.claim_receipt_ocr_result(
-    '${ids.owner}','${imageHash}','${contextHash}','gemini','gemini-3.8-flash',
+    '${ids.owner}','${imageHash}','${contextHash}','gemini',${modelPolicySql},'${defaultGeneration}',
     'receipt-public-ocr-v1','receipt-image-v1','receipt-normalization-v1','${ids.ocrOperation}',false
   )::text;`, 'service_role');
   if (claim.status !== 'claimed' || !claim.result_ref || !claim.claim_token) fail('FEATURE_OCR_CLAIM_INVALID');
   const resultId = claim.result_ref;
   const claimToken = claim.claim_token;
   const payload = {
-    schema_version: 'receipt-public-ocr-v1', provider: 'gemini', model: 'gemini-3.8-flash',
+    schema_version: 'receipt-public-ocr-v1', provider: 'gemini', model: 'gemini-3.7-flash',
     normalized: { store_name: 'Fixture Restaurant', date: '2026-10-12', time: '12:34', total_amount: 12345, items: [{ name: 'Fixture Meal', price: 12345 }], category: '한식', review_draft: 'fixture draft' },
     field_trust: [{ field: 'store_name', level: 'high', source: 'model_raw', reason: 'fixture evidence', needsReview: false }],
     confidence: 0.99, needs_review: [], normalization_version: 'receipt-normalization-v1',
@@ -1099,7 +1356,7 @@ async function verifyOcr() {
   if (completed.status !== 'succeeded' || !completed.result_revision) fail('FEATURE_OCR_COMPLETE_INVALID');
   const firstResultRevision = completed.result_revision;
   const refreshedClaim = json(`SELECT public.claim_receipt_ocr_result(
-    '${ids.owner}','${imageHash}','${contextHash}','gemini','gemini-3.8-flash',
+    '${ids.owner}','${imageHash}','${contextHash}','gemini',${modelPolicySql},'${defaultGeneration}',
     'receipt-public-ocr-v1','receipt-image-v1','receipt-normalization-v1','${ids.ocrRefreshOperation}',true
   )::text;`, 'service_role');
   if (refreshedClaim.status !== 'claimed'
@@ -1125,6 +1382,23 @@ async function verifyOcr() {
     fail('FEATURE_OCR_REFRESH_REVISION_INVALID');
   }
   const resultRevision = refreshedCompleted.result_revision;
+  const durableReadback = json(`SELECT public.read_receipt_ocr_result(
+    '${ids.owner}','${imageHash}','${contextHash}','gemini',${modelPolicySql},'${defaultGeneration}',
+    'receipt-public-ocr-v1','receipt-image-v1','receipt-normalization-v1'
+  )::text;`, 'service_role');
+  if (durableReadback.status !== 'succeeded'
+    || durableReadback.result_ref !== resultId
+    || durableReadback.result_revision !== resultRevision
+    || durableReadback.result_payload?.model !== 'gemini-3.7-flash') {
+    fail('FEATURE_OCR_OWNER_READBACK_INVALID');
+  }
+  const crossOwnerReadback = json(`SELECT public.read_receipt_ocr_result(
+    '${ids.wrongUser}','${imageHash}','${contextHash}','gemini',${modelPolicySql},'${defaultGeneration}',
+    'receipt-public-ocr-v1','receipt-image-v1','receipt-normalization-v1'
+  )::text;`, 'service_role');
+  if (JSON.stringify(crossOwnerReadback) !== JSON.stringify({ status: 'not_found' })) {
+    fail('FEATURE_OCR_CROSS_OWNER_READBACK_NOT_HIDDEN');
+  }
 
   psql(`INSERT INTO storage.buckets(id,name,public) VALUES
     ('review-verifications','review-verifications',false),('review-photos','review-photos',false)
@@ -1137,7 +1411,172 @@ async function verifyOcr() {
     ('${ids.createWinsFoodObject}','review-photos',${quote(createWinsFoodPath)},'${ids.owner}','v1','2026-10-13T00:00:00Z','{}'),
     ('${ids.deleteWinsVerificationObject}','review-verifications',${quote(deleteWinsVerificationPath)},'${ids.owner}','v1','2026-10-13T00:00:00Z','{}'),
     ('${ids.deleteWinsFoodObject}','review-photos',${quote(deleteWinsFoodPath)},'${ids.owner}','v1','2026-10-13T00:00:00Z','{}'),
-    ('${ids.orphanVerificationObject}','review-verifications',${quote(orphanVerificationPath)},'${ids.owner}','v1','2026-10-13T00:00:00Z','{}');`);
+    ('${ids.orphanVerificationObject}','review-verifications',${quote(orphanVerificationPath)},'${ids.owner}','v1','2026-10-13T00:00:00Z','{}'),
+    ('${ids.authenticatedVerificationObject}','review-verifications',${quote(authenticatedVerificationPath)},'${ids.owner}','v1','2026-10-13T00:00:00Z','{}'),
+    ('${ids.authenticatedFoodObject}','review-photos',${quote(authenticatedFoodPath)},'${ids.owner}','v1','2026-10-13T00:00:00Z','{}');`);
+
+  const authenticatedInsert = psql(`BEGIN;
+SET LOCAL request.jwt.claim.sub='${ids.owner}';
+INSERT INTO public.reviews(
+  id,user_id,restaurant_id,title,content,visited_at,verification_photo,food_photos,categories,
+  receipt_hash,receipt_data,is_duplicate,ocr_processed_at
+) VALUES (
+  '${ids.authenticatedReview}','${ids.owner}','${ids.restaurant}',
+  'authenticated title','authenticated review content','2026-10-12T10:00:00Z',
+  ${quote(authenticatedVerificationPath)},ARRAY[${quote(authenticatedFoodPath)}],ARRAY['한식'],
+  repeat('e',64),'{"schema_version":"receipt_summary_v1","status":"processed"}'::jsonb,false,now()
+)
+RETURNING id;
+COMMIT;`, { actor: 'supabase_admin', role: 'authenticated', allowFailure: true });
+  if (authenticatedInsert.status !== 0 || !authenticatedInsert.stdout.includes(ids.authenticatedReview)) {
+    fail('FEATURE_OCR_AUTHENTICATED_REVIEW_INSERT_FAILED');
+  }
+  const generationBeforeReset = json(`SELECT public.get_review_receipt_ocr_generation(
+    '${ids.owner}','${ids.authenticatedReview}'
+  )::text;`, 'service_role');
+  if (generationBeforeReset.status !== 'ready'
+    || generationBeforeReset.review_id !== ids.authenticatedReview
+    || typeof generationBeforeReset.generation !== 'string') {
+    fail('FEATURE_OCR_INITIAL_GENERATION_INVALID');
+  }
+
+  const ownerMutation = psql(`BEGIN;
+SET LOCAL request.jwt.claim.sub='${ids.owner}';
+SET LOCAL request.jwt.claim.role='authenticated';
+SET LOCAL request.jwt.claims=${quote(JSON.stringify({ sub: ids.owner, role: 'authenticated' }))};
+SELECT public.mutate_review_with_media(
+  '${ids.authenticatedOwnerEditOperation}','${ids.authenticatedReview}','edit',
+  (SELECT updated_at FROM public.reviews WHERE id='${ids.authenticatedReview}'),
+  'authenticated review content updated through owner RPC',ARRAY['한식'],
+  ARRAY[${quote(authenticatedFoodPath)}]
+);
+COMMIT;`, { actor: 'supabase_admin', role: 'authenticated', allowFailure: true });
+  if (ownerMutation.status !== 0
+    || !ownerMutation.stdout.split(/\r?\n/).filter(Boolean).includes('REVIEW_COMMITTED')) {
+    fail(
+      'FEATURE_OCR_AUTHENTICATED_OWNER_MUTATION_FAILED',
+      `${ownerMutation.status}:${ownerMutation.stdout.replace(/\s+/g, ' ').slice(0, 160)}:${ownerMutation.stderr.replace(/\s+/g, ' ').slice(0, 220)}`,
+    );
+  }
+  const ownerMutationReadback = json(`SELECT pg_catalog.jsonb_build_object(
+    'content',review.content,
+    'generation',(SELECT generation FROM ocr_private.review_generations
+      WHERE review_id=review.id AND user_id=review.user_id)
+  )::text
+  FROM public.reviews AS review
+  WHERE review.id='${ids.authenticatedReview}' AND review.user_id='${ids.owner}';`);
+  if (ownerMutationReadback.content !== 'authenticated review content updated through owner RPC'
+    || ownerMutationReadback.generation !== generationBeforeReset.generation) {
+    fail('FEATURE_OCR_OWNER_MUTATION_GENERATION_DRIFT');
+  }
+
+  const adminImageHash = 'd'.repeat(64);
+  const adminContextHash = 'e'.repeat(64);
+  const adminClaim = json(`SELECT public.claim_receipt_ocr_result(
+    '${ids.owner}','${adminImageHash}','${adminContextHash}','gemini',${modelPolicySql},
+    '${generationBeforeReset.generation}','receipt-public-ocr-v1','receipt-image-v1',
+    'receipt-normalization-v1','${ids.authenticatedOcrOperation}',false
+  )::text;`, 'service_role');
+  if (adminClaim.status !== 'claimed' || !adminClaim.result_ref || !adminClaim.claim_token) {
+    fail('FEATURE_OCR_ADMIN_GENERATION_CLAIM_INVALID');
+  }
+  json(`SELECT public.mark_receipt_ocr_dispatched(
+    '${adminClaim.result_ref}','${adminClaim.claim_token}'
+  )::text;`, 'service_role');
+  const adminCompleted = json(`SELECT public.complete_receipt_ocr_result(
+    '${adminClaim.result_ref}','${adminClaim.claim_token}',${quote(JSON.stringify(payload))}::jsonb
+  )::text;`, 'service_role');
+  if (adminCompleted.status !== 'succeeded' || !adminCompleted.result_revision) {
+    fail('FEATURE_OCR_ADMIN_GENERATION_COMPLETE_INVALID');
+  }
+
+  const adminServiceReset = psql(`BEGIN;
+UPDATE public.reviews
+SET ocr_processed_at=NULL,receipt_data=NULL,receipt_hash=NULL,is_duplicate=false
+WHERE id='${ids.authenticatedReview}' AND user_id='${ids.owner}'
+RETURNING id;
+COMMIT;`, { role: 'service_role', allowFailure: true });
+  if (adminServiceReset.status !== 0 || !adminServiceReset.stdout.includes(ids.authenticatedReview)) {
+    fail('FEATURE_OCR_ADMIN_SERVICE_RESET_FAILED');
+  }
+  const generationAfterReset = json(`SELECT public.get_review_receipt_ocr_generation(
+    '${ids.owner}','${ids.authenticatedReview}'
+  )::text;`, 'service_role');
+  if (generationAfterReset.status !== 'ready'
+    || generationAfterReset.generation === generationBeforeReset.generation) {
+    fail('FEATURE_OCR_RESET_GENERATION_NOT_ROTATED');
+  }
+  const privateRead = psql(
+    'SELECT count(*) FROM ocr_private.review_generations;',
+    { actor: 'supabase_admin', role: 'authenticated', allowFailure: true },
+  );
+  if (privateRead.status === 0 || !/permission denied/i.test(privateRead.stderr)) {
+    fail('FEATURE_OCR_PRIVATE_GENERATION_ACCESS_NOT_REJECTED');
+  }
+
+  const publishedReceipt = {
+    schema_version: 'receipt_summary_v1',
+    status: 'processed',
+    source: 'admin_ocr',
+    store_name: 'Fixture Restaurant',
+  };
+  const stalePublish = psql(`SELECT public.publish_review_receipt_ocr_result(
+    '${ids.owner}','${ids.authenticatedReview}','${generationBeforeReset.generation}',
+    '${adminClaim.result_ref}','${adminCompleted.result_revision}',NULL,
+    ${quote(JSON.stringify(publishedReceipt))}::jsonb,false
+  );`, { role: 'service_role', allowFailure: true });
+  if (stalePublish.status === 0 || !/review_ocr_generation_stale/.test(stalePublish.stderr)) {
+    fail('FEATURE_OCR_STALE_GENERATION_PUBLISH_NOT_REJECTED');
+  }
+
+  const refreshedAdminClaim = json(`SELECT public.claim_receipt_ocr_result(
+    '${ids.owner}','${adminImageHash}','${adminContextHash}','gemini',${modelPolicySql},
+    '${generationAfterReset.generation}','receipt-public-ocr-v1','receipt-image-v1',
+    'receipt-normalization-v1','${ids.authenticatedRefreshOperation}',false
+  )::text;`, 'service_role');
+  if (refreshedAdminClaim.status !== 'claimed'
+    || refreshedAdminClaim.result_ref === adminClaim.result_ref
+    || !refreshedAdminClaim.claim_token) {
+    fail('FEATURE_OCR_REFRESH_GENERATION_CLAIM_INVALID');
+  }
+  json(`SELECT public.mark_receipt_ocr_dispatched(
+    '${refreshedAdminClaim.result_ref}','${refreshedAdminClaim.claim_token}'
+  )::text;`, 'service_role');
+  const refreshedAdminCompleted = json(`SELECT public.complete_receipt_ocr_result(
+    '${refreshedAdminClaim.result_ref}','${refreshedAdminClaim.claim_token}',
+    ${quote(JSON.stringify(payload))}::jsonb
+  )::text;`, 'service_role');
+  if (refreshedAdminCompleted.status !== 'succeeded' || !refreshedAdminCompleted.result_revision) {
+    fail('FEATURE_OCR_REFRESH_GENERATION_COMPLETE_INVALID');
+  }
+  const published = json(`SELECT public.publish_review_receipt_ocr_result(
+    '${ids.owner}','${ids.authenticatedReview}','${generationAfterReset.generation}',
+    '${refreshedAdminClaim.result_ref}','${refreshedAdminCompleted.result_revision}',NULL,
+    ${quote(JSON.stringify(publishedReceipt))}::jsonb,false
+  )::text;`, 'service_role');
+  const publishedAgain = json(`SELECT public.publish_review_receipt_ocr_result(
+    '${ids.owner}','${ids.authenticatedReview}','${generationAfterReset.generation}',
+    '${refreshedAdminClaim.result_ref}','${refreshedAdminCompleted.result_revision}',NULL,
+    ${quote(JSON.stringify(publishedReceipt))}::jsonb,false
+  )::text;`, 'service_role');
+  if (published.status !== 'published'
+    || published.review_id !== ids.authenticatedReview
+    || published.generation !== generationAfterReset.generation
+    || published.result_ref !== refreshedAdminClaim.result_ref
+    || published.result_revision !== refreshedAdminCompleted.result_revision
+    || JSON.stringify(publishedAgain) !== JSON.stringify(published)) {
+    fail('FEATURE_OCR_GENERATION_PUBLISH_READBACK_INVALID');
+  }
+  const resetPublishLocks = await verifyOcrPublishResetLocks({
+    reviewId: ids.authenticatedReview,
+    generation: generationAfterReset.generation,
+    resultId: refreshedAdminClaim.result_ref,
+    resultRevision: refreshedAdminCompleted.result_revision,
+    receiptData: publishedReceipt,
+    modelPolicySql,
+    payload,
+  });
+
   const authenticatedUpdate = psql(`BEGIN;
 SET LOCAL request.jwt.claim.sub='${ids.owner}';
 WITH changed AS (
@@ -1203,9 +1642,9 @@ ROLLBACK;`, { actor: 'supabase_admin', role: 'supabase_storage_admin', allowFail
   const boundary = json(`SELECT jsonb_build_object(
     'rls',(SELECT relrowsecurity FROM pg_class WHERE oid='ocr_private.receipt_results'::regclass),
     'forceRls',(SELECT relforcerowsecurity FROM pg_class WHERE oid='ocr_private.receipt_results'::regclass),
-    'anonExecute',has_function_privilege('anon','public.claim_receipt_ocr_result(uuid,text,text,text,text,text,text,text,uuid,boolean)','EXECUTE'),
-    'authenticatedExecute',has_function_privilege('authenticated','public.claim_receipt_ocr_result(uuid,text,text,text,text,text,text,text,uuid,boolean)','EXECUTE'),
-    'serviceExecute',has_function_privilege('service_role','public.claim_receipt_ocr_result(uuid,text,text,text,text,text,text,text,uuid,boolean)','EXECUTE'),
+    'anonExecute',has_function_privilege('anon','public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean)','EXECUTE'),
+    'authenticatedExecute',has_function_privilege('authenticated','public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean)','EXECUTE'),
+    'serviceExecute',has_function_privilege('service_role','public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean)','EXECUTE'),
     'anonSchema',has_schema_privilege('anon','ocr_private','USAGE'),
     'authenticatedSchema',has_schema_privilege('authenticated','ocr_private','USAGE'),
     'serviceTable',has_table_privilege('service_role','ocr_private.receipt_results','SELECT')
@@ -1215,7 +1654,8 @@ ROLLBACK;`, { actor: 'supabase_admin', role: 'supabase_storage_admin', allowFail
     fail('FEATURE_OCR_ROLE_BOUNDARY_INVALID');
   }
   const anonCall = psql(`SET ROLE anon; SELECT public.claim_receipt_ocr_result(
-    '${ids.owner}','${imageHash}','${contextHash}','gemini','gemini-3.8-flash','v','v','v','${ids.ocrOperation}',false);`, { allowFailure: true });
+    '${ids.owner}','${imageHash}','${contextHash}','gemini',${modelPolicySql},'${defaultGeneration}',
+    'v','v','v','${ids.ocrOperation}',false);`, { allowFailure: true });
   if (anonCall.status === 0 || !/permission denied/i.test(anonCall.stderr)) fail('FEATURE_OCR_ANON_EXECUTE_NOT_REJECTED');
   const invalidPath = psql(`SELECT * FROM public.get_owned_review_storage_objects(
     '${ids.owner}','${ids.createdReview}','verification',ARRAY['${ids.owner}/reviews/${ids.createdReview}/verification/nested/receipt.jpg']);`, { role: 'service_role', allowFailure: true });
@@ -1229,6 +1669,16 @@ ROLLBACK;`, { actor: 'supabase_admin', role: 'supabase_storage_admin', allowFail
   }
   return Object.freeze({
     durableClaimCompleted: true,
+    fallbackModelPolicyReadbackVerified: true,
+    crossOwnerReadbackHidden: true,
+    authenticatedReviewInsertSucceeded: true,
+    authenticatedOwnerRpcMutationSucceeded: true,
+    ownerRpcMutationPreservedGeneration: true,
+    adminServiceResetRotatedGeneration: true,
+    privateGenerationAccessRejected: true,
+    staleGenerationPublishRejected: true,
+    currentGenerationPublishIdempotent: true,
+    resetPublishLocks,
     canonicalMediaPathsBound: true,
     userCorrectionPreservedInSummary: true,
     staleResultRevisionRejected: true,
@@ -1519,6 +1969,7 @@ try {
     semanticResults: {
       migrationRollbackExact: rollback.migrations,
       storyboardCutoverRace: rollback.storyboardCutoverRace,
+      runtimeCapabilityStages: rollback.runtimeCapabilityStages,
       storyboard,
       ocr,
       preexistingReviewAndAdminCorrectionExact: true,

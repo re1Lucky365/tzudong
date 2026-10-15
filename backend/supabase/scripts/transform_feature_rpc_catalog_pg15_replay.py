@@ -15,8 +15,8 @@ from pathlib import Path
 
 
 NAME = "20261013190100_g014_feature_rpc_catalog_contract.sql"
-SHA256 = "4a7cbe506521ffcd7687c57a4e6d47a4c2fbafa6e493c9f67cae5ea0cdc905dd"
-BYTE_LENGTH = 20_080
+SHA256 = "0c3f8b4cadc1d4bb0d88b53de49be34ef8e2751a47bfc18ebad89ae543b4c370"
+BYTE_LENGTH = 25_506
 
 PG17_VERSION_GUARD = (
     b"pg_catalog.current_setting('server_version_num')::integer / 10000 <> 17"
@@ -33,9 +33,8 @@ RESTORE_START = b"DO $restore_workflow_owner_membership$"
 RESTORE_END = b"$restore_workflow_owner_membership$;"
 
 PG15_MEMBERSHIP_WINDOW = b"""-- The pinned source-only database is PG15, where GRANT has no INHERIT/SET
--- options.  Its postgres superuser can assume the owner role without changing
--- membership, while the migration's full before/after membership snapshot
--- still proves this replay leaves the catalog unchanged.
+-- options.  Admit one default-option membership only for SET ROLE; the
+-- migration's full before/after membership snapshot proves its restoration.
 DO $feature_rpc_pg15_membership$
 BEGIN
   IF pg_catalog.current_setting('server_version_num')::integer / 10000 <> 15
@@ -53,9 +52,13 @@ BEGIN
     RAISE EXCEPTION 'G014_FEATURE_RPC_PG15_SELF_MEMBERSHIP_DENIED';
   END IF;
 END;
-$feature_rpc_pg15_membership$;"""
+$feature_rpc_pg15_membership$;
 
-PG15_RESTORE_ASSERTION = b"""DO $restore_workflow_owner_membership$
+GRANT privacy_workflow_owner TO postgres;"""
+
+PG15_RESTORE_ASSERTION = b"""REVOKE privacy_workflow_owner FROM postgres;
+
+DO $restore_workflow_owner_membership$
 BEGIN
   IF EXISTS (
     SELECT 1

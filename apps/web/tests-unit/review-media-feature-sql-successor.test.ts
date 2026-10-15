@@ -480,6 +480,7 @@ function featureStageStates() {
       catalogRoot: sha256(`feature-catalog-${index}`),
       currentUser: 'postgres',
       databaseName: 'postgres',
+      featureRuntimeReady: index >= 4,
       g014Ready: index >= 3,
       g014Root: index < 3 ? g014Before : g014After,
       immutableReady: index >= 4,
@@ -582,9 +583,9 @@ test('manifest freezes the exact four sources and ledger 97 to 101 while launch 
     migration.sha256,
   ])).toEqual([
     ['20261013093518', 15228, '84d351dead86ef90040b6949fe4a6dc93eb91a783c1b7a78531c7f564ea4ff4e'],
-    ['20261013190000', 30334, '1ebc4f512612053b62febe41f2a3aef948c93d6d45f69f9328d43db5bd46bca4'],
-    ['20261013190100', 20080, '4a7cbe506521ffcd7687c57a4e6d47a4c2fbafa6e493c9f67cae5ea0cdc905dd'],
-    ['20261013190200', 14060, '62e88431bc46c39551d473de9d314482b3e49c7828a34769caef7f85b6886d8c'],
+    ['20261013190000', 47450, 'fb80c266cfbede8141da0c8adfc2b099ed835673684aa1f17af0d7e1439526e0'],
+    ['20261013190100', 25506, '0c3f8b4cadc1d4bb0d88b53de49be34ef8e2751a47bfc18ebad89ae543b4c370'],
+    ['20261013190200', 14358, '0a060ca537d3558779fd0cb1b780e7965189eb129f5018987f157c1cb5f2cd3d'],
   ]);
   expect(featureManifest.predecessor).toMatchObject({
     afterLedger: 97,
@@ -615,7 +616,7 @@ test('state contract binds G014, Storage, roles, catalog and cumulative feature 
   const query = buildFeatureSuccessorStateQuery(featureRecord);
   for (const token of [
     "'catalogRoot'", "'g014Root'", "'storageRoot'", "'roleRoot'",
-    "'storyboardReady'", "'ocrReady'", "'g014Ready'", "'immutableReady'",
+    "'storyboardReady'", "'ocrReady'", "'g014Ready'", "'immutableReady'", "'featureRuntimeReady'",
     'pg_auth_members', 'g014_public_rpc_allowlist', "polrelid='storage.objects'::regclass",
   ]) expect(query).toContain(token);
   const stages = featureStageStates();

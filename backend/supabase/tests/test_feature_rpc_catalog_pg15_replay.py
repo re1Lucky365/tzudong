@@ -39,10 +39,14 @@ class FeatureRpcCatalogPg15ReplayTests(unittest.TestCase):
             b"REVOKE ALL ON FUNCTION",
             b"SELECT pg_temp.g014_feature_rpc_assert();",
             b"G014_FEATURE_RPC_MEMBERSHIP_DRIFT",
+            b"public.read_receipt_ocr_result(",
+            b"public.get_review_receipt_ocr_generation(",
+            b"public.publish_review_receipt_ocr_result(",
+            b"public.get_feature_runtime_capability(",
         ):
             self.assertEqual(actual.count(marker), self.source.count(marker))
 
-    def test_pg15_window_is_fail_closed_and_does_not_mutate_membership(self) -> None:
+    def test_pg15_window_is_fail_closed_and_restores_temporary_membership(self) -> None:
         actual = replay.transform(self.source)
         self.assertIn(replay.PG15_VERSION_GUARD, actual)
         self.assertNotIn(replay.PG17_VERSION_GUARD, actual)
@@ -57,8 +61,16 @@ class FeatureRpcCatalogPg15ReplayTests(unittest.TestCase):
             self.assertIn(marker, actual)
         self.assertNotIn(b"WITH ADMIN FALSE, INHERIT FALSE, SET TRUE", actual)
         self.assertNotIn(b"GRANTED BY postgres", actual)
-        self.assertNotIn(b"GRANT privacy_workflow_owner TO postgres;", actual)
-        self.assertNotIn(b"REVOKE privacy_workflow_owner FROM postgres", actual)
+        self.assertEqual(actual.count(b"GRANT privacy_workflow_owner TO postgres;"), 1)
+        self.assertEqual(actual.count(b"REVOKE privacy_workflow_owner FROM postgres;"), 1)
+        self.assertLess(
+            actual.index(b"GRANT privacy_workflow_owner TO postgres;"),
+            actual.index(b"SET LOCAL ROLE privacy_workflow_owner;"),
+        )
+        self.assertGreater(
+            actual.index(b"REVOKE privacy_workflow_owner FROM postgres;"),
+            actual.index(b"RESET ROLE;"),
+        )
 
     def test_wrong_source_or_filename_is_rejected(self) -> None:
         cases = (

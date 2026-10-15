@@ -9,7 +9,11 @@ CREATE TABLE ocr_private.receipt_results (
   image_hash text NOT NULL CHECK (image_hash ~ '^[0-9a-f]{64}$'),
   input_context_hash text NOT NULL CHECK (input_context_hash ~ '^[0-9a-f]{64}$'),
   provider text NOT NULL CHECK (provider = 'gemini'),
-  model text NOT NULL CHECK (length(model) BETWEEN 1 AND 160),
+  model_policy jsonb NOT NULL CHECK (
+    jsonb_typeof(model_policy) = 'array'
+    AND jsonb_array_length(model_policy) BETWEEN 1 AND 8
+  ),
+  generation uuid NOT NULL,
   prompt_version text NOT NULL CHECK (length(prompt_version) BETWEEN 1 AND 160),
   preprocess_version text NOT NULL CHECK (length(preprocess_version) BETWEEN 1 AND 160),
   normalization_version text NOT NULL CHECK (length(normalization_version) BETWEEN 1 AND 160),
@@ -37,7 +41,8 @@ CREATE TABLE ocr_private.receipt_results (
     image_hash,
     input_context_hash,
     provider,
-    model,
+    model_policy,
+    generation,
     prompt_version,
     preprocess_version,
     normalization_version
@@ -50,6 +55,93 @@ COMMENT ON TABLE ocr_private.receipt_results IS
 ALTER TABLE ocr_private.receipt_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ocr_private.receipt_results FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE ocr_private.receipt_results FROM PUBLIC, anon, authenticated;
+
+-- Every review gets an opaque OCR generation. Explicit admin reset UPDATEs
+-- rotate it even when the visible OCR columns were already null, so a stale
+-- workflow cannot reuse the prior durable cache or publish after a later reset.
+CREATE TABLE ocr_private.review_generations (
+  review_id uuid PRIMARY KEY REFERENCES public.reviews(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  generation uuid NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (review_id, user_id, generation)
+);
+
+ALTER TABLE ocr_private.review_generations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ocr_private.review_generations FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE ocr_private.review_generations FROM PUBLIC, anon, authenticated;
+
+CREATE TABLE ocr_private.feature_runtime_capability (
+  capability_version text PRIMARY KEY,
+  schema_version integer NOT NULL CHECK (schema_version = 1),
+  activated_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE ocr_private.feature_runtime_capability ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ocr_private.feature_runtime_capability FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE ocr_private.feature_runtime_capability FROM PUBLIC, anon, authenticated;
+
+INSERT INTO ocr_private.review_generations (review_id, user_id, generation)
+SELECT review.id, review.user_id, extensions.gen_random_uuid()
+FROM public.reviews AS review;
+
+CREATE FUNCTION ocr_private.register_review_ocr_generation()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  INSERT INTO ocr_private.review_generations (review_id, user_id, generation)
+  VALUES (NEW.id, NEW.user_id, extensions.gen_random_uuid())
+  ON CONFLICT (review_id) DO UPDATE SET
+    user_id = EXCLUDED.user_id,
+    generation = extensions.gen_random_uuid(),
+    updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER review_ocr_generation_on_insert
+AFTER INSERT ON public.reviews
+FOR EACH ROW EXECUTE FUNCTION ocr_private.register_review_ocr_generation();
+
+CREATE TRIGGER review_ocr_generation_on_reset
+AFTER UPDATE OF receipt_hash, receipt_data, is_duplicate, ocr_processed_at ON public.reviews
+FOR EACH ROW
+WHEN (
+  NEW.verification_photo IS NOT NULL
+  AND NEW.receipt_hash IS NULL
+  AND NEW.receipt_data IS NULL
+  AND NEW.ocr_processed_at IS NULL
+  AND NEW.is_duplicate = false
+)
+EXECUTE FUNCTION ocr_private.register_review_ocr_generation();
+
+CREATE FUNCTION ocr_private.valid_model_policy(p_policy jsonb)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $$
+  SELECT p_policy IS NOT NULL
+    AND pg_catalog.jsonb_typeof(p_policy) = 'array'
+    AND pg_catalog.jsonb_array_length(p_policy) BETWEEN 1 AND 8
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.jsonb_array_elements(p_policy) AS entry(value)
+      WHERE pg_catalog.jsonb_typeof(entry.value) <> 'string'
+        OR pg_catalog.length(pg_catalog.btrim(entry.value #>> '{}')) NOT BETWEEN 1 AND 160
+        OR pg_catalog.btrim(entry.value #>> '{}') <> entry.value #>> '{}'
+        OR (entry.value #>> '{}') !~ '^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$'
+    )
+    AND (
+      SELECT pg_catalog.count(*)
+      FROM pg_catalog.jsonb_array_elements_text(p_policy) AS model(value)
+    ) = (
+      SELECT pg_catalog.count(DISTINCT model.value)
+      FROM pg_catalog.jsonb_array_elements_text(p_policy) AS model(value)
+    );
+$$;
 
 CREATE OR REPLACE FUNCTION ocr_private.valid_result_payload(p_payload jsonb)
 RETURNS boolean
@@ -223,7 +315,8 @@ CREATE OR REPLACE FUNCTION public.claim_receipt_ocr_result(
   p_image_hash text,
   p_input_context_hash text,
   p_provider text,
-  p_model text,
+  p_model_policy jsonb,
+  p_generation uuid,
   p_prompt_version text,
   p_preprocess_version text,
   p_normalization_version text,
@@ -243,14 +336,14 @@ BEGIN
     OR p_image_hash IS NULL
     OR p_input_context_hash IS NULL
     OR p_provider IS NULL
-    OR p_model IS NULL
+    OR NOT ocr_private.valid_model_policy(p_model_policy)
+    OR p_generation IS NULL
     OR p_prompt_version IS NULL
     OR p_preprocess_version IS NULL
     OR p_normalization_version IS NULL
     OR p_image_hash !~ '^[0-9a-f]{64}$'
     OR p_input_context_hash !~ '^[0-9a-f]{64}$'
     OR p_provider <> 'gemini'
-    OR length(p_model) NOT BETWEEN 1 AND 160
     OR length(p_prompt_version) NOT BETWEEN 1 AND 160
     OR length(p_preprocess_version) NOT BETWEEN 1 AND 160
     OR length(p_normalization_version) NOT BETWEEN 1 AND 160
@@ -259,16 +352,16 @@ BEGIN
   END IF;
 
   INSERT INTO ocr_private.receipt_results (
-    user_id, image_hash, input_context_hash, provider, model,
+    user_id, image_hash, input_context_hash, provider, model_policy, generation,
     prompt_version, preprocess_version, normalization_version,
     status, dispatch_stage, claim_token
   ) VALUES (
-    p_user_id, p_image_hash, p_input_context_hash, p_provider, p_model,
+    p_user_id, p_image_hash, p_input_context_hash, p_provider, p_model_policy, p_generation,
     p_prompt_version, p_preprocess_version, p_normalization_version,
     'processing', 'reserved', p_operation_id
   )
   ON CONFLICT (
-    user_id, image_hash, input_context_hash, provider, model,
+    user_id, image_hash, input_context_hash, provider, model_policy, generation,
     prompt_version, preprocess_version, normalization_version
   ) DO NOTHING
   RETURNING * INTO v_result;
@@ -287,7 +380,8 @@ BEGIN
     AND image_hash = p_image_hash
     AND input_context_hash = p_input_context_hash
     AND provider = p_provider
-    AND model = p_model
+    AND model_policy = p_model_policy
+    AND generation = p_generation
     AND prompt_version = p_prompt_version
     AND preprocess_version = p_preprocess_version
     AND normalization_version = p_normalization_version
@@ -438,7 +532,7 @@ BEGIN
     AND dispatch_stage = 'possibly_dispatched'
     AND claim_token = p_claim_token
     AND provider = p_result_payload->>'provider'
-    AND model = p_result_payload->>'model'
+    AND model_policy ? (p_result_payload->>'model')
     AND normalization_version = p_result_payload->>'normalization_version'
   RETURNING * INTO v_result;
 
@@ -532,6 +626,339 @@ BEGIN
     RAISE EXCEPTION 'receipt_ocr_claim_mismatch' USING ERRCODE = '42501';
   END IF;
   RETURN jsonb_build_object('status', 'released', 'result_ref', p_result_id);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.read_receipt_ocr_result(
+  p_user_id uuid,
+  p_image_hash text,
+  p_input_context_hash text,
+  p_provider text,
+  p_model_policy jsonb,
+  p_generation uuid,
+  p_prompt_version text,
+  p_preprocess_version text,
+  p_normalization_version text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_result ocr_private.receipt_results%ROWTYPE;
+BEGIN
+  IF p_user_id IS NULL
+    OR p_image_hash !~ '^[0-9a-f]{64}$'
+    OR p_input_context_hash !~ '^[0-9a-f]{64}$'
+    OR p_provider <> 'gemini'
+    OR NOT ocr_private.valid_model_policy(p_model_policy)
+    OR p_generation IS NULL
+    OR pg_catalog.length(p_prompt_version) NOT BETWEEN 1 AND 160
+    OR pg_catalog.length(p_preprocess_version) NOT BETWEEN 1 AND 160
+    OR pg_catalog.length(p_normalization_version) NOT BETWEEN 1 AND 160
+  THEN
+    RAISE EXCEPTION 'invalid_receipt_ocr_read' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_result
+  FROM ocr_private.receipt_results
+  WHERE user_id = p_user_id
+    AND image_hash = p_image_hash
+    AND input_context_hash = p_input_context_hash
+    AND provider = p_provider
+    AND model_policy = p_model_policy
+    AND generation = p_generation
+    AND prompt_version = p_prompt_version
+    AND preprocess_version = p_preprocess_version
+    AND normalization_version = p_normalization_version;
+
+  IF NOT FOUND THEN
+    RETURN pg_catalog.jsonb_build_object('status', 'not_found');
+  END IF;
+  IF v_result.status = 'succeeded' THEN
+    IF NOT ocr_private.valid_result_payload(v_result.result_payload)
+      OR NOT (v_result.model_policy ? (v_result.result_payload->>'model'))
+    THEN
+      RAISE EXCEPTION 'invalid_receipt_ocr_result' USING ERRCODE = '22023';
+    END IF;
+    RETURN pg_catalog.jsonb_build_object(
+      'status', 'succeeded',
+      'result_ref', v_result.id,
+      'result_revision', v_result.result_revision,
+      'result_payload', v_result.result_payload
+    );
+  END IF;
+  RETURN pg_catalog.jsonb_build_object('status', v_result.status, 'result_ref', v_result.id);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_review_receipt_ocr_generation(
+  p_user_id uuid,
+  p_review_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_generation uuid;
+BEGIN
+  IF p_user_id IS NULL OR p_review_id IS NULL THEN
+    RAISE EXCEPTION 'invalid_review_ocr_generation_read' USING ERRCODE = '22023';
+  END IF;
+  SELECT generation INTO v_generation
+  FROM ocr_private.review_generations
+  WHERE review_id = p_review_id AND user_id = p_user_id;
+  IF NOT FOUND THEN
+    RETURN pg_catalog.jsonb_build_object('status', 'not_found');
+  END IF;
+  RETURN pg_catalog.jsonb_build_object(
+    'status', 'ready',
+    'review_id', p_review_id,
+    'generation', v_generation
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.publish_review_receipt_ocr_result(
+  p_user_id uuid,
+  p_review_id uuid,
+  p_generation uuid,
+  p_result_id uuid,
+  p_result_revision uuid,
+  p_receipt_hash text,
+  p_receipt_data jsonb,
+  p_is_duplicate boolean
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_generation uuid;
+  v_result ocr_private.receipt_results%ROWTYPE;
+  v_review public.reviews%ROWTYPE;
+BEGIN
+  IF p_user_id IS NULL OR p_review_id IS NULL OR p_generation IS NULL
+    OR p_result_id IS NULL OR p_result_revision IS NULL OR p_is_duplicate IS NULL
+    OR p_receipt_data IS NULL OR pg_catalog.jsonb_typeof(p_receipt_data) <> 'object'
+    OR pg_catalog.octet_length(pg_catalog.convert_to(p_receipt_data::text, 'UTF8')) > 32768
+    OR (p_receipt_hash IS NOT NULL AND p_receipt_hash !~ '^[0-9a-f]{64}$')
+  THEN
+    RAISE EXCEPTION 'invalid_review_ocr_publish' USING ERRCODE = '22023';
+  END IF;
+
+  -- Match reset's lock order: both paths lock the review row before the
+  -- generation row. This removes the reviews -> generations / generations ->
+  -- reviews inversion while preserving a fixed stale-generation rejection.
+  SELECT * INTO v_review
+  FROM public.reviews
+  WHERE id = p_review_id AND user_id = p_user_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'review_ocr_publish_conflict' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT generation INTO v_generation
+  FROM ocr_private.review_generations
+  WHERE review_id = p_review_id AND user_id = p_user_id
+  FOR SHARE;
+  IF NOT FOUND OR v_generation IS DISTINCT FROM p_generation THEN
+    RAISE EXCEPTION 'review_ocr_generation_stale' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_result
+  FROM ocr_private.receipt_results
+  WHERE id = p_result_id
+    AND user_id = p_user_id
+    AND generation = p_generation
+    AND status = 'succeeded'
+  FOR SHARE;
+  IF NOT FOUND
+    OR v_result.result_revision IS DISTINCT FROM p_result_revision
+    OR NOT ocr_private.valid_result_payload(v_result.result_payload)
+    OR NOT (v_result.model_policy ? (v_result.result_payload->>'model'))
+  THEN
+    RAISE EXCEPTION 'review_ocr_result_stale' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.reviews
+  SET receipt_hash = p_receipt_hash,
+      receipt_data = p_receipt_data,
+      is_duplicate = p_is_duplicate,
+      ocr_processed_at = now()
+  WHERE id = p_review_id
+    AND user_id = p_user_id
+    AND receipt_hash IS NULL
+    AND receipt_data IS NULL
+    AND ocr_processed_at IS NULL
+    AND is_duplicate = false
+  RETURNING * INTO v_review;
+
+  IF NOT FOUND THEN
+    SELECT * INTO v_review
+    FROM public.reviews
+    WHERE id = p_review_id AND user_id = p_user_id;
+    IF NOT FOUND
+      OR v_review.receipt_hash IS DISTINCT FROM p_receipt_hash
+      OR v_review.receipt_data IS DISTINCT FROM p_receipt_data
+      OR v_review.is_duplicate IS DISTINCT FROM p_is_duplicate
+      OR v_review.ocr_processed_at IS NULL
+    THEN
+      RAISE EXCEPTION 'review_ocr_publish_conflict' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  RETURN pg_catalog.jsonb_build_object(
+    'status', 'published',
+    'review_id', v_review.id,
+    'generation', p_generation,
+    'result_ref', p_result_id,
+    'result_revision', p_result_revision,
+    'receipt_hash', v_review.receipt_hash,
+    'receipt_data', v_review.receipt_data,
+    'is_duplicate', v_review.is_duplicate,
+    'ocr_processed_at', v_review.ocr_processed_at
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_feature_runtime_capability(p_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_ready boolean;
+  v_contracts_ready boolean;
+  v_trigger_helper_oid oid := pg_catalog.to_regprocedure(
+    'ocr_private.register_review_ocr_generation()'
+  );
+BEGIN
+  IF p_user_id IS NULL OR NOT EXISTS (
+    SELECT 1 FROM auth.users AS user_row WHERE user_row.id = p_user_id
+  ) THEN
+    RETURN pg_catalog.jsonb_build_object(
+      'schema_version', 1,
+      'status', 'held',
+      'code', 'FEATURE_DATABASE_HELD',
+      'capability_version', 'review-media-feature-v1'
+    );
+  END IF;
+
+  SELECT NOT EXISTS (
+    SELECT 1
+    FROM (
+      VALUES
+        ('public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean)', 'jsonb'::pg_catalog.regtype, false, 'v'::"char"),
+        ('public.mark_receipt_ocr_dispatched(uuid,uuid)', 'jsonb'::pg_catalog.regtype, false, 'v'::"char"),
+        ('public.complete_receipt_ocr_result(uuid,uuid,jsonb)', 'jsonb'::pg_catalog.regtype, false, 'v'::"char"),
+        ('public.mark_receipt_ocr_result_indeterminate(uuid,uuid)', 'jsonb'::pg_catalog.regtype, false, 'v'::"char"),
+        ('public.release_receipt_ocr_claim(uuid,uuid)', 'jsonb'::pg_catalog.regtype, false, 'v'::"char"),
+        ('public.read_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text)', 'jsonb'::pg_catalog.regtype, false, 's'::"char"),
+        ('public.get_review_receipt_ocr_generation(uuid,uuid)', 'jsonb'::pg_catalog.regtype, false, 's'::"char"),
+        ('public.publish_review_receipt_ocr_result(uuid,uuid,uuid,uuid,uuid,text,jsonb,boolean)', 'jsonb'::pg_catalog.regtype, false, 'v'::"char"),
+        ('public.get_feature_runtime_capability(uuid)', 'jsonb'::pg_catalog.regtype, false, 's'::"char"),
+        ('public.get_owned_review_storage_objects(uuid,uuid,text,text[])', 'record'::pg_catalog.regtype, true, 'v'::"char"),
+        ('public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamptz,text,text[],text[],uuid,uuid,uuid,text,timestamptz,text,jsonb)', 'uuid'::pg_catalog.regtype, false, 'v'::"char")
+    ) AS required(signature, return_type, returns_set, volatility)
+    LEFT JOIN pg_catalog.pg_proc AS procedure_row
+      ON procedure_row.oid = pg_catalog.to_regprocedure(required.signature)
+    WHERE procedure_row.oid IS NULL
+      OR procedure_row.proowner <> 'privacy_workflow_owner'::pg_catalog.regrole
+      OR NOT procedure_row.prosecdef
+      OR procedure_row.proconfig IS DISTINCT FROM ARRAY['search_path=""']::text[]
+      OR procedure_row.prokind <> 'f'
+      OR procedure_row.provolatile <> required.volatility
+      OR procedure_row.prorettype <> required.return_type
+      OR procedure_row.proretset IS DISTINCT FROM required.returns_set
+      OR procedure_row.prolang <> (
+        SELECT language.oid
+        FROM pg_catalog.pg_language AS language
+        WHERE language.lanname = 'sql'
+      )
+      OR NOT pg_catalog.has_function_privilege('service_role', procedure_row.oid, 'EXECUTE')
+      OR pg_catalog.has_function_privilege('anon', procedure_row.oid, 'EXECUTE')
+      OR pg_catalog.has_function_privilege('authenticated', procedure_row.oid, 'EXECUTE')
+  ) INTO v_contracts_ready;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM ocr_private.feature_runtime_capability AS capability
+    WHERE capability.capability_version = 'review-media-feature-v1'
+      AND capability.schema_version = 1
+  )
+  AND v_contracts_ready
+  AND pg_catalog.to_regprocedure('public.storyboard_production_admin(uuid,text,uuid,integer,jsonb)') IS NOT NULL
+  AND pg_catalog.to_regprocedure('public.storyboard_production_worker(uuid,text,uuid,uuid,jsonb)') IS NOT NULL
+  AND EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_class AS table_row
+    WHERE table_row.oid = 'ocr_private.receipt_results'::pg_catalog.regclass
+      AND table_row.relowner = 'postgres'::pg_catalog.regrole
+      AND table_row.relrowsecurity
+      AND table_row.relforcerowsecurity
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_class AS table_row
+    WHERE table_row.oid = 'ocr_private.review_generations'::pg_catalog.regclass
+      AND table_row.relowner = 'postgres'::pg_catalog.regrole
+      AND table_row.relrowsecurity
+      AND table_row.relforcerowsecurity
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_proc AS helper
+    WHERE helper.oid = v_trigger_helper_oid
+      AND helper.proowner = 'postgres'::pg_catalog.regrole
+      AND helper.prosecdef
+      AND helper.proconfig = ARRAY['search_path=""']::text[]
+      AND helper.prorettype = 'trigger'::pg_catalog.regtype
+      AND helper.prolang = (
+        SELECT language.oid
+        FROM pg_catalog.pg_language AS language
+        WHERE language.lanname = 'plpgsql'
+      )
+      AND NOT pg_catalog.has_function_privilege('anon', helper.oid, 'EXECUTE')
+      AND NOT pg_catalog.has_function_privilege('authenticated', helper.oid, 'EXECUTE')
+      AND NOT pg_catalog.has_function_privilege('service_role', helper.oid, 'EXECUTE')
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_trigger AS trigger_row
+    WHERE trigger_row.tgrelid = 'public.reviews'::pg_catalog.regclass
+      AND trigger_row.tgfoid = v_trigger_helper_oid
+      AND trigger_row.tgname IN (
+        'review_ocr_generation_on_insert',
+        'review_ocr_generation_on_reset'
+      )
+      AND NOT trigger_row.tgisinternal
+    GROUP BY trigger_row.tgfoid
+    HAVING pg_catalog.count(*) = 2
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_trigger AS trigger_row
+    WHERE trigger_row.tgrelid = 'storage.objects'::pg_catalog.regclass
+      AND trigger_row.tgname = 'a01_review_verification_immutable_update'
+      AND NOT trigger_row.tgisinternal
+  )
+  INTO v_ready;
+
+  RETURN pg_catalog.jsonb_build_object(
+    'schema_version', 1,
+    'status', CASE WHEN v_ready THEN 'ready' ELSE 'held' END,
+    'code', CASE WHEN v_ready THEN 'FEATURE_DATABASE_READY' ELSE 'FEATURE_DATABASE_HELD' END,
+    'capability_version', 'review-media-feature-v1'
+  );
 END;
 $$;
 
@@ -644,7 +1071,10 @@ BEGIN
 
   SELECT * INTO v_result
   FROM ocr_private.receipt_results
-  WHERE id = p_ocr_result_id AND user_id = p_user_id AND status = 'succeeded'
+  WHERE id = p_ocr_result_id
+    AND user_id = p_user_id
+    AND generation = '00000000-0000-0000-0000-000000000000'::uuid
+    AND status = 'succeeded'
   FOR SHARE;
   IF NOT FOUND OR NOT ocr_private.valid_result_payload(v_result.result_payload) THEN
     RAISE EXCEPTION 'receipt_ocr_result_not_available' USING ERRCODE = '42501';
@@ -756,18 +1186,28 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.claim_receipt_ocr_result(uuid,text,text,text,text,text,text,text,uuid,boolean) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION ocr_private.register_review_ocr_generation() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION ocr_private.valid_model_policy(jsonb) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.mark_receipt_ocr_dispatched(uuid,uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.complete_receipt_ocr_result(uuid,uuid,jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.mark_receipt_ocr_result_indeterminate(uuid,uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.release_receipt_ocr_claim(uuid,uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.read_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.get_review_receipt_ocr_generation(uuid,uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.publish_review_receipt_ocr_result(uuid,uuid,uuid,uuid,uuid,text,jsonb,boolean) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.get_feature_runtime_capability(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.get_owned_review_storage_objects(uuid,uuid,text,text[]) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamptz,text,text[],text[],uuid,uuid,uuid,text,timestamptz,text,jsonb) FROM PUBLIC, anon, authenticated;
 
-GRANT EXECUTE ON FUNCTION public.claim_receipt_ocr_result(uuid,text,text,text,text,text,text,text,uuid,boolean) TO service_role;
+GRANT EXECUTE ON FUNCTION public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION public.mark_receipt_ocr_dispatched(uuid,uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.complete_receipt_ocr_result(uuid,uuid,jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.mark_receipt_ocr_result_indeterminate(uuid,uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.release_receipt_ocr_claim(uuid,uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.read_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_review_receipt_ocr_generation(uuid,uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.publish_review_receipt_ocr_result(uuid,uuid,uuid,uuid,uuid,text,jsonb,boolean) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_feature_runtime_capability(uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_owned_review_storage_objects(uuid,uuid,text,text[]) TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamptz,text,text[],text[],uuid,uuid,uuid,text,timestamptz,text,jsonb) TO service_role;

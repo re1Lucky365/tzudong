@@ -14,22 +14,28 @@ SELECT pg_catalog.pg_advisory_xact_lock(
 CREATE TEMPORARY TABLE pg_temp.g014_feature_rpc_registry (
   source_signature text PRIMARY KEY,
   expected_return_type regtype NOT NULL,
-  expected_set boolean NOT NULL
+  expected_set boolean NOT NULL,
+  expected_volatility "char" NOT NULL
 ) ON COMMIT DROP;
 
 INSERT INTO pg_temp.g014_feature_rpc_registry (
   source_signature,
   expected_return_type,
-  expected_set
+  expected_set,
+  expected_volatility
 )
 VALUES
-  ('public.claim_receipt_ocr_result(uuid,text,text,text,text,text,text,text,uuid,boolean)', 'jsonb'::regtype, false),
-  ('public.mark_receipt_ocr_dispatched(uuid,uuid)', 'jsonb'::regtype, false),
-  ('public.complete_receipt_ocr_result(uuid,uuid,jsonb)', 'jsonb'::regtype, false),
-  ('public.mark_receipt_ocr_result_indeterminate(uuid,uuid)', 'jsonb'::regtype, false),
-  ('public.release_receipt_ocr_claim(uuid,uuid)', 'jsonb'::regtype, false),
-  ('public.get_owned_review_storage_objects(uuid,uuid,text,text[])', 'record'::regtype, true),
-  ('public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamptz,text,text[],text[],uuid,uuid,uuid,text,timestamptz,text,jsonb)', 'uuid'::regtype, false);
+  ('public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean)', 'jsonb'::regtype, false, 'v'),
+  ('public.mark_receipt_ocr_dispatched(uuid,uuid)', 'jsonb'::regtype, false, 'v'),
+  ('public.complete_receipt_ocr_result(uuid,uuid,jsonb)', 'jsonb'::regtype, false, 'v'),
+  ('public.mark_receipt_ocr_result_indeterminate(uuid,uuid)', 'jsonb'::regtype, false, 'v'),
+  ('public.release_receipt_ocr_claim(uuid,uuid)', 'jsonb'::regtype, false, 'v'),
+  ('public.read_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text)', 'jsonb'::regtype, false, 's'),
+  ('public.get_review_receipt_ocr_generation(uuid,uuid)', 'jsonb'::regtype, false, 's'),
+  ('public.publish_review_receipt_ocr_result(uuid,uuid,uuid,uuid,uuid,text,jsonb,boolean)', 'jsonb'::regtype, false, 'v'),
+  ('public.get_feature_runtime_capability(uuid)', 'jsonb'::regtype, false, 's'),
+  ('public.get_owned_review_storage_objects(uuid,uuid,text,text[])', 'record'::regtype, true, 'v'),
+  ('public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamptz,text,text[],text[],uuid,uuid,uuid,text,timestamptz,text,jsonb)', 'uuid'::regtype, false, 'v');
 
 GRANT SELECT ON TABLE pg_temp.g014_feature_rpc_registry
   TO privacy_workflow_owner;
@@ -44,6 +50,7 @@ DECLARE
   procedure_oid oid;
   procedure_row pg_catalog.pg_proc%ROWTYPE;
   archive_guard_oid oid;
+  generation_trigger_oid oid;
 BEGIN
   IF pg_catalog.current_setting('server_version_num')::integer / 10000 <> 17
      OR current_user <> 'postgres'
@@ -72,7 +79,7 @@ BEGIN
        OR NOT procedure_row.prosecdef
        OR procedure_row.proconfig IS DISTINCT FROM ARRAY['search_path=""']::text[]
        OR procedure_row.prokind <> 'f'
-       OR procedure_row.provolatile <> 'v'
+       OR procedure_row.provolatile <> required.expected_volatility
        OR procedure_row.prolang <> (
          SELECT language.oid FROM pg_catalog.pg_language AS language
          WHERE language.lanname = 'plpgsql'
@@ -100,6 +107,42 @@ BEGIN
       RAISE EXCEPTION 'G014_FEATURE_RPC_PREREQUISITE_DRIFT: %', required.source_signature;
     END IF;
   END LOOP;
+
+  generation_trigger_oid := pg_catalog.to_regprocedure(
+    'ocr_private.register_review_ocr_generation()'
+  );
+  SELECT procedure.* INTO procedure_row
+  FROM pg_catalog.pg_proc AS procedure
+  WHERE procedure.oid = generation_trigger_oid;
+
+  IF generation_trigger_oid IS NULL
+     OR procedure_row.proowner <> 'postgres'::regrole
+     OR NOT procedure_row.prosecdef
+     OR procedure_row.proconfig IS DISTINCT FROM ARRAY['search_path=""']::text[]
+     OR procedure_row.prokind <> 'f'
+     OR procedure_row.prorettype <> 'trigger'::regtype
+     OR procedure_row.proretset
+     OR procedure_row.prolang <> (
+       SELECT language.oid FROM pg_catalog.pg_language AS language
+       WHERE language.lanname = 'plpgsql'
+     )
+     OR pg_catalog.has_function_privilege('anon', generation_trigger_oid, 'EXECUTE')
+     OR pg_catalog.has_function_privilege('authenticated', generation_trigger_oid, 'EXECUTE')
+     OR pg_catalog.has_function_privilege('service_role', generation_trigger_oid, 'EXECUTE')
+     OR (
+       SELECT pg_catalog.count(*)
+       FROM pg_catalog.pg_trigger AS trigger_row
+       WHERE trigger_row.tgfoid = generation_trigger_oid
+         AND trigger_row.tgrelid = 'public.reviews'::regclass
+         AND trigger_row.tgname IN (
+           'review_ocr_generation_on_insert',
+           'review_ocr_generation_on_reset'
+         )
+         AND trigger_row.tgenabled = 'O'
+         AND NOT trigger_row.tgisinternal
+     ) <> 2 THEN
+    RAISE EXCEPTION 'G014_FEATURE_GENERATION_TRIGGER_PREREQUISITE_DRIFT';
+  END IF;
 
   archive_guard_oid := pg_catalog.to_regprocedure(
     'public.storyboard_production_reject_archived_write()'
@@ -231,7 +274,8 @@ CREATE FUNCTION public.claim_receipt_ocr_result(
   p_image_hash text,
   p_input_context_hash text,
   p_provider text,
-  p_model text,
+  p_model_policy jsonb,
+  p_generation uuid,
   p_prompt_version text,
   p_preprocess_version text,
   p_normalization_version text,
@@ -245,7 +289,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $wrapper$
   SELECT ocr_private.claim_receipt_ocr_result(
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
   );
 $wrapper$;
 
@@ -300,6 +344,68 @@ SECURITY DEFINER
 SET search_path = ''
 AS $wrapper$
   SELECT ocr_private.release_receipt_ocr_claim($1, $2);
+$wrapper$;
+
+CREATE FUNCTION public.read_receipt_ocr_result(
+  p_user_id uuid,
+  p_image_hash text,
+  p_input_context_hash text,
+  p_provider text,
+  p_model_policy jsonb,
+  p_generation uuid,
+  p_prompt_version text,
+  p_preprocess_version text,
+  p_normalization_version text
+)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $wrapper$
+  SELECT ocr_private.read_receipt_ocr_result($1, $2, $3, $4, $5, $6, $7, $8, $9);
+$wrapper$;
+
+CREATE FUNCTION public.get_review_receipt_ocr_generation(
+  p_user_id uuid,
+  p_review_id uuid
+)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $wrapper$
+  SELECT ocr_private.get_review_receipt_ocr_generation($1, $2);
+$wrapper$;
+
+CREATE FUNCTION public.publish_review_receipt_ocr_result(
+  p_user_id uuid,
+  p_review_id uuid,
+  p_generation uuid,
+  p_result_id uuid,
+  p_result_revision uuid,
+  p_receipt_hash text,
+  p_receipt_data jsonb,
+  p_is_duplicate boolean
+)
+RETURNS jsonb
+LANGUAGE sql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $wrapper$
+  SELECT ocr_private.publish_review_receipt_ocr_result($1, $2, $3, $4, $5, $6, $7, $8);
+$wrapper$;
+
+CREATE FUNCTION public.get_feature_runtime_capability(p_user_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $wrapper$
+  SELECT ocr_private.get_feature_runtime_capability($1);
 $wrapper$;
 
 CREATE FUNCTION public.get_owned_review_storage_objects(
@@ -409,6 +515,10 @@ SELECT 'ocr_private.' || pg_catalog.substr(
 FROM pg_temp.g014_feature_rpc_registry AS required
 ON CONFLICT (source_signature) DO NOTHING;
 
+INSERT INTO privacy_retention.g014_nested_helper_allowlist (source_signature)
+VALUES ('ocr_private.register_review_ocr_generation()')
+ON CONFLICT (source_signature) DO NOTHING;
+
 DELETE FROM privacy_retention.g014_public_rpc_allowlist AS allowed
 WHERE allowed.source_signature = 'public.storyboard_production_reject_archived_write()'
    OR (
@@ -482,6 +592,9 @@ DECLARE
   wrapper_row pg_catalog.pg_proc%ROWTYPE;
   helper_row pg_catalog.pg_proc%ROWTYPE;
   helper_signature text;
+  generation_trigger_oid oid := pg_catalog.to_regprocedure(
+    'ocr_private.register_review_ocr_generation()'
+  );
   archive_guard_oid oid := pg_catalog.to_regprocedure(
     'public.storyboard_production_reject_archived_write()'
   );
@@ -530,7 +643,7 @@ BEGIN
        OR NOT wrapper_row.prosecdef
        OR wrapper_row.proconfig IS DISTINCT FROM ARRAY['search_path=""']::text[]
        OR wrapper_row.prokind <> 'f'
-       OR wrapper_row.provolatile <> 'v'
+       OR wrapper_row.provolatile <> required.expected_volatility
        OR wrapper_row.prolang <> (
          SELECT language.oid FROM pg_catalog.pg_language AS language
          WHERE language.lanname = 'sql'
@@ -562,7 +675,7 @@ BEGIN
        OR NOT helper_row.prosecdef
        OR helper_row.proconfig IS DISTINCT FROM ARRAY['search_path=""']::text[]
        OR helper_row.prokind <> 'f'
-       OR helper_row.provolatile <> 'v'
+       OR helper_row.provolatile <> required.expected_volatility
        OR helper_row.prolang <> (
          SELECT language.oid FROM pg_catalog.pg_language AS language
          WHERE language.lanname = 'plpgsql'
@@ -581,6 +694,43 @@ BEGIN
       RAISE EXCEPTION 'G014_FEATURE_RPC_READBACK_DRIFT: %', required.source_signature;
     END IF;
   END LOOP;
+
+  SELECT procedure.* INTO helper_row
+  FROM pg_catalog.pg_proc AS procedure
+  WHERE procedure.oid = generation_trigger_oid;
+  IF generation_trigger_oid IS NULL
+     OR helper_row.proowner <> 'postgres'::regrole
+     OR NOT helper_row.prosecdef
+     OR helper_row.proconfig IS DISTINCT FROM ARRAY['search_path=""']::text[]
+     OR helper_row.prokind <> 'f'
+     OR helper_row.prorettype <> 'trigger'::regtype
+     OR helper_row.proretset
+     OR helper_row.prolang <> (
+       SELECT language.oid FROM pg_catalog.pg_language AS language
+       WHERE language.lanname = 'plpgsql'
+     )
+     OR pg_catalog.has_function_privilege('anon', generation_trigger_oid, 'EXECUTE')
+     OR pg_catalog.has_function_privilege('authenticated', generation_trigger_oid, 'EXECUTE')
+     OR pg_catalog.has_function_privilege('service_role', generation_trigger_oid, 'EXECUTE')
+     OR (
+       SELECT pg_catalog.count(*)
+       FROM privacy_retention.g014_nested_helper_allowlist AS allowed
+       WHERE allowed.source_signature = 'ocr_private.register_review_ocr_generation()'
+     ) <> 1
+     OR (
+       SELECT pg_catalog.count(*)
+       FROM pg_catalog.pg_trigger AS trigger_row
+       WHERE trigger_row.tgfoid = generation_trigger_oid
+         AND trigger_row.tgrelid = 'public.reviews'::regclass
+         AND trigger_row.tgname IN (
+           'review_ocr_generation_on_insert',
+           'review_ocr_generation_on_reset'
+         )
+         AND trigger_row.tgenabled = 'O'
+         AND NOT trigger_row.tgisinternal
+     ) <> 2 THEN
+    RAISE EXCEPTION 'G014_FEATURE_GENERATION_TRIGGER_READBACK_DRIFT';
+  END IF;
 
   IF pg_catalog.has_function_privilege('service_role', archive_guard_oid, 'EXECUTE')
      OR pg_catalog.has_function_privilege('anon', archive_guard_oid, 'EXECUTE')

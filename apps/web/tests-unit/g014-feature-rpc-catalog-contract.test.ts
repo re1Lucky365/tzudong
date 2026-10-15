@@ -10,11 +10,15 @@ const migrationUrl = new URL(
 const source = readFileSync(migrationUrl, 'utf8');
 
 const ocrSignatures = [
-  'public.claim_receipt_ocr_result(uuid,text,text,text,text,text,text,text,uuid,boolean)',
+  'public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean)',
   'public.mark_receipt_ocr_dispatched(uuid,uuid)',
   'public.complete_receipt_ocr_result(uuid,uuid,jsonb)',
   'public.mark_receipt_ocr_result_indeterminate(uuid,uuid)',
   'public.release_receipt_ocr_claim(uuid,uuid)',
+  'public.read_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text)',
+  'public.get_review_receipt_ocr_generation(uuid,uuid)',
+  'public.publish_review_receipt_ocr_result(uuid,uuid,uuid,uuid,uuid,text,jsonb,boolean)',
+  'public.get_feature_runtime_capability(uuid)',
   'public.get_owned_review_storage_objects(uuid,uuid,text,text[])',
   'public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamptz,text,text[],text[],uuid,uuid,uuid,text,timestamptz,text,jsonb)',
 ] as const;
@@ -32,7 +36,7 @@ describe('G014 feature RPC catalog successor', () => {
     );
   });
 
-  test('registers exactly the seven typed OCR service RPCs', () => {
+  test('registers exactly the eleven typed OCR service RPCs', () => {
     const registryValues = source.match(
       /INSERT INTO pg_temp\.g014_feature_rpc_registry[\s\S]*?;\n\nCREATE TEMPORARY TABLE/,
     )?.[0] ?? '';
@@ -42,6 +46,8 @@ describe('G014 feature RPC catalog successor', () => {
     }
     expect(registryValues.match(/\('public\./g)).toHaveLength(ocrSignatures.length);
     expect(source).toContain("'service_role'::name");
+    expect(source).toContain('expected_volatility "char" NOT NULL');
+    expect(source).toContain('procedure_row.provolatile <> required.expected_volatility');
     expect(source).toContain('ON CONFLICT (source_signature, grantee) DO UPDATE SET');
   });
 
@@ -55,7 +61,7 @@ describe('G014 feature RPC catalog successor', () => {
     expect(source).toContain(
       'INSERT INTO privacy_retention.g014_nested_helper_allowlist (source_signature)',
     );
-    expect(source.match(/CREATE FUNCTION public\.(?:claim_receipt_ocr_result|mark_receipt_ocr_dispatched|complete_receipt_ocr_result|mark_receipt_ocr_result_indeterminate|release_receipt_ocr_claim|get_owned_review_storage_objects|create_review_with_receipt_ocr)\(/g)).toHaveLength(
+    expect(source.match(/CREATE FUNCTION public\.(?:claim_receipt_ocr_result|mark_receipt_ocr_dispatched|complete_receipt_ocr_result|mark_receipt_ocr_result_indeterminate|release_receipt_ocr_claim|read_receipt_ocr_result|get_review_receipt_ocr_generation|publish_review_receipt_ocr_result|get_feature_runtime_capability|get_owned_review_storage_objects|create_review_with_receipt_ocr)\(/g)).toHaveLength(
       ocrSignatures.length,
     );
     expect(source).toContain("wrapper_row.proowner <> 'privacy_workflow_owner'::regrole");
@@ -68,6 +74,7 @@ describe('G014 feature RPC catalog successor', () => {
     expect(source).toContain(
       "pg_catalog.has_function_privilege('service_role', helper_oid, 'EXECUTE')",
     );
+    expect(source).toContain("VALUES ('ocr_private.register_review_ocr_generation()')");
   });
 
   test('removes direct Data API access to the installed trigger helper', () => {

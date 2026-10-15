@@ -328,11 +328,15 @@ export function buildFeatureSuccessorStateQuery(
   const schemas = "'ocr_private','pipeline_control','privacy_retention','public','review_media_private','storage'";
   const acl = expression => sortedAclSql(expression);
   const ocrFunctions = [
-    'public.claim_receipt_ocr_result(uuid,text,text,text,text,text,text,text,uuid,boolean)',
+    'public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean)',
     'public.mark_receipt_ocr_dispatched(uuid,uuid)',
     'public.complete_receipt_ocr_result(uuid,uuid,jsonb)',
     'public.mark_receipt_ocr_result_indeterminate(uuid,uuid)',
     'public.release_receipt_ocr_claim(uuid,uuid)',
+    'public.read_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text)',
+    'public.get_review_receipt_ocr_generation(uuid,uuid)',
+    'public.publish_review_receipt_ocr_result(uuid,uuid,uuid,uuid,uuid,text,jsonb,boolean)',
+    'public.get_feature_runtime_capability(uuid)',
     'public.get_owned_review_storage_objects(uuid,uuid,text,text[])',
     'public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamp with time zone,text,text[],text[],uuid,uuid,uuid,text,timestamp with time zone,text,jsonb)',
   ];
@@ -400,7 +404,7 @@ export function buildFeatureSuccessorStateQuery(
     AND (SELECT count(*)=6 FROM pg_trigger WHERE tgname=ANY(ARRAY['storyboard_archive_projects_write_guard','storyboard_archive_jobs_write_guard','storyboard_archive_assets_write_guard','storyboard_archive_events_write_guard','storyboard_archive_revisions_write_guard','storyboard_archive_restores_write_guard']) AND NOT tgisinternal) AS storyboard_ready,
    to_regclass('ocr_private.receipt_results') IS NOT NULL
     AND NOT EXISTS(SELECT 1 FROM unnest(ARRAY[${ocrValues}]) signature WHERE to_regprocedure(signature) IS NULL) AS ocr_ready,
-   (SELECT count(*)=7 FROM privacy_retention.g014_public_rpc_allowlist WHERE source_signature=ANY(ARRAY[${ocrValues}]) AND grantee='service_role') AS g014_ready,
+   (SELECT count(*)=11 FROM privacy_retention.g014_public_rpc_allowlist WHERE source_signature=ANY(ARRAY[${ocrValues}]) AND grantee='service_role') AS g014_ready,
    EXISTS(SELECT 1 FROM pg_policy WHERE polrelid='storage.objects'::regclass AND polname='review_verifications_immutable_update' AND polcmd='w' AND NOT polpermissive)
     AND EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='storage.objects'::regclass AND tgname='a01_review_verification_immutable_update' AND NOT tgisinternal)
     AND EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='storage.objects'::regclass AND tgname='a01_review_verification_guard_delete' AND NOT tgisinternal)
@@ -421,6 +425,7 @@ export function buildFeatureSuccessorStateQuery(
    'catalogRoot',encode(sha256(convert_to(catalog_material.material,'UTF8')),'hex'),
    'currentUser',current_user,
    'databaseName',current_database(),
+   'featureRuntimeReady',contract.storyboard_ready AND contract.ocr_ready AND contract.g014_ready AND contract.immutable_ready,
    'g014Ready',contract.g014_ready,
    'g014Root',encode(sha256(convert_to(g014_material.material,'UTF8')),'hex'),
    'immutableReady',contract.immutable_ready,
@@ -445,7 +450,7 @@ function validateFeatureStageState(stage, index, manifest, binding) {
   exactKeys(stage.bundle, ['ledgerCount', 'prefixRoot', 'priorCount', 'suffixRoot', 'targetCount']);
   exactKeys(stage.state, [
     'activeReviewItems', 'baseReviewReady', 'catalogRoot', 'currentUser', 'databaseName',
-    'g014Ready', 'g014Root', 'immutableReady', 'ledgerRoot', 'ocrReady',
+    'featureRuntimeReady', 'g014Ready', 'g014Root', 'immutableReady', 'ledgerRoot', 'ocrReady',
     'predecessorReady', 'reviewPolicyEnabled', 'reviewRuns', 'roleRoot', 'serverMajor',
     'sessionUser', 'storageRoot', 'storyboardReady', 'storyboardRoot',
   ]);
@@ -465,6 +470,7 @@ function validateFeatureStageState(stage, index, manifest, binding) {
     || stage.state.baseReviewReady !== true
     || stage.state.currentUser !== manifest.executorRole
     || stage.state.databaseName !== manifest.databaseName
+    || stage.state.featureRuntimeReady !== (index === 4)
     || stage.state.g014Ready !== readiness[2]
     || stage.state.immutableReady !== readiness[3]
     || stage.state.ocrReady !== readiness[1]
