@@ -71,7 +71,7 @@ class CiMonitorTickTests(unittest.TestCase):
         self.assertEqual(second["apiRequestsThisTick"], 0)
         self.assertEqual(second["referenceReadiness"]["status"], "collecting_reference")
 
-    def test_terminal_chronology_defect_alerts_but_does_not_remain_pending(self):
+    def test_terminal_chronology_defect_remains_pending_until_corrected(self):
         defective = FIXTURE.make_run(2, 10, attempt=2)
         defective["jobs"][0]["createdAt"] = FIXTURE.timestamp(
             TICK.MONITOR.parse_timestamp(defective["jobs"][0]["startedAt"])
@@ -94,8 +94,10 @@ class CiMonitorTickTests(unittest.TestCase):
         readiness = first["referenceReadiness"]
         self.assertEqual(readiness["status"], "collecting_reference")
         self.assertEqual(readiness["successCount"], 0)
-        self.assertEqual(readiness["blockingPendingCount"], 0)
-        self.assertEqual(readiness["pendingReasonCounts"], {})
+        self.assertEqual(readiness["blockingPendingCount"], 1)
+        self.assertEqual(
+            readiness["pendingReasonCounts"], {"chronology_invalid_attempt": 1}
+        )
         self.assertEqual(readiness["timingExcludedTerminalCount"], 1)
         self.assertEqual(
             readiness["timingExclusionReasonCounts"],
@@ -115,10 +117,23 @@ class CiMonitorTickTests(unittest.TestCase):
         self.assertEqual(continued["admittedAttemptCount"], 1)
         self.assertEqual(continued["chronologyInvalidAttemptCount"], 1)
         self.assertEqual(
-            continued["referenceReadiness"]["blockingPendingCount"], 0
+            continued["referenceReadiness"]["blockingPendingCount"], 1
         )
         self.assertEqual(
             continued["referenceReadiness"]["timingExcludedTerminalCount"], 1
+        )
+
+        corrected = FIXTURE.make_run(2, 10, attempt=2)
+        self.export["runs"] = [corrected, normal]
+        TICK.MONITOR.atomic_write_json(self.input_path, self.export)
+        repaired = TICK.tick(self.args)
+        self.assertEqual(repaired["admittedAttemptCount"], 1)
+        self.assertEqual(repaired["chronologyInvalidAttemptCount"], 0)
+        self.assertEqual(
+            repaired["referenceReadiness"]["blockingPendingCount"], 0
+        )
+        self.assertEqual(
+            repaired["referenceReadiness"]["timingExcludedTerminalCount"], 0
         )
 
     def test_receipts_use_only_state_relative_opaque_paths(self):
