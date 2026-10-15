@@ -129,7 +129,7 @@ function environment() {
     GITHUB_REPOSITORY: 'twoimo/tzudong',
     GITHUB_SHA: sourceRevision,
     GITHUB_TOKEN: 'github-test-token',
-    SUPABASE_DB_URL: 'postgresql://owner:fixture@db.example.invalid/postgres',
+    SUPABASE_DB_URL: 'postgresql://db.invalid/postgres',
     VERCEL_TOKEN: 'vercel-test-token',
   };
 }
