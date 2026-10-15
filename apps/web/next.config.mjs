@@ -2,6 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import bundleAnalyzer from '@next/bundle-analyzer';
 import { withSentryConfig } from '@sentry/nextjs/config';
+import { sentryBuildRelease } from './lib/monitoring/sentry-release.ts';
 import { resolveConfiguredSupabaseOrigin } from './lib/profile-avatar-url.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,6 +14,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 const isNextBuildCommand = process.argv.some((arg) => arg === 'build');
 const shouldUseStandaloneOutput = isNextBuildCommand && process.env.VERCEL !== '1';
+const monitoringRelease = sentryBuildRelease(process.env.VERCEL_GIT_COMMIT_SHA);
 const configuredNextDistDir = process.env.TZUDONG_NEXT_DIST_DIR?.trim();
 if (
     configuredNextDistDir
@@ -147,6 +149,8 @@ const nextConfig = {
         remotePatterns: buildImageRemotePatterns(),
     },
     env: {
+        // Only a complete immutable build commit identifies every Sentry runtime.
+        NEXT_PUBLIC_SENTRY_RELEASE: monitoringRelease ?? '',
         NEXT_PUBLIC_TZUDONG_FIELD_RELEASE: /^[a-f0-9]{40}$/.test(process.env.VERCEL_GIT_COMMIT_SHA ?? '')
             ? process.env.VERCEL_GIT_COMMIT_SHA : '',
         NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -320,6 +324,6 @@ export default withSentryConfig(withBundleAnalyzer(nextConfig), {
         disable: !(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT),
         deleteSourcemapsAfterUpload: true,
     },
-    release: { create: Boolean(process.env.SENTRY_AUTH_TOKEN), finalize: Boolean(process.env.SENTRY_AUTH_TOKEN) },
+    release: { name: monitoringRelease, create: Boolean(process.env.SENTRY_AUTH_TOKEN), finalize: Boolean(process.env.SENTRY_AUTH_TOKEN) },
     webpack: { treeshake: { removeDebugLogging: true, removeTracing: true } },
 });

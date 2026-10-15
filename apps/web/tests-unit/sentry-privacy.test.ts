@@ -46,6 +46,7 @@ describe('Sentry event privacy', () => {
   test('turns off all sensitive SDK 11 defaults, telemetry categories and breadcrumbs', () => {
     expect(sentryPrivacyOptions.dataCollection).toEqual({ userInfo: false, cookies: false, httpHeaders: false, httpBodies: [], urlQueryParams: false, graphQL: { document: false, variables: false }, genAI: { inputs: false, outputs: false }, databaseQueryData: false, queues: false, stackFrameVariables: false, frameContextLines: 0 });
     expect(sentryPrivacyOptions.beforeBreadcrumb()).toBeNull();
+    expect(sentryPrivacyOptions.sendDefaultPii).toBe(false);
     expect(sentryPrivacyOptions.enableLogs).toBe(false);
     expect(sentryPrivacyOptions.tracesSampleRate).toBe(0);
     expect(sentryPrivacyOptions.replaysOnErrorSampleRate).toBe(0);
