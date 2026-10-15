@@ -1,0 +1,108 @@
+{
+  "schema": "tzudong-pr3195-review-followup/v1",
+  "receiptRecordedAt": "2026-10-13T11:12:59.668859+00:00",
+  "parentHead": "bb6f9228209c9a4a8251ca2e182428f7021d6a3e",
+  "sourceBindings": [
+    {
+      "path": "apps/web/scripts/ocr-gemini-live-attempt.ts",
+      "bytes": 2070,
+      "sha256": "ea7118e2173ce480a0235ac0a65ff4840f85ca120e1e08d9aad1f04247b38b00"
+    },
+    {
+      "path": "apps/web/scripts/verify-ocr-gemini-live.ts",
+      "bytes": 9029,
+      "sha256": "a572d29f612039186c453953d2ac9e7cdeb31609f0f448020f661ac39a940573"
+    },
+    {
+      "path": "apps/web/tests-unit/ocr-live-verification-cli.test.ts",
+      "bytes": 8380,
+      "sha256": "b85ca3eada7b001fb06f5410c8418c954cef5188cd0c0f58d0d9225641e28b95"
+    },
+    {
+      "path": "apps/web/scripts/verify-admin-pipeline-browser.ts",
+      "bytes": 20713,
+      "sha256": "07e1134ccc7315cb93371d40b577eaf934e594ec3c7913c8a79e25fe88df4b8e"
+    },
+    {
+      "path": "apps/web/scripts/verify-admin-sidebar-pages-browser.ts",
+      "bytes": 42346,
+      "sha256": "8d81317901080253fc3335f71f04faf58e1b3bd2b5428df6dfe3025e750257f6"
+    },
+    {
+      "path": "apps/web/lib/admin/admin-module-metadata.ts",
+      "bytes": 881,
+      "sha256": "fa51249ba3430c3473840b2e73ca6bb2dcef6f9de69f449f0acd3c7a8d955520"
+    },
+    {
+      "path": "apps/web/components/admin/AdminPageHeader.tsx",
+      "bytes": 1497,
+      "sha256": "ac2621a32fbed7b801798675683a439b8900621ef86e6116034d71a1cfb40a73"
+    },
+    {
+      "path": "apps/web/tests-unit/gemini-live-verification-boundary.test.ts",
+      "bytes": 15429,
+      "sha256": "49e4d6e487ddb86dd79ee757f6b71b9b6c8232d735f7f8555954466204691361"
+    }
+  ],
+  "verification": {
+    "geminiFakeProvider": {
+      "command": "bun test tests-unit/ocr-live-verification-cli.test.ts tests-unit/gemini-live-verification-boundary.test.ts",
+      "testsPassed": 25,
+      "testsFailed": 0,
+      "assertions": 134,
+      "metadataTimeout": {
+        "generationAdmitted": 0,
+        "deliveryUnknown": false
+      },
+      "metadataRejection": {
+        "generationAdmitted": 0,
+        "deliveryUnknown": false
+      },
+      "wrongModelIdentity": {
+        "generationAdmitted": 0,
+        "deliveryUnknown": false
+      },
+      "generationResponseLost": {
+        "generationAdmitted": 1,
+        "deliveryUnknown": true
+      },
+      "admissionFsyncFailure": {
+        "providerInvocations": 0,
+        "generationAdmitted": 0,
+        "deliveryUnknown": false
+      }
+    },
+    "titleContracts": {
+      "command": "bun test tests-unit/admin-module-metadata.test.ts tests-unit/admin-console-uiux-source.test.ts",
+      "testsPassed": 46,
+      "testsFailed": 0,
+      "assertions": 4622,
+      "syntaxChecks": [
+        "scripts/verify-admin-pipeline-browser.ts",
+        "scripts/verify-admin-sidebar-pages-browser.ts"
+      ],
+      "targetedEslint": "passed",
+      "browserReplayExecuted": false
+    },
+    "typescriptParity": {
+      "command": "PATH=/opt/homebrew/opt/node@24/bin:$PATH npm run typecheck:parity",
+      "logicalInputs": 3151,
+      "diagnostics": 0,
+      "logicalInputNamesSha256": "a1fc6b3f2306253441db1cc4b13553849c9344e4ac96235cdca252164bafbfbe",
+      "nonLibraryContentSha256": "5a536b3ae91dfc782a94d649a52c85caa570546fa428cf27ee0619309c8aaecc"
+    },
+    "nodeVersion": "24.21.0",
+    "bunVersion": "1.4.0",
+    "diffCheck": "passed"
+  },
+  "limits": {
+    "realProviderCalls": 0,
+    "hostedWrites": 0,
+    "deployments": 0,
+    "newBrowserCaptures": 0,
+    "fullBuildReplayed": false,
+    "testsAcrossReceiptsNotAdditive": true,
+    "measuredPerformanceImprovement": null,
+    "historicalBuildAndProviderEvidenceReclassifiedSeparately": true
+  }
+}

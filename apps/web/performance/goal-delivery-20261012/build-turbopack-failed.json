@@ -1,0 +1,22 @@
+{
+  "kind": "rejected-direct-turbopack-build",
+  "base": "dd0c790be7ffc94a86f95126aa60019ded8ff9b7",
+  "node": "24.21.0",
+  "next": "16.3.8",
+  "exitCode": 1,
+  "compilePassed": true,
+  "typecheckPassed": true,
+  "prerenderPassed": false,
+  "failedRoutes": [
+    "/404",
+    "/500"
+  ],
+  "fixedErrorCode": "PAGE_NOT_FOUND_DOCUMENT_ENOENT",
+  "generatedOutputPreserved": ".next-admin-header-turbopack-failed-20261012",
+  "tsconfigOnlyGeneratedIncludesRestored": true,
+  "releaseBuildAuthority": false,
+  "projectBuildCommandUsesWebpack": true,
+  "sourceEdited": false,
+  "providerCalls": 0,
+  "hostedWrites": 0
+}

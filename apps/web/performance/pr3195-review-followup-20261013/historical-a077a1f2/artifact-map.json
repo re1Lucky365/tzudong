@@ -1,0 +1,18 @@
+{
+  "schema": "tzudong-pr3195-review-followup-artifact-map/v1",
+  "evidenceClass": "current-source-local-review-fixes-no-provider-or-render-replay",
+  "artifacts": [
+    {
+      "path": "canonical-title-patterns.json",
+      "bytes": 1218,
+      "sha256": "3efb83d1f3c91e293c160ebe1819624240c3c3727baa796c498bee7f4381ea6a"
+    },
+    {
+      "path": "review-followup-delta.json",
+      "bytes": 3689,
+      "sha256": "e6dfc35d56b9a908ead551c1c834d510ee543ebb673ebba54d155fbcffdbd314"
+    }
+  ],
+  "artifactCount": 2,
+  "bytes": 4907
+}

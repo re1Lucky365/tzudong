@@ -1,6 +1,7 @@
 'use client';
 
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -40,11 +41,11 @@ export function RestaurantManagementWorkspace({ review, refresh }: { review: Rea
   return <section className="flex h-full min-h-0 flex-col" aria-label="맛집 관리">
     <RestaurantManagementHeaderContext.Provider value={headerTargets}>
       <Tabs value={view} onValueChange={select} className="flex h-full min-h-0 flex-col">
-        <AdminPageHeader title="맛집 관리" icon={Store} className="admin-restaurant-primary-header" data-admin-restaurant-primary-header="true"
+        <AdminPageHeader title={getAdminModuleTitle("restaurants")} icon={Store} className="admin-restaurant-primary-header" data-admin-restaurant-primary-header="true"
           summary={<div ref={setCount} className="admin-restaurant-header-count whitespace-nowrap text-xs tabular-nums text-muted-foreground" />}
           actions={<div ref={setAutomation} className="admin-restaurant-header-automation min-w-0" />}
         >
-          <TabsList aria-label="맛집 관리 작업 선택" className="h-auto shrink-0">
+          <TabsList aria-label="맛집 관리 작업 선택" className="h-auto shrink-0 p-0 sm:p-1">
             <TabsTrigger value="review" className="min-h-11 px-3 sm:min-h-7">검수</TabsTrigger>
             <TabsTrigger value="refresh" className="min-h-11 px-3 sm:min-h-7">최신화·이력</TabsTrigger>
           </TabsList>

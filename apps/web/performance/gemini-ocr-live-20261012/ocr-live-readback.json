@@ -1,0 +1,72 @@
+{
+  "kind": "live-synthetic-ocr-readback",
+  "measuredAt": "2026-10-11T15:47:40.017Z",
+  "models": [
+    "gemini-3.6-flash"
+  ],
+  "syntheticInput": true,
+  "operationalDatabaseWrites": 0,
+  "maximumGenerationCalls": 1,
+  "generationCallsStarted": 1,
+  "providerRequestsStarted": 2,
+  "sdkAttempts": 1,
+  "environment": {
+    "sdk": "2.24.0"
+  },
+  "configurationSource": "current-candidate-and-existing-vault-copy",
+  "credentialSourceName": "GEMINI_API_KEY",
+  "configuration": {
+    "models": [
+      "gemini-3.6-flash"
+    ],
+    "thinkingLevel": "MEDIUM",
+    "sdkAttempts": 1,
+    "timeoutMs": 12000
+  },
+  "configurationSha256": "6748727560a176b3482ebca41aa51a6fe68b88cd86f19a81ce8cde870a17b121",
+  "sourceBinding": {
+    "gitHead": "bd80988fb925e7c47d4fe202da8d929d119a6cca",
+    "gitTree": "998d3a5568190d2fc0ba3e3634c302313f3c5b9c",
+    "workingTreeDirty": true,
+    "workingTreeStatus": [
+      "M apps/web/scripts/verify-ocr-gemini-live.ts",
+      "?? apps/web/scripts/gemini-live-verification-io.ts"
+    ],
+    "sourceHashes": {
+      "lib/ocr/gemini.ts": "b49104ad4b9ab50180877ceedec3bdc467888e42c6e9ef500b414a25adab9c1d",
+      "lib/ocr/receipt-prompt.ts": "b970646c0936d8660108c09ed87a4259eadc7ea834ef4e3774b05ceb591e88a2",
+      "lib/ocr/runtime-config.ts": "cff9c05631ac5506099c1f8892bdd7e8edeb87e8ef404e38a3a46c9c8efc86fd",
+      "package-lock.json": "ce2e7d9dee5cb837a77f504028452b5e04f9f96a3413bfa2e9a005fa5de7531d",
+      "scripts/gemini-live-verification-io.ts": "d20727d9f964b9472d4bd7f3cce706b6a77cf8afc120883646649833631192d3",
+      "scripts/verify-ocr-gemini-live.ts": "718b708b65fa62dc231cd4e889e0f4aba88ac5d72da32b8b70cb31d259c77799"
+    }
+  },
+  "sampleCount": 1,
+  "confidenceInterval95": null,
+  "pending": null,
+  "limits": [
+    "Single synthetic receipt only; no general accuracy or speed comparison.",
+    "Candidate helper call only; no Auth/quota/DB/browser operating flow.",
+    "No deployment or billing receipt."
+  ],
+  "inputSha256": "de860d67e2fab63da7b8bc4636b0f2e05d0d69b121c42f0dabf2f42a08239999",
+  "responseModel": "gemini-3.6-flash",
+  "usage": {
+    "promptTokens": 1495,
+    "outputTokens": 127,
+    "thoughtTokens": 385,
+    "totalTokens": 2007
+  },
+  "elapsedMs": 4187.453750000001,
+  "matches": {
+    "model": true,
+    "store": true,
+    "date": true,
+    "time": true,
+    "total": true,
+    "items": true,
+    "arithmetic": true
+  },
+  "outputSha256": "57fe3db8a0e9078a745fc39824d5991c9d6b235fd69cf2fe99d1a540979deda7",
+  "passed": true
+}
