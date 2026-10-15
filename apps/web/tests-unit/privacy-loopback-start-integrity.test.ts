@@ -6,12 +6,14 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, test } from 'bun:test';
+import { captureBuildRuntimeArtifactClosure } from '../performance/admin-route-consistency-20261012/privacy-fixture-runtime.mjs';
 
 const BUILD_ARTIFACTS = [
   'BUILD_ID',
@@ -107,6 +109,7 @@ function fixtureProgram(marker: string, generation: Generation) {
 type FixtureOptions = {
   runId: string;
   nextExitCode?: number | null;
+  omitOptionalAppBuildManifest?: boolean;
   injectReceiptFailure?: boolean;
   mutateReceipt?: (receipt: Record<string, unknown>) => void;
   mutateArtifacts?: (distDirectory: string) => void;
@@ -176,11 +179,29 @@ function prepareFixture(generation: Generation, options: FixtureOptions) {
     childProgram(nextMarker, options.nextExitCode ?? null),
   );
 
-  const artifactRows = BUILD_ARTIFACTS.map((artifact, index) => {
-    const bytes = artifact === 'BUILD_ID' ? 'fixture-build-id\n' : `${artifact}:${index}\n`;
-    writeFileSync(path.join(distDirectory, artifact), bytes);
-    return { path: artifact, sha256: sha256(bytes) };
-  });
+  const artifactRows = BUILD_ARTIFACTS
+    .filter((artifact) => artifact !== 'app-build-manifest.json' || !options.omitOptionalAppBuildManifest)
+    .map((artifact, index) => {
+      const bytes = artifact === 'BUILD_ID' ? 'fixture-build-id\n' : `${artifact}:${index}\n`;
+      writeFileSync(path.join(distDirectory, artifact), bytes);
+      return { path: artifact, sha256: sha256(bytes) };
+    });
+  const runtimeFiles = [
+    ['server/app/page.js', 'export const page = "fixture";\n'],
+    ['server/chunks/runtime.js', 'module.exports = "runtime";\n'],
+    ['static/chunks/app.js', 'self.__fixture = true;\n'],
+    ['diagnostics/build-diagnostics.json', '{"build":"fixture"}\n'],
+  ] as const;
+  for (const [relativePath, bytes] of runtimeFiles) {
+    const absolutePath = path.join(distDirectory, relativePath);
+    mkdirSync(path.dirname(absolutePath), { recursive: true });
+    writeFileSync(absolutePath, bytes);
+  }
+  mkdirSync(path.join(distDirectory, 'cache'), { recursive: true });
+  writeFileSync(path.join(distDirectory, 'cache/runtime-cache.json'), '{"mutable":true}\n');
+  writeFileSync(path.join(distDirectory, 'trace'), 'runtime trace\n');
+  writeFileSync(path.join(distDirectory, 'trace-build'), 'build trace\n');
+  const runtimeArtifactClosure = captureBuildRuntimeArtifactClosure({ buildDirectory: distDirectory });
   const receipt: Record<string, unknown> = {
     status: 0,
     distDir: dist,
@@ -189,6 +210,7 @@ function prepareFixture(generation: Generation, options: FixtureOptions) {
     tsconfigRestored: true,
     runId: options.runId,
     artifacts: artifactRows,
+    runtimeArtifactClosure,
   };
   options.mutateReceipt?.(receipt);
   writeFileSync(path.join(runOut, 'privacy-build-receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
@@ -317,6 +339,101 @@ describe('privacy loopback launch integrity', () => {
       }
     }, 15_000);
 
+    test(`${generation.name} accepts the Next 16.3.8 artifact set without app-build-manifest`, () => {
+      const fixture = prepareFixture(generation, {
+        runId: 'next-16-artifact-set',
+        nextExitCode: 7,
+        omitOptionalAppBuildManifest: true,
+      });
+      try {
+        const result = spawnSync(node24Binary(), fixture.args, {
+          cwd: fixture.webRoot,
+          encoding: 'utf8',
+          timeout: 10_000,
+        });
+        expect(result.status).toBe(7);
+        expect(existsSync(fixture.nextMarker)).toBe(true);
+        expect(existsSync(fixture.gatewayMarker)).toBe(true);
+        expect(existsSync(path.join(fixture.webRoot, 'node_modules'))).toBe(false);
+      } finally {
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    test(`${generation.name} rejects runtime artifact mutation, removal, addition, and symlink escape before spawning`, () => {
+      const mutations: Array<[string, (distDirectory: string) => void]> = [
+        ['compiled-js-changed', (distDirectory) => {
+          writeFileSync(path.join(distDirectory, 'server/chunks/runtime.js'), 'module.exports = "mutated";\n');
+        }],
+        ['runtime-file-missing', (distDirectory) => {
+          rmSync(path.join(distDirectory, 'static/chunks/app.js'));
+        }],
+        ['runtime-file-added', (distDirectory) => {
+          writeFileSync(path.join(distDirectory, 'server/chunks/added.js'), 'module.exports = "added";\n');
+        }],
+        ['runtime-link-escape', (distDirectory) => {
+          const outside = path.join(path.dirname(distDirectory), 'outside-runtime.js');
+          writeFileSync(outside, 'module.exports = "outside";\n');
+          symlinkSync(outside, path.join(distDirectory, 'server/chunks/escaped.js'));
+        }],
+      ];
+      for (const [suffix, mutateArtifacts] of mutations) {
+        const fixture = prepareFixture(generation, {
+          runId: suffix,
+          mutateArtifacts,
+        });
+        try {
+          const result = spawnSync(node24Binary(), fixture.args, {
+            cwd: fixture.webRoot,
+            encoding: 'utf8',
+            timeout: 10_000,
+          });
+          expect(result.status).toBe(1);
+          expect(existsSync(fixture.nextMarker)).toBe(false);
+          expect(existsSync(fixture.gatewayMarker)).toBe(false);
+          expect(existsSync(path.join(fixture.webRoot, 'node_modules'))).toBe(false);
+        } finally {
+          rmSync(fixture.root, { recursive: true, force: true });
+        }
+      }
+    }, 30_000);
+
+    test(`${generation.name} explicitly excludes mutable cache and trace outputs from the frozen runtime closure`, () => {
+      const fixture = prepareFixture(generation, {
+        runId: 'mutable-runtime-exclusions',
+        nextExitCode: 7,
+        mutateArtifacts: (distDirectory) => {
+          writeFileSync(path.join(distDirectory, 'cache/runtime-cache.json'), '{"mutable":"changed"}\n');
+          writeFileSync(path.join(distDirectory, 'trace'), 'changed runtime trace\n');
+          writeFileSync(path.join(distDirectory, 'trace-build'), 'changed build trace\n');
+        },
+      });
+      try {
+        const result = spawnSync(node24Binary(), fixture.args, {
+          cwd: fixture.webRoot,
+          encoding: 'utf8',
+          timeout: 10_000,
+        });
+        expect(result.status).toBe(7);
+        expect(existsSync(fixture.nextMarker)).toBe(true);
+        expect(existsSync(fixture.gatewayMarker)).toBe(true);
+        expect(existsSync(path.join(fixture.webRoot, 'node_modules'))).toBe(false);
+        const startReceipt = JSON.parse(readFileSync(path.join(fixture.runOut, 'privacy-runtime-start.json'), 'utf8'));
+        expect(startReceipt.source.buildRuntimeArtifactClosure).toMatchObject({
+          schema: 'tzudong-next-runtime-artifact-closure/v1',
+          fileCount: 9,
+          mutableExclusions: [
+            { path: 'cache', scope: 'subtree', reason: 'next-runtime-cache' },
+            { path: 'trace', scope: 'file', reason: 'next-runtime-trace' },
+            { path: 'trace-build', scope: 'file', reason: 'next-build-trace' },
+          ],
+        });
+        expect(startReceipt.source.buildRuntimeArtifactClosure.files).toBeUndefined();
+      } finally {
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }, 15_000);
+
     test(`${generation.name} rejects incomplete and path-escaped frozen artifact lists before spawning`, () => {
       for (const [suffix, mutateReceipt] of [
         ['incomplete', (receipt: Record<string, unknown>) => {
@@ -325,6 +442,10 @@ describe('privacy loopback launch integrity', () => {
         ['escaped', (receipt: Record<string, unknown>) => {
           const artifacts = receipt.artifacts as Array<Record<string, unknown>>;
           artifacts[1] = { ...artifacts[1], path: '../build-manifest.json' };
+        }],
+        ['runtime-escaped', (receipt: Record<string, unknown>) => {
+          const closure = receipt.runtimeArtifactClosure as { files: Array<Record<string, unknown>> };
+          closure.files[0] = { ...closure.files[0], path: '../server-entry.js' };
         }],
       ] as const) {
         const fixture = prepareFixture(generation, {

@@ -10,6 +10,7 @@ import {
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  captureBuildRuntimeArtifactClosure,
   cleanupFailure,
   cleanupPrivacyFixtureBuild,
   prepareFixtureDependencies,
@@ -160,6 +161,9 @@ const buildId = existsSync(join(buildDirectory, 'BUILD_ID')) ? readFileSync(join
 const artifacts = ['BUILD_ID', 'build-manifest.json', 'app-build-manifest.json', 'routes-manifest.json', 'required-server-files.json']
   .filter((path) => existsSync(join(buildDirectory, path)))
   .map((path) => ({ path, sha256: sha256(readFileSync(join(buildDirectory, path))) }));
+const runtimeArtifactClosure = result?.status === 0 && buildId
+  ? captureBuildRuntimeArtifactClosure({ buildDirectory })
+  : null;
 const receipt = {
   schema: 'tzudong-privacy-incidents-local-build/v1',
   status: result?.status ?? 1,
@@ -178,6 +182,7 @@ const receipt = {
   dependencyMode: dependencyPlan.mode,
   dependencyLinkRemoved: dependencyPlan.mode === 'workspace' || !existsSync(NODE_MODULES),
   artifacts,
+  runtimeArtifactClosure,
   css,
   environment: {
     inheritedAllowlistOnly: true,
@@ -189,4 +194,4 @@ const receipt = {
 };
 save('privacy-build-receipt.json', receipt);
 process.stdout.write(`${JSON.stringify(receipt)}\n`);
-if (receipt.status !== 0 || !sourceUnchanged || !receipt.tsconfigRestored || !receipt.dependencyLinkRemoved || !buildId) process.exit(1);
+if (receipt.status !== 0 || !sourceUnchanged || !receipt.tsconfigRestored || !receipt.dependencyLinkRemoved || !buildId || !runtimeArtifactClosure) process.exit(1);
