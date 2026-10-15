@@ -148,7 +148,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-eslint": "8.63.0",
-    "braces": "file:vendor/tzudong-braces-3.0.3-tzudong.1.tgz"
+    "braces": "file:vendor/tzudong-braces-3.0.3-tzudong.2.tgz"
   },
   "overrides": {
     "baseline-browser-mapping": "2.11.26",
