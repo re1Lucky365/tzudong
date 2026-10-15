@@ -77,7 +77,24 @@ describe('review modal OCR terminal recovery contract', () => {
     expect(reviewModalSource).toContain('terminal?: boolean');
     expect(reviewModalSource).toContain('status?: number');
     expect(reviewModalSource).toContain('if (parsed.payload.terminal)');
-    expect(reviewModalSource).toContain('new OcrStreamHttpError(streamErrorMessage, parsed.payload.status ?? 422)');
+    expect(reviewModalSource).toContain('new OcrStreamHttpError(streamErrorMessage, parsed.payload.status ?? 422, parsed.payload.code)');
+  });
+
+  test('never resends a receipt after a dropped stream or a durable pending result', () => {
+    expect(reviewModalSource).toContain("['FEATURE_DATABASE_HELD', 'OCR_RESULT_PROCESSING', 'OCR_RESULT_INDETERMINATE']");
+    expect(reviewModalSource).toContain("type: 'pending'");
+    expect(reviewModalSource).toContain('분석 연결이 끊겨 저장된 결과를 확인하고 있어요.');
+    expect(reviewModalSource).toContain("fetch('/api/ocr/results/status'");
+    expect(reviewModalSource).toContain('void analyzeReceipt(verificationPhoto, undefined, true)');
+    expect(reviewModalSource).toContain('결과 확인');
+    expect(reviewModalSource).toContain('statusOnly\n                    ? await readReceiptOcrStatus');
+    expect(reviewModalSource).not.toContain("fetch('/api/ocr/extract',");
+  });
+
+  test('rejects late photo preparation after a newer selection', () => {
+    expect(reviewModalSource).toContain('const selectionGeneration = verificationSelectionRef.current.begin()');
+    expect(reviewModalSource).toContain('if (!replaceVerificationPhoto(preparedFile, selectionGeneration)) return');
+    expect(reviewModalSource).toContain('verificationSelectionRef.current.isCurrent(selectionGeneration)');
   });
 
   test('uses safe user-facing copy for force OCR refresh toggle', () => {

@@ -9,6 +9,8 @@ import {
 import { readBoundedJsonRequest } from '@/lib/security/bounded-json-request';
 import { isTrustedSameOriginMutation } from '@/lib/security/same-origin-mutation';
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/service-role';
+import { FEATURE_DATABASE_HELD_CODE, FEATURE_DATABASE_HELD_MESSAGE } from '@/lib/runtime-feature-readiness-contract';
+import { readFeatureDatabaseReadiness } from '@/lib/server/runtime-feature-readiness';
 
 export const runtime = 'nodejs';
 
@@ -109,6 +111,12 @@ export async function POST(request: Request) {
   }
   const auth = await authenticateOcrRequest(request);
   if (!auth.ok) return noStoreJson({ error: auth.error }, { status: auth.status });
+  if ((await readFeatureDatabaseReadiness({ ownerId: auth.user.id })).status !== 'ready') {
+    return noStoreJson(
+      { code: FEATURE_DATABASE_HELD_CODE, error: FEATURE_DATABASE_HELD_MESSAGE },
+      { status: 409 },
+    );
+  }
 
   const parsed = await readBoundedJsonRequest(request, MAX_REQUEST_BYTES);
   const body = parsed.ok ? parseBody(parsed.value) : null;

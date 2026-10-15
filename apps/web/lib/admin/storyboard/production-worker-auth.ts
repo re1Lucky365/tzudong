@@ -39,6 +39,7 @@ export type WorkerFailureCode = z.infer<typeof workerFailureSchema>;
 
 const leaseFields = { jobId: productionUuid, leaseToken: productionUuid };
 export const workerOperationSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('readiness') }).strict(),
   z.object({ action: z.literal('heartbeat'), models: storyboardGeminiHeartbeatModelsSchema,
     jobId: productionUuid.optional(), leaseToken: productionUuid.optional() }).strict()
     .refine((value) => Boolean(value.jobId) === Boolean(value.leaseToken)),

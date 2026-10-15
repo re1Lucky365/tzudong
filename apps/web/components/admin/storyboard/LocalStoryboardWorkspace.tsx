@@ -25,6 +25,7 @@ import { ADMIN_STORYBOARD_PROJECT_QUERY } from "@/lib/admin/admin-module-routing
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
 import { storyboardModelsFor, storyboardWorkerSupportsPair } from "@/lib/admin/storyboard/production-model-catalog";
+import { FEATURE_DATABASE_HELD, parseFeatureDatabaseReadiness } from "@/lib/runtime-feature-readiness-contract";
 
 const API = "/api/admin/storyboard/production";
 const PROJECT_QUERY = ADMIN_STORYBOARD_PROJECT_QUERY;
@@ -54,6 +55,7 @@ const viewSchema = z.object({
 });
 const catalogSchema = z.object({
   ok: z.literal(true), projects: z.array(summarySchema),
+  readiness: z.unknown().transform(parseFeatureDatabaseReadiness),
   workers: z.array(z.object({
     id: z.string(), online: z.boolean(), lastHeartbeat: z.string().nullable(),
     models: z.array(z.object({
@@ -183,7 +185,7 @@ function ProviderField({ kind, value, models, onChange }: {
 export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = {}) {
   const [showSetup, setShowSetup] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
-  const [catalog, setCatalog] = useState<Catalog>({ ok: true, projects: [], workers: [] });
+  const [catalog, setCatalog] = useState<Catalog>({ ok: true, projects: [], workers: [], readiness: FEATURE_DATABASE_HELD });
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogBusy, setCatalogBusy] = useState(true);
   const [catalogTick, setCatalogTick] = useState(0);
@@ -301,11 +303,13 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
   const selectedModelsAvailable = storyboardWorkerSupportsPair(
     catalog.workers, textProvider.model, imageProvider.model,
   );
+  const featureHeld = catalog.readiness.status !== 'ready';
 
   async function create(event: FormEvent) {
     event.preventDefault();
     if (createController.current) return;
     setCreateError(null);
+    if (featureHeld) { setCreateError(message('feature_database_held')); return; }
     if (!selectedModelsAvailable) { setCreateError('선택한 모델을 사용할 수 없습니다.'); return; }
     const [imageWidth, imageHeight] = dimensions.split("x").map(Number);
     const fields = { workflow: STORYBOARD_WORKFLOW, prompt, sceneCount, providers: { externalAI: true as const, text: textProvider, image: imageProvider },
@@ -353,6 +357,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
     </div>
     <div className="min-w-0 p-3 pb-24 sm:p-4 sm:pb-6">
     {departureNotice && <p role="alert" className="mb-3 text-sm text-destructive">{departureNotice}</p>}
+    {featureHeld && <p role="status" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{message('feature_database_held')}</p>}
     {catalogError && projectId && !showLibrary && <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 text-sm text-destructive">
       <span>{catalogError}</span>
       <button type="button" className={buttonClass} disabled={catalogBusy} onClick={() => setCatalogTick((value) => value + 1)}>목록 다시 불러오기</button>
@@ -371,7 +376,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
       {(!projectId || showSetup) && <aside className={`min-w-0 space-y-4 ${!projectId ? "w-full" : ""}`} aria-label="프로젝트 설정과 기록">
         {!projectId && <form className={panelClass} onSubmit={create} aria-labelledby="local-request-title">
           <h3 id="local-request-title" className="font-semibold">새 제작 요청</h3>
-          <fieldset disabled={creating} className="mt-3 min-w-0 space-y-3">
+          <fieldset disabled={creating || featureHeld} className="mt-3 min-w-0 space-y-3">
             <div className="text-sm">
               <label className="block" htmlFor="local-storyboard-prompt">제작 요청</label>
               <textarea id="local-storyboard-prompt" className={`${inputClass} break-keep`} rows={4} required maxLength={8000}
@@ -396,7 +401,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
               <ProviderField kind="text" value={textProvider} models={textModels} onChange={setTextProvider} />
               <ProviderField kind="image" value={imageProvider} models={imageModels} onChange={setImageProvider} />
             </div>
-            <button className={`${buttonClass} w-full !border-primary !bg-primary !text-primary-foreground sm:w-auto sm:min-w-48`} type="submit" disabled={creating || !selectedModelsAvailable}>
+            <button className={`${buttonClass} w-full !border-primary !bg-primary !text-primary-foreground sm:w-auto sm:min-w-48`} type="submit" disabled={creating || featureHeld || !selectedModelsAvailable}>
               {creating ? "저장 요청 중…" : "프로젝트 만들기"}
             </button>
           </fieldset>
@@ -419,15 +424,17 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
           </div>)}
         </section>}
       </aside>}
-      {projectId && <SavedProjectWorkspace key={projectId} projectId={projectId} onProject={updateSummary} onDepartureChange={onDepartureChange} />}
+      {projectId && <SavedProjectWorkspace key={projectId} projectId={projectId} featureHeld={featureHeld}
+        onProject={updateSummary} onDepartureChange={onDepartureChange} />}
     </div>
     </div>
     </div>
   </section>;
 }
 
-function SavedProjectWorkspace({ projectId, onProject, onDepartureChange }: {
-  projectId: string; onProject: (project: Project) => void; onDepartureChange: (state: DepartureState) => void;
+function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureChange }: {
+  projectId: string; featureHeld: boolean;
+  onProject: (project: Project) => void; onDepartureChange: (state: DepartureState) => void;
 }) {
   const [view, setView] = useState<View | null>(null);
   const [workspaceView, setWorkspaceView] = useState<"scenes" | "history">("scenes");
@@ -499,7 +506,7 @@ function SavedProjectWorkspace({ projectId, onProject, onDepartureChange }: {
 
   const archived = !!view && view.project.request.workflow !== STORYBOARD_WORKFLOW;
   const active = !archived && isActive(view);
-  const locked = archived || busy || active || needsReadback || !!readError;
+  const locked = featureHeld || archived || busy || active || needsReadback || !!readError;
   const retryBlocked = archived;
   const regenerateBlocked = archived;
   // The server refuses a retry once every scene has a stored image (nothing_to_retry).

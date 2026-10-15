@@ -157,8 +157,8 @@ describe('receipt review storage verification', () => {
     const migration = readFileSync(join(import.meta.dir, '../../../backend/supabase/migrations/20261013190000_durable_receipt_ocr_results.sql'), 'utf8');
     const bucketMigration = readFileSync(join(import.meta.dir, '../../../backend/supabase/migrations/20261008200719_review_verification_private.sql'), 'utf8');
     expect(modal).toContain('preparedFile = await prepareVerificationUploadFile({');
-    expect(modal).toContain('replaceVerificationPhoto(preparedFile);');
-    expect(modal).toContain('void analyzeReceipt(preparedFile);');
+    expect(modal).toContain('replaceVerificationPhoto(preparedFile, selectionGeneration)');
+    expect(modal).toContain('void analyzeReceipt(preparedFile, selectionGeneration);');
     expect(modal).toContain('const receipt = draft.verificationPhoto;');
     expect(modal).not.toContain('prepareVerificationUploadFile({ file: draft.verificationPhoto');
     expect(modal).toContain('cacheControl: \'3600\', upsert: false');

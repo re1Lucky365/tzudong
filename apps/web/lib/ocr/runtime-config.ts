@@ -26,6 +26,16 @@ export type OcrAiRuntimeConfig = OcrAiRuntimeConfigCandidate & {
   fallbackCandidates: OcrAiRuntimeConfigCandidate[];
 };
 
+export function getOcrModelPolicy(candidate: Pick<OcrAiRuntimeConfigCandidate, 'model' | 'models'>): string[] {
+  const models = [...new Set((candidate.models.length ? candidate.models : [candidate.model]).map((model) => model.trim()))]
+    .filter(Boolean);
+  if (models.length < 1 || models.length > 8
+    || models.some((model) => model.length > 160 || !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$/.test(model))) {
+    throw new Error('OCR_MODEL_POLICY_INVALID');
+  }
+  return models;
+}
+
 const ENV_PROVIDER_KEYS: Record<OcrRoutingProvider, readonly string[]> = {
   gemini: [
     'GEMINI_CREDITS_API_KEY',

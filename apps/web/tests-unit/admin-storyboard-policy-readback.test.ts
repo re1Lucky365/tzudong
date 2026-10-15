@@ -64,6 +64,7 @@ test('authenticates first and binds the evaluated Gemini-only policy to every so
   const canonicalPolicy = {
     defaultImageModel: 'gemini-3.1-flash-image',
     executionWorkflow: 'storyboard-gemini-v1',
+    featureDatabaseAdmission: 'required',
     imageModels: ['gemini-3.1-flash-image', 'gemini-3-pro-image'],
     legacyExecutionAdmission: 'blocked',
     provider: 'gemini-api',
@@ -83,6 +84,7 @@ test('authenticates first and binds the evaluated Gemini-only policy to every so
     ['production-store-admission', 'apps/web/lib/admin/storyboard/production-store.ts'],
     ['production-api-admission', 'apps/web/lib/admin/storyboard/production-api.ts'],
     ['gemini-client-execution', 'apps/web/lib/admin/storyboard/gemini-client.ts'],
+    ['feature-database-admission', 'apps/web/lib/server/runtime-feature-readiness.ts'],
   ].map(([id, sourcePath]) => ({ canonicalPolicySha256: expectedHash, deploymentId, id, sourceCommit, sourcePath })));
   expect(body.verification).toEqual({
     databaseCutover: 'not-verified',

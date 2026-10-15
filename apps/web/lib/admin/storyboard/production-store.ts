@@ -27,7 +27,7 @@ export const PRODUCTION_FAILURE_STATUSES: Readonly<Record<string, number>> = {
   unauthorized: 401, worker_unauthorized: 401, owner_forbidden: 403, origin_forbidden: 403,
   project_not_found: 404, asset_not_found: 404, revision_conflict: 409, worker_lease_lost: 409,
   request_conflict: 409, project_busy: 409, nothing_to_retry: 409,
-  archived_project_read_only: 409,
+  archived_project_read_only: 409, feature_database_held: 409,
   persistence_unavailable: 503, persistence_invalid_data: 502, storage_unavailable: 503,
   external_ai_disabled: 400, model_not_selected: 400, provider_not_configured: 503,
   model_not_installed: 409, model_capability_mismatch: 409, model_identity_mismatch: 409,
@@ -306,6 +306,7 @@ export class StoryboardProductionStore {
 
   async workerOperation(identity: ProductionWorkerIdentity, value: unknown) {
     const operation = input(workerOperationSchema, value);
+    if (operation.action === 'readiness') throw new StoryboardProductionError('invalid_request');
     // Heartbeat is the only operation allowed to replace a legacy catalog. Claim and
     // checkpoint traffic must already carry the exact Gemini descriptor set.
     if (operation.action !== 'heartbeat') input(storyboardGeminiHeartbeatModelsSchema, identity.models);

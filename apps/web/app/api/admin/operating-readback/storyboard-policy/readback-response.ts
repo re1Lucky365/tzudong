@@ -21,6 +21,7 @@ const POLICY_SOURCE_PATHS = Object.freeze([
   ['production-store-admission', 'apps/web/lib/admin/storyboard/production-store.ts'],
   ['production-api-admission', 'apps/web/lib/admin/storyboard/production-api.ts'],
   ['gemini-client-execution', 'apps/web/lib/admin/storyboard/gemini-client.ts'],
+  ['feature-database-admission', 'apps/web/lib/server/runtime-feature-readiness.ts'],
 ] as const);
 
 type AdminResult = Awaited<ReturnType<typeof requireAdmin>>;

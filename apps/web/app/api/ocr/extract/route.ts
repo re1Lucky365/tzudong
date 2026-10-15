@@ -10,7 +10,7 @@ import {
     RECEIPT_OCR_PREPROCESS_VERSION,
     RECEIPT_OCR_PROMPT_VERSION,
 } from '@/lib/ocr/receipt-prompt';
-import { resolveOcrAiRuntimeConfig } from '@/lib/ocr/runtime-config';
+import { getOcrModelPolicy, resolveOcrAiRuntimeConfig } from '@/lib/ocr/runtime-config';
 import {
     buildReceiptOcrEnvelope,
     RECEIPT_OCR_NORMALIZATION_VERSION,
@@ -21,6 +21,7 @@ import {
     buildOcrInputContextHash,
     createSupabaseDurableReceiptOcrStore,
     executeDurableReceiptOcr,
+    RECEIPT_OCR_DEFAULT_GENERATION,
     toPublicReceiptOcrResponse,
 } from '@/lib/ocr/durable-result';
 import { findOcrRestaurantMatches } from '@/lib/ocr/restaurant-matching';
@@ -46,6 +47,8 @@ import {
 } from '@/lib/ocr/request-security';
 import { isTrustedSameOriginMutation } from '@/lib/security/same-origin-mutation';
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/service-role';
+import { FEATURE_DATABASE_HELD_CODE, FEATURE_DATABASE_HELD_MESSAGE } from '@/lib/runtime-feature-readiness-contract';
+import { readFeatureDatabaseReadiness } from '@/lib/server/runtime-feature-readiness';
 
 // --- 설정 ---
 
@@ -123,6 +126,12 @@ export async function POST(req: Request) {
         }
         const { supabase, user } = auth;
         authenticatedUserId = user.id;
+        if ((await readFeatureDatabaseReadiness({ ownerId: user.id })).status !== 'ready') {
+            return NextResponse.json(
+                { code: FEATURE_DATABASE_HELD_CODE, error: FEATURE_DATABASE_HELD_MESSAGE },
+                { status: 409, headers: { 'Cache-Control': 'no-store' } },
+            );
+        }
 
         const multipart = await readBoundedOcrFormData(req);
         if (!multipart.ok) {
@@ -141,7 +150,8 @@ export async function POST(req: Request) {
         const runnableCandidates = providerCandidates.filter(candidate => hasRunnableOcrCredentials([candidate]));
         const effectiveCandidates = runnableCandidates.length ? runnableCandidates : providerCandidates;
         const candidate = effectiveCandidates[0];
-        const model = candidate?.models[0] || candidate?.model || GEMINI_OCR_FALLBACK_MODEL;
+        const modelPolicy = candidate ? getOcrModelPolicy(candidate) : [GEMINI_OCR_FALLBACK_MODEL];
+        const model = modelPolicy[0];
         failureModel = `${model}:fail`;
         failureProvider = candidate?.provider ?? 'unknown';
 
@@ -186,7 +196,8 @@ export async function POST(req: Request) {
                 imageHash,
                 inputContextHash: buildOcrInputContextHash(imageHash, selectedRestaurantContext),
                 provider: candidate.provider,
-                model,
+                modelPolicy,
+                generation: RECEIPT_OCR_DEFAULT_GENERATION,
                 promptVersion: RECEIPT_OCR_PROMPT_VERSION,
                 preprocessVersion: RECEIPT_OCR_PREPROCESS_VERSION,
                 normalizationVersion: RECEIPT_OCR_NORMALIZATION_VERSION,
@@ -216,7 +227,7 @@ export async function POST(req: Request) {
                     imageBase64: optimized.toString('base64'),
                     mimeType: 'image/jpeg',
                     prompt: OCR_PROMPT,
-                    env: { ...process.env, GEMINI_OCR_MODEL: model },
+                    env: { ...process.env, GEMINI_OCR_MODEL: modelPolicy.join(',') },
                     signal: req.signal,
                 });
                 const restaurantMatches = await findOcrRestaurantMatches({

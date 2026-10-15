@@ -162,7 +162,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       "const archived = !!view && view.project.request.workflow !== STORYBOARD_WORKFLOW;",
     );
     expect(localStoryboardSource).toContain(
-      "const locked = archived || busy || active || needsReadback || !!readError;",
+      "const locked = featureHeld || archived || busy || active || needsReadback || !!readError;",
     );
     expect(localStoryboardSource).toContain(
       "이전 공급자 프로젝트의 문서·장면·이미지·작업 이력은 읽기 전용으로 보존됩니다.",

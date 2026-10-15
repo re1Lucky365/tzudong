@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, mock, test } from 'bun:test';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import {
@@ -18,7 +18,12 @@ import {
 import {
   STORYBOARD_GEMINI_DEFAULT_IMAGE_MODEL, STORYBOARD_GEMINI_TEXT_MODEL, storyboardGeminiDeclaredModels,
 } from '../lib/admin/storyboard/gemini-models';
-import { createStoryboardProductionApi, productionApiFailure, readStoryboardMultipart } from '../lib/admin/storyboard/production-api';
+import {
+  FEATURE_DATABASE_HELD, FEATURE_DATABASE_READY, type FeatureDatabaseReadiness,
+} from '../lib/runtime-feature-readiness-contract';
+
+mock.module('server-only', () => ({}));
+const { createStoryboardProductionApi, productionApiFailure, readStoryboardMultipart } = await import('../lib/admin/storyboard/production-api');
 
 // These are unit boundary doubles. The separate PostgreSQL suite exercises real persistence/locks.
 const ownerId = randomUUID();
@@ -97,9 +102,13 @@ function jsonRequest(value: unknown, origin: string = site) {
   return new Request(`${site}/api/admin/storyboard/production`, { method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify(value) });
 }
-function api(store = new StoryboardProductionStore({ database: unusedDb }), userId = ownerId) {
+function api(
+  store = new StoryboardProductionStore({ database: unusedDb }),
+  userId = ownerId,
+  readiness: FeatureDatabaseReadiness = FEATURE_DATABASE_READY,
+) {
   return createStoryboardProductionApi({ store, requireAdmin: async () => ({ ok: true, userId }),
-    authenticateWorker: async () => identity });
+    authenticateWorker: async () => identity, readFeatureReadiness: async () => readiness });
 }
 async function exportFixture() {
   const p = project();
@@ -166,6 +175,47 @@ describe('worker authentication and proof boundary', () => {
 });
 
 describe('admin/API contracts and bounded failures', () => {
+  test('held database keeps catalog reads available and blocks every mutation before store or multipart work', async () => {
+    const calls: string[] = [];
+    const store = {
+      async list() { calls.push('list'); return { ok: true, projects: [], workers: [] }; },
+      async get() { throw new Error('unexpected_get'); },
+      async create() { calls.push('create'); throw new Error('unexpected_create'); },
+      async apply() { calls.push('apply'); throw new Error('unexpected_apply'); },
+      async downloadAsset() { throw new Error('unexpected_download'); },
+      async exportProject() { throw new Error('unexpected_export'); },
+      async workerOperation() { calls.push('worker-operation'); throw new Error('unexpected_worker_operation'); },
+      async workerImage() { calls.push('worker-image'); throw new Error('unexpected_worker_image'); },
+      async versions() { throw new Error('unexpected_versions'); },
+    } as unknown as StoryboardProductionStore;
+    const handlers = api(store, ownerId, FEATURE_DATABASE_HELD);
+
+    const catalog = await handlers.listGET(new Request(site));
+    expect(catalog.status).toBe(200);
+    expect(await catalog.json()).toEqual({ ok: true, projects: [], workers: [], readiness: FEATURE_DATABASE_HELD });
+
+    const createRequest = jsonRequest(req());
+    const createResponse = await handlers.listPOST(createRequest);
+    expect(createResponse.status).toBe(409);
+    expect(await createResponse.json()).toEqual({ ok: false, error: 'feature_database_held' });
+    expect(createRequest.bodyUsed).toBe(false);
+
+    const readinessResponse = await handlers.workerPOST(jsonRequest({ action: 'readiness' }));
+    expect(readinessResponse.status).toBe(200);
+    expect(await readinessResponse.json()).toEqual(FEATURE_DATABASE_HELD);
+    const claimResponse = await handlers.workerPOST(jsonRequest({ action: 'claim' }));
+    expect(claimResponse.status).toBe(409);
+    expect(await claimResponse.json()).toEqual({ ok: false, error: 'feature_database_held' });
+
+    const imageForm = new FormData();
+    imageForm.set('file', new File([await png()], 'scene.png', { type: 'image/png' }));
+    const imageRequest = new Request(site, { method: 'POST', body: imageForm });
+    const imageResponse = await handlers.workerImagePOST(imageRequest);
+    expect(imageResponse.status).toBe(409);
+    expect(imageRequest.bodyUsed).toBe(false);
+    expect(calls).toEqual(['list']);
+  });
+
   test('reads a recovered uncertain job without dropping the project snapshot', async () => {
     const selected=project();
     const uncertain={id:jobId,status:'failed',stage:'uncertain',sceneNo:null,errorCode:'worker_lease_lost',attempts:1,lastHeartbeat:new Date().toISOString()};

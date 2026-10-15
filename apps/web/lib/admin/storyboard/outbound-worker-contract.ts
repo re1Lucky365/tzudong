@@ -16,7 +16,7 @@ export const claimedStoryboardJobSchema = z.object({
   leaseToken: z.uuid(),
 });
 export type ClaimedStoryboardJob = z.infer<typeof claimedStoryboardJobSchema>;
-export type WorkerResult = 'idle' | 'completed' | 'failed' | 'lease_lost';
+export type WorkerResult = 'held' | 'idle' | 'completed' | 'failed' | 'lease_lost';
 export type WorkerDestination = {
   protocol: 'http:' | 'https:';
   host: string;

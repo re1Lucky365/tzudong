@@ -148,6 +148,7 @@ export async function callGeminiReceiptOcr(input: {
     const timeout = setTimeout(() => controller.abort(), remainingMs);
     const abortFromCaller = () => controller.abort();
     input.signal?.addEventListener('abort', abortFromCaller, { once: true });
+    let providerResponseReceived = false;
 
     try {
       if (input.signal?.aborted) controller.abort();
@@ -159,11 +160,15 @@ export async function callGeminiReceiptOcr(input: {
       const text = await (input.generateContentImpl
         ? input.generateContentImpl({ model, thinkingLevel, parts, signal: controller.signal })
         : generateWithSdk({ apiKey, model, thinkingLevel, parts, signal: controller.signal, timeoutMs: remainingMs }));
+      providerResponseReceived = true;
       controller.signal.throwIfAborted();
       const data: ReceiptOcrData = normalizeReceiptOcrData(extractJsonObject(text));
       attempts.push({ model, ok: true, elapsedMs: Date.now() - startedAt });
       return { data, model, attempts };
     } catch (error) {
+      const providerStatus = error && typeof error === 'object' && 'status' in error
+        ? Number(error.status)
+        : null;
       attempts.push({
         model,
         ok: false,
@@ -172,6 +177,12 @@ export async function callGeminiReceiptOcr(input: {
           : error instanceof Error && error.name === 'AbortError' ? `timeout ${timeoutMs}ms`
           : 'provider_request_failed',
       });
+      // A returned but invalid response, or a definitive unsupported-model
+      // response, may try the next declared model. Timeouts, cancellation and
+      // transport/server failures have an uncertain provider outcome and must
+      // not dispatch another model automatically.
+      const fallbackSafe = providerResponseReceived || providerStatus === 400 || providerStatus === 404;
+      if (!fallbackSafe) break;
     } finally {
       clearTimeout(timeout);
       input.signal?.removeEventListener('abort', abortFromCaller);

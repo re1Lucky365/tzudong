@@ -57,4 +57,14 @@ describe('review verification immutable Storage key fence', () => {
     expect(migration).toContain('FROM postgres;');
     expect(migration).toContain('does not claim to lock provider bytes');
   });
+
+  test('activates the runtime capability only after the final fence readback', () => {
+    const readbackIndex = migration.indexOf('DO $readback$');
+    const capabilityIndex = migration.indexOf('INSERT INTO ocr_private.feature_runtime_capability');
+    const commitIndex = migration.lastIndexOf('COMMIT;');
+    expect(readbackIndex).toBeGreaterThanOrEqual(0);
+    expect(capabilityIndex).toBeGreaterThan(readbackIndex);
+    expect(commitIndex).toBeGreaterThan(capabilityIndex);
+    expect(migration).toContain("'review-media-feature-v1'");
+  });
 });

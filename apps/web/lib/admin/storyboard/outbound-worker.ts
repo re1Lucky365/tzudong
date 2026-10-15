@@ -7,6 +7,7 @@ import { open } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import sharp from 'sharp';
 import { z } from 'zod';
+import { parseFeatureDatabaseReadiness } from '@/lib/runtime-feature-readiness-contract';
 import { GeminiStoryboardClient } from './gemini-client.ts';
 import {
   isAllowedStoryboardGeminiWorkerModel, storyboardGeminiDeclaredModels,
@@ -282,7 +283,7 @@ export class OutboundStoryboardWorker {
     let result: WorkerResult = 'idle';
     while (!signal?.aborted) {
       result = await this.runOnce(signal);
-      if (once || signal?.aborted) break;
+      if (once || result === 'held' || signal?.aborted) break;
       await delay(pollMs, undefined, { signal });
     }
     return result;
@@ -293,14 +294,22 @@ export class OutboundStoryboardWorker {
     this.running = true;
     try {
       if (signal?.aborted) throw new StoryboardWorkerApiError('worker_stopped');
+      const readiness = parseFeatureDatabaseReadiness(
+        await workerApiCall(() => this.api.operation({ action: 'readiness' }, signal)),
+      );
+      if (readiness.status !== 'ready') {
+        this.onEvent({ event: 'feature_held', code: readiness.code });
+        return 'held';
+      }
       const declaredModels = storyboardGeminiDeclaredModels();
       if (!this.admitMemory(declaredModels)) {
         this.onEvent({ event: 'memory_deferred' });
         return 'idle';
       }
-      // Refresh the official catalog before this worker advertises any capability.
-      // A missing/invalid credential therefore cannot claim or bump a queued job.
-      const availableModels = await this.gemini.models(signal, true);
+      // The client refreshes this verified catalog after its bounded five-minute
+      // TTL. Idle polling reuses it so a five-second queue poll does not become
+      // an unbounded provider metadata loop.
+      const availableModels = await this.gemini.models(signal);
       assertVerifiedStoryboardModels(availableModels);
       await this.heartbeat(availableModels, signal);
       const claim = claimSchema.safeParse(await workerApiCall(() => this.api.operation({ action: 'claim' }, signal)));

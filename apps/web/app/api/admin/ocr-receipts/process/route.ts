@@ -36,8 +36,8 @@ import {
     readContainedPrivateReceiptFile,
     writeExclusivePrivateReceiptFile,
 } from '@/lib/ocr/admin-receipt-image-security';
-import { callGeminiReceiptOcr, GEMINI_OCR_FALLBACK_MODEL } from '@/lib/ocr/gemini';
-import { resolveOcrAiRuntimeConfig } from '@/lib/ocr/runtime-config';
+import { callGeminiReceiptOcr } from '@/lib/ocr/gemini';
+import { getOcrModelPolicy, resolveOcrAiRuntimeConfig } from '@/lib/ocr/runtime-config';
 import { getRunnableCredentials } from '@/lib/ocr/route-helpers';
 import { buildReceiptOcrEnvelope, RECEIPT_OCR_NORMALIZATION_VERSION } from '@/lib/ocr/receipt-normalization';
 import {
@@ -47,13 +47,17 @@ import {
     buildOcrInputContextHash,
     createSupabaseDurableReceiptOcrStore,
     executeDurableReceiptOcr,
+    getReviewReceiptOcrGeneration,
     hasDurableOcrReviewResult,
+    publishReviewReceiptOcrResult,
 } from '@/lib/ocr/durable-result';
 import type { ReceiptOcrData } from '@/lib/ocr/types';
 import { readBoundedJsonRequest } from '@/lib/security/bounded-json-request';
 import { isTrustedSameOriginMutation } from '@/lib/security/same-origin-mutation';
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/service-role';
 import { createSupabaseStorageServerClient } from '@/lib/supabase/storage-server';
+import { FEATURE_DATABASE_HELD_CODE, FEATURE_DATABASE_HELD_MESSAGE } from '@/lib/runtime-feature-readiness-contract';
+import { readFeatureDatabaseReadiness } from '@/lib/server/runtime-feature-readiness';
 
 export const runtime = 'nodejs';
 
@@ -353,30 +357,31 @@ function hasExpectedReviewReadback(
         && value.receipt_hash === expected.receipt_hash
         && value.is_duplicate === expected.is_duplicate
         && typeof value.ocr_processed_at === 'string'
-        && Date.parse(value.ocr_processed_at) === Date.parse(expected.ocr_processed_at)
+        && Number.isFinite(Date.parse(value.ocr_processed_at))
         && hasExpectedReceiptData(value.receipt_data, expected.receipt_data);
 }
 
 async function persistOcrResult(
     supabase: ReturnType<typeof getSupabaseAdmin>,
     reviewId: string,
+    userId: string,
+    generation: string,
+    resultRef: string,
+    resultRevision: string,
     update: OcrReviewUpdate,
 ): Promise<void> {
     assertPrivacySafe(update);
-
-    const { data: readback, error } = await supabase
-        .from('reviews')
-        .update(update)
-        .eq('id', reviewId)
-        // Preserve any OCR/operator result committed after the initial read.
-        // An explicit reset clears all three fields before a new process run.
-        .is('receipt_hash', null)
-        .is('receipt_data', null)
-        .is('ocr_processed_at', null)
-        .select('id, receipt_hash, receipt_data, is_duplicate, ocr_processed_at')
-        .maybeSingle();
-
-    if (error || !hasExpectedReviewReadback(readback, reviewId, update)) {
+    const readback = await publishReviewReceiptOcrResult(supabase as never, {
+        userId,
+        reviewId,
+        generation,
+        resultRef,
+        resultRevision,
+        receiptHash: update.receipt_hash,
+        receiptData: update.receipt_data,
+        isDuplicate: update.is_duplicate,
+    });
+    if (!hasExpectedReviewReadback(readback, reviewId, update)) {
         throw new OcrPersistenceError();
     }
 }
@@ -597,6 +602,12 @@ async function replaceReceiptWithCompressedObject(
 export async function POST(request: Request) {
     const auth = await requireAdmin();
     if (!auth.ok) return auth.response;
+    if ((await readFeatureDatabaseReadiness({ ownerId: auth.userId })).status !== 'ready') {
+        return noStoreJson(
+            { code: FEATURE_DATABASE_HELD_CODE, error: FEATURE_DATABASE_HELD_MESSAGE },
+            { status: 409 },
+        );
+    }
 
     if (!isTrustedSameOriginMutation(request)) {
         return noStoreJson(
@@ -694,7 +705,12 @@ export async function POST(request: Request) {
 
         const imageHash = crypto.createHash('sha256').update(canonicalStorageImage.bytes).digest('hex');
         const aiRuntime = await resolveOcrAiRuntimeConfig();
-        const model = aiRuntime.models[0] || aiRuntime.model || GEMINI_OCR_FALLBACK_MODEL;
+        const modelPolicy = getOcrModelPolicy(aiRuntime);
+        const generation = await getReviewReceiptOcrGeneration(
+            supabase as never,
+            review.user_id,
+            body.reviewId,
+        );
         const credentials = getRunnableCredentials({ candidate: aiRuntime, routingMode: aiRuntime.routingMode });
         const durable = await executeDurableReceiptOcr({
             store: createSupabaseDurableReceiptOcrStore(supabase as never),
@@ -703,7 +719,8 @@ export async function POST(request: Request) {
                 imageHash,
                 inputContextHash: buildOcrInputContextHash(imageHash, null),
                 provider: 'gemini',
-                model,
+                modelPolicy,
+                generation,
                 promptVersion: ADMIN_OCR_PROMPT_VERSION,
                 preprocessVersion: ADMIN_OCR_PREPROCESS_VERSION,
                 normalizationVersion: RECEIPT_OCR_NORMALIZATION_VERSION,
@@ -742,7 +759,7 @@ export async function POST(request: Request) {
                     imageBase64: providerImage.bytes.toString('base64'),
                     mimeType: 'image/jpeg',
                     prompt: OCR_PROMPT,
-                    env: { ...process.env, GEMINI_OCR_MODEL: model },
+                    env: { ...process.env, GEMINI_OCR_MODEL: modelPolicy.join(',') },
                     signal: request.signal,
                 });
                 const envelope = buildReceiptOcrEnvelope({
@@ -769,12 +786,20 @@ export async function POST(request: Request) {
             const failureData = buildReceiptFailureData(
                 ocrData.error ? getSafeOcrFailureCode(ocrData.error) : 'low_confidence',
             );
-            await persistOcrResult(supabase, body.reviewId, {
-                receipt_hash: null,
-                receipt_data: failureData,
-                is_duplicate: false,
-                ocr_processed_at: new Date().toISOString(),
-            });
+            await persistOcrResult(
+                supabase,
+                body.reviewId,
+                review.user_id,
+                generation,
+                durable.resultRef,
+                durable.resultRevision,
+                {
+                    receipt_hash: null,
+                    receipt_data: failureData,
+                    is_duplicate: false,
+                    ocr_processed_at: new Date().toISOString(),
+                },
+            );
 
             return NextResponse.json(
                 {
@@ -820,12 +845,20 @@ export async function POST(request: Request) {
         if (duplicateOfId) receiptData.duplicate_of = duplicateOfId;
         assertPrivacySafe(receiptData);
 
-        await persistOcrResult(supabase, body.reviewId, {
-            receipt_hash: duplicateOfId ? null : receiptHash,
-            receipt_data: receiptData,
-            is_duplicate: Boolean(duplicateOfId),
-            ocr_processed_at: new Date().toISOString(),
-        });
+        await persistOcrResult(
+            supabase,
+            body.reviewId,
+            review.user_id,
+            generation,
+            durable.resultRef,
+            durable.resultRevision,
+            {
+                receipt_hash: duplicateOfId ? null : receiptHash,
+                receipt_data: receiptData,
+                is_duplicate: Boolean(duplicateOfId),
+                ocr_processed_at: new Date().toISOString(),
+            },
+        );
 
         return NextResponse.json(
             {

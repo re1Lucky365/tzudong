@@ -68,6 +68,7 @@ export function evaluateStoryboardRuntimePolicy(sourceBindingSha256: string) {
   if (isExecutableStoryboardRequest(archivedRequest)) throw new Error('storyboard_legacy_admission_drift');
 
   const canonicalPolicy = Object.freeze({
+    featureDatabaseAdmission: 'required' as const,
     defaultImageModel: STORYBOARD_GEMINI_DEFAULT_IMAGE_MODEL,
     executionWorkflow: STORYBOARD_WORKFLOW,
     imageModels,

@@ -23,6 +23,23 @@ import { isTrustedSameOriginMutation } from '@/lib/security/same-origin-mutation
 const source = (relativePath: string) => readFileSync(join(import.meta.dir, '..', relativePath), 'utf8');
 
 describe('OCR extract route privacy and normalization contract', () => {
+  test('durable status readback is bounded, provider-free, and returns fixed failures', () => {
+    const statusRoute = source('app/api/ocr/results/status/route.ts');
+    expect(statusRoute.indexOf('authenticateOcrRequest(request)')).toBeLessThan(
+      statusRoute.indexOf('readBoundedOcrFormData(request)'),
+    );
+    expect(statusRoute.indexOf('readFeatureDatabaseReadiness')).toBeLessThan(
+      statusRoute.indexOf('readBoundedOcrFormData(request)'),
+    );
+    expect(statusRoute).toContain('pollDurableReceiptOcrResult({');
+    expect(statusRoute).toContain('const READ_ATTEMPTS = 4;');
+    expect(statusRoute).toContain("code: aborted ? 'OCR_STATUS_CANCELLED' : 'OCR_STATUS_UNAVAILABLE'");
+    expect(statusRoute).toContain("{ status: aborted ? 408 : 503, headers }");
+    expect(statusRoute).not.toContain('callGeminiReceiptOcr');
+    expect(statusRoute).not.toContain('executeDurableReceiptOcr');
+    expect(statusRoute).not.toContain("rpc('claim_receipt_ocr_result'");
+  });
+
   test('stores only bounded count/status metadata and excludes raw receipt/provider/credential payloads', () => {
     const envelope = buildReceiptOcrEnvelope({
       provider: 'gemini',
@@ -447,15 +464,16 @@ describe('OCR extract route privacy and normalization contract', () => {
     expect(processRouteSource).not.toContain('x-admin-guarded-mutation-confirmation');
     expect(processRouteSource).toContain('function noStoreJson');
     expect(processRouteSource).toContain("response.headers.set('Cache-Control', 'no-store')");
-    expect(processRouteSource).toContain("import { callGeminiReceiptOcr, GEMINI_OCR_FALLBACK_MODEL } from '@/lib/ocr/gemini'");
+    expect(processRouteSource).toContain("import { callGeminiReceiptOcr } from '@/lib/ocr/gemini'");
     expect(processRouteSource).toContain("import {\n    PRIVACY_UNSAFE_VALUE_REASON,\n    PrivacyUnsafeValueError,\n    assertPrivacySafe,\n} from '@/lib/privacy/sanitize';");
     expect(processRouteSource).toContain('assertOcrInputSafe(ocrData);');
     expect(processRouteSource).toContain('const receiptData = buildReceiptPersistenceData(ocrData);');
     expect(processRouteSource).toContain('buildReceiptFailureData(');
     expect(processRouteSource).toContain('failure_code: errorCode');
     expect(processRouteSource).toContain('assertPrivacySafe(update);');
+    expect(processRouteSource).toContain('publishReviewReceiptOcrResult(supabase as never');
     expect(processRouteSource).toContain('hasExpectedReviewReadback(readback, reviewId, update)');
-    expect(processRouteSource).toContain(".select('id, receipt_hash, receipt_data, is_duplicate, ocr_processed_at')");
+    expect(processRouteSource).not.toContain(".update(update)");
     expect(processRouteSource).not.toContain('uploadToStorage');
     expect(processRouteSource).not.toContain('ocr-debug/');
     expect(processRouteSource).toContain('const storage = storageAdmin.from(REVIEW_VERIFICATION_BUCKET)');
@@ -480,7 +498,7 @@ describe('OCR extract route privacy and normalization contract', () => {
     const inlineOcrResultIndex = postSource.indexOf('const ocrData: ReceiptOcrData = {', inlineOcrCallIndex);
     const inlinePrivacyBoundaryIndex = postSource.indexOf('assertOcrInputSafe(ocrData);', inlineOcrResultIndex);
     const inlinePersistenceIndex = postSource.indexOf(
-      'await persistOcrResult(supabase, body.reviewId, {',
+      'await persistOcrResult(\n                supabase,\n                body.reviewId,',
       inlineOcrResultIndex,
     );
     expect(inlineAuthIndex).toBeGreaterThanOrEqual(0);

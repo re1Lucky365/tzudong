@@ -258,6 +258,7 @@ export function buildStoryboardDraftPrompt(request: StoryboardProductionRequest)
 }
 
 export const STORYBOARD_PRODUCTION_MESSAGES: Record<string, string> = {
+  feature_database_held: '데이터베이스 전환이 완료될 때까지 새 생성과 변경은 보류됩니다. 저장된 프로젝트와 이력은 계속 확인할 수 있습니다.',
   archived_project_read_only: '이전 공급자 프로젝트는 읽기 전용 기록입니다. 새 Gemini 프로젝트에서 생성하세요.',
   external_ai_disabled: 'Gemini API 실행이 필요합니다.',
   model_not_selected: '지원되는 Gemini 텍스트와 이미지 모델을 선택하세요.',

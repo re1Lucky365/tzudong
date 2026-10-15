@@ -8,6 +8,8 @@ import {
   createSupabaseDurableReceiptOcrStore,
   executeDurableReceiptOcr,
   hasDurableOcrReviewResult,
+  pollDurableReceiptOcrResult,
+  RECEIPT_OCR_DEFAULT_GENERATION,
 } from '@/lib/ocr/durable-result';
 import { buildReceiptOcrEnvelope, RECEIPT_OCR_NORMALIZATION_VERSION } from '@/lib/ocr/receipt-normalization';
 import { ReviewSaveOperation } from '@/lib/reviews/review-save-operation';
@@ -24,7 +26,8 @@ function binding(overrides: Partial<DurableReceiptOcrBinding> = {}): DurableRece
     imageHash: 'a'.repeat(64),
     inputContextHash: 'b'.repeat(64),
     provider: 'gemini',
-    model: 'gemini-3.6-flash',
+    modelPolicy: ['gemini-3.6-flash'],
+    generation: RECEIPT_OCR_DEFAULT_GENERATION,
     promptVersion: 'receipt-extraction-v2',
     preprocessVersion: 'receipt-image-v3',
     normalizationVersion: RECEIPT_OCR_NORMALIZATION_VERSION,
@@ -57,7 +60,7 @@ function payload(model = 'gemini-3.6-flash', normalizationVersion = RECEIPT_OCR_
 
 function fingerprint(value: DurableReceiptOcrBinding): string {
   return JSON.stringify([
-    value.userId, value.imageHash, value.inputContextHash, value.provider, value.model,
+    value.userId, value.imageHash, value.inputContextHash, value.provider, value.modelPolicy, value.generation,
     value.promptVersion, value.preprocessVersion, value.normalizationVersion,
   ]);
 }
@@ -156,6 +159,17 @@ function fakeStore(): DurableReceiptOcrStore {
         rows.delete(key);
       }
     },
+    async read(input) {
+      const row = rows.get(fingerprint(input));
+      if (!row) return { status: 'not_found' };
+      if (row.status === 'succeeded') return {
+        status: 'succeeded',
+        resultRef: row.resultRef,
+        resultRevision: row.resultRevision!,
+        payload: row.payload!,
+      };
+      return { status: row.status, resultRef: row.resultRef };
+    },
   };
 }
 
@@ -187,6 +201,76 @@ describe('durable receipt OCR execution', () => {
     expect(reused.resultRevision).toBe(first.resultRevision);
     expect(providerCalls).toBe(1);
     expect(quotaReservations).toBe(1);
+  });
+
+  test('binds the ordered model policy while preserving the actual fallback response model', async () => {
+    const store = fakeStore();
+    const policyBinding = binding({ modelPolicy: ['gemini-primary', 'gemini-fallback'] });
+    const first = await executeDurableReceiptOcr({
+      store,
+      binding: policyBinding,
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => payload('gemini-fallback'),
+    });
+    expect(first.payload.model).toBe('gemini-fallback');
+    expect((await store.read(policyBinding))).toMatchObject({
+      status: 'succeeded',
+      resultRef: first.resultRef,
+      resultRevision: first.resultRevision,
+      payload: { model: 'gemini-fallback' },
+    });
+    const reused = await executeDurableReceiptOcr({
+      store,
+      binding: policyBinding,
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => { throw new Error('unexpected_provider_call'); },
+    });
+    expect(reused.cacheReused).toBe(true);
+  });
+
+  test('bounded owner-scoped readback receives a committed result without another claim or provider call', async () => {
+    const expected = payload('gemini-fallback');
+    const states = [
+      { status: 'not_found' as const },
+      { status: 'processing' as const, resultRef: '10000000-0000-4000-8000-000000000001' },
+      {
+        status: 'succeeded' as const,
+        resultRef: '10000000-0000-4000-8000-000000000001',
+        resultRevision: '20000000-0000-4000-8000-000000000001',
+        payload: expected,
+      },
+    ];
+    let reads = 0;
+    let waits = 0;
+    const result = await pollDurableReceiptOcrResult({
+      store: { read: async () => states[reads++] ?? states.at(-1)! },
+      binding: binding({ modelPolicy: ['gemini-primary', 'gemini-fallback'] }),
+      attempts: 4,
+      wait: async () => { waits++; },
+    });
+    expect(result).toEqual(states[2]);
+    expect(reads).toBe(3);
+    expect(waits).toBe(2);
+  });
+
+  test('bounded readback never turns processing or missing state into a claim', async () => {
+    for (const status of ['not_found', 'processing'] as const) {
+      let reads = 0;
+      const result = await pollDurableReceiptOcrResult({
+        store: { read: async () => {
+          reads++;
+          return status === 'processing'
+            ? { status, resultRef: '10000000-0000-4000-8000-000000000001' }
+            : { status };
+        } },
+        binding: binding(),
+        attempts: 4,
+      });
+      expect(result.status).toBe(status);
+      expect(reads).toBe(4);
+    }
   });
 
   test('admits one provider call for concurrent duplicate requests', async () => {
@@ -227,7 +311,8 @@ describe('durable receipt OCR execution', () => {
       binding({ userId: USER_B }),
       binding({ imageHash: 'c'.repeat(64) }),
       binding({ inputContextHash: 'd'.repeat(64) }),
-      binding({ model: 'gemini-next' }),
+      binding({ modelPolicy: ['gemini-next'] }),
+      binding({ generation: '00000000-0000-4000-8000-000000000099' }),
       binding({ promptVersion: 'receipt-extraction-v3' }),
       binding({ preprocessVersion: 'receipt-image-v4' }),
       binding({ normalizationVersion: 'receipt-normalization-v2' }),
@@ -237,10 +322,10 @@ describe('durable receipt OCR execution', () => {
         binding: bound,
         operationId: crypto.randomUUID(),
         forceRefresh: false,
-        runProvider: async () => { providerCalls++; return payload(bound.model, bound.normalizationVersion); },
+        runProvider: async () => { providerCalls++; return payload(bound.modelPolicy[0], bound.normalizationVersion); },
       });
     }
-    expect(providerCalls).toBe(8);
+    expect(providerCalls).toBe(9);
   });
 
   test('keeps an uncertain provider call non-retryable even when force refresh is requested', async () => {
@@ -518,9 +603,11 @@ describe('durable receipt OCR execution', () => {
     })).toBe(true);
     expect(hasDurableOcrReviewResult({ ocr_processed_at: null, receipt_data: null })).toBe(false);
     const adminRoute = readFileSync(join(import.meta.dir, '../app/api/admin/ocr-receipts/process/route.ts'), 'utf8');
-    expect(adminRoute).toContain(".is('receipt_hash', null)");
-    expect(adminRoute).toContain(".is('receipt_data', null)");
-    expect(adminRoute).toContain(".is('ocr_processed_at', null)");
+    expect(adminRoute).toContain('if (hasDurableOcrReviewResult(review))');
+    expect(adminRoute).toContain('getReviewReceiptOcrGeneration(');
+    expect(adminRoute).toContain('publishReviewReceiptOcrResult(');
+    expect(adminRoute).toContain('forceRefresh: false');
+    expect(adminRoute).not.toContain('.from(\'reviews\')\n        .update(update)');
   });
 
   test('serializes concurrent review saves and requires OCR reference readback', async () => {
@@ -604,13 +691,23 @@ describe('durable receipt OCR execution', () => {
     expect(migration).toContain('REVOKE ALL ON TABLE ocr_private.receipt_results FROM PUBLIC, anon, authenticated');
     expect(migration).toContain('GRANT EXECUTE ON FUNCTION public.claim_receipt_ocr_result');
     expect(migration).toContain('TO service_role');
-    expect(migration).toContain('user_id,\n    image_hash,\n    input_context_hash,\n    provider,\n    model,\n    prompt_version,\n    preprocess_version,\n    normalization_version');
+    expect(migration).toContain('user_id,\n    image_hash,\n    input_context_hash,\n    provider,\n    model_policy,\n    generation,\n    prompt_version,\n    preprocess_version,\n    normalization_version');
     expect(migration).toContain("status IN ('processing', 'succeeded', 'indeterminate')");
+    expect(migration).toContain('model_policy jsonb NOT NULL');
+    expect(migration).toContain('generation uuid NOT NULL');
+    expect(migration).toContain('public.read_receipt_ocr_result(');
+    expect(migration).toContain('public.get_review_receipt_ocr_generation(');
+    expect(migration).toContain('public.publish_review_receipt_ocr_result(');
+    expect(migration).toContain('CREATE FUNCTION ocr_private.register_review_ocr_generation()');
+    expect(migration).toContain('SECURITY DEFINER\nSET search_path = \'\'');
+    expect(migration).toContain('REVOKE ALL ON FUNCTION ocr_private.register_review_ocr_generation() FROM PUBLIC, anon, authenticated, service_role');
     expect(migration).toContain('Rows have no automatic TTL');
-    expect(migration).toContain('WHERE id = p_ocr_result_id AND user_id = p_user_id AND status = \'succeeded\'');
-    expect(migration).toContain("WHERE id = p_ocr_result_id AND user_id = p_user_id AND status = 'succeeded'\n  FOR SHARE;");
+    expect(migration).toContain("WHERE id = p_result_id\n    AND user_id = p_user_id\n    AND generation = p_generation\n    AND status = 'succeeded'\n  FOR SHARE;");
     expect(migration).toContain('v_result.result_revision IS DISTINCT FROM p_ocr_result_revision');
     expect(migration).toContain("RAISE EXCEPTION 'receipt_ocr_result_stale'");
+    expect(migration.indexOf('FROM public.reviews\n  WHERE id = p_review_id AND user_id = p_user_id\n  FOR UPDATE;')).toBeLessThan(
+      migration.indexOf('FROM ocr_private.review_generations\n  WHERE review_id = p_review_id AND user_id = p_user_id\n  FOR SHARE;'),
+    );
     expect(migration).toContain('pg_advisory_xact_lock');
   });
 });

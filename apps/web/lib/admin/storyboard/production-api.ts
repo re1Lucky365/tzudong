@@ -7,7 +7,9 @@ import {
   StoryboardProductionError, storyboardProvenanceSchema,
 } from './production-contract';
 import { PRODUCTION_FAILURE_STATUSES, StoryboardProductionStore } from './production-store';
-import { authenticateStoryboardWorker, productionUuid, type ProductionWorkerIdentity } from './production-worker-auth';
+import { authenticateStoryboardWorker, productionUuid, workerOperationSchema, type ProductionWorkerIdentity } from './production-worker-auth';
+import { readFeatureDatabaseReadiness } from '@/lib/server/runtime-feature-readiness';
+import { FEATURE_DATABASE_HELD, type FeatureDatabaseReadiness } from '@/lib/runtime-feature-readiness-contract';
 
 if (typeof window !== 'undefined') throw new Error('Storyboard API handlers are server-only.');
 
@@ -118,10 +120,22 @@ type StoreApi = Pick<StoryboardProductionStore, 'list' | 'get' | 'create' | 'app
 /** Dependency injection is restricted to tests; route files use the authenticated server defaults. */
 export function createStoryboardProductionApi(options: {
   store?: StoreApi; requireAdmin?: AdminAuth; authenticateWorker?: (request: Request) => Promise<ProductionWorkerIdentity>;
+  readFeatureReadiness?: (ownerId: string) => Promise<FeatureDatabaseReadiness>;
 } = {}) {
   const store = options.store ?? new StoryboardProductionStore();
   const adminAuth = options.requireAdmin ?? requireAdmin;
   const workerAuth = options.authenticateWorker ?? authenticateStoryboardWorker;
+  const readFeatureReadiness = options.readFeatureReadiness
+    ?? ((ownerId: string) => readFeatureDatabaseReadiness({ ownerId }));
+  async function currentFeatureReadiness(ownerId: string) {
+    try { return await readFeatureReadiness(ownerId); }
+    catch { return FEATURE_DATABASE_HELD; }
+  }
+  async function requireFeatureReady(ownerId: string) {
+    const readiness = await currentFeatureReadiness(ownerId);
+    if (readiness.status !== 'ready') throw new StoryboardProductionError('feature_database_held');
+    return readiness;
+  }
   async function admin(request: Request, run: (ownerId: string) => Promise<Response>) {
     try {
       const auth = await adminAuth();
@@ -137,8 +151,14 @@ export function createStoryboardProductionApi(options: {
     catch (error) { return productionApiFailure(error); }
   }
   return {
-    listGET: (request: Request) => admin(request, async (owner) => json(await store.list(owner))),
-    listPOST: (request: Request) => admin(request, async (owner) => json(await store.create(owner, await boundedJson(request)))),
+    listGET: (request: Request) => admin(request, async (owner) => {
+      const [catalog, readiness] = await Promise.all([store.list(owner), currentFeatureReadiness(owner)]);
+      return json({ ...catalog, readiness });
+    }),
+    listPOST: (request: Request) => admin(request, async (owner) => {
+      await requireFeatureReady(owner);
+      return json(await store.create(owner, await boundedJson(request)));
+    }),
     projectGET: (request: Request, context: RouteContext) => admin(request, async (owner) => {
       const id = parse(productionUuid, (await context.params).id);
       const query = new URL(request.url).searchParams;
@@ -150,6 +170,7 @@ export function createStoryboardProductionApi(options: {
       return json(await store.get(owner, id));
     }),
     projectPOST: (request: Request, context: RouteContext) => admin(request, async (owner) => {
+      await requireFeatureReady(owner);
       const id = parse(productionUuid, (await context.params).id);
       return json(await store.apply(owner, id, await boundedJson(request)));
     }),
@@ -171,9 +192,15 @@ export function createStoryboardProductionApi(options: {
       return new Response(new Uint8Array(bytes), { headers: { ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8',
         'Content-Length': String(bytes.length), 'Content-Disposition': `attachment; filename="storyboard-${id}.json"` } });
     }),
-    workerPOST: (request: Request) => worker(request, async (identity) =>
-      json(await store.workerOperation(identity, await boundedJson(request)))),
+    workerPOST: (request: Request) => worker(request, async (identity) => {
+      const operation = parse(workerOperationSchema, await boundedJson(request));
+      const readiness = await currentFeatureReadiness(identity.ownerId);
+      if (operation.action === 'readiness') return json(readiness);
+      if (readiness.status !== 'ready') throw new StoryboardProductionError('feature_database_held');
+      return json(await store.workerOperation(identity, operation));
+    }),
     workerImagePOST: (request: Request) => worker(request, async (identity) => {
+      await requireFeatureReady(identity.ownerId);
       const form = await readStoryboardMultipart(request, ['jobId', 'leaseToken', 'sceneNo', 'provenance', 'file']);
       const jobId = parse(productionUuid, field(form, 'jobId'));
       const leaseToken = parse(productionUuid, field(form, 'leaseToken'));

@@ -57,6 +57,9 @@ function fixture(value: ClaimedStoryboardJob | null = job()) {
   const api: StoryboardWorkerApi = {
     async operation(payload) {
       calls.push(payload);
+      if (payload.action === 'readiness') {
+        return { schemaVersion: 1, status: 'ready', code: 'FEATURE_DATABASE_READY' };
+      }
       if (payload.action === 'heartbeat') {
         advertisedModels = payload.models as WorkerModel[];
         return { ok: true, leaseValid: true };
@@ -104,7 +107,7 @@ describe('outbound worker lifecycle (fixture models, no live inference)', () => 
     };
     expect(await new OutboundStoryboardWorker(f).runOnce()).toBe('completed');
     expect(peak).toBe(1); expect(f.draftCalls()).toBe(1); expect(f.catalogCalls()).toBe(1);
-    expect(f.calls.filter((call) => call.action !== 'heartbeat').map((call) => call.action))
+    expect(f.calls.filter((call) => !['heartbeat', 'readiness'].includes(String(call.action))).map((call) => call.action))
       .toEqual(['claim', 'draft', 'image', 'image', 'image', 'image', 'image', 'finish']);
     expect(f.generated).toEqual(['scene 1', 'scene 2', 'scene 3', 'scene 4', 'scene 5']);
   });
@@ -112,6 +115,59 @@ describe('outbound worker lifecycle (fixture models, no live inference)', () => 
     const f = fixture(null);
     expect(await new OutboundStoryboardWorker(f).runOnce()).toBe('idle');
     expect(f.draftCalls()).toBe(0); expect(f.generated).toEqual([]); expect(f.catalogCalls()).toBe(1);
+  });
+  test('idle polling lets the provider client reuse its bounded catalog cache', async () => {
+    const f = fixture(null);
+    const reads = f.gemini.models;
+    const refreshes: Array<boolean | undefined> = [];
+    f.gemini.models = async (signal, refresh) => {
+      refreshes.push(refresh);
+      return reads(signal, refresh);
+    };
+    const worker = new OutboundStoryboardWorker(f);
+    expect(await worker.runOnce()).toBe('idle');
+    expect(await worker.runOnce()).toBe('idle');
+    expect(refreshes).toEqual([undefined, undefined]);
+  });
+  test('a deterministic ten-minute idle trace makes six provider catalog reads across 120 five-second polls', async () => {
+    const f = fixture(null);
+    const providerCatalogReads: string[] = [];
+    const gemini = new GeminiStoryboardClient({
+      client: {
+        models: {
+          get: async ({ model }: { model: string }) => {
+            providerCatalogReads.push(model);
+            return { name: `models/${model}` };
+          },
+          generateContent: async () => { throw new Error('unexpected_generation'); },
+        },
+      } as never,
+      budget: directBudget,
+    });
+    const originalNow = Date.now;
+    let now = 1_800_000_000_000;
+    Date.now = () => now;
+    try {
+      const worker = new OutboundStoryboardWorker({ api: f.api, gemini, admitMemory: () => true });
+      for (let poll = 0; poll < 120; poll++) {
+        expect(await worker.runOnce()).toBe('idle');
+        now += 5_000;
+      }
+    } finally {
+      Date.now = originalNow;
+    }
+    expect(providerCatalogReads).toHaveLength(6);
+    expect(providerCatalogReads.slice(0, 3)).toEqual(providerCatalogReads.slice(3));
+  });
+  test('held feature database stops before memory admission, provider catalog, heartbeat, or claim', async () => {
+    const f = fixture();
+    f.api.operation = async (payload) => {
+      f.calls.push(payload);
+      return { schemaVersion: 1, status: 'held', code: 'FEATURE_DATABASE_HELD' };
+    };
+    expect(await new OutboundStoryboardWorker(f).run({ pollMs: 1 })).toBe('held');
+    expect(f.calls).toEqual([{ action: 'readiness' }]);
+    expect(f.catalogCalls()).toBe(0); expect(f.claimedJobs()).toBe(0); expect(f.generated).toEqual([]);
   });
   test('targeted regeneration invokes only the requested scene and preserves the draft', async () => {
     const value = savedJob(); value.kind = 'scene'; value.sceneNo = 3;
@@ -139,7 +195,7 @@ describe('outbound worker lifecycle (fixture models, no live inference)', () => 
     expect(await new OutboundStoryboardWorker(a).runOnce()).toBe('idle');
     expect(a.draftCalls()).toBe(0); expect(a.generated).toEqual([]);
     expect(a.catalogCalls()).toBe(1); expect(a.claimedJobs()).toBe(0);
-    expect(a.calls.filter(call => !['claim', 'heartbeat'].includes(String(call.action)))).toEqual([]);
+    expect(a.calls.filter(call => !['claim', 'heartbeat', 'readiness'].includes(String(call.action)))).toEqual([]);
     expect(old.document?.scenes).toHaveLength(5);
   });
   test('corrupt scene failure preserves other scenes and does not report completion', async () => {
@@ -166,7 +222,7 @@ describe('outbound worker lifecycle (fixture models, no live inference)', () => 
     f.gemini.models = async () => { throw new StoryboardProductionError('provider_auth_failed'); };
     await expect(new OutboundStoryboardWorker(f).runOnce()).rejects.toThrow('provider_auth_failed');
     expect(f.draftCalls()).toBe(0); expect(f.generated).toEqual([]);
-    expect(f.calls).toEqual([]); expect(f.claimedJobs()).toBe(0);
+    expect(f.calls).toEqual([{ action: 'readiness' }]); expect(f.claimedJobs()).toBe(0);
   });
   test('an unavailable selected model is advertised honestly and never claims or generates', async () => {
     const f = fixture();
@@ -508,7 +564,9 @@ describe('worker credentials and actual HTTP boundaries', () => {
         res.end('{"ok":true}');
       } else {
         const body = JSON.parse(bytes.toString());
-        res.end(JSON.stringify(body.action === 'claim' ? { ok: true, job: value }
+        res.end(JSON.stringify(body.action === 'readiness'
+          ? { schemaVersion: 1, status: 'ready', code: 'FEATURE_DATABASE_READY' }
+          : body.action === 'claim' ? { ok: true, job: value }
           : body.action === 'heartbeat' ? { ok: true, leaseValid: true } : { ok: true }));
       }
     });

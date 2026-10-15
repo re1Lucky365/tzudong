@@ -7,7 +7,7 @@ import {
   RECEIPT_OCR_PREPROCESS_VERSION,
   RECEIPT_OCR_PROMPT_VERSION,
 } from '@/lib/ocr/receipt-prompt';
-import { resolveOcrAiRuntimeConfig, type OcrAiRuntimeConfigCandidate } from '@/lib/ocr/runtime-config';
+import { getOcrModelPolicy, resolveOcrAiRuntimeConfig, type OcrAiRuntimeConfigCandidate } from '@/lib/ocr/runtime-config';
 import {
     buildReceiptOcrEnvelope,
     RECEIPT_OCR_NORMALIZATION_VERSION,
@@ -18,6 +18,7 @@ import {
     buildOcrInputContextHash,
     createSupabaseDurableReceiptOcrStore,
     executeDurableReceiptOcr,
+    RECEIPT_OCR_DEFAULT_GENERATION,
     toPublicReceiptOcrResponse,
 } from '@/lib/ocr/durable-result';
 import { findOcrRestaurantMatches } from '@/lib/ocr/restaurant-matching';
@@ -43,6 +44,8 @@ import {
 } from '@/lib/ocr/request-security';
 import { isTrustedSameOriginMutation } from '@/lib/security/same-origin-mutation';
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/service-role';
+import { FEATURE_DATABASE_HELD_CODE, FEATURE_DATABASE_HELD_MESSAGE } from '@/lib/runtime-feature-readiness-contract';
+import { readFeatureDatabaseReadiness } from '@/lib/server/runtime-feature-readiness';
 
 export const runtime = 'nodejs';
 
@@ -106,20 +109,20 @@ async function optimizeImage(buffer: Buffer): Promise<{ optimized: Buffer; savin
 
 async function runStreamingOcrCandidate(input: {
   candidate: OcrAiRuntimeConfigCandidate;
-  model: string;
   imageBase64: string;
   signal: AbortSignal;
   send: (event: string, payload: Record<string, unknown>) => void;
 }) {
-  const { candidate, model, imageBase64, signal, send } = input;
+  const { candidate, imageBase64, signal, send } = input;
   if (!candidate.apiKey) throw new Error(`${candidate.provider} OCR API 키가 설정되지 않았습니다.`);
+  const modelPolicy = getOcrModelPolicy(candidate);
 
   const geminiResult = await callGeminiReceiptOcr({
     apiKey: candidate.apiKey,
     imageBase64,
     mimeType: 'image/jpeg',
     prompt: RECEIPT_OCR_EXTRACTION_PROMPT,
-    env: { ...process.env, GEMINI_OCR_MODEL: model },
+    env: { ...process.env, GEMINI_OCR_MODEL: modelPolicy.join(',') },
     signal,
   });
   send('model_attempt', { attempt: geminiResult.attempts.at(-1) });
@@ -149,6 +152,12 @@ export async function POST(req: Request) {
     });
   }
   const { supabase, user } = auth;
+  if ((await readFeatureDatabaseReadiness({ ownerId: user.id })).status !== 'ready') {
+    return new Response(JSON.stringify({ code: FEATURE_DATABASE_HELD_CODE, error: FEATURE_DATABASE_HELD_MESSAGE }), {
+      status: 409,
+      headers: { 'Cache-Control': 'no-store', 'Content-Type': 'application/json' },
+    });
+  }
 
   const multipart = await readBoundedOcrFormData(req);
   if (!multipart.ok) {
@@ -167,7 +176,8 @@ export async function POST(req: Request) {
   const runnableCandidates = providerCandidates.filter(candidate => hasRunnableOcrCredentials([candidate]));
   const effectiveCandidates = runnableCandidates.length ? runnableCandidates : providerCandidates;
   const candidate = effectiveCandidates[0];
-  const model = candidate?.models[0] || candidate?.model || GEMINI_OCR_FALLBACK_MODEL;
+  const modelPolicy = candidate ? getOcrModelPolicy(candidate) : [GEMINI_OCR_FALLBACK_MODEL];
+  const model = modelPolicy[0];
   if (!file) {
     return new Response(JSON.stringify({ error: '이미지가 제공되지 않았습니다' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
@@ -217,7 +227,8 @@ export async function POST(req: Request) {
           imageHash,
           inputContextHash: buildOcrInputContextHash(imageHash, selectedRestaurantContext),
           provider: candidate.provider,
-          model,
+          modelPolicy,
+          generation: RECEIPT_OCR_DEFAULT_GENERATION,
           promptVersion: RECEIPT_OCR_PROMPT_VERSION,
           preprocessVersion: RECEIPT_OCR_PREPROCESS_VERSION,
           normalizationVersion: RECEIPT_OCR_NORMALIZATION_VERSION,
@@ -245,7 +256,6 @@ export async function POST(req: Request) {
           providerStarted = true;
           const result = await runStreamingOcrCandidate({
             candidate: { ...candidate, apiKey: credentials[0]!.apiKey },
-            model,
             imageBase64: optimized.toString('base64'),
             signal: req.signal,
             send,

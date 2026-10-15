@@ -19,6 +19,8 @@ export const STORYBOARD_RUNTIME_SOURCE_PATHS = Object.freeze([
   'apps/web/lib/admin/storyboard/gemini-client.ts',
   'apps/web/lib/admin/storyboard/outbound-worker-contract.ts',
   'apps/web/lib/admin/storyboard/outbound-worker.ts',
+  'apps/web/lib/runtime-feature-readiness-contract.ts',
+  'apps/web/lib/server/runtime-feature-readiness.ts',
   'apps/web/app/api/admin/storyboard/production/route.ts',
   'apps/web/app/api/admin/storyboard/production/[id]/route.ts',
   'apps/web/app/api/admin/storyboard/production/[id]/images/route.ts',
@@ -28,6 +30,7 @@ export const STORYBOARD_RUNTIME_SOURCE_PATHS = Object.freeze([
   'apps/web/app/api/admin/operating-readback/storyboard-policy/readback-response.ts',
   'apps/web/app/api/runtime-compatibility/storyboard/route.ts',
   'apps/web/app/api/runtime-compatibility/storyboard/runtime-response.ts',
+  'apps/web/app/api/runtime-compatibility/features/route.ts',
   'apps/web/lib/admin/storyboard/runtime-policy.ts',
   'apps/web/lib/admin/storyboard/runtime-source-binding.ts',
 ] as const);

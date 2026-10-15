@@ -22,6 +22,7 @@ import { LocalStoryboardWorkspace } from './components/admin/storyboard/LocalSto
 import { STORYBOARD_WORKFLOW } from './lib/admin/storyboard/production-contract';
 import { STORYBOARD_GEMINI_DEFAULT_IMAGE_MODEL, STORYBOARD_GEMINI_TEXT_MODEL, storyboardGeminiDeclaredModels } from './lib/admin/storyboard/gemini-models';
 const A = '${A}', B = '${B}', now = '2026-10-05T00:00:00.000Z';
+const FEATURE_DATABASE_READY = Object.freeze({schemaVersion:1,status:'ready',code:'FEATURE_DATABASE_READY'});
 const scene = n => ({sceneNo:n, title:'Scene '+n, durationSec:10, description:'Description', visualDirection:'Camera',
  narration:'Narration', caption:'Caption', productionNotes:['Note'], imagePrompt:'Image', sourceIds:[], revision:1, image:null, imageError:null});
 const project = id => ({id, revision:1, status:'partial', createdAt:now, updatedAt:now,
@@ -48,7 +49,7 @@ const view = id => ({ok:true,project:structuredClone(projects[id]),job:null,even
 const reply = (value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
 window.fetch = async (url,init={})=>{
  const method=init.method||'GET', path=new URL(url,location.href).pathname;
- if (path==='/api/admin/storyboard/production' && method==='GET') return reply({ok:true,workers,projects:Object.values(projects).map(p=>({id:p.id,revision:p.revision,status:p.status,title:p.document.title,createdAt:now,updatedAt:now}))});
+ if (path==='/api/admin/storyboard/production' && method==='GET') return reply({ok:true,readiness:FEATURE_DATABASE_READY,workers,projects:Object.values(projects).map(p=>({id:p.id,revision:p.revision,status:p.status,title:p.document.title,createdAt:now,updatedAt:now}))});
  const id=path.split('/').at(-1);
  if (!projects[id]) throw new Error('Unexpected fixture request');
  if(method==='GET'){calls.push({method,id});if(readFailure)throw new TypeError('Fixture offline');return reply(view(id));}

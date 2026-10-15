@@ -44,6 +44,7 @@ function fixture() {
     let mode: 'normal' | 'denied' | 'lost' | 'lost-read-fails' = 'normal';
     let readFail = false;
     let uploadError: unknown = null;
+    let featureReady = true;
     const draftScopeRef = { current: { ownerId: 'fixture-owner', restaurantId: 'fixture-restaurant', revision: null as ReviewDraft | null } };
     let afterInsert: (() => void) | undefined;
     let currentOwner = (): string | undefined => 'fixture-owner';
@@ -118,6 +119,11 @@ function fixture() {
         submitInFlightRef: { current: false }, closeRequestedRef: { current: false }, composerOpenRef: { current: true },
         autoSaveInFlightRef: { current: null },
         latestSaveInputsRef: { current: fields }, setIsSubmitting() {}, toast: (message: {title: string}) => messages.push(message),
+        fetchFeatureDatabaseReadiness: async () => featureReady
+            ? { schemaVersion: 1, status: 'ready', code: 'FEATURE_DATABASE_READY' }
+            : { schemaVersion: 1, status: 'held', code: 'FEATURE_DATABASE_HELD' },
+        mutateFeatureReadiness: async () => undefined,
+        FEATURE_DATABASE_HELD_MESSAGE: 'FEATURE_HELD_MESSAGE',
         clearDraft: async () => { counts.cleared++; return true; }, onSuccess: () => { counts.success++; },
         consumerNotifiedRef: { current: false }, setSaveRecovery: (value: string | null) => { recoveryStates.push(value); },
         notifySavedReview: () => { counts.success++; },
@@ -139,8 +145,165 @@ function fixture() {
         setMode: (value: typeof mode) => { mode = value; }, failReads: (value: boolean) => { readFail = value; },
         onInsert: (callback: () => void) => { afterInsert = callback; },
         setPrepareDeletion: (callback: typeof prepareDeletion) => { prepareDeletion = callback; },
-        setUploadError: (error: unknown) => { uploadError = error; } };
+        setUploadError: (error: unknown) => { uploadError = error; },
+        setFeatureReady: (value: boolean) => { featureReady = value; } };
 }
+
+describe('actual receipt result recovery', () => {
+    test('removing a receipt cancels analysis and clears its busy state', () => {
+        const controller = new AbortController();
+        const generation = { current: 4 };
+        const recovery = { current: { file: new File(['old'], 'old.jpg') } as unknown };
+        let analyzing = true;
+        let progress: unknown = { stage: 'model_start' };
+        const replace = evaluate(`${nodeText(source, 'replaceVerificationPhoto')};`, {
+            useCallback: (callback: unknown) => callback,
+            verificationSelectionRef: { current: { begin() {} } },
+            verificationPhotoUrlRef: { current: null },
+            ocrRunGenerationRef: generation, ocrAbortControllerRef: { current: controller },
+            ocrRecoveryContextRef: recovery,
+            setIsAnalyzing(value: boolean) { analyzing = value; },
+            setOcrProgress(value: unknown) { progress = value; },
+            setVerificationPhotoUrl() {}, setVerificationPhoto() {},
+            setOcrResultRef() {}, setOcrResultRevision() {},
+        }) as (file: File | null) => boolean;
+        expect(replace(null)).toBe(true);
+        expect(controller.signal.aborted).toBe(true);
+        expect(generation.current).toBe(5);
+        expect(recovery.current).toBeNull();
+        expect(analyzing).toBe(false);
+        expect(progress).toBeNull();
+    });
+
+    test('a buffered stream frame cannot patch fields after cancellation', async () => {
+        let finishRead!: (value: unknown) => void;
+        let enteredRead!: () => void;
+        const started = new Promise<void>(resolve => { enteredRead = resolve; });
+        const pending = new Promise(resolve => { finishRead = resolve; });
+        const controller = new AbortController();
+        const context = { id: 'original-restaurant', categories: ['한식'] };
+        const recoveryRef = { current: null as unknown };
+        let patches = 0;
+        const stream = evaluate(`${nodeText(source, 'analyzeReceiptWithStream')};`, {
+            useCallback: (callback: unknown) => callback, FormData, TextDecoder,
+            selectedRestaurant: context, restaurant: null, ocrRecoveryContextRef: recoveryRef,
+            appendSelectedRestaurantOcrContext() {},
+            fetch: async () => ({ ok: true, body: { getReader: () => ({ read: () => { enteredRead(); return pending; } }) } }),
+            parseOcrStreamFrame: () => ({ event: 'field_patch', payload: { data: { date: '2026-10-15' } } }),
+            handleOcrStreamEvent() { patches++; },
+        }) as (file: File, token: string, signal: AbortSignal, force: boolean) => Promise<unknown>;
+        const file = new File(['receipt'], 'receipt.jpg');
+        const run = stream(file, 'offline-session-token', controller.signal, false);
+        await started;
+        controller.abort();
+        finishRead({ done: false, value: new TextEncoder().encode('event: field_patch\ndata: {}\n\n') });
+        await expect(run).rejects.toMatchObject({ name: 'AbortError' });
+        expect(patches).toBe(0);
+        expect(recoveryRef.current).toEqual({ file, restaurant: context });
+    });
+
+    test('status readback keeps the original restaurant context after form edits', async () => {
+        const file = new File(['same receipt'], 'receipt.jpg');
+        const original = { id: 'original-restaurant', name: 'Original' };
+        const current = { id: 'edited-restaurant', name: 'Edited' };
+        let sentContext: unknown;
+        let requests = 0;
+        const read = evaluate(`${nodeText(source, 'readReceiptOcrStatus')};`, {
+            useCallback: (callback: unknown) => callback, FormData,
+            selectedRestaurant: current, restaurant: null,
+            ocrRecoveryContextRef: { current: { file, restaurant: original } },
+            appendSelectedRestaurantOcrContext(_form: FormData, context: unknown) { sentContext = context; },
+            fetch: async (url: string) => {
+                expect(url).toBe('/api/ocr/results/status'); requests++;
+                return { status: 200, json: async () => ({}) };
+            },
+        }) as (file: File, token: string, signal: AbortSignal) => Promise<unknown>;
+        await read(file, 'offline-session-token', new AbortController().signal);
+        expect(requests).toBe(1);
+        expect(sentContext).toBe(original);
+        await read(new File(['new receipt'], 'new.jpg'), 'offline-session-token', new AbortController().signal);
+        expect(requests).toBe(2);
+        expect(sentContext).toBe(current);
+    });
+
+    test('a late stored result cannot update a newer receipt selection', async () => {
+        const ocrRunGenerationRef = { current: 0 };
+        const ocrAbortControllerRef: { current: AbortController | null } = { current: null };
+        let finishRead!: (value: unknown) => void;
+        let enteredRead!: () => void;
+        const started = new Promise<void>(resolve => { enteredRead = resolve; });
+        const pending = new Promise(resolve => { finishRead = resolve; });
+        const effects = { result: 0, fields: 0, notices: 0 };
+        const analyze = evaluate(`${nodeText(source, 'analyzeReceipt')}\nanalyzeReceipt;`, {
+            AbortController, featureHeld: false, user: { id: 'fixture-owner' },
+            canForceOcrRefresh: false, forceOcrRefresh: false,
+            ocrRunGenerationRef, ocrAbortControllerRef,
+            setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
+            supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'offline-session-token' } } }) } },
+            readReceiptOcrStatus: () => { enteredRead(); return pending; },
+            setOcrResultRef() { effects.result++; }, setOcrResultRevision() { effects.result++; },
+            applyOcrFieldPatch() { effects.fields++; }, revealOcrAutoFillSequence() { effects.fields++; },
+            manuallyEditedOcrFieldsRef: { current: new Set() },
+            canReplaceSelectedRestaurantFromOcr: () => false,
+            selectedRestaurant: null, restaurant: null, mutateQuota() {},
+            isAbortError: (error: unknown) => error instanceof Error && error.name === 'AbortError',
+            isPendingOcrStreamError: () => false,
+            toast() { effects.notices++; },
+        }) as (file: File, generation: number | undefined, statusOnly: boolean) => Promise<void>;
+        const run = analyze(new File(['old receipt'], 'old.jpg'), undefined, true);
+        await started;
+        ocrRunGenerationRef.current++;
+        ocrAbortControllerRef.current!.abort();
+        // A completed request can settle after cancellation; its payload must
+        // still be ignored even if a transport/mock does not reject on abort.
+        finishRead({ ocr_result_ref: '11111111-1111-4111-8111-111111111111',
+            ocr_result_revision: '22222222-2222-4222-8222-222222222222' });
+        await run;
+        expect(effects).toEqual({ result: 0, fields: 0, notices: 0 });
+    });
+
+    test('status-only readback preserves manual edits and navigation without another model request', async () => {
+        const edits = new Set(['date', 'review']);
+        const manuallyEditedOcrFieldsRef = { current: edits };
+        const lastManualOcrInteractionAtRef = { current: 1234 };
+        const userStepOverrideDuringOcrRef = { current: true };
+        const lastOcrRevealSignatureRef = { current: 'previous-reveal' };
+        const stopped = new DOMException('Offline readback stopped', 'AbortError');
+        let reads = 0;
+        let modelRequests = 0;
+        let markerResets = 0;
+        const analyze = evaluate(`${nodeText(source, 'analyzeReceipt')}\nanalyzeReceipt;`, {
+            AbortController,
+            featureHeld: false,
+            user: { id: 'fixture-owner' },
+            canForceOcrRefresh: false,
+            forceOcrRefresh: false,
+            manuallyEditedOcrFieldsRef,
+            lastManualOcrInteractionAtRef,
+            userStepOverrideDuringOcrRef,
+            lastOcrRevealSignatureRef,
+            ocrRunGenerationRef: { current: 0 },
+            ocrAbortControllerRef: { current: null },
+            setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
+            setAiFilledFields() { markerResets++; },
+            supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'offline-session-token' } } }) } },
+            readReceiptOcrStatus: async () => { reads++; throw stopped; },
+            analyzeReceiptWithStream: async () => { modelRequests++; throw new Error('UNEXPECTED_MODEL_REQUEST'); },
+            isAbortError: (error: unknown) => error === stopped,
+        }) as (file: File, generation: number | undefined, statusOnly: boolean) => Promise<void>;
+
+        await analyze(new File(['receipt'], 'receipt.jpg'), undefined, true);
+
+        expect(reads).toBe(1);
+        expect(modelRequests).toBe(0);
+        expect(markerResets).toBe(0);
+        expect(manuallyEditedOcrFieldsRef.current).toBe(edits);
+        expect([...manuallyEditedOcrFieldsRef.current]).toEqual(['date', 'review']);
+        expect(lastManualOcrInteractionAtRef.current).toBe(1234);
+        expect(userStepOverrideDuringOcrRef.current).toBe(true);
+        expect(lastOcrRevealSignatureRef.current).toBe('previous-reveal');
+    });
+});
 
 describe('actual ReviewModal submit and Supabase adapter', () => {
     test('receipt selection and preparation enforce the private bucket MIME allowlist', () => {
@@ -168,6 +331,12 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         const row = [...f.rows.values()][0]; expect(row.is_verified).toBe(false); expect(row.user_id).toBe('fixture-owner');
         expect(row.verification_photo.startsWith(`${row.user_id}/reviews/${row.id}/verification/`)).toBe(true);
         expect(row.food_photos[0].startsWith(`${row.user_id}/reviews/${row.id}/food/`)).toBe(true);
+    });
+    test('held feature readiness stops before draft capture, upload, or review insert', async () => {
+        const f = fixture(); f.setFeatureReady(false); await f.submit();
+        expect(f.rows.size).toBe(0); expect(f.objects.size).toBe(0);
+        expect(f.counts.uploads).toBe(0); expect(f.counts.inserts).toBe(0); expect(f.counts.cleared).toBe(0);
+        expect(f.messages).toEqual([{ title: '리뷰 기능 준비 중', description: 'FEATURE_HELD_MESSAGE' }]);
     });
     test('definite insert denial compensates and keeps input draft', async () => {
         const f = fixture(); f.setMode('denied'); await f.submit(); await f.submit();
@@ -274,7 +443,7 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         expect(html).toContain('role="status"'); expect(html).toContain('href="/mypage/reviews"');
         expect(html).toContain('target="_blank"'); expect(html).toContain('rel="noopener noreferrer"');
         expect(source.match(/\{saveRecoveryNotice\}/g)?.length).toBe(3);
-        expect(source.match(/disabled=\{!isFormValid \|\| isSubmitting \|\| saveRecovery === 'edit'\}/g)?.length).toBe(3);
+        expect(source.match(/disabled=\{featureHeld \|\| !isFormValid \|\| isSubmitting \|\| saveRecovery === 'edit'\}/g)?.length).toBe(3);
     });
     test('actual close handler retains form and blocks close for unresolved write', async () => {
         const f = fixture(); f.setMode('lost-read-fails'); await f.submit();

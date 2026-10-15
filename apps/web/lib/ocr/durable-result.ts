@@ -5,6 +5,7 @@ import type { SelectedRestaurantContext } from '@/lib/ocr/restaurant-matching';
 import type { ReceiptOcrData } from '@/lib/ocr/types';
 
 export const DURABLE_RECEIPT_OCR_SCHEMA_VERSION = 'receipt-public-ocr-v1';
+export const RECEIPT_OCR_DEFAULT_GENERATION = '00000000-0000-0000-0000-000000000000';
 
 type DurableReceiptOcrNormalized = Pick<
   ReceiptOcrData,
@@ -28,7 +29,8 @@ export type DurableReceiptOcrBinding = {
   imageHash: string;
   inputContextHash: string;
   provider: OcrRoutingProvider;
-  model: string;
+  modelPolicy: string[];
+  generation: string;
   promptVersion: string;
   preprocessVersion: string;
   normalizationVersion: string;
@@ -38,6 +40,11 @@ export type DurableReceiptOcrClaim =
   | { status: 'claimed'; resultRef: string; claimToken: string }
   | { status: 'cached'; resultRef: string; resultRevision: string; payload: DurableReceiptOcrPayload }
   | { status: 'processing' | 'indeterminate'; resultRef: string };
+
+export type DurableReceiptOcrRead =
+  | { status: 'not_found' }
+  | { status: 'processing' | 'indeterminate'; resultRef: string }
+  | { status: 'succeeded'; resultRef: string; resultRevision: string; payload: DurableReceiptOcrPayload };
 
 export interface DurableReceiptOcrStore {
   claim(input: DurableReceiptOcrBinding & { operationId: string; forceRefresh: boolean }): Promise<DurableReceiptOcrClaim>;
@@ -62,6 +69,26 @@ export interface DurableReceiptOcrStore {
     resultRef: string;
     claimToken: string;
   }): Promise<void>;
+  read(input: DurableReceiptOcrBinding): Promise<DurableReceiptOcrRead>;
+}
+
+export async function pollDurableReceiptOcrResult(input: {
+  store: Pick<DurableReceiptOcrStore, 'read'>;
+  binding: DurableReceiptOcrBinding;
+  attempts?: number;
+  wait?: () => Promise<void>;
+}): Promise<DurableReceiptOcrRead> {
+  const attempts = input.attempts ?? 4;
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 8) {
+    throw new DurableReceiptOcrPersistenceError();
+  }
+  let result: DurableReceiptOcrRead = { status: 'not_found' };
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    result = await input.store.read(input.binding);
+    if (result.status === 'succeeded' || result.status === 'indeterminate') return result;
+    if (attempt + 1 < attempts) await input.wait?.();
+  }
+  return result;
 }
 
 type RpcResult = { data: unknown; error: unknown };
@@ -79,6 +106,59 @@ export class DurableReceiptOcrPersistenceError extends Error {
     super('OCR_RESULT_PERSISTENCE_FAILED');
     this.name = 'DurableReceiptOcrPersistenceError';
   }
+}
+
+export async function getReviewReceiptOcrGeneration(
+  client: RpcClient,
+  userId: string,
+  reviewId: string,
+): Promise<string> {
+  if (!isUuid(userId) || !isUuid(reviewId)) throw new DurableReceiptOcrPersistenceError();
+  const { data, error } = await client.rpc('get_review_receipt_ocr_generation', {
+    p_user_id: userId,
+    p_review_id: reviewId,
+  });
+  if (error || !isRecord(data) || data.status !== 'ready'
+    || data.review_id !== reviewId || !isUuid(data.generation)
+    || Object.keys(data).some((key) => !['status', 'review_id', 'generation'].includes(key))) {
+    throw new DurableReceiptOcrPersistenceError();
+  }
+  return data.generation;
+}
+
+export async function publishReviewReceiptOcrResult(
+  client: RpcClient,
+  input: {
+    userId: string;
+    reviewId: string;
+    generation: string;
+    resultRef: string;
+    resultRevision: string;
+    receiptHash: string | null;
+    receiptData: unknown;
+    isDuplicate: boolean;
+  },
+): Promise<Record<string, unknown>> {
+  if (![input.userId, input.reviewId, input.generation, input.resultRef, input.resultRevision].every(isUuid)
+    || (input.receiptHash !== null && !/^[0-9a-f]{64}$/.test(input.receiptHash))) {
+    throw new DurableReceiptOcrPersistenceError();
+  }
+  const { data, error } = await client.rpc('publish_review_receipt_ocr_result', {
+    p_user_id: input.userId,
+    p_review_id: input.reviewId,
+    p_generation: input.generation,
+    p_result_id: input.resultRef,
+    p_result_revision: input.resultRevision,
+    p_receipt_hash: input.receiptHash,
+    p_receipt_data: input.receiptData,
+    p_is_duplicate: input.isDuplicate,
+  });
+  if (error || !isRecord(data) || data.status !== 'published'
+    || data.review_id !== input.reviewId || data.generation !== input.generation
+    || data.result_ref !== input.resultRef || data.result_revision !== input.resultRevision) {
+    throw new DurableReceiptOcrPersistenceError();
+  }
+  return data;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -221,16 +301,20 @@ function isDurablePayload(value: unknown): value is DurableReceiptOcrPayload {
     && typeof entry.needsReview === 'boolean');
 }
 
-function parseClaim(value: unknown): DurableReceiptOcrClaim {
+function parseResultState(value: unknown): DurableReceiptOcrClaim | DurableReceiptOcrRead {
+  if (isRecord(value) && value.status === 'not_found' && Object.keys(value).length === 1) {
+    return { status: 'not_found' };
+  }
   if (!isRecord(value) || !isUuid(value.result_ref) || typeof value.status !== 'string') {
     throw new DurableReceiptOcrPersistenceError();
   }
   if (value.status === 'claimed' && isUuid(value.claim_token)) {
     return { status: 'claimed', resultRef: value.result_ref, claimToken: value.claim_token };
   }
-  if (value.status === 'cached' && isUuid(value.result_revision) && isDurablePayload(value.result_payload)) {
+  if ((value.status === 'cached' || value.status === 'succeeded')
+    && isUuid(value.result_revision) && isDurablePayload(value.result_payload)) {
     return {
-      status: 'cached',
+      status: value.status,
       resultRef: value.result_ref,
       resultRevision: value.result_revision,
       payload: value.result_payload,
@@ -242,13 +326,34 @@ function parseClaim(value: unknown): DurableReceiptOcrClaim {
   throw new DurableReceiptOcrPersistenceError();
 }
 
+function parseClaim(value: unknown): DurableReceiptOcrClaim {
+  const parsed = parseResultState(value);
+  if (parsed.status === 'not_found' || parsed.status === 'succeeded') throw new DurableReceiptOcrPersistenceError();
+  return parsed;
+}
+
+function parseRead(value: unknown): DurableReceiptOcrRead {
+  const parsed = parseResultState(value);
+  if (parsed.status === 'claimed' || parsed.status === 'cached') throw new DurableReceiptOcrPersistenceError();
+  return parsed;
+}
+
+function policyAllowsModel(policy: readonly string[], model: string): boolean {
+  return policy.length >= 1
+    && policy.length <= 8
+    && new Set(policy).size === policy.length
+    && policy.every((entry) => entry.length >= 1 && entry.length <= 160 && entry.trim() === entry)
+    && policy.includes(model);
+}
+
 function bindingArgs(binding: DurableReceiptOcrBinding) {
   return {
     p_user_id: binding.userId,
     p_image_hash: binding.imageHash,
     p_input_context_hash: binding.inputContextHash,
     p_provider: binding.provider,
-    p_model: binding.model,
+    p_model_policy: binding.modelPolicy,
+    p_generation: binding.generation,
     p_prompt_version: binding.promptVersion,
     p_preprocess_version: binding.preprocessVersion,
     p_normalization_version: binding.normalizationVersion,
@@ -267,7 +372,7 @@ export function createSupabaseDurableReceiptOcrStore(client: RpcClient): Durable
       const claim = parseClaim(data);
       if (claim.status === 'cached'
         && (claim.payload.provider !== input.provider
-          || claim.payload.model !== input.model
+          || !policyAllowsModel(input.modelPolicy, claim.payload.model)
           || claim.payload.normalization_version !== input.normalizationVersion)) {
         throw new DurableReceiptOcrPersistenceError();
       }
@@ -311,6 +416,18 @@ export function createSupabaseDurableReceiptOcrStore(client: RpcClient): Durable
       if (error || !isRecord(data) || data.status !== 'released') {
         throw new DurableReceiptOcrPersistenceError();
       }
+    },
+    async read(input) {
+      const { data, error } = await client.rpc('read_receipt_ocr_result', bindingArgs(input));
+      if (error) throw new DurableReceiptOcrPersistenceError();
+      const result = parseRead(data);
+      if (result.status === 'succeeded'
+        && (result.payload.provider !== input.provider
+          || !policyAllowsModel(input.modelPolicy, result.payload.model)
+          || result.payload.normalization_version !== input.normalizationVersion)) {
+        throw new DurableReceiptOcrPersistenceError();
+      }
+      return result;
     },
   };
 }
@@ -450,7 +567,7 @@ export async function executeDurableReceiptOcr(input: {
     payload = await input.runProvider();
     if (!isDurablePayload(payload)
       || payload.provider !== input.binding.provider
-      || payload.model !== input.binding.model
+      || !policyAllowsModel(input.binding.modelPolicy, payload.model)
       || payload.normalization_version !== input.binding.normalizationVersion) {
       throw new DurableReceiptOcrPersistenceError();
     }
