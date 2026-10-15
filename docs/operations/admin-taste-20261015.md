@@ -42,6 +42,8 @@ GitGuardian 신규 탐지 3건(`#38246983`, `#38246985`, `#38246984`)은 소스 
 
 전달본 `a6160a87`의 원격 CI 실패도 분리했다. Ubuntu·Windows npm은 frozen 독립 Node 측정기의 지역 변수 `module`에 Next 전용 규칙이 적용된 단일 lint 오류다. 원본 바이트를 수정하지 않고 기존 exact-file 예외 목록에 이 측정기 한 개만 추가했다. 파일은 계속 lint하며 일반 authored runner의 해당 규칙과 측정기의 다른 Next 규칙이 켜져 있음을 기존 회귀에서 확인했다. 전체 ESLint는 통과했고, 후속 assertion 수정 파일도 targeted lint를 통과했다. 최초 assertion은 설치 설정에 없는 `no-debugger`를 가정해 실패했으며 실제 켜진 규칙으로 정정한 기록을 보존했다. orchestration-readiness는 `.taste-skill` 구조 명세 누락이 원인이었고 source 분류를 추가한 뒤 실패 단계의 5개 모듈 **82/82** 및 구조 검사 누락 0·tracked directories 40을 확인했다. 이것은 다음 원격 attempt의 통과를 뜻하지 않는다.
 
+후속 `df328697`에서 Ubuntu npm·Bun이 통과했다. 오케스트레이션은 이후 source reconciliation 재현성 검사에서 실패해, 기존 generator로 변경된 두 파일의 blob hash와 집계 hash만 갱신했다(3줄 추가/3줄 삭제). 관련 운영 소스·reconciliation 검사 **10/10**과 generator `--check`가 통과했다. 이 후속에는 앱 소스·스킬 방향·기존 증빙 변경이 없다. 증빙은 [조정 명세 재현성](../../apps/web/performance/admin-taste-ci-followup-20261016/orchestration-reconciliation-followup.json)에 분리했으며 다음 원격 head의 결과는 별도로 확인한다.
+
 관리자 OCR은 server-only 공통 처리기를 HTTP 경계와 신뢰된 Actions worker에서 재사용한다. 기존 모델·thinking 정책을 그대로 전달하고 최대 50건 직렬 배치, 데이터 소유권/저장 readback, snapshot CAS를 검증한다. 동시 초기화는 한 요청만 성공하며 후속 행 충돌은 부분 초기화를 명시하고 dispatch하지 않는다. 대기 중인 결과의 재시도는 같은 generation을 유지한다. 요청 접수와 실행 완료를 구분하도록 안내를 수정했다.
 
 GitHub 204는 접수 증거이며 응답의 `workflowDeliveryVerified`는 false다. 전역 concurrency는 실행 1개와 대기 1개를 유지하므로 새 요청이 기존 대기 run을 대체할 수 있다. 행은 pending으로 남아 명시적 재시도로 복구한다. durable outbox·자동 연속 배치·완료 후의 늦은 재시도와 새 작업 구분은 구현하지 않았으며 exactly-once 전달을 주장하지 않는다.
