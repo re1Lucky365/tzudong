@@ -5,12 +5,14 @@ import {
   type DurableReceiptOcrPayload,
   type DurableReceiptOcrStore,
   buildDurableReceiptOcrPayload,
+  buildOcrInputContextHash,
   createSupabaseDurableReceiptOcrStore,
   executeDurableReceiptOcr,
   hasDurableOcrReviewResult,
   pollDurableReceiptOcrResult,
   RECEIPT_OCR_DEFAULT_GENERATION,
 } from '@/lib/ocr/durable-result';
+import { getGeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini';
 import { buildReceiptOcrEnvelope, RECEIPT_OCR_NORMALIZATION_VERSION } from '@/lib/ocr/receipt-normalization';
 import { ReviewSaveOperation } from '@/lib/reviews/review-save-operation';
 import { buildReviewPhotoObjectPath } from '@/lib/review-photo-url';
@@ -201,6 +203,50 @@ describe('durable receipt OCR execution', () => {
     expect(reused.resultRevision).toBe(first.resultRevision);
     expect(providerCalls).toBe(1);
     expect(quotaReservations).toBe(1);
+  });
+
+  test('reuses identical inference settings, but misses when the effective thinking level changes', async () => {
+    const store = fakeStore();
+    const imageHash = 'c'.repeat(64);
+    const mediumConfig = getGeminiOcrInferenceConfigSnapshot({
+      GEMINI_OCR_THINKING_LEVEL: 'medium',
+    } as NodeJS.ProcessEnv);
+    const highConfig = getGeminiOcrInferenceConfigSnapshot({
+      GEMINI_OCR_THINKING_LEVEL: 'high',
+    } as NodeJS.ProcessEnv);
+    const contextHash = (config: typeof mediumConfig) => buildOcrInputContextHash(imageHash, null, config);
+    const mediumBinding = binding({ imageHash, inputContextHash: contextHash(mediumConfig) });
+    const highBinding = binding({ imageHash, inputContextHash: contextHash(highConfig) });
+    let providerCalls = 0;
+    const run = (durableBinding: DurableReceiptOcrBinding) => executeDurableReceiptOcr({
+      store,
+      binding: durableBinding,
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => { providerCalls++; return payload(); },
+    });
+
+    const first = await run(mediumBinding);
+    const samePolicy = await run(mediumBinding);
+    const changedPolicy = await run(highBinding);
+
+    expect(contextHash(mediumConfig)).toBe(contextHash(getGeminiOcrInferenceConfigSnapshot({
+      GEMINI_OCR_THINKING_LEVEL: 'MEDIUM',
+    } as NodeJS.ProcessEnv)));
+    expect(contextHash(highConfig)).not.toBe(contextHash(mediumConfig));
+    expect(first.cacheReused).toBe(false);
+    expect(samePolicy.cacheReused).toBe(true);
+    expect(changedPolicy.cacheReused).toBe(false);
+    expect(changedPolicy.resultRef).not.toBe(first.resultRef);
+    expect(providerCalls).toBe(2);
+
+    const statusRead = await pollDurableReceiptOcrResult({
+      store,
+      binding: mediumBinding,
+      attempts: 1,
+    });
+    expect(statusRead.status).toBe('succeeded');
+    expect(providerCalls).toBe(2);
   });
 
   test('binds the ordered model policy while preserving the actual fallback response model', async () => {
@@ -602,12 +648,12 @@ describe('durable receipt OCR execution', () => {
       is_duplicate: false,
     })).toBe(true);
     expect(hasDurableOcrReviewResult({ ocr_processed_at: null, receipt_data: null })).toBe(false);
-    const adminRoute = readFileSync(join(import.meta.dir, '../app/api/admin/ocr-receipts/process/route.ts'), 'utf8');
-    expect(adminRoute).toContain('if (hasDurableOcrReviewResult(review))');
-    expect(adminRoute).toContain('getReviewReceiptOcrGeneration(');
-    expect(adminRoute).toContain('publishReviewReceiptOcrResult(');
-    expect(adminRoute).toContain('forceRefresh: false');
-    expect(adminRoute).not.toContain('.from(\'reviews\')\n        .update(update)');
+    const adminProcessor = readFileSync(join(import.meta.dir, '../lib/ocr/admin-receipt-processor.ts'), 'utf8');
+    expect(adminProcessor).toContain('if (hasDurableOcrReviewResult(review))');
+    expect(adminProcessor).toContain('getReviewReceiptOcrGeneration(');
+    expect(adminProcessor).toContain('publishReviewReceiptOcrResult(');
+    expect(adminProcessor).toContain('forceRefresh: false');
+    expect(adminProcessor).not.toContain('.from(\'reviews\')\n        .update(update)');
   });
 
   test('serializes concurrent review saves and requires OCR reference readback', async () => {
@@ -692,6 +738,9 @@ describe('durable receipt OCR execution', () => {
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS is_duplicate boolean DEFAULT false');
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS ocr_processed_at timestamptz');
     expect(migration).toContain("RAISE EXCEPTION 'REVIEW_OCR_COLUMN_CONTRACT_DRIFT'");
+    expect(migration).toContain("attribute.attidentity = ''");
+    expect(migration).toContain("attribute.attgenerated = ''");
+    expect(migration).toContain('attribute.atttypmod = -1');
     expect(migration).toContain('CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_receipt_hash');
     expect(migration).toContain('CREATE INDEX IF NOT EXISTS reviews_ocr_pending_idx');
     expect(migration).toContain('CREATE INDEX IF NOT EXISTS reviews_duplicate_idx');
@@ -699,6 +748,11 @@ describe('durable receipt OCR execution', () => {
     expect(migration).toContain("access_method.amname = 'btree'");
     expect(migration).toContain('index_row.indisvalid');
     expect(migration).toContain('index_row.indisready');
+    expect(migration).toContain('index_row.indislive');
+    expect(migration).toContain('v_review_ocr_columns_ready boolean');
+    expect(migration).toContain('v_review_ocr_indexes_ready boolean');
+    expect(migration).toContain('AND coalesce(v_review_ocr_columns_ready, false)');
+    expect(migration).toContain('AND coalesce(v_review_ocr_indexes_ready, false)');
     expect(migration).toContain('ALTER TABLE ocr_private.receipt_results FORCE ROW LEVEL SECURITY');
     expect(migration).toContain('REVOKE ALL ON TABLE ocr_private.receipt_results FROM PUBLIC, anon, authenticated');
     expect(migration).toContain('GRANT EXECUTE ON FUNCTION public.claim_receipt_ocr_result');

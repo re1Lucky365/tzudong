@@ -1,4 +1,4 @@
-import { getGeminiOcrModels } from '@/lib/ocr/gemini';
+import { getGeminiOcrModels, normalizeGeminiOcrModel } from '@/lib/ocr/gemini';
 
 export const OCR_ROUTING_PROVIDERS = ['gemini'] as const;
 export const OCR_ROUTING_MODES = ['automatic', 'manual'] as const;
@@ -27,7 +27,8 @@ export type OcrAiRuntimeConfig = OcrAiRuntimeConfigCandidate & {
 };
 
 export function getOcrModelPolicy(candidate: Pick<OcrAiRuntimeConfigCandidate, 'model' | 'models'>): string[] {
-  const models = [...new Set((candidate.models.length ? candidate.models : [candidate.model]).map((model) => model.trim()))]
+  const models = [...new Set((candidate.models.length ? candidate.models : [candidate.model])
+    .map((model) => normalizeGeminiOcrModel(model.trim())))]
     .filter(Boolean);
   if (models.length < 1 || models.length > 8
     || models.some((model) => model.length > 160 || !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$/.test(model))) {

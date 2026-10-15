@@ -1,0 +1,67 @@
+name: Review receipt OCR
+run-name: Review receipt OCR · ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      reviewIds:
+        description: Optional exact review UUID array, bounded to 50
+        required: false
+        type: string
+      modelPolicy:
+        description: Exact ordered Gemini model policy from the administrator request (JSON array)
+        required: true
+        type: string
+      thinkingLevel:
+        description: Same inference setting as the administrator request
+        required: true
+        type: choice
+        options: [LOW, MEDIUM, HIGH]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: review-receipt-ocr
+  cancel-in-progress: false
+
+jobs:
+  process:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      OCR_REVIEW_IDS: ${{ inputs.reviewIds }}
+      OCR_BATCH_LIMIT: '50'
+      OCR_MODEL_POLICY: ${{ inputs.modelPolicy }}
+      OCR_THINKING_LEVEL: ${{ inputs.thinkingLevel }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      GEMINI_CREDITS_API_KEY: ${{ secrets.GEMINI_CREDITS_API_KEY }}
+    steps:
+      - name: Checkout exact triggering commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install exact web dependencies
+        run: npx --yes npm@11.6.2 ci --ignore-scripts --no-audit --no-fund
+
+      - name: Set up pinned Bun runtime
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.0'
+
+      - name: Process bounded receipt OCR batch
+        run: bun --no-env-file --conditions=react-server scripts/run-admin-receipt-ocr-workflow.ts

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import type { GeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini';
 import type { ReceiptOcrEnvelope } from '@/lib/ocr/receipt-normalization';
 import type { OcrRoutingProvider } from '@/lib/ocr/runtime-config';
 import type { SelectedRestaurantContext } from '@/lib/ocr/restaurant-matching';
@@ -6,6 +7,7 @@ import type { ReceiptOcrData } from '@/lib/ocr/types';
 
 export const DURABLE_RECEIPT_OCR_SCHEMA_VERSION = 'receipt-public-ocr-v1';
 export const RECEIPT_OCR_DEFAULT_GENERATION = '00000000-0000-0000-0000-000000000000';
+export const RECEIPT_OCR_INPUT_CONTEXT_VERSION = 'receipt-ocr-input-context-v2';
 
 type DurableReceiptOcrNormalized = Pick<
   ReceiptOcrData,
@@ -435,6 +437,7 @@ export function createSupabaseDurableReceiptOcrStore(client: RpcClient): Durable
 export function buildOcrInputContextHash(
   imageHash: string,
   selectedRestaurant: SelectedRestaurantContext | null,
+  inferenceConfig: GeminiOcrInferenceConfigSnapshot,
 ): string {
   const context = selectedRestaurant
     ? [
@@ -445,7 +448,18 @@ export function buildOcrInputContextHash(
         selectedRestaurant.category ?? '',
       ]
     : [''];
-  return crypto.createHash('sha256').update(JSON.stringify([imageHash, ...context])).digest('hex');
+  const inferencePolicy = [
+    inferenceConfig.version,
+    inferenceConfig.thinkingLevel,
+    inferenceConfig.responseMimeType,
+    inferenceConfig.samplingPolicy,
+  ];
+  return crypto.createHash('sha256').update(JSON.stringify([
+    RECEIPT_OCR_INPUT_CONTEXT_VERSION,
+    imageHash,
+    context,
+    inferencePolicy,
+  ])).digest('hex');
 }
 
 export function buildDurableReceiptOcrPayload(input: {

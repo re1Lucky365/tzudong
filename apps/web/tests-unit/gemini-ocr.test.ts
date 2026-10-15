@@ -6,6 +6,7 @@ import {
   callGeminiReceiptOcr,
   GEMINI_OCR_FALLBACK_MODEL,
   getGeminiOcrDefaultModel,
+  getGeminiOcrInferenceConfigSnapshot,
   getGeminiOcrThinkingLevel,
   GeminiOcrError,
   getGeminiOcrModels,
@@ -150,6 +151,39 @@ describe('gemini receipt ocr helper', () => {
     expect(getGeminiOcrThinkingLevel({ GEMINI_THINKING_LEVEL: 'high' } as NodeJS.ProcessEnv)).toBe('HIGH');
     expect(getGeminiOcrThinkingLevel({ GEMINI_THINKING_LEVEL: 'high', GEMINI_OCR_THINKING_LEVEL: 'medium' } as NodeJS.ProcessEnv)).toBe('MEDIUM');
     expect(getGeminiOcrThinkingLevel({ GEMINI_OCR_THINKING_LEVEL: 'invalid' } as NodeJS.ProcessEnv)).toBe('MEDIUM');
+  });
+
+  test('uses the caller snapshot for the provider request even if the environment disagrees', async () => {
+    const inferenceConfig = getGeminiOcrInferenceConfigSnapshot({
+      GEMINI_OCR_THINKING_LEVEL: 'high',
+    } as NodeJS.ProcessEnv);
+    let receivedConfig: unknown;
+    const result = await callGeminiReceiptOcr({
+      apiKey: 'gemini-test-key',
+      imageBase64: 'AA==',
+      mimeType: 'image/png',
+      prompt: 'synthetic receipt',
+      env: {
+        GEMINI_OCR_MODEL: 'gemini-3.8-flash',
+        GEMINI_OCR_THINKING_LEVEL: 'low',
+      } as NodeJS.ProcessEnv,
+      inferenceConfig,
+      generateContentImpl: async ({ thinkingLevel, inferenceConfig: received }) => {
+        receivedConfig = received;
+        expect(thinkingLevel).toBe('HIGH');
+        return '{"store_name":"스냅샷 식당","confidence":0.9}';
+      },
+    });
+
+    expect(receivedConfig).toBe(inferenceConfig);
+    expect(Object.isFrozen(inferenceConfig)).toBe(true);
+    expect(inferenceConfig).toEqual({
+      version: 'gemini-receipt-ocr-inference-v1',
+      thinkingLevel: 'HIGH',
+      responseMimeType: 'application/json',
+      samplingPolicy: 'omit-modern-zero-legacy-v1',
+    });
+    expect(result.model).toBe('gemini-3.8-flash');
   });
 
   test('builds Gemini multimodal parts without exposing secrets', () => {

@@ -32,7 +32,7 @@ const PROJECT_QUERY = ADMIN_STORYBOARD_PROJECT_QUERY;
 const POLL_MS = 2500;
 const buttonClass = "inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-9 sm:py-1.5";
 const inputClass = "mt-1 block min-h-11 w-full min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50";
-const panelClass = "min-w-0 rounded-xl bg-card p-3 text-card-foreground sm:p-4";
+const panelClass = "min-w-0 rounded-xl bg-card admin-detail-section !rounded-lg p-3 text-card-foreground sm:p-4";
 
 const statusSchema = z.enum(["waiting_worker", "generating", "awaiting_import", "partial", "ready", "failed", "cancelled"]);
 // These are frontend HTTP views, deliberately independent of the server-only store.
@@ -342,7 +342,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
     <AdminPageHeader title={getAdminModuleTitle("storyboard")} titleId="local-storyboard-title" icon={Clapperboard}
       actions={projectId ? <button type="button" className={`${buttonClass} !border-primary !bg-primary !text-primary-foreground`} onClick={() => selectProject(null)}>새 프로젝트</button> : undefined}
     />
-    <div className="admin-cms-toolbar shrink-0" data-admin-storyboard-toolbar="true">
+    <div className="admin-cms-toolbar admin-toolbar shrink-0" data-admin-storyboard-toolbar="true">
       <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
         <label className="sr-only" htmlFor="local-project-select">프로젝트 선택</label>
         <select id="local-project-select" className={`${inputClass} !mt-0 sm:max-w-48`} value={projectId ?? ""}
@@ -362,9 +362,8 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
       <span>{catalogError}</span>
       <button type="button" className={buttonClass} disabled={catalogBusy} onClick={() => setCatalogTick((value) => value + 1)}>목록 다시 불러오기</button>
     </div>}
-    {archive}
-    <div className={`grid min-w-0 items-start gap-4 ${!projectId || showLibrary ? "lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)]" : ""}`}>
-      <div className="min-w-0" hidden={!!projectId && !showLibrary}>
+    <div className={`grid min-w-0 items-start gap-4 ${!projectId || showLibrary ? "lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:!grid-cols-[minmax(0,1fr)_minmax(240px,300px)]" : ""}`}>
+      <div className="order-2 min-w-0" hidden={!!projectId && !showLibrary}>
         <StoryboardProjectLibrary projects={catalog.projects} selectedId={projectId} statusLabels={STATUSES}
           busy={catalogBusy} error={catalogError} onRefresh={() => setCatalogTick((value) => value + 1)} onSelect={selectProject}
           onStart={() => {
@@ -372,8 +371,8 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
             requestAnimationFrame(() => document.getElementById("local-storyboard-prompt")?.focus());
           }} />
       </div>
-    <div className={`grid min-w-0 items-start gap-4 ${projectId && showSetup ? "lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]" : ""}`}>
-      {(!projectId || showSetup) && <aside className={`min-w-0 space-y-4 ${!projectId ? "w-full" : ""}`} aria-label="프로젝트 설정과 기록">
+    <div className={`order-1 grid min-w-0 items-start gap-4 ${projectId && showSetup ? "lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:!grid-cols-[minmax(0,1fr)_minmax(280px,320px)]" : ""}`}>
+      {(!projectId || showSetup) && <aside className={`min-w-0 space-y-4 ${projectId ? "order-2" : "order-1 w-full"}`} aria-label="프로젝트 설정과 기록">
         {!projectId && <form className={panelClass} onSubmit={create} aria-labelledby="local-request-title">
           <h3 id="local-request-title" className="font-semibold">새 제작 요청</h3>
           <fieldset disabled={creating || featureHeld} className="mt-3 min-w-0 space-y-3">
@@ -396,7 +395,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
                 </select>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">모든 기획·텍스트·이미지는 서버에 연결한 Gemini API 지원 모델로만 생성합니다.</p>
+            <p className="text-xs text-muted-foreground">서버가 사용 가능하다고 보고한 Gemini API 모델만 선택할 수 있습니다.</p>
             <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <ProviderField kind="text" value={textProvider} models={textModels} onChange={setTextProvider} />
               <ProviderField kind="image" value={imageProvider} models={imageModels} onChange={setImageProvider} />
@@ -419,15 +418,16 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
             <p className="font-medium">{worker.online ? "제작 워커 연결됨" : "제작 워커 연결 끊김"}</p>
             <p className="text-xs text-muted-foreground">마지막 연결: {when(worker.lastHeartbeat)}</p>
             {worker.models.map((model) => <p key={model.id} className="mt-1 text-xs text-muted-foreground">
-              {model.id} · Gemini API 확인됨
+              {model.id} · 워커 보고 · Gemini API
             </p>)}
           </div>)}
         </section>}
       </aside>}
-      {projectId && <SavedProjectWorkspace key={projectId} projectId={projectId} featureHeld={featureHeld}
-        onProject={updateSummary} onDepartureChange={onDepartureChange} />}
+      {projectId && <div className="order-1 min-w-0"><SavedProjectWorkspace key={projectId} projectId={projectId} featureHeld={featureHeld}
+        onProject={updateSummary} onDepartureChange={onDepartureChange} /></div>}
     </div>
     </div>
+    {archive}
     </div>
   </section>;
 }
@@ -653,10 +653,10 @@ function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureC
       }}>저장 결과 확인 후 재요청</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
     </AlertDialog>
     {view && <>
-      <nav aria-label="스토리보드 작업" className="flex gap-1 border-b border-border/60">
+      <nav aria-label="스토리보드 작업" className="flex gap-1 bg-muted/30 p-1">
         {([["scenes", archived ? "장면 기록" : "장면 편집"], ["history", "버전 이력"]] as const).map(([id, label]) =>
           <button key={id} type="button" disabled={!!editing || busy} aria-current={workspaceView === id ? "page" : undefined}
-            className={`min-h-11 px-3 py-2 text-sm ${workspaceView === id ? "border-b-2 border-primary font-semibold text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            className={`min-h-11 rounded-md px-3 py-2 text-sm ${workspaceView === id ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-background hover:text-foreground"}`}
             onClick={() => setWorkspaceView(id)}>{label}</button>)}
       </nav>
       {workspaceView === "history" && <VersionHistory key={`${projectId}:${view.project.revision}`} projectId={projectId}
@@ -673,7 +673,7 @@ function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureC
               aria-label={`장면 ${scene.sceneNo} 선택`} aria-current={selectedScene === scene.sceneNo ? "step" : undefined}
               disabled={!!editing} onClick={() => setSelectedScene(scene.sceneNo)}>
               {scene.image && <SceneThumbnail asset={scene.image} projectId={projectId} />}
-              <span className="mt-2 block truncate text-sm font-medium">{String(scene.sceneNo).padStart(2, "0")} · {scene.title}</span>
+              <span className="mt-2 block truncate text-sm font-medium">{scene.sceneNo} · {scene.title}</span>
               <span className="mt-1 block text-xs text-muted-foreground">{scene.durationSec}초 · {scene.imageError ? "이미지 오류" : scene.image ? "이미지 저장됨" : "이미지 대기"}</span>
             </button>)}
           </nav>

@@ -1,7 +1,13 @@
 import crypto from 'crypto';
 import sharp from 'sharp';
 import { assertPrivacySafe } from '@/lib/privacy/sanitize';
-import { callGeminiReceiptOcr, GEMINI_OCR_FALLBACK_MODEL, GeminiOcrError } from '@/lib/ocr/gemini';
+import {
+  callGeminiReceiptOcr,
+  GEMINI_OCR_FALLBACK_MODEL,
+  GeminiOcrError,
+  getGeminiOcrInferenceConfigSnapshot,
+  type GeminiOcrInferenceConfigSnapshot,
+} from '@/lib/ocr/gemini';
 import {
   RECEIPT_OCR_EXTRACTION_PROMPT,
   RECEIPT_OCR_PREPROCESS_VERSION,
@@ -110,10 +116,11 @@ async function optimizeImage(buffer: Buffer): Promise<{ optimized: Buffer; savin
 async function runStreamingOcrCandidate(input: {
   candidate: OcrAiRuntimeConfigCandidate;
   imageBase64: string;
+  inferenceConfig: GeminiOcrInferenceConfigSnapshot;
   signal: AbortSignal;
   send: (event: string, payload: Record<string, unknown>) => void;
 }) {
-  const { candidate, imageBase64, signal, send } = input;
+  const { candidate, imageBase64, inferenceConfig, signal, send } = input;
   if (!candidate.apiKey) throw new Error(`${candidate.provider} OCR API 키가 설정되지 않았습니다.`);
   const modelPolicy = getOcrModelPolicy(candidate);
 
@@ -123,6 +130,7 @@ async function runStreamingOcrCandidate(input: {
     mimeType: 'image/jpeg',
     prompt: RECEIPT_OCR_EXTRACTION_PROMPT,
     env: { ...process.env, GEMINI_OCR_MODEL: modelPolicy.join(',') },
+    inferenceConfig,
     signal,
   });
   send('model_attempt', { attempt: geminiResult.attempts.at(-1) });
@@ -177,6 +185,7 @@ export async function POST(req: Request) {
   const effectiveCandidates = runnableCandidates.length ? runnableCandidates : providerCandidates;
   const candidate = effectiveCandidates[0];
   const modelPolicy = candidate ? getOcrModelPolicy(candidate) : [GEMINI_OCR_FALLBACK_MODEL];
+  const inferenceConfig = getGeminiOcrInferenceConfigSnapshot();
   const model = modelPolicy[0];
   if (!file) {
     return new Response(JSON.stringify({ error: '이미지가 제공되지 않았습니다' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -225,7 +234,7 @@ export async function POST(req: Request) {
         binding: {
           userId: user.id,
           imageHash,
-          inputContextHash: buildOcrInputContextHash(imageHash, selectedRestaurantContext),
+          inputContextHash: buildOcrInputContextHash(imageHash, selectedRestaurantContext, inferenceConfig),
           provider: candidate.provider,
           modelPolicy,
           generation: RECEIPT_OCR_DEFAULT_GENERATION,
@@ -257,6 +266,7 @@ export async function POST(req: Request) {
           const result = await runStreamingOcrCandidate({
             candidate: { ...candidate, apiKey: credentials[0]!.apiKey },
             imageBase64: optimized.toString('base64'),
+            inferenceConfig,
             signal: req.signal,
             send,
           });

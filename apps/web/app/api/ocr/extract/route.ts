@@ -4,7 +4,12 @@ import crypto from 'crypto';
 import sharp from 'sharp';
 import { debugLog } from '@/lib/debug-log';
 import { assertPrivacySafe } from '@/lib/privacy/sanitize';
-import { callGeminiReceiptOcr, GEMINI_OCR_FALLBACK_MODEL, GeminiOcrError } from '@/lib/ocr/gemini';
+import {
+    callGeminiReceiptOcr,
+    GEMINI_OCR_FALLBACK_MODEL,
+    GeminiOcrError,
+    getGeminiOcrInferenceConfigSnapshot,
+} from '@/lib/ocr/gemini';
 import {
     RECEIPT_OCR_EXTRACTION_PROMPT,
     RECEIPT_OCR_PREPROCESS_VERSION,
@@ -151,6 +156,7 @@ export async function POST(req: Request) {
         const effectiveCandidates = runnableCandidates.length ? runnableCandidates : providerCandidates;
         const candidate = effectiveCandidates[0];
         const modelPolicy = candidate ? getOcrModelPolicy(candidate) : [GEMINI_OCR_FALLBACK_MODEL];
+        const inferenceConfig = getGeminiOcrInferenceConfigSnapshot();
         const model = modelPolicy[0];
         failureModel = `${model}:fail`;
         failureProvider = candidate?.provider ?? 'unknown';
@@ -194,7 +200,7 @@ export async function POST(req: Request) {
             binding: {
                 userId: user.id,
                 imageHash,
-                inputContextHash: buildOcrInputContextHash(imageHash, selectedRestaurantContext),
+                inputContextHash: buildOcrInputContextHash(imageHash, selectedRestaurantContext, inferenceConfig),
                 provider: candidate.provider,
                 modelPolicy,
                 generation: RECEIPT_OCR_DEFAULT_GENERATION,
@@ -228,6 +234,7 @@ export async function POST(req: Request) {
                     mimeType: 'image/jpeg',
                     prompt: OCR_PROMPT,
                     env: { ...process.env, GEMINI_OCR_MODEL: modelPolicy.join(',') },
+                    inferenceConfig,
                     signal: req.signal,
                 });
                 const restaurantMatches = await findOcrRestaurantMatches({

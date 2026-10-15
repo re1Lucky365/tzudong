@@ -11,26 +11,20 @@
 
 ## 2026-10-15 현재 실행 델타
 
-목표 상태를 다시 조회해 `active`를 확인했다. 아래의 10월 14일 `paused` 관측은 당시 기록이며 현재 상태가 아니다. 전체 333개 체크박스와 완료 조건은 유지한다.
+전체 목표는 `active`다. 원문 범위와333개 완료 체크·T/A ID를 유지한다. 과거 관측과 실패는 Git `62c678af` 및 아래 날짜별 기록에 보존하며 최신 소스의 성공으로 재해석하지 않는다.
 
-10월 15일 후속: OCR generation·model policy·status readback SQL을 로컬 `392398a9`에 기록했고 실제 권한 경로의 PG17.6 검증은 통과했다. 사용자 RPC 수정·관리자 service reset·stale publish 거부·두 lock 순서에서 deadlock 0→0, 원본 catalog SHA 불변을 확인했다. OCR UI 복구·경합 검사는 51 pass이며 마지막 build는 53 static pages와 CSS boundary를 통과했다. 전체 canonical 후속 첫 실행은 3,538 pass·18 fail·3 skip으로, readiness fixture 갱신 후 재검증 중이다. PG15 전체 dual replay·보호 승격·운영 적용·live readback은 아직 완료가 아니다. 아래 과거 수치는 각 시점의 관측으로 보존하며 최신 소스의 최종 통과로 재해석하지 않는다.
+| 대상 | 확인한 증거 | 남은 작업 |
+| --- | --- | --- |
+| OCR 저장·복구 | `59be0ec6` canonical3,775 pass·0 fail·11 skip·92,234 assertions, 입력1,270개 drift0. 기존 성공 build의 선택 앱 입력757개 일치 | 후속 감사의 추론 설정 cache key·관리자 worker·runtime catalog drift를 수정한 새 소스 검증과 운영 저장 확인 |
+| OCR/Storage SQL | 동일 소스 exact PG17.6 findings0·source23개 일치. PG15.8 독립 재구축2회 passed·58파일·1,960 catalog 행 exact-byte 일치 | 변경 SQL commit 뒤 새 증빙, held/ready 출시·fresh writer fence·운영86→97→101 적용·readback |
+| 기능 후보 | `8a12d888`에 develop `2a2ff258` 보안 변경 정상 병합. OCR 후속 source는 dirty·미push | 새 관리자 비밀번호/쿠키 Secret 없는 공통 worker/CLI, PR #3215 최신 head 검사·리뷰 |
+| CI PR #3168 | 원격 `11302e8e`, Python122·provenance/인접18·source replay2 통과. map87/76개 mismatch0, 리뷰3건 해결. 원격 CI38721799467 진행 중 | 최신 원격 검사 완료 후 정상 보호 병합. 저장소 auto-merge를 새로 켜지 않음 |
+| CI 감시 | active v8 보존. v9는 immutable success4건 누락으로 거부. v10은 원시136건→고유82키 결속됐으나 첫 tick이 수집 뒤 중단돼 analysis/완료 receipt 없음 | 원본 상태를 보존한 로컬 진단·정식 완료 검증 후 전환. 불완전 history coverage로 reference 전환 금지 |
+| 롱폼·OSK | frozen1,071편 중 의미 분석·저장3편, 독립 검증0편. 관리자71노드·217엣지·근거87건은 모두 미검증 | pinned claude-video·모델·한도 유지, 나머지 처리와 독립 시각·음성/주장 검증·운영 그래프 확인 |
+| 리딤·결제 | 마지막 AI Studio 관측은 paid Tier1·표시 크레딧₩6.71만. 정확 잔액/청구 미확인. 승인된 Vercel Secret 등록·GitGuardian #38234125 한 건 예외는 수행 완료 | OCR/스토리보드 사용 프로젝트·청구 readback. 카드0488 삭제는 유효 대체수단 요구가 남으며 추가 충전·카드 등록·계정 폐쇄는 수행하지 않음 |
+| 운영·협업 | 후속 SQL 운영 쓰기0회. 보안 승격 PR #3218은 기존 Draft를 사용. 다른 작업의40회 메모리 비교 PID32451/ports3000·3003 보존 | 측정 중 로컬 browser/build/profiler 금지. 기존 writer pause 유지, 정식 적용 결과 후 재개 안내 |
 
-추가 관측: 위 브라우저 실패는 readiness 응답 및 lifecycle ref가 빠진 fixture 때문이었고, 수정 후 스토리보드 15개·리뷰/IndexedDB 3개가 통과했다. UI source 계약도 44개가 통과했다. 새 canonical 전체 판정은 아직 없다. 첫 clean PG15 재구축에서는 저장소에 생성 소스가 없던 OCR 컬럼 4개를 발견했으며, 기존 운영 정의를 미적용 migration에 보강 중이다. 이전 PG17 proof는 이전 source에만 유효하다. CI PR #3168은 `cd7039478c5707b73a2ce79dafae313d0d2f0fce`로 갱신했고 root 독립 Python112개 및 map86/76개 bytes/hash 일치, 검토3건 resolve를 확인했다. 새 v9 감시 환경은 기존 v8를 보존한 별도 경로에서 준비·첫 tick 검증 중이며 자동화 전환은 아직 하지 않았다.
-
-- UI PR #3195는 `develop`의 `97a94381303f5426892d686c94ef1bd23735c7a2`에 정상 병합됐다. 현재 운영 alias는 아직 `dpl_EUxJnWmDDozCSMWb2sqNSPgKJLM5` / main `1884f87e53c4567ead7c9a0fb394b09b91a70396`다. 병합과 배포를 구분한다.
-- Feature 후보의 당시 canonical unit은 Node24.21.0·Bun1.4.0에서 3,749 pass·0 fail·11 skip으로 종료했고 선택한 코드 입력 1,516개의 전후 SHA drift는 0건이다. 이후 readiness·OCR 계약이 변경 중이므로 이 결과는 새 소스의 최종 검증이 아니며, 전체 runtime closure나 hosted 동작 증거도 아니다. 앞선 3,529 pass·1 fail·3 skip과 3,528 pass·3 fail·3 skip도 보존했다. 인증 helper의 새 source-binding 인자를 검사하도록 기존 계약을 갱신했고, CLI 실패 fixture는 임시 앱에서 패키지를 자동 해석하지 않도록 설치된 의존성과 Node24를 사용한다. 필수 검사와 timeout은 줄이지 않았다.
-- 앞선 native7.0.2/compat6.0.2 parity는 3,161 inputs·diagnostics0이며 변경 테스트 3파일의 ESLint도 통과했다. `/s/[code]`는 실제 GET handler에 재결속했다. 논리 표면 27개와 page 파일 26개를 구분하며 과거 브라우저 캡처를 현재 화면 증거로 바꾸지 않는다.
-- 롱폼은 frozen 대상 1,071편 중 의미 분석·저장 성공 3편이다. 첫 성공 파일럿 1편 이후 bounded 3편 실행에서 2편이 성공하고 1편은 `ANALYSIS_PARTIAL`로 보존됐다. 이 추가 실행은 count4회·create4회·GET0회·재시도0회, 입력240,043·출력4,975·thinking1,829 tokens이며 공식 요율 산술은 $0.20554725다. 실제 청구·세금·크레딧 차감액은 미확인이다. 추가 성공 2편은 공유 OSK에 노드28개·엣지84개를 게시하고 멱등 readback을 확인했다. 관리자 전달 자산은 71노드·217엣지·근거87건이며 기존 샤드6개를 보존했다. 모든 모델 관찰은 `unverified`이고 독립 검증 완료는 0/1,071이다. 첫 실패 파일럿과 부분 결과를 재전송하지 않았다. 이는 전체 채널 분석 완료나 운영 배포 증거가 아니다.
-- CI PR #3168의 현재 원격 소스는 `cbecdfcfe1635c346392e79ff6dac227944628d1`다. 후속 검토 3건을 수정하고 Python106개·source replay2개와 provenance validator11개 검사를 통과했다. root도 source replay2개와 source/evidence map86개·monitor map76개의 bytes/hash 불일치0을 확인했다. 두 offline export의 원본과 과거 map은 보존했으며, 미검증 cohort의 실패율을 확정 분류하지 않는다. 7쌍의 A/A p95 노이즈는 24.50%로 고정 5% 문턱을 넘어 `admitted=false`, `officialApproval=false`다. 이전 검사 건수는 당시 이력이며 합산하지 않는다. 운영 감시는 별도 clean checkout의 `cbecdfcf`와 v8 상태로 전환해 기존 자동화 ID·6시간 주기·대상 채팅·알림 정책 및 저장된 전체 설정을 확인했다. v8 첫 live tick은 API26회·coverage 경보0이며 reference는 성공4/source tree4·시각 모순 pending2로 `collecting_reference`다. 기준선·v4/v5/v6·미채택 pre-review v7은 보존했고 phase 이동과 reference 활성화는 0회다. 첫 수집·분석과 미래 예약 실행, 성능 개선을 구분한다.
-- 현재 Supabase catalog는 PG17.6·migration86개이며 `review_media_private.cleanup`은 없다. 기존 Actions DB Secret의 읽기 전용 연결도 run38693415701에서 확인됐다. 로컬 IPv6 직접 연결 실패를 전체 DB 접근 부재로 해석하지 않는다. 실제 후속 SQL 쓰기는 아직 0회다.
-
-배포와 운영 SQL은 이 후보에서 직렬화한다. 별도 렌더링 작업의 PR #3213/#3214·워크트리·ports3000/3003은 보존하며 승격하지 않는다. 다음 단계는 feature source 보호 승격, 기존 DB에서 안전한 readiness 동작을 확인한 `held` 앱 배포, 신규 policy/hold API 및 vendor readback, 별도 `ready` release와 source-bound PG17.6 proof, fresh capture와 86→97→101 적용·readback이다. 사용자가 승인한 Tzudong 프로젝트 한정·1일 만료 토큰은 10월 15일 생성되어 저장소 `VERCEL_TOKEN` 등록을 UI와 메타데이터로 확인했다. 만료는 2026-10-16 07:50:50 UTC이며 실제 workflow의 vendor GET 접근은 아직 미검증이다. 토큰 값의 출력·파일 저장·기존 로그인 토큰 복사는 0건이다. 카드0488 삭제는 제공자의 유효 대체 수단 요구로 미완료다.
-
-PR #3215의 GitGuardian 탐지 #38234125 한 건은 사용자 승인에 따라 `Ignored · Test credential` 상태를 확인했다. 해당 테스트 입력의 자격증명 형태는 `ade10447`에서 제거했고 관련 34개 검사가 통과했다. 즉시 조회한 과거 head의 check는 여전히 failure였으므로 새 head 검사 성공으로 재해석하지 않는다. 다른 탐지 변경과 workflow 재실행은 0건이다. OCR의 CSV 대체 모델, SSE 중단 후 기존 결과 조회, 관리자 재처리 revision 및 86/97-only의 정확한 readiness 경계를 이어서 구현·검증한다.
-
-리딤 계정의 기존 Google AI Studio 결제 탭에서 `tzudong-free-zero` 프로젝트 1개와 유료 1 등급, 사용 가능한 GCP 크레딧 `₩6.71만` 표시를 읽기 전용으로 확인했다. 반올림 전 잔액·선불 잔액·자동충전 설정·실제 청구 및 특정 생성 결과의 크레딧 차감은 이번 조회로 확인하지 않았다. 결제·추가 충전·provider 호출은 0회다. `gemini-credit-ui-readback-20261015.json`과 sidecar에 이 관측만 보존한다.
-
-증빙은 `apps/web/performance/goal-followthrough-20261015/`와 `apps/web/performance/feature-completion-20261013/`에 구분해 보관한다. 이번 항목은 결정적 건수·설정·계약 관측이므로 성능 변화율이나 95% 신뢰구간을 만들지 않는다. 공급자 요율 산술과 실제 청구도 구분한다.
+A/A7쌍의 p95 noise24.50%는5% 문턱을 넘었고 `admitted=false`, `officialApproval=false`다. 위 검사 건수·결정적 fixture 결과를 실제 속도·정확도·금액 개선으로 환산하지 않는다. 운영 반영과 전체 채널 분석은 미완료다.
 
 ## 2026-10-14 최신 실행 Todo
 
@@ -106,12 +100,11 @@ PR #3195의 현재 head는 `bb6f9228209c9a4a8251ca2e182428f7021d6a3e`다. 원격
 | 2 | 쯔양 전체 롱폼 claude-video + OSK | 최신 1,071편/337.81시간, 재사용 모델 보고서2편, 독립 전체 시각·음성 완료 증거0편. publication engine pin 호환성 확인 중 |
 | 2 | Sentry + 관리자 오류 메뉴 | SDK·사이드바·권한·산이타이저 구현. 실제 조직/프로젝트/지역 응답 대기; DSN·이벤트 ingestion/readback 남음 |
 | 2 | 리딤 크레딧·사용 한도·카드 0488 삭제 | paid Tier1/prepay10,000원/auto-reload OFF 재확인, 추가 결제 없음. 0488 삭제는 유효 대체 수단 요구로 미완료 |
-| 3 | 배포·rollback·live readback | PR #3195 parent a077a1f2의 검토 6건 해결 뒤 발견한 역사 입력 재탐색 오류를 수정; 보호 승격 준비 | 부분 — native/compat/Admin tsc 진단0, parity3,152, 관련21/21·514 assertions. a077 원격 CI 실패는 보존하며 새 head CI는 별도 확인 | 최신 UI 후보 미적용 | 최신 업무 미확인 | 현재 develop를 merge해 보호 순서와 최신 CI·검토를 통과한 뒤 병합한다. 배포 SHA·alias·인증 업무 readback을 별도로 확인한다. |
-| 3 | 배포·rollback·live readback | PR #3195 parent a077a1f2의 검토 6건 해결 뒤 발견한 역사 입력 재탐색 오류를 수정; 보호 승격 준비 | 부분 — native/compat/Admin tsc 진단0, parity3,152, 관련21/21·514 assertions. a077 원격 CI 실패는 보존하며 새 head CI는 별도 확인 | 최신 UI 후보 미적용 | 최신 업무 미확인 | 현재 develop를 merge해 보호 순서와 최신 CI·검토를 통과한 뒤 병합한다. 배포 SHA·alias·인증 업무 readback을 별도로 확인한다. |
-| 3 | 배포·rollback·live readback | PR #3195 parent a077a1f2의 검토 6건 해결 뒤 발견한 역사 입력 재탐색 오류를 수정; 보호 승격 준비 | 부분 — native/compat/Admin tsc 진단0, parity3,152, 관련21/21·514 assertions. a077 원격 CI 실패는 보존하며 새 head CI는 별도 확인 | 최신 UI 후보 미적용 | 최신 업무 미확인 | 현재 develop를 merge해 보호 순서와 최신 CI·검토를 통과한 뒤 병합한다. 배포 SHA·alias·인증 업무 readback을 별도로 확인한다. |
+| 3 | 배포·rollback·live readback | UI develop 반영과 후속 기능 소스를 구분한다. 기존 Draft 승격 PR #3218로 조율하며 held/ready·fresh capture·운영 SQL·alias/인증 업무 readback은 미완료 |
 | 상시 | 다중 관점 검토·모델 쿼타 절약 | 일반 작업은 GPT-6.1 Sol. Astra는 복잡한 문제에서 필요한 사유·범위를 밝힌 경우만 사용 |
 
 원문 274개 조항은 아래 추적 장부에 보존했다. 작업 원칙·공식·보고 형식 조항까지 포함한 수이며, 274개의 독립 제품 기능이나 완료율 분모를 뜻하지 않는다.
+
 
 ## 사용자 제공 디자인 레퍼런스
 
@@ -886,3 +879,19 @@ UI 커밋 뒤 `origin/develop`을 충돌 없이 병합한 HEAD `2d7e284df964e3f0
 - [x] v9 전환 후보의 과거 immutable success 4건 누락 발견. 자동화 전환을 거부하고 별도 audit 영수증 보존. active v8와 기존 baseline/state는 유지했다.
 - [ ] v10은 원시 입력 합집합 82키의 근거를 준비했지만 최종 CI source 수정·재분석·live tick·전체 설정 readback 전에는 활성화하지 않는다. 과거 checkpoint를 복사하거나 phase를 옮기지 않는다.
 - [ ] 현재 feature 증빙·독립 코드 감사 마감 후 PR #3215에 push, 최신 head의 리뷰와 필수 검사를 통과시킨다. 보호된 승격, held/ready 2단계 배포, 새 writer fence, 운영 SQL·OCR/스토리보드/자동 승인·Storage/live readback은 별도 미완료다. 전체 목표는 active이며 성능·금액 절감·세계 순위는 주장하지 않는다.
+
+### 2026-10-15 taste-skill 관리자 콘솔 후속
+
+- [x] 사용자 지정 `Leonxlnx/taste-skill`을 공식 commit `f624f37a8c650b9cc550253104925efe4c8de246`으로 설치했다. `dense-tiles / The well-kept board`, seed `331628995`를 한 번 선택했다. 이후 디자인 판단에는 `frontend-design`이나 `redesign-skill`을 사용하지 않는다. 운영 CMS 범위는 사용자가 지정했으므로 마케팅용 이미지·히어로·애니메이션 개수를 검사 통과용으로 추가하지 않는다.
+- [x] 사이드바와 15개 메뉴의 공통 타이포그래피·상태색·도구 모음·목록/상세/작업 구조를 정리했다. 모바일 전용 헤더의 unlayered `display:flex`가 `md:hidden`을 덮는 회귀와 중첩 main을 수정했다. 잘못된 캡처와 로딩 화면은 삭제하거나 성공으로 덮지 않았다.
+- [x] 합성 loopback의 1440/834/390px 45개 화면에서 기대 제목·주요 영역 각 1개, 문서 가로 넘침 0, JavaScript 예외 0을 확인했다. 다크 모드는 실제 `dark` class를 확인한 12개 화면에서 별도 검사했다. 일부 화면은 의도적으로 오류/보류 상태이며 이 결과를 모든 실제 업무의 성공으로 확대하지 않는다.
+- [x] 제목은 16px → 18px(+2px, +12.5%)다. 트리맵 밝은 녹색 `#30cc5a`의 글자 대비는 상대 휘도 계산으로 2.12:1 → 7.72:1이며, 같은 다크 12개 화면의 검사기 저대비 표본은 12 → 0이다. 결정적 계산·화면 전수 검사이므로 95% 통계 신뢰구간은 적용하지 않는다. 작업 시간·성능·비용 개선 주장은 없다.
+- [x] 관련 UI 6파일 79 tests·4,122 assertions, targeted ESLint를 통과했다. 중간 전체 결합 실행의 3,586 pass·5 fail·3 skip은 별도로 보존했다. 하나는 단독 실행 17/17 통과한 로컬 런처 시간초과였고, 나머지 실패와 추출된 OCR 경계·테스트 harness를 후속 검증한다. 서로 겹치는 테스트 수를 더하지 않는다.
+- [x] Next16.3.8 production build와 route CSS boundary를 통과했다. 해당 실행 입력 1,592개 전후 drift 0, 자동 생성 설정 복구 오류 0이다. 이후 OCR 동시 초기화와 배치 문구 후속은 이 build와 구분한다.
+- [x] 현재 계약을 검증하는 합성 GET adapter로 지식 그래프·파이프라인·스토리보드 성공 상태 9개 화면을 추가 확인했다. 실제 사이드바 15개 목적지·접힌 rail/focus·모바일 메뉴·단계 선택·그래프/사용자 필터와 상세를 확인했다. 첫 상호작용 22/25 뒤 미검증 3개는 synthetic AuthContext 전제를 고쳐 별도 집중 4/4(인증 전제 1개 포함)로 확인했다. 기존 실패는 보존했고 실제 POST 전송·외부 요청은 0이다. 합성 read RPC를 브라우저에서만 응답했으며 운영 인증·생성·승인 검증이 아니다.
+- [x] OCR의 최대 50건 reset/worker 범위와 legacy 모델 정책을 맞추고 snapshot CAS·부분 충돌·pending 재시도를 검증했다. GitHub 204는 접수만 뜻하도록 안내했다. 전역 concurrency의 대기 run 대체 가능성, durable outbox/자동 연속 배치 부재와 완료 후 늦은 재시도 구분 한계는 유지·공개했다. exactly-once 전달이나 실제 유료 호출 성공을 주장하지 않는다.
+- [x] 최종 canonical unit 3,815 pass·0 fail·11 skip(466파일/22프로세스), ESLint 52+1파일, parity 진단 0, Next16.3.8 build·CSS 경계를 통과했다. 앱 manifest 1,593파일 drift 0. 이후 변경은 제외된 unit 테스트와 performance 검사 코드뿐이다.
+- [x] production 번들의 밝은 화면 32개와 CSP로 차단된 mock transport를 브라우저 응답에서만 보완한 모바일 13개를 합쳐 45개를 확인했다. dark 12개·합성 성공 9개도 별도 확인했다. timeout과 console/network 실패를 보존하며 운영 인증·CSP·실사용 성공으로 확대하지 않는다.
+- [ ] PR 최신 head의 원격 검사/리뷰와 보호 승격·held/ready 배포·fresh 운영 적용 증빙 및 실제 업무 readback을 이어간다. 운영 DB/provider/Storage 쓰기는 이번 로컬 디자인 작업에서 0이며 전체 목표는 active다. 상세: `docs/operations/admin-taste-20261015.md`.
+
+증빙은 `apps/web/performance/admin-taste-20261015/`에 보존한다. 기존 before는 일부 로딩 화면을 포함하므로 제목/기하 측정만 허용하며, 데이터가 로드된 전체 화면·행 밀도·사용성 향상의 비교 근거로 사용하지 않는다.

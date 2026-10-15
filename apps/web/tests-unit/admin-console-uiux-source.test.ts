@@ -300,13 +300,22 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).toContain("window.history.replaceState(window.history.state, \"\", nextHref)");
   });
   test("keeps the G012 shared shell focus path, scroll owner, and containment explicit", () => {
+    const adminLayoutSource = source("app/admin/layout.tsx");
+    const runtimeShellSource = source("app/app-runtime-shell.tsx");
     const mainLayoutSource = source("components/layout/MainLayout.tsx");
     const overlayLayoutSource = source("components/layout/OverlayLayout.tsx");
     const consoleSource = source("components/admin/AdminConsoleOverview.tsx");
+    const consoleComponentSource = consoleSource.slice(
+      consoleSource.indexOf("export function AdminConsoleOverview"),
+    );
     const embeddedShellSource = source(
       "components/admin/AdminEmbeddedModuleShell.tsx",
     );
 
+    expect(adminLayoutSource).toContain(
+      "return <AppRuntimeLayout>{children}</AppRuntimeLayout>;",
+    );
+    expect(runtimeShellSource).toContain("<MainLayout>{children}</MainLayout>");
     expect(mainLayoutSource).toContain(
       '<main id="main-content" tabIndex={-1} className="h-full min-h-0 min-w-0 w-full">',
     );
@@ -320,6 +329,8 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       'className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden"',
     );
     expect(overlayLayoutSource).toContain('tabIndex={-1}');
+    expect(consoleComponentSource).toContain('data-admin-console-shell="true"');
+    expect(consoleComponentSource).not.toContain("<main");
 
     expect(consoleSource).toContain('href="#admin-console-canvas"');
     expect(consoleSource).toContain('aria-label="관리자 통합 메뉴"');
@@ -673,8 +684,9 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(overviewSource).toContain('aria-label="관리자 네이버 지도 로딩"');
     expect(overviewSource).toContain('data-admin-map-loading-skeleton="true"');
     expect(overviewSource).toContain(
-      "pointer-events-none absolute inset-0 bg-card/35 backdrop-blur-[1px]",
+      "pointer-events-none absolute inset-0 bg-card/65",
     );
+    expect(overviewSource).not.toContain("backdrop-blur");
     expect(overviewSource).not.toContain("지도 준비 중");
     expect(overviewSource).not.toContain(
       "w-full max-w-xs space-y-3 rounded-2xl border border-border bg-card/95 p-4 shadow-sm",
@@ -709,14 +721,15 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       'className="flex min-h-0 min-w-0 flex-col gap-2 lg:h-full lg:overflow-hidden"',
     );
     expect(overviewSource).toContain(
-      'className="shrink-0 rounded-lg bg-card/80 p-2 shadow-sm md:rounded-xl"',
+      'className="admin-surface shrink-0 rounded-md bg-card p-2 shadow-none"',
     );
     expect(overviewSource).toContain(
-      'className="scrollbar-hide min-w-0 rounded-lg bg-card/80 p-2 shadow-sm md:rounded-xl lg:min-h-0 lg:flex-1 lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-contain lg:scroll-pb-3"',
+      'className="admin-surface scrollbar-hide min-w-0 rounded-md bg-card p-2 shadow-none lg:min-h-0 lg:flex-1 lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-contain lg:scroll-pb-3"',
     );
     expect(overviewSource).toContain(
-      'className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-card/80 shadow-sm md:rounded-2xl"',
+      'className="admin-surface relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md bg-card shadow-none"',
     );
+    expect(overviewSource).toContain('data-admin-map-status-overlay="non-blocking"');
     expect(overviewSource).toContain(
       'className="relative h-full min-h-[360px] overflow-hidden rounded-[24px] bg-muted/25"',
     );
@@ -910,7 +923,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       "flex h-full min-h-0 flex-col overflow-hidden bg-background",
     );
     expect(consoleSource).toContain(
-      "rounded-2xl border border-border/70 bg-card/80 shadow-sm",
+      "rounded-md border border-border/70 bg-card shadow-none",
     );
     expect(consoleSource).toContain(
       "border-0 bg-card/80 shadow-none",
@@ -1104,7 +1117,10 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     );
     expect(consoleSource).toContain('activeModuleId === "overview" ? (');
     expect(source("components/admin/AdminOverviewDashboard.tsx")).toContain(
-      "backdrop-blur-[1px]",
+      "pointer-events-none absolute inset-0 bg-card/65",
+    );
+    expect(source("components/admin/AdminOverviewDashboard.tsx")).not.toContain(
+      "backdrop-blur",
     );
     expect(consoleSource).not.toContain("지도 준비 중");
     expect(consoleSource).not.toContain("group-hover:scale-[1.02]");
@@ -1395,7 +1411,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     );
     expect(consoleSource).not.toContain("viewBox={`0 0 ${width} ${height}`}");
     expect(consoleSource).toContain(
-      "min-h-0 min-w-0 w-full overflow-hidden border border-border/70 bg-background shadow-[0_1px_2px_rgba(15,23,42,0.06)]",
+      "min-h-0 min-w-0 w-full overflow-hidden border border-border/70 bg-background shadow-none",
     );
     expect(consoleSource).not.toContain("bg-[#e9ecee]");
     expect(consoleSource).not.toContain(
@@ -1566,7 +1582,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       'const adminDashboardControlButtonClassName =\n  "inline-flex h-6 shrink-0 items-center justify-center gap-1 rounded-full px-2 text-2xs font-extrabold leading-none transition',
     );
     expect(consoleSource).toContain(
-      '"h-7 w-7 border border-border bg-background p-0 text-muted-foreground shadow-sm hover:text-foreground"',
+      '"h-7 w-7 border border-border bg-background p-0 text-muted-foreground shadow-none hover:text-foreground"',
     );
     expect(consoleSource).toContain(
       'data-admin-dashboard-series-toggle="true"',
@@ -2521,7 +2537,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).toContain(
       "설명: 선택 기간에 새로 올라온 영상 수를 보여주는 카드입니다.",
     );
-    expect(consoleSource).toContain('className="h-px bg-border/70"');
+    expect(consoleSource).toContain('className="h-1 bg-muted/35"');
     expect(consoleSource).toContain("mb-2 grid min-w-0 shrink-0 gap-2");
     expect(consoleSource).toContain(
       'data-admin-dashboard-metric-tooltip="beginner-plain"',
@@ -3984,8 +4000,9 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       "flex min-h-0 flex-1 flex-col overflow-hidden p-3 pt-0",
     );
     expect(componentSource).toContain(
-      "flex min-h-0 flex-col overflow-hidden border-0 bg-card/80 shadow-none",
+      "order-1 flex min-h-0 flex-col overflow-hidden border-0 bg-card/80 shadow-none !bg-card",
     );
+    expect(componentSource).not.toContain("bg-gradient-");
     expect(componentSource).not.toContain(
       "space-y-1.5 rounded-xl bg-muted/25 p-2.5",
     );
@@ -4271,26 +4288,29 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       'data-thumbnail-generation-skeleton-variant="neutral-gray"',
     );
     expect(componentSource).toContain(
-      'data-thumbnail-generation-skeleton-effect="glass-shimmer"',
+      'data-thumbnail-generation-skeleton-effect="flat-status"',
     );
     expect(componentSource).toContain(
       'data-thumbnail-unified-generation-skeleton="true"',
     );
     expect(componentSource).toContain(
-      'data-thumbnail-generation-skeleton-glass-surface="true"',
+      'data-thumbnail-generation-skeleton-glass-surface="false"',
     );
     expect(componentSource).toContain(
+      'data-thumbnail-generation-skeleton-shimmer="false"',
+    );
+    expect(componentSource).not.toContain(
       'data-thumbnail-generation-skeleton-shimmer="true"',
     );
-    expect(componentSource).toContain("admin-module-loading-shimmer");
+    expect(componentSource).not.toContain("admin-module-loading-shimmer");
     expect(componentSource).not.toContain(
       "[animation:storyboard-glass-shimmer_1.65s_ease-in-out_infinite]",
     );
     expect(componentSource).not.toContain("backdrop-blur-[1px]");
-    expect(componentSource).toContain("from-slate-50/86");
-    expect(componentSource).toContain("to-slate-200/68");
-    expect(componentSource).toContain("rgba(203,213,225,0.28)");
-    expect(componentSource).toContain("rgba(100,116,139,0.20)");
+    expect(componentSource).not.toContain("from-slate-50/86");
+    expect(componentSource).not.toContain("to-slate-200/68");
+    expect(componentSource).not.toContain("rgba(203,213,225,0.28)");
+    expect(componentSource).not.toContain("rgba(100,116,139,0.20)");
     expect(componentSource).not.toContain(
       'data-thumbnail-generation-skeleton-panel="copy-zone"',
     );
@@ -4312,8 +4332,9 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     );
     expect(componentSource).not.toContain("animate-pulse rounded-xl");
     expect(componentSource).toContain(
-      '<span className="sr-only">썸네일 생성 중</span>',
+      'aria-label="썸네일 생성 중"',
     );
+    expect(componentSource).toContain("<span>썸네일 생성 중</span>");
     expect(componentSource).toContain(
       "이제 실제 썸네일 이미지를 만들고 있어요. 시간이 오래 걸리면 생성 중단을 누를 수 있습니다.",
     );
@@ -4608,10 +4629,10 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       "grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden p-3 pt-0",
     );
     expect(componentSource).toContain(
-      "relative flex min-h-0 items-center justify-center overflow-hidden rounded-2xl bg-transparent",
+      "relative flex min-h-0 items-center justify-center overflow-hidden rounded-lg bg-transparent",
     );
     expect(componentSource).toContain(
-      "relative overflow-hidden rounded-2xl shadow-inner [container-type:inline-size]",
+      "relative overflow-hidden rounded-lg border border-border [container-type:inline-size]",
     );
     expect(componentSource).not.toContain("rounded-2xl bg-black");
     expect(componentSource).toContain('data-thumbnail-canvas-viewport="true"');
@@ -4622,7 +4643,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       'className="block h-full w-full touch-none cursor-move',
     );
     expect(componentSource).toContain(
-      'className="overflow-hidden rounded-xl bg-muted/30 p-1" data-thumbnail-editor-toolbar="true"',
+      'className="overflow-hidden rounded-lg bg-muted/30 p-1" data-thumbnail-editor-toolbar="true"',
     );
     expect(componentSource).toContain(
       'className="grid w-full grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))] gap-1.5"',
@@ -4639,7 +4660,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     );
     expect(componentSource).toContain('variant="ghost"');
     expect(componentSource).toContain(
-      "h-8 w-full min-w-0 gap-1 rounded-lg bg-background/80 px-1.5 text-2xs leading-none shadow-sm hover:bg-background",
+      "h-8 w-full min-w-0 gap-1 rounded-md bg-background px-1.5 text-2xs leading-none shadow-none hover:bg-muted",
     );
     expect(componentSource).toContain(
       "[&_span]:min-w-0 [&_span]:truncate [&_svg]:h-3.5 [&_svg]:w-3.5",
@@ -5369,6 +5390,10 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     );
     expect(consoleSource).toContain('data-admin-console-mobile-header="true"');
     expect(consoleSource).toContain(
+      '"flex h-14 shrink-0 transform-gpu items-center gap-2 overflow-hidden bg-card px-3 py-2 shadow-none transition-[transform,border-color] duration-300 ease-out will-change-transform motion-reduce:transition-none md:hidden"',
+    );
+    expect(consoleSource).not.toMatch(/admin-toolbar[^"\n]*md:hidden/);
+    expect(consoleSource).toContain(
       "data-admin-console-mobile-header-visible={",
     );
     expect(consoleSource).toContain('showMobileHeader ? "true" : "false"');
@@ -5555,7 +5580,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).toContain('data-admin-sidebar-theme-current={currentTheme}');
     expect(consoleSource).toContain('getNextAdminThemePreference(themePreference)');
     expect(consoleSource).toContain(
-      'className="rounded-2xl bg-background/85 p-2"',
+      'className="admin-detail-section rounded-md bg-background p-2"',
     );
     expect(consoleSource).toContain(
       'data-admin-sidebar-order-editor-density="compact"',
@@ -5564,6 +5589,9 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       'data-admin-sidebar-order-section="compact"',
     );
     expect(consoleSource).toContain('data-admin-sidebar-order-item="compact"');
+    expect(consoleSource).toContain('data-admin-sidebar-collapsed-home="true"');
+    expect(consoleSource).toContain('data-admin-console-menu-item-section={section.label}');
+    expect(consoleSource).toContain('role="group"');
     expect(consoleSource).not.toContain(
       'className="rounded-xl border border-border bg-card/80 p-1.5"',
     );
@@ -5581,7 +5609,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       '"group/sidebar-account transition-colors duration-150 focus-visible:ring-primary',
     );
     expect(consoleSource).toContain(
-      '? "grid h-9 w-9 place-items-center rounded-xl bg-transparent p-0 text-muted-foreground shadow-none',
+      '? "grid h-10 w-10 place-items-center rounded-md bg-transparent p-0 text-muted-foreground shadow-none',
     );
     expect(consoleSource).toContain("const sidebarAccountAvatarClassName");
     expect(consoleSource).toContain(
@@ -5591,7 +5619,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       'const sidebarAccountAvatarIconClassName = "h-5 w-5 -translate-y-px"',
     );
     expect(consoleSource).toContain(
-      ': "h-11 w-full min-w-0 justify-start gap-2 rounded-2xl border border-border bg-background/95 px-1.5 py-1 text-foreground shadow-sm backdrop-blur-sm',
+      ': "h-10 w-full min-w-0 justify-start gap-2 rounded-md border border-border bg-background px-1.5 py-1 text-foreground shadow-none',
     );
     expect(consoleSource).toContain(
       'className={sidebarAccountAvatarClassName}',
@@ -5634,7 +5662,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).toContain("aria-label={controlLabel}");
     expect(consoleSource).not.toContain("aria-pressed={themePreference === theme}");
     expect(consoleSource).toContain(
-      '"h-9 rounded-full border border-border bg-card text-xs font-bold text-muted-foreground shadow-inner',
+      '"h-9 rounded-md border border-border bg-card text-xs font-bold text-muted-foreground shadow-none',
     );
     expect(consoleSource).toContain(
       "dark:border-border/70 dark:bg-muted/35 dark:text-foreground",
@@ -6025,7 +6053,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       ".admin-page-header:has(> .admin-page-header-controls) { grid-template-columns: minmax(min-content, 1fr) fit-content(66.6667%);",
     );
     expect(adminUiSource).toContain(
-      ".admin-page-header-identity { display: grid; grid-template-columns: max-content minmax(0, 1fr);",
+      ".admin-page-header-identity { display: flex; align-items: center;",
     );
     expect(adminUiSource).toContain(
       ".admin-page-header-controls { grid-column: 1 / -1; width: 100%; max-width: 100%; min-height: 2.75rem;",
@@ -6068,7 +6096,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).not.toContain("function AnnouncementWorkspace");
     expect(usersSource).toContain("flex h-full min-h-0 flex-col overflow-hidden bg-background");
     expect(usersSource).toContain("admin-cms-inspector-body");
-    expect(usersSource).toContain("h-9 rounded-md pl-9");
+    expect(usersSource).toContain("h-11 rounded-md pl-9 md:h-8");
     expect(consoleSource).toContain(
       "const controller = new AbortController();",
     );

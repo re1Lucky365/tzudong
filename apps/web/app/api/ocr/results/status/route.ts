@@ -10,7 +10,7 @@ import {
   pollDurableReceiptOcrResult,
   toPublicReceiptOcrResponse,
 } from '@/lib/ocr/durable-result';
-import { GEMINI_OCR_FALLBACK_MODEL } from '@/lib/ocr/gemini';
+import { GEMINI_OCR_FALLBACK_MODEL, getGeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini';
 import { RECEIPT_OCR_PREPROCESS_VERSION, RECEIPT_OCR_PROMPT_VERSION } from '@/lib/ocr/receipt-prompt';
 import { RECEIPT_OCR_NORMALIZATION_VERSION } from '@/lib/ocr/receipt-normalization';
 import { hasRunnableOcrCredentials, parseSelectedRestaurantContext } from '@/lib/ocr/route-helpers';
@@ -62,11 +62,16 @@ export async function POST(request: Request) {
     const runnableCandidates = providerCandidates.filter((candidate) => hasRunnableOcrCredentials([candidate]));
     const candidate = (runnableCandidates.length ? runnableCandidates : providerCandidates)[0];
     const modelPolicy = candidate ? getOcrModelPolicy(candidate) : [GEMINI_OCR_FALLBACK_MODEL];
+    const inferenceConfig = getGeminiOcrInferenceConfigSnapshot();
     const imageHash = crypto.createHash('sha256').update(image.buffer).digest('hex');
     const binding = {
       userId: auth.user.id,
       imageHash,
-      inputContextHash: buildOcrInputContextHash(imageHash, parseSelectedRestaurantContext(multipart.formData)),
+      inputContextHash: buildOcrInputContextHash(
+        imageHash,
+        parseSelectedRestaurantContext(multipart.formData),
+        inferenceConfig,
+      ),
       provider: candidate?.provider ?? 'gemini' as const,
       modelPolicy,
       generation: RECEIPT_OCR_DEFAULT_GENERATION,
