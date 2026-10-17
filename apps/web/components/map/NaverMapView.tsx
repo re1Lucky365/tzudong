@@ -69,6 +69,7 @@ import {
     injectClusterCSS,
     removeClusterCSS
 } from "@/lib/cluster-marker";
+import { syncPopularityMarkerInteraction } from "@/lib/evidence-engineering/popularity-marker";
 import { getNaverIndividualMarkerVisual } from "@/lib/naver-map-marker-visuals";
 import { deferMarkerRenders } from "@/lib/deferred-marker-renders";
 import './marker-icons.css';
@@ -3612,6 +3613,15 @@ const NaverMapView = memo(({
 
         // passive: false여야 preventDefault()가 동작함
         mapElement.addEventListener('wheel', handleWheel, { passive: false });
+        const markMapInteracting = () => syncPopularityMarkerInteraction(mapElement, true);
+        const markMapSettled = () => syncPopularityMarkerInteraction(mapElement, false);
+        const interactionListeners = window.naver?.maps?.Event
+            ? [
+                window.naver.maps.Event.addListener(map, "dragstart", markMapInteracting),
+                window.naver.maps.Event.addListener(map, "idle", markMapSettled),
+                window.naver.maps.Event.addListener(map, "zoom_changed", markMapInteracting),
+            ]
+            : [];
 
         return () => {
             if (pendingAnchorAdjustListener && window.naver?.maps?.Event) {
@@ -3624,6 +3634,12 @@ const NaverMapView = memo(({
             isAnchorAdjusting = cleanupState.nextIsAnchorAdjusting;
             queuedWheelInput = cleanupState.nextQueuedWheelInput;
             mapElement.removeEventListener('wheel', handleWheel);
+            if (window.naver?.maps?.Event) {
+                for (const listener of interactionListeners) {
+                    window.naver.maps.Event.removeListener(listener);
+                }
+            }
+            markMapSettled();
         };
     }, [activateNoncriticalMapEffects, isMapInitialized]);
 

@@ -1,4 +1,5 @@
 import type { RestaurantDatabaseRow, ReviewDatabaseRow } from "@/integrations/supabase/types";
+import type { RestaurantEvidenceFrame } from "@/lib/evidence-engineering/types";
 
 // DB에서 가져온 기본 Restaurant 타입
 type BaseRestaurant = RestaurantDatabaseRow;
@@ -31,6 +32,7 @@ export interface Restaurant extends BaseRestaurant {
     mergedYoutubeLinks?: string[]; // 병합된 모든 유튜브 링크
     mergedTzuyangReviews?: string[]; // 병합된 모든 쯔양 리뷰
     mergedYoutubeMetas?: YoutubeMeta[]; // 병합된 모든 유튜브 메타
+    mergedEvidenceFrames?: RestaurantEvidenceFrame[];
 
     // 마커 클릭 시 동일 name+jibun_address 레코드 병합 데이터
     youtube_links?: string[]; // 모든 유튜브 링크 배열
