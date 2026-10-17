@@ -47,7 +47,7 @@ import {
     planEvidenceSamplingWindow,
     selectDecodeStartSec,
 } from './evidence-frame-sampling.mjs';
-import { assignFrameIdentity, reconcileFrameIdentities } from './evidence-frame-identity.mjs';
+import { assignFrameIdentity, reconcileFrameIdentities, samplingLedgerDocument } from './evidence-frame-identity.mjs';
 
 const STATIC_FFMPEG_PATH = typeof ffmpegStatic === 'string' ? ffmpegStatic : '';
 const STATIC_FFPROBE_PATH = typeof ffprobeStatic?.path === 'string' ? ffprobeStatic.path : '';
@@ -2086,7 +2086,7 @@ async function sampleEvidenceFramesAtTargets(request, options = {}) {
         }
         const reconciled = reconcileFrameIdentities([...prior, ...newIdentities]);
         assertPathContainmentBeforeMutation(outputDirectory, ledgerPath);
-        fs.writeFileSync(ledgerPath, `${JSON.stringify({ records: reconciled.records })}\n`, 'utf8');
+        fs.writeFileSync(ledgerPath, `${JSON.stringify(samplingLedgerDocument(reconciled))}\n`, 'utf8');
         assertExistingPathContained(outputDirectory, ledgerPath);
     }
 
