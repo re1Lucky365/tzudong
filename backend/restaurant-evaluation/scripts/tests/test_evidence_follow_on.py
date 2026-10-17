@@ -211,7 +211,7 @@ class EvidenceFollowOnTests(unittest.TestCase):
         self.assertNotIn("timestamp_ms integer", sql)
         score_source = (Path(__file__).resolve().parents[1] / "popularity_score_batch.py").read_text(encoding="utf-8").lower()
         self.assertNotIn("bayesian", score_source)
-        self.assertNotIn("percentile", score_source)
+        self.assertIn("nearest-rank", score_source)
         self.assertNotIn("0.2 *", score_source)
 
 
