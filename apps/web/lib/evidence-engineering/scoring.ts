@@ -120,3 +120,87 @@ export function aggregateUniqueCounts(
     missingVideoIds,
   };
 }
+
+export type CohortShadowMember = {
+  identity: string;
+  operational_score: number | null;
+  candidate_signals: { freshness: number; visit_multiplier: number } | null;
+};
+
+export function compareCohortShadow(members: readonly CohortShadowMember[]): {
+  records: Array<{
+    identity: string;
+    operational_score: number | null;
+    candidate_freshness: number | null;
+    candidate_visit_multiplier: number | null;
+    comparison_present: boolean;
+    differs: boolean;
+  }>;
+  summary: { count: number; differ_count: number; live_write_allowed: boolean };
+} {
+  if (members.length === 0) throw new Error("empty_cohort");
+  const seen = new Set<string>();
+  let missing = 0;
+  let differCount = 0;
+  const records = members.map((member) => {
+    const identity = member.identity;
+    if (typeof identity !== "string" || identity.trim() === "" || seen.has(identity)) {
+      throw new Error("invalid_shadow_member");
+    }
+    seen.add(identity);
+    const operational = member.operational_score;
+    if (operational !== null && !Number.isFinite(operational)) {
+      throw new Error("invalid_operational_score");
+    }
+    const signals = member.candidate_signals;
+    if (signals === null) {
+      missing += 1;
+      return {
+        identity,
+        operational_score: operational,
+        candidate_freshness: null,
+        candidate_visit_multiplier: null,
+        comparison_present: false,
+        differs: false,
+      };
+    }
+    if (!Number.isFinite(signals.freshness) || !Number.isFinite(signals.visit_multiplier)) {
+      throw new Error("invalid_candidate_signals");
+    }
+    const differs = operational !== null;
+    if (differs) differCount += 1;
+    return {
+      identity,
+      operational_score: operational,
+      candidate_freshness: signals.freshness,
+      candidate_visit_multiplier: signals.visit_multiplier,
+      comparison_present: true,
+      differs,
+    };
+  });
+  return {
+    records,
+    summary: {
+      count: records.length,
+      differ_count: differCount,
+      live_write_allowed: missing === 0,
+    },
+  };
+}
+
+export function refuseOperationalWrite(summary: { live_write_allowed: boolean }): {
+  popularity_score: null;
+  popularity_tier: null;
+  writes_hosted_database: false;
+  mutates_restaurant_updated_at: false;
+  overwrites_operational_values: false;
+} {
+  if (summary.live_write_allowed !== true) throw new Error("shadow_comparison_required");
+  return {
+    popularity_score: null,
+    popularity_tier: null,
+    writes_hosted_database: false,
+    mutates_restaurant_updated_at: false,
+    overwrites_operational_values: false,
+  };
+}
