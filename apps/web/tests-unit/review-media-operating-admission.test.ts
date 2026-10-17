@@ -1,4 +1,4 @@
-import { afterAll, expect, test } from 'bun:test';
+import { afterEach, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
@@ -45,8 +45,12 @@ const canonical = (value: any): any => Array.isArray(value)
     : value;
 const canonicalBytes = (value: any) => Buffer.from(`${JSON.stringify(canonical(value))}\n`);
 
-afterAll(() => {
-  for (const root of roots) rmSync(root, { recursive: true, force: true });
+afterEach(() => {
+  while (roots.length > 0) {
+    const root = roots[roots.length - 1];
+    rmSync(root, { recursive: true, force: true });
+    roots.pop();
+  }
 });
 
 function privateRoot() {

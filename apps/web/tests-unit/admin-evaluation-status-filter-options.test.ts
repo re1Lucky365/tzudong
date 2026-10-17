@@ -233,8 +233,8 @@ describe('PRIMARY_STATUS_FILTER_OPTIONS', () => {
     expect(adminOverviewSource).toContain('전체 집계 중');
     expect(adminOverviewSource).not.toContain('필터링: <Skeleton');
     expect(adminOverviewSource).toContain('data-admin-evaluation-dynamic-loading-shell="true"');
-    expect(adminOverviewSource).toContain('<AdminEvaluationModuleStaticShell />');
-    expect(adminOverviewSource).toContain('정적인 관리자 데이터 검수 컨트롤은 바로 표시하고, 동적인 검수 데이터만 불러오는 중입니다.');
+    expect(adminOverviewSource.includes('<AdminEvaluationModuleStaticShell moduleId={moduleId} />')).toBe(true);
+    expect(adminOverviewSource.includes('title={getAdminModuleTitle(moduleId)}')).toBe(true);
     expect(adminOverviewSource).toContain('data-admin-evaluation-static-loading-controls="true"');
     expect(pageSource).toContain("fetch('/api/admin/evaluations'");
     expect(pageSource).toContain('브라우저 Supabase 클라이언트는 RLS 때문에 승인된 공개 레코드만 보일 수 있다.');

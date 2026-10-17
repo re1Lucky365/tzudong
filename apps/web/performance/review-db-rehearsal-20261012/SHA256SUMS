@@ -1,6 +1,8 @@
 295b2354c562ed87102c5e256497a2705f90941587fefa7e9ad8a4ba8e40787f  .github/review-media-sql-successor.v1.json
 ef4c24b489343213733ca719b1fca4cb456d4cdd8510e21e6f5c038d5b968b63  apps/web/performance/review-db-rehearsal-20261012/README.md
 ea529addcf42cdb766f622786ccfffb13fe337f70faae6ade6da83736be58f57  apps/web/performance/review-db-rehearsal-20261012/SHA256SUMS-0833ed81-historical
+c1af1afd832bd2b0bbdcd4419589de778525e1b18a4dff196e457b82381c97fb  apps/web/performance/review-db-rehearsal-20261012/SHA256SUMS-33cda47d-historical
+3c1d4b6367810d3233248ed9680c47d4ceac05076ddaaaa8bc00d97883129261  apps/web/performance/review-db-rehearsal-20261012/SHA256SUMS-33cda47d-historical.sha256
 d8ad511edf7d3832aa432e499b27f33e2c9ad423530ffdff06dea42869eaff85  apps/web/performance/review-db-rehearsal-20261012/SHA256SUMS-4ba9c6d2-historical
 756ead633ae6d2a7805043203c6781d0726cdd3042980031ebc508028f0d3621  apps/web/performance/review-db-rehearsal-20261012/SHA256SUMS-4ba9c6d2-historical.sha256
 6d9cbca375e6790ee1051aa9d9bf1c45beeeece8d919651281885b4c04962981  apps/web/performance/review-db-rehearsal-20261012/SHA256SUMS-4d4ecf60-historical
@@ -33,4 +35,4 @@ fcebc20dc4846606dc14bdbe658a07daa32430ad632e52383151f5c22d22efb9  apps/web/scrip
 dc1f2594e629d5af16541db93e2e51f9b98d8282dd7fbeb802dd240fa6f522c0  apps/web/tests-unit/review-media-migration-bundle.test.ts
 54a9560b77a3afb9eb70631224ba4f481caf82eb8b5d2cdc1a076d8831c1ec7e  apps/web/tests-unit/review-media-sql-rehearsal-verifier.test.ts
 99c6bc0221188f93317640d4d65affdfeb91fea233bb0f0cc0f409407e419d84  apps/web/tests-unit/review-media-sql-successor-harness.test.ts
-f1ce764e0bffea5c05cbca0017574b305c353f9498623df928a177fee3b780ff  apps/web/tests-unit/review-media-sql-successor.test.ts
+2d29f4fc5385965bc572339d5dbcf64f25718194b7bb6e287bfcb5ed7e03b12c  apps/web/tests-unit/review-media-sql-successor.test.ts

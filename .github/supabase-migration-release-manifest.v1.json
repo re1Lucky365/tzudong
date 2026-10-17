@@ -52,6 +52,24 @@
           "g016_onboarding_confirmation_freshness_terminal_state": true
         }
       }
+    },
+    {
+      "id": "evidence_frames_and_popularity",
+      "path": "backend/supabase/migrations/20261017043000_evidence_frames_and_popularity.sql",
+      "sha256": "d254fe76eb8c74587183bc89372891cd08a6a1cf92a99b8aa041497fa6ca7733",
+      "expectedPriorState": {
+        "query": "SELECT json_build_object(\n  'restaurant_evidence_frames_absent', to_regclass('public.restaurant_evidence_frames') IS NULL,\n  'restaurant_popularity_metrics_absent', to_regclass('public.restaurant_popularity_metrics') IS NULL\n)::text;\n",
+        "expected": {
+          "restaurant_evidence_frames_absent": true,
+          "restaurant_popularity_metrics_absent": true
+        }
+      },
+      "terminalReadback": {
+        "query": "SELECT json_build_object(\n  'restaurant_evidence_frames_terminal_state',\n  to_regclass('public.restaurant_evidence_frames') IS NOT NULL\n  AND to_regclass('public.restaurant_popularity_metrics') IS NOT NULL\n  AND COALESCE((\n    SELECT relrowsecurity FROM pg_class\n    WHERE oid = to_regclass('public.restaurant_evidence_frames')\n  ), false)\n  AND COALESCE((\n    SELECT relrowsecurity FROM pg_class\n    WHERE oid = to_regclass('public.restaurant_popularity_metrics')\n  ), false)\n  AND COALESCE((\n    SELECT array_agg(policyname::text ORDER BY policyname)\n    FROM pg_policies\n    WHERE schemaname = 'public' AND tablename = 'restaurant_evidence_frames'\n  ), '{}'::text[]) = ARRAY['restaurant_evidence_frames_approved_read']::text[]\n  AND COALESCE(has_table_privilege('anon', to_regclass('public.restaurant_evidence_frames'), 'select'), false)\n  AND COALESCE(has_table_privilege('authenticated', to_regclass('public.restaurant_evidence_frames'), 'select'), false)\n  AND NOT COALESCE(has_table_privilege('anon', to_regclass('public.restaurant_evidence_frames'), 'insert'), false)\n  AND NOT COALESCE(has_table_privilege('anon', to_regclass('public.restaurant_evidence_frames'), 'update'), false)\n  AND NOT COALESCE(has_table_privilege('anon', to_regclass('public.restaurant_evidence_frames'), 'delete'), false)\n  AND NOT COALESCE(has_table_privilege('anon', to_regclass('public.restaurant_popularity_metrics'), 'select'), false)\n  AND NOT COALESCE(has_table_privilege('authenticated', to_regclass('public.restaurant_popularity_metrics'), 'select'), false)\n)::text;\n",
+        "expected": {
+          "restaurant_evidence_frames_terminal_state": true
+        }
+      }
     }
   ]
 }

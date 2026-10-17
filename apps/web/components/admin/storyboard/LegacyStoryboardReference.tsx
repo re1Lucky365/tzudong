@@ -8050,7 +8050,6 @@ function LegacyAdminStoryboardGenerator({
     <AdminEmbeddedModuleShell
       moduleId="storyboard"
       titleId="admin-storyboard-generator-title"
-      title="스토리보드 생성"
       icon={Clapperboard}
       summary={storyboardModuleSummary}
     >

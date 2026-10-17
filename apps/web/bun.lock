@@ -88,7 +88,7 @@
         "@typescript/native": "npm:typescript@7.0.2",
         "@typescript/old": "npm:typescript@6.0.2",
         "baseline-browser-mapping": "2.11.26",
-        "braces": "file:vendor/tzudong-braces-3.0.3-tzudong.1.tgz",
+        "braces": "file:vendor/tzudong-braces-3.0.3-tzudong.2.tgz",
         "dotenv": "^17.4.2",
         "eslint": "^9.39.5",
         "eslint-config-next": "16.3.8",
@@ -106,7 +106,7 @@
   "overrides": {
     "baseline-browser-mapping": "2.11.26",
     "brace-expansion": "5.0.12",
-    "braces": "file:vendor/tzudong-braces-3.0.3-tzudong.1.tgz",
+    "braces": "file:vendor/tzudong-braces-3.0.3-tzudong.2.tgz",
     "browserslist": "4.28.8",
     "minimatch@3.1.5": {
       "brace-expansion": "2.1.7",
@@ -921,7 +921,7 @@
 
     "brace-expansion": ["brace-expansion@2.1.7", "", { "dependencies": { "balanced-match": "^1.0.0" } }, "sha512-uZbew1NqdmPDTMJ8ah1y+b+9QEJrfkXFk3RcTQw3X0jW/xRUvFKsg1CfQdSYGdTbXZWExtU3J3ccxtnfw1Fi0g=="],
 
-    "braces": ["@tzudong/braces@vendor/tzudong-braces-3.0.3-tzudong.1.tgz", { "dependencies": { "fill-range": "^7.1.1" } }, "sha512-H76SaSdwLNrhOcIvDe+ud/+8P8JpOWAQvGLoaiIjcDKa1MLM3IbPwub8OMmtrNZP+w70EI+PGK2KJ86UIsBgjw=="],
+    "braces": ["@tzudong/braces@vendor/tzudong-braces-3.0.3-tzudong.2.tgz", { "dependencies": { "fill-range": "^7.1.1" } }, "sha512-3iPyJa2E7/RryYDqUHxhKgih35lMUauBlynwj3MEp7AxNpRGI/DVlNEGVn97xLSaxCZ1AmriYXLwJO1iJuCpfA=="],
 
     "browser-image-compression": ["browser-image-compression@2.0.2", "", { "dependencies": { "uzip": "0.20201231.0" } }, "sha512-pBLlQyUf6yB8SmmngrcOw3EoS4RpQ1BcylI3T9Yqn7+4nrQTXJD4sJDe5ODnJdrvNMaio5OicFo75rDyJD2Ucw=="],
 

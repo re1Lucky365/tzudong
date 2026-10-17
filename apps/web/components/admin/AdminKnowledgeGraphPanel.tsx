@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, ExternalLink, List, Network, RefreshCw, Search } from 'lucide-react';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { getAdminModuleTitle } from '@/lib/admin/admin-module-metadata';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { formatKnowledgeEvidence } from '@/lib/admin/knowledge-graph-evidence';
@@ -70,7 +71,7 @@ export function AdminKnowledgeGraphPanel() {
     setSelected(null); setDetailOpen(false);
   };
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-admin-knowledge-graph-panel>
-    <AdminPageHeader title="쯔양 지식 그래프" icon={Network}
+    <AdminPageHeader title={getAdminModuleTitle('knowledge-graph')} icon={Network}
       summary={<span className="text-xs tabular-nums text-muted-foreground">분석 {data ? number.format(data.coverage.analyzedCount) : '—'} / {data?.coverage.eligibleCount == null ? '대상 확인 중' : number.format(data.coverage.eligibleCount)}</span>}
       actions={<><Button size="sm" variant="outline" onClick={() => setListOpen(true)} aria-label="지식 목록과 분석 현황 열기"><List className="mr-1 h-3.5 w-3.5" aria-hidden="true" />목록</Button><Button size="sm" variant="ghost" disabled={searchPending || query.isFetching} aria-label="지식 그래프 새로고침" onClick={reload}><RefreshCw className={`h-3.5 w-3.5 ${query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden="true" /></Button></>}
     />

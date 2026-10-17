@@ -1,5 +1,7 @@
 'use strict';
 
+const { rangeInfo, MAX_GENERATED_ITEMS, MAX_GENERATED_DEPTH } = require('./resource-guard');
+
 exports.isInteger = num => {
   if (typeof num === 'number') {
     return Number.isInteger(num);
@@ -21,9 +23,13 @@ exports.find = (node, type) => node.nodes.find(node => node.type === type);
  */
 
 exports.exceedsLimit = (min, max, step = 1, limit) => {
-  if (limit === false) return false;
-  if (!exports.isInteger(min) || !exports.isInteger(max)) return false;
-  return ((Number(max) - Number(min)) / Number(step)) >= limit;
+  if (limit !== false && (!Number.isSafeInteger(limit) || limit < 0)) {
+    const error = new RangeError('rangeLimit must be a non-negative safe integer or false');
+    error.code = 'BRACES_RANGE_LIMIT';
+    throw error;
+  }
+  const info = rangeInfo([min, max, step]);
+  return limit !== false && info !== null && info.numeric && info.count > limit;
 };
 
 /**
@@ -100,23 +106,19 @@ exports.reduce = nodes => nodes.reduce((acc, node) => {
 
 exports.flatten = (...args) => {
   const result = [];
-
-  const flat = arr => {
-    for (let i = 0; i < arr.length; i++) {
-      const ele = arr[i];
-
-      if (Array.isArray(ele)) {
-        flat(ele);
-        continue;
-      }
-
-      if (ele !== undefined) {
-        result.push(ele);
-      }
-    }
-    return result;
-  };
-
-  flat(args);
+  const pending = [{ values: args, index: 0 }];
+  const active = new Set([args]);
+  let visited = 0;
+  const reject = () => { throw Object.assign(new RangeError('brace output exceeds private resource limit'), { code: 'BRACES_OUTPUT_LIMIT' }); };
+  while (pending.length) {
+    const frame = pending[pending.length - 1];
+    if (frame.index === frame.values.length) { active.delete(frame.values); pending.pop(); continue; }
+    if (++visited > MAX_GENERATED_ITEMS) reject();
+    const value = frame.values[frame.index++];
+    if (Array.isArray(value)) {
+      if (active.has(value) || pending.length >= MAX_GENERATED_DEPTH) reject();
+      active.add(value); pending.push({ values: value, index: 0 });
+    } else if (value !== undefined) result.push(value);
+  }
   return result;
 };

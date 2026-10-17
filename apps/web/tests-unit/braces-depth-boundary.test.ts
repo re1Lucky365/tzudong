@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createRequire } from 'node:module';
+import vendoredPackage from '../vendor/braces/package.json';
 
 const require = createRequire(import.meta.url);
 const braces = createRequire(require.resolve('micromatch/package.json'))('braces');
@@ -7,6 +8,7 @@ const braces = createRequire(require.resolve('micromatch/package.json'))('braces
 describe('private brace parser resource boundary', () => {
   test('retains ordinary path alternatives, ranges, escapes and AST consumption', () => {
     expect(createRequire(require.resolve('micromatch/package.json'))('braces/package.json').name).toBe('@tzudong/braces');
+    expect(createRequire(require.resolve('micromatch/package.json'))('braces/package.json').version).toBe(vendoredPackage.version);
     expect(braces.expand('src/{app,components}/**/*.{ts,tsx}')).toEqual([
       'src/app/**/*.ts','src/app/**/*.tsx','src/components/**/*.ts','src/components/**/*.tsx',
     ]);
@@ -27,12 +29,21 @@ describe('private brace parser resource boundary', () => {
     expect(braces.compile('{'.repeat(100)+'a,b'+'}'.repeat(100))).toBeDefined();
   });
 
-  test('bounds direct AST depth and rejects cycles without following parent references', () => {
+  test('bounds direct AST depth and rejects child cycles', () => {
     const cycle: {type:string;nodes:unknown[]}={type:'root',nodes:[]}; cycle.nodes.push(cycle);
     let nested: unknown={type:'text',value:'x'};
     for(let i=0;i<150;i++)nested={type:'root',nodes:[nested]};
     for(const ast of [cycle,nested]) {
       for(const method of ['compile','expand','stringify'])expect(()=>braces[method](ast)).toThrow('BRACES_NESTING_LIMIT');
     }
+  });
+
+  test('the installed micromatch caller rejects range and output resource bypasses', () => {
+    for (const input of ['{1001..0}', '{0..2000..2}', '{2000..0..2}', '{0..2000..-2}']) {
+      expect(() => braces.expand(input)).toThrow('range limit');
+    }
+    expect(() => braces.expand('{a,b}'.repeat(16))).toThrow('private resource limit');
+    expect(() => braces.compile('{0..1000000..2}')).toThrow('private resource limit');
+    expect(() => braces.expand('{9007199254740992..9007199254740996}')).toThrow('safe integer precision');
   });
 });

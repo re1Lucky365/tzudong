@@ -1,0 +1,36 @@
+{
+  "schema": "tzudong-artifact-map/v1",
+  "baseRevision": "6bc5391b5f88e97435f0c645cb405b4b217b6a30",
+  "artifacts": [
+    {
+      "path": "apps/web/performance/goal-delivery-ci-followup-20261012/README.md",
+      "bytes": 1722,
+      "sha256": "045a1f7cba04c560de908f71c058461ff826eec8bacb295b3786ef083bb6c9a0"
+    },
+    {
+      "path": "apps/web/performance/goal-delivery-ci-followup-20261012/checks.json",
+      "bytes": 4227,
+      "sha256": "a99e39b38dc23027cc96d32aed741dcf302cf3104a547ca9301fc911f55325a4"
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "apps/web/scripts/gemini-live-verification-io.ts",
+      "beforeSha256": "011794294f92d45206601382809465ba3ceb3e5f61a25b270587d768d06678ed",
+      "afterSha256": "bb5eaa78f9ce988c81217f1c65937a75d3ba70370ba0f24477df8511272bc734",
+      "bytes": 25026
+    },
+    {
+      "path": "apps/web/tests-unit/admin-evaluation-status-filter-options.test.ts",
+      "beforeSha256": "8ada21519fc15c09f4e6dc5178fb3cb4401cb9a2b5438f117b08e0eaf3f1aacf",
+      "afterSha256": "7d0fab38e414fdfba585e2ca98d1b8b13c012293c1e44edb2700c89e3598af28",
+      "bytes": 14966
+    },
+    {
+      "path": "apps/web/tests-unit/gemini-live-verification-boundary.test.ts",
+      "beforeSha256": "33ce11392aa64c24e524e915ada410d34b6608c89152f4f84c5a8f338789113c",
+      "afterSha256": "6d5212bf7839ec2bfe92fc71ad4344d41fe9efa12209bb8efc5077a3489dab03",
+      "bytes": 13432
+    }
+  ]
+}
