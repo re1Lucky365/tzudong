@@ -35,6 +35,8 @@ import hashlib
 import os
 import tempfile
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from evaluation_results_boundary import omit_satellite_fields
 from utils.stage_cache import atomic_write, stage_lock, fingerprint, input_digest, canonical_digest
 from utils.jsonl_utils import load_last_jsonl_record
 
@@ -490,7 +492,7 @@ def transform_json_object(
                 "geocoding_false_stage": loc_data["geocoding_false_stage"],
                 "is_missing": False,
                 "is_notSelected": not is_target,
-                "evaluation_results": new_eval_results if new_eval_results else None,
+                "evaluation_results": omit_satellite_fields(new_eval_results) if new_eval_results else None,
                 "source_type": "geminiCLI",
                 "description_map_url": None,  # 쯔양은 null
                 "recollect_version": recollect_version,
@@ -741,7 +743,7 @@ def merge_rule_results_into_laaj(rule_data: dict, laaj_data: dict) -> dict:
             if key in rule_eval:
                 merged_eval[key] = rule_eval[key]
 
-    merged["evaluation_results"] = merged_eval
+    merged["evaluation_results"] = omit_satellite_fields(merged_eval)
     merged["evaluation_target"] = rule_data.get(
         "evaluation_target", laaj_data.get("evaluation_target", {})
     )
