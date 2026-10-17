@@ -34,6 +34,13 @@ import https from 'https';
 import ffmpegStatic from 'ffmpeg-static';
 import ffprobeStatic from 'ffprobe-static';
 import { safeErrorName } from '../../utils/privacy-log.mjs';
+import {
+    buildHeatmapDecodeArgs,
+    buildKeyframeProbeArgs,
+    KEYFRAME_LOOKBACK_SEC,
+    parseKeyframeProbeCsv,
+    selectDecodeStartSec,
+} from './evidence-frame-sampling.mjs';
 
 const STATIC_FFMPEG_PATH = typeof ffmpegStatic === 'string' ? ffmpegStatic : '';
 const STATIC_FFPROBE_PATH = typeof ffprobeStatic?.path === 'string' ? ffprobeStatic.path : '';
@@ -1779,7 +1786,7 @@ async function frameSourceContext(videoPath) {
     return { duration, sourceHash, toolHash, implementationHash };
 }
 
-async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, bufferSec, ext) {
+async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, bufferSec, ext, options = {}) {
     const safeSegments = assertFrameSegments(segments);
     const { quality: safeQuality } = assertFrameQuality(quality);
     const safeExt = assertFrameExtension(ext);
@@ -1788,6 +1795,17 @@ async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, b
     if (!Number.isFinite(safeFps) || safeFps <= 0 || safeFps > 120 || !Number.isFinite(safeBufferSec) || safeBufferSec < 0 || safeBufferSec > 3600) {
         throw createOperationError('FRAME_INVALID_EXTRACTION_OPTIONS');
     }
+    const invoke = options.runProcess ?? runProcess;
+    const ffprobePath = options.ffprobePath ?? getMediaTools().ffprobePath;
+    const ffmpegPath = options.ffmpegPath ?? getMediaTools().ffmpegPath;
+    const probeKeyframes = options.probeKeyframes ?? (async (mediaPath, startSec, endSec) => {
+        const { stdout } = await invoke(
+            ffprobePath,
+            buildKeyframeProbeArgs(mediaPath, startSec, endSec),
+            { timeoutMs: FFPROBE_TIMEOUT_MS },
+        );
+        return parseKeyframeProbeCsv(stdout);
+    });
 
     const outputDirectory = requireExistingDirectory(outputBaseDir);
     if (hasControlCharacters(videoPath) || !fs.existsSync(videoPath) || !fs.statSync(videoPath).isFile()) {
@@ -1822,7 +1840,18 @@ async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, b
 
         log('info', 'FRAME_SEGMENT_EXTRACTION_STARTED');
 
-        let segDuration = endTime - startTime;
+        let keyframeTimes = [];
+        try {
+            keyframeTimes = await probeKeyframes(
+                videoPath,
+                Math.max(0, startTime - KEYFRAME_LOOKBACK_SEC),
+                endTime,
+            );
+        } catch (e) {
+            logOperationError('warn', 'FRAME_KEYFRAME_PROBE_FAILED', e);
+        }
+        const decodeStart = selectDecodeStartSec(keyframeTimes, startTime);
+        let segDuration = endTime - decodeStart;
         if (segDuration < (1.0 / safeFps)) {
             segDuration = 1.0 / safeFps; // 최소 1프레임 보장
         }
@@ -1831,18 +1860,16 @@ async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, b
         const outputPattern = resolveContainedPath(staged, `frame_%d.${safeExt}`);
         assertPathContainmentBeforeMutation(staged, outputPattern);
         try {
-            await runProcess(
-                getMediaTools().ffmpegPath,
-                [
-                    '-y',
-                    '-ss', String(startTime),
-                    '-t', String(segDuration),
-                    '-i', videoPath,
-                    '-vf', `fps=${safeFps}`,
-                    ...encodingArgs,
-                    '-frame_pts', '1',
+            await invoke(
+                ffmpegPath,
+                buildHeatmapDecodeArgs({
+                    videoPath,
+                    decodeStartSec: decodeStart,
+                    durationSec: segDuration,
+                    fps: safeFps,
                     outputPattern,
-                ],
+                    encodingArgs,
+                }),
                 { timeoutMs: FFMPEG_TIMEOUT_MS, sharedMedia: true }
             );
 
@@ -1854,7 +1881,7 @@ async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, b
                 if (match && getSafeProviderBasename(fileName)) {
                     const idx = Number.parseInt(match[1], 10);
                     const timeOffset = (idx - 1) / safeFps;
-                    const actualTime = startTime + timeOffset;
+                    const actualTime = decodeStart + timeOffset;
                     const newName = `${actualTime.toFixed(2)}.${safeExt}`;
                     const oldPath = resolveContainedPath(staged, fileName);
                     const newPath = resolveContainedPath(staged, newName);
