@@ -169,6 +169,33 @@ class EvidenceFollowOnTests(unittest.TestCase):
         self.assertFalse(row["writes_hosted_database"])
         self.assertFalse(row["mutates_restaurant_updated_at"])
 
+    def test_popularity_revision_keeps_one_row(self):
+        score = load("popularity_score_batch")
+        existing = {
+            "canonical_key": "shop:video",
+            "source_revision": 3,
+            "scoring_version": "score-v1",
+            "popularity_score": None,
+            "popularity_tier": None,
+        }
+        older = {**existing, "source_revision": 2}
+        same = {**existing}
+        changed = {**existing, "scoring_version": "score-v2"}
+        missing_version = {**existing, "scoring_version": ""}
+        self.assertEqual(score.keep_popularity_row(existing, older)["reason"], "stale_source_revision")
+        self.assertIs(score.keep_popularity_row(existing, older)["row"], existing)
+        replay = score.keep_popularity_row(existing, same)
+        self.assertEqual(replay["reason"], "duplicate_replay")
+        self.assertEqual(replay["action"], "keep")
+        self.assertIs(replay["row"], existing)
+        replaced = score.keep_popularity_row(existing, changed)
+        self.assertEqual(replaced["reason"], "scoring_version_changed")
+        self.assertIs(replaced["row"], changed)
+        with self.assertRaises(ValueError):
+            score.keep_popularity_row(existing, missing_version)
+        self.assertFalse(score.popularity_batch_succeeded([True, False]))
+        self.assertTrue(score.popularity_batch_succeeded([True, True]))
+
     def test_migration_does_not_cascade_or_force_source_observed(self):
         sql_path = Path(__file__).resolve().parents[3] / "supabase" / "migrations" / "20261017043000_evidence_frames_and_popularity.sql"
         sql = sql_path.read_text(encoding="utf-8").lower()
