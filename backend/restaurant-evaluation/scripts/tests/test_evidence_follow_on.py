@@ -147,6 +147,28 @@ class EvidenceFollowOnTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             score.visits_multiplier(["abc123DEF45"], -0.01)
 
+    def test_builder_does_not_emit_live_score_or_tier(self):
+        score = load("popularity_score_batch")
+        row = score.build_popularity_row(
+            canonical_key="shop:video",
+            video_ids=["abc123DEF45"],
+            days_since_publish=10,
+            review_count=0,
+            scoring_version="score-v1",
+            cohort_version="cohort-a",
+            computed_at="2026-10-17T04:00:00.000Z",
+            gamma=0.25,
+            source_revision=0,
+        )
+        live_tiers = {"fire", "rainbow", "standard"}
+        self.assertIsNone(row["popularity_score"])
+        self.assertNotIsInstance(row["popularity_score"], (int, float))
+        self.assertIsNone(row["popularity_tier"])
+        self.assertNotIn(row["popularity_tier"], live_tiers)
+        self.assertNotIn("multiplied_score", row)
+        self.assertFalse(row["writes_hosted_database"])
+        self.assertFalse(row["mutates_restaurant_updated_at"])
+
     def test_migration_does_not_cascade_or_force_source_observed(self):
         sql_path = Path(__file__).resolve().parents[3] / "supabase" / "migrations" / "20261017043000_evidence_frames_and_popularity.sql"
         sql = sql_path.read_text(encoding="utf-8").lower()
