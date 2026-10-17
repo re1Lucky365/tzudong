@@ -88,7 +88,7 @@ PopularitySignals {
 
 ## 티어 메타데이터
 
-백분위 추정법은 Thesis가 정하지 않았다. 이 계층은 `P85`와 `P95`를 계산하지 않는다.
+섀도 코호트의 티어만 nearest-rank로 계산한다. 입력은 이미 채택된 분리 신호 `candidate_freshness`(감쇠)와 `candidate_visit_multiplier`(방문 승수)다. 둘을 하나의 `S_i`로 곱하지 않는다. 같은 `computed_at` 슬라이스 안에서 오름차순 정렬 키는 `candidate_visit_multiplier`이고, 동점은 `candidate_freshness`가 큰 쪽이 뒤다. 백분위 인덱스는 `ceil(p / 100 * N) - 1`이고 `0..N-1`로 자른다. 그 인덱스 이상은 해당 백분위 이상이다. `P95` 이상은 `fire`, `P85` 이상이고 `P95` 미만은 `rainbow`, 그 외는 `standard`다. `N < 1`이면 티어가 없다. `computed_at`이 다르면 각자 슬라이스이고, 다른 시각의 더 높은 티어를 가져오지 않는다. 슬라이스의 모든 멤버에 섀도 비교가 있어야 티어 라벨을 저장한다. 운영 점수와 `restaurants.popularity_tier`는 비워 둔다. 티어는 `restaurant_popularity_shadow.popularity_tier`에만 둔다. 배치 요약의 `percentile_method` 값은 `nearest-rank`다.
 
 이미 계산된 배정은 다음을 모두 가져야 한다.
 
