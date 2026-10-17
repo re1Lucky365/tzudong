@@ -35,8 +35,11 @@ BACKEND_ROOT = SCRIPT_DIR.parents[1]
 REPO_ROOT = BACKEND_ROOT.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
 from backend.utils.privacy_log import safe_error_name
+from detected_place_names import project_detected_place_names
 
 STORYBOARD_AGENT_SRC = (SCRIPT_DIR / "../../storyboard-agent/src").resolve()
 if str(STORYBOARD_AGENT_SRC) not in sys.path:
@@ -347,7 +350,7 @@ def process_video_frames(
                     locale="ko-KR",
                 )
             )
-            result = caption_result.to_jsonl_record()
+            result = project_detected_place_names(caption_result.to_jsonl_record())
             result["frames"] = frame_paths
             print(f"op=caption_task_generated frames={len(frame_paths)}")
 

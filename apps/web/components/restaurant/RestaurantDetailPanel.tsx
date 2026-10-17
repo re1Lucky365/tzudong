@@ -26,6 +26,9 @@ import {
     Play,
     ChevronLeft
 } from "lucide-react";
+import { OperationalCautionNotice, operationalCaution } from "@/components/restaurant/OperationalCautionNotice";
+import { PopularityBadge } from "@/components/restaurant/PopularityBadge";
+import { RestaurantEvidenceCarousel } from "@/components/restaurant/RestaurantEvidenceCarousel";
 import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
@@ -1101,6 +1104,14 @@ export function RestaurantDetailPanel({
                 />
                 {viewMode === 'detail' && (
                     <div className="shrink-0 border-b border-border px-3 py-2">
+                                        <PopularityBadge tier="standard" />
+                                        <OperationalCautionNotice
+                                            caution={operationalCaution({})}
+                                            shopName={restaurant.name}
+                                        />
+                                        <RestaurantEvidenceCarousel
+                                            frames={[mergedMedia.evidenceFrames ?? []]}
+                                        />
                                         <ScrollableTagContainer className="mb-1" maxWidth="100%">
                                             {categories.map((cat, index) => (
                                                 <Badge
