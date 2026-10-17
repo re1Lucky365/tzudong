@@ -13,6 +13,21 @@ export function operationalCaution(input: {
   return null;
 }
 
+export function cautionForDetailPanel(record: {
+  automaticState?: string | null;
+  automatic_state?: string | null;
+  reviewedStatus?: string | null;
+  reviewed_status?: string | null;
+  reviewed?: boolean | null;
+} | null | undefined): OperationalCaution | null {
+  if (!record) return null;
+  return operationalCaution({
+    automaticState: record.automaticState ?? record.automatic_state ?? null,
+    reviewedStatus: record.reviewedStatus ?? record.reviewed_status ?? null,
+    reviewed: record.reviewed === true,
+  });
+}
+
 export function naverPlaceSearchUrl(shopName: string): string | null {
   const name = shopName.trim();
   if (!name || name.includes("\n") || name.length > 80) return null;
