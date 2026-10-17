@@ -10,6 +10,7 @@ import type {
   FetchDecision,
   FetchRetryBudget,
   PopularityMetricRecord,
+  PopularityTier,
   PopularityTierAssignment,
   ScoringCohortIdentity,
 } from "./types";
@@ -71,6 +72,24 @@ export function assertSameScoringCohort(
     scoring_version: first.scoring_version,
     cohort_version: first.cohort_version,
     computed_at: first.computed_at,
+  };
+}
+
+export function mergePopularityTierRecords(
+  assignments: readonly PopularityTierAssignment[],
+): {
+  cohort: ScoringCohortIdentity | null;
+  tiers: PopularityTier[];
+  picksHighestTier: false;
+} {
+  if (assignments.length === 0) {
+    return { cohort: null, tiers: [], picksHighestTier: false };
+  }
+  const parsed = assignments.map(parseTierAssignment);
+  return {
+    cohort: assertSameScoringCohort(parsed),
+    tiers: parsed.map((item) => item.popularity_tier),
+    picksHighestTier: false,
   };
 }
 
