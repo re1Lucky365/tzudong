@@ -26,7 +26,7 @@ import {
     Play,
     ChevronLeft
 } from "lucide-react";
-import { OperationalCautionNotice, operationalCaution } from "@/components/restaurant/OperationalCautionNotice";
+import { OperationalCautionNotice, cautionForDetailPanel } from "@/components/restaurant/OperationalCautionNotice";
 import { PopularityBadge } from "@/components/restaurant/PopularityBadge";
 import { RestaurantEvidenceCarousel } from "@/components/restaurant/RestaurantEvidenceCarousel";
 import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
@@ -1106,7 +1106,7 @@ export function RestaurantDetailPanel({
                     <div className="shrink-0 border-b border-border px-3 py-2">
                                         <PopularityBadge tier="standard" />
                                         <OperationalCautionNotice
-                                            caution={operationalCaution({})}
+                                            caution={cautionForDetailPanel(restaurant)}
                                             shopName={restaurant.name}
                                         />
                                         <RestaurantEvidenceCarousel
