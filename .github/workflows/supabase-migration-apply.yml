@@ -109,7 +109,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       github.ref_name == 'main' &&
       (vars.G037_WRITE_FREEZE != 'active' ||
-       contains(fromJSON('["g016_privacy_audit_owner_policy","g016_onboarding_confirmation_freshness"]'), needs.validate.outputs.migration_id)) &&
+       contains(fromJSON('["g016_privacy_audit_owner_policy","g016_onboarding_confirmation_freshness","evidence_frames_and_popularity"]'), needs.validate.outputs.migration_id)) &&
       (!contains(fromJSON('["g016_privacy_audit_owner_policy","g016_onboarding_confirmation_freshness"]'), needs.validate.outputs.migration_id) ||
        github.event.inputs.verify_terminal_state == 'true')
     runs-on: ubuntu-latest
