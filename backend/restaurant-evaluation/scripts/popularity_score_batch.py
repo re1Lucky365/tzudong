@@ -176,3 +176,99 @@ def refuse_operational_write(summary):
         "mutates_restaurant_updated_at": False,
         "overwrites_operational_values": False,
     }
+
+
+def _nearest_rank_index(percent, count):
+    index = math.ceil((percent / 100) * count) - 1
+    if index < 0:
+        return 0
+    if index > count - 1:
+        return count - 1
+    return index
+
+
+def assign_shadow_percentile_tiers(members):
+    if not isinstance(members, list):
+        raise ValueError("invalid_shadow_cohort")
+    summary = {
+        "count": len(members),
+        "percentile_method": "nearest-rank",
+        "live_operational_score": None,
+        "live_popularity_tier": None,
+        "writes_restaurants_popularity_tier": False,
+    }
+    if len(members) < 1:
+        return {"records": [], "summary": summary}
+    slices = {}
+    slice_order = []
+    prepared = []
+    for member in members:
+        if not isinstance(member, dict):
+            raise ValueError("invalid_shadow_member")
+        identity = member.get("identity")
+        computed_at = member.get("computed_at")
+        if not isinstance(identity, str) or not identity.strip():
+            raise ValueError("invalid_shadow_member")
+        if not isinstance(computed_at, str) or not computed_at.strip():
+            raise ValueError("invalid_computed_at")
+        operational = member.get("operational_score", None)
+        if operational is not None:
+            operational = _finite_number(operational, "invalid_operational_score")
+        signals = member.get("candidate_signals", None)
+        present = signals is not None
+        freshness = None
+        visits = None
+        if present:
+            if not isinstance(signals, dict):
+                raise ValueError("invalid_candidate_signals")
+            freshness = _finite_number(signals.get("freshness"), "invalid_candidate_signals")
+            visits = _finite_number(signals.get("visit_multiplier"), "invalid_candidate_signals")
+        item = {
+            "identity": identity,
+            "computed_at": computed_at,
+            "operational_score": operational,
+            "candidate_freshness": freshness,
+            "candidate_visit_multiplier": visits,
+            "comparison_present": present,
+        }
+        prepared.append(item)
+        if computed_at not in slices:
+            slice_order.append(computed_at)
+            slices[computed_at] = []
+        slices[computed_at].append(item)
+    tier_by_identity = {}
+    for computed_at in slice_order:
+        group = slices[computed_at]
+        if any(not item["comparison_present"] for item in group):
+            continue
+        ranked = sorted(
+            group,
+            key=lambda item: (item["candidate_visit_multiplier"], item["candidate_freshness"]),
+        )
+        count = len(ranked)
+        if count < 1:
+            continue
+        fire_index = _nearest_rank_index(95, count)
+        rainbow_index = _nearest_rank_index(85, count)
+        for index, item in enumerate(ranked):
+            if index >= fire_index:
+                tier = "fire"
+            elif index >= rainbow_index:
+                tier = "rainbow"
+            else:
+                tier = "standard"
+            tier_by_identity[item["identity"]] = tier
+    records = []
+    for item in prepared:
+        records.append({
+            "identity": item["identity"],
+            "computed_at": item["computed_at"],
+            "operational_score": item["operational_score"],
+            "popularity_score": None,
+            "restaurants_popularity_tier": None,
+            "shadow_tier": tier_by_identity.get(item["identity"]),
+            "candidate_freshness": item["candidate_freshness"],
+            "candidate_visit_multiplier": item["candidate_visit_multiplier"],
+            "comparison_present": item["comparison_present"],
+        })
+    return {"records": records, "summary": summary}
