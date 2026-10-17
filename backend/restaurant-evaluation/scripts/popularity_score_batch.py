@@ -104,3 +104,75 @@ def popularity_batch_succeeded(chunk_results):
     if not isinstance(chunk_results, list) or not chunk_results:
         return False
     return all(result is True for result in chunk_results)
+
+
+def _finite_number(value, code):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError(code)
+    return value
+
+
+def compare_cohort_shadow(members):
+    if not isinstance(members, list) or not members:
+        raise ValueError("empty_cohort")
+    records = []
+    seen = set()
+    missing = 0
+    differ_count = 0
+    for member in members:
+        if not isinstance(member, dict):
+            raise ValueError("invalid_shadow_member")
+        identity = member.get("identity")
+        if not isinstance(identity, str) or not identity.strip() or identity in seen:
+            raise ValueError("invalid_shadow_member")
+        seen.add(identity)
+        operational = member.get("operational_score", None)
+        if operational is not None:
+            operational = _finite_number(operational, "invalid_operational_score")
+        signals = member.get("candidate_signals", None)
+        if signals is None:
+            missing += 1
+            records.append({
+                "identity": identity,
+                "operational_score": operational,
+                "candidate_freshness": None,
+                "candidate_visit_multiplier": None,
+                "comparison_present": False,
+                "differs": False,
+            })
+            continue
+        if not isinstance(signals, dict):
+            raise ValueError("invalid_candidate_signals")
+        freshness = _finite_number(signals.get("freshness"), "invalid_candidate_signals")
+        visits = _finite_number(signals.get("visit_multiplier"), "invalid_candidate_signals")
+        differs = operational is not None
+        if differs:
+            differ_count += 1
+        records.append({
+            "identity": identity,
+            "operational_score": operational,
+            "candidate_freshness": freshness,
+            "candidate_visit_multiplier": visits,
+            "comparison_present": True,
+            "differs": differs,
+        })
+    return {
+        "records": records,
+        "summary": {
+            "count": len(records),
+            "differ_count": differ_count,
+            "live_write_allowed": missing == 0,
+        },
+    }
+
+
+def refuse_operational_write(summary):
+    if not isinstance(summary, dict) or summary.get("live_write_allowed") is not True:
+        raise ValueError("shadow_comparison_required")
+    return {
+        "popularity_score": None,
+        "popularity_tier": None,
+        "writes_hosted_database": False,
+        "mutates_restaurant_updated_at": False,
+        "overwrites_operational_values": False,
+    }
