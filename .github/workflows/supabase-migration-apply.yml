@@ -29,7 +29,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-  RELEASE_MIGRATION_MANIFEST_SHA256: "8b083835e67fcccd06fbd4317cdc25a425ddb82923cd26a82dffca4a8860f580"
+  RELEASE_MIGRATION_MANIFEST_SHA256: "db3bf9155074d1d5b132079e8d6ce767a50a1b368ce2888ec081ee7858afb296"
 concurrency:
   group: supabase-migration-apply
   cancel-in-progress: false
@@ -109,7 +109,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       github.ref_name == 'main' &&
       (vars.G037_WRITE_FREEZE != 'active' ||
-       contains(fromJSON('["g016_privacy_audit_owner_policy","g016_onboarding_confirmation_freshness","evidence_frames_and_popularity"]'), needs.validate.outputs.migration_id)) &&
+       contains(fromJSON('["g016_privacy_audit_owner_policy","g016_onboarding_confirmation_freshness","evidence_frames_and_popularity","restaurant_popularity_shadow"]'), needs.validate.outputs.migration_id)) &&
       (!contains(fromJSON('["g016_privacy_audit_owner_policy","g016_onboarding_confirmation_freshness"]'), needs.validate.outputs.migration_id) ||
        github.event.inputs.verify_terminal_state == 'true')
     runs-on: ubuntu-latest
