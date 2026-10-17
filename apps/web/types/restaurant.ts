@@ -24,6 +24,12 @@ export interface Restaurant extends BaseRestaurant {
     // 호환성 속성들 (기존 코드와의 호환을 위해)
     address?: string; // road_address 또는 jibun_address의 가상 속성
     category?: string[]; // categories의 별칭
+    // 상세 패널 운영 주의가 읽는 선택 필드. 행에 없으면 주의 문구는 나오지 않는다.
+    automaticState?: string | null;
+    automatic_state?: string | null;
+    reviewedStatus?: string | null;
+    reviewed_status?: string | null;
+    reviewed?: boolean | null;
 
     // 검색 관련 (주간 인기 검색용)
     weekly_search_count: number | null; // 주간 검색 횟수
