@@ -46,3 +46,55 @@ export function summarizeContextEvents(events: readonly ("lost" | "restored")[])
   }
   return { lossCount, recoveryCount, locksThreshold: false };
 }
+
+function requireByteSample(value: number, code: string): number {
+  if (!Number.isFinite(value) || value < 0) throw new Error(code);
+  return value;
+}
+
+export function recordBadgeAdditionDelta(beforeBytes: number, afterBytes: number): {
+  beforeBytes: number;
+  afterBytes: number;
+  deltaBytes: number;
+  locksThreshold: false;
+} {
+  const before = requireByteSample(beforeBytes, "invalid_badge_memory");
+  const after = requireByteSample(afterBytes, "invalid_badge_memory");
+  return {
+    beforeBytes: before,
+    afterBytes: after,
+    deltaBytes: after - before,
+    locksThreshold: false,
+  };
+}
+
+export function recordPanelMemoryTrend(bytes: readonly number[]): {
+  sampleCount: number;
+  samples: number[];
+  firstBytes: number | null;
+  lastBytes: number | null;
+  deltaBytes: number | null;
+  locksThreshold: false;
+} {
+  const samples = bytes.map((value) => requireByteSample(value, "invalid_memory_sample"));
+  if (samples.length === 0) {
+    return {
+      sampleCount: 0,
+      samples,
+      firstBytes: null,
+      lastBytes: null,
+      deltaBytes: null,
+      locksThreshold: false,
+    };
+  }
+  const firstBytes = samples[0];
+  const lastBytes = samples[samples.length - 1];
+  return {
+    sampleCount: samples.length,
+    samples,
+    firstBytes,
+    lastBytes,
+    deltaBytes: lastBytes - firstBytes,
+    locksThreshold: false,
+  };
+}
