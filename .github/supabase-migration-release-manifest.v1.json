@@ -87,6 +87,23 @@
           "restaurant_popularity_shadow_terminal_state": true
         }
       }
+    },
+    {
+      "id": "restaurant_popularity_shadow_tier",
+      "path": "backend/supabase/migrations/20261017160000_restaurant_popularity_shadow_tier.sql",
+      "sha256": "4ba19ee5b7ae3fbbfc4ffa00a93ed30e1197cd2ad1763e063a75f75158a48426",
+      "expectedPriorState": {
+        "query": "SELECT json_build_object(\n  'restaurant_popularity_shadow_tier_absent',\n  to_regclass('public.restaurant_popularity_shadow') IS NOT NULL\n  AND NOT EXISTS (\n    SELECT 1 FROM pg_attribute\n    WHERE attrelid = to_regclass('public.restaurant_popularity_shadow')\n      AND attname = 'popularity_tier'\n      AND attnum > 0\n      AND NOT attisdropped\n  )\n)::text;\n",
+        "expected": {
+          "restaurant_popularity_shadow_tier_absent": true
+        }
+      },
+      "terminalReadback": {
+        "query": "SELECT json_build_object(\n  'restaurant_popularity_shadow_tier_terminal_state',\n  EXISTS (\n    SELECT 1 FROM pg_attribute\n    WHERE attrelid = to_regclass('public.restaurant_popularity_shadow')\n      AND attname = 'popularity_tier'\n      AND attnum > 0\n      AND NOT attisdropped\n  )\n  AND NOT COALESCE(has_table_privilege('anon', to_regclass('public.restaurant_popularity_shadow'), 'select'), false)\n  AND NOT COALESCE(has_table_privilege('authenticated', to_regclass('public.restaurant_popularity_shadow'), 'select'), false)\n  AND NOT COALESCE(has_table_privilege('anon', to_regclass('public.restaurant_popularity_shadow'), 'insert'), false)\n  AND NOT COALESCE(has_table_privilege('anon', to_regclass('public.restaurant_popularity_shadow'), 'update'), false)\n  AND NOT COALESCE(has_table_privilege('anon', to_regclass('public.restaurant_popularity_shadow'), 'delete'), false)\n)::text;\n",
+        "expected": {
+          "restaurant_popularity_shadow_tier_terminal_state": true
+        }
+      }
     }
   ]
 }
