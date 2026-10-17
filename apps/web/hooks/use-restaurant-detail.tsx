@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { Tables } from "@/integrations/supabase/types";
 import type { Restaurant } from "@/types/restaurant";
+import { publicEvidenceFrames } from "@/components/restaurant/RestaurantEvidenceCarousel";
 import { hydrateRestaurantDetailWithMergeContext } from "@/lib/restaurant-merged-media";
-import { fetchSupabaseRows, postgrestIn } from "@/lib/supabase-rest-client";
-import { mergeRestaurants, RESTAURANT_MERGE_SELECT } from "@/hooks/use-restaurants";
+import { postgrestIn } from "@/lib/supabase-rest-client";
+import { fetchRestaurantsRecoveringMissingEmbed, mergeRestaurants, RESTAURANT_MERGE_SELECT } from "@/hooks/use-restaurants";
 
 type DBRestaurant = Tables<"restaurants">;
 
@@ -20,8 +21,10 @@ function collectRestaurantMergeContextIds(restaurant: Restaurant | null | undefi
 }
 
 function hydrateDbRestaurant(dbData: DBRestaurant): Restaurant {
+    const embedded = (dbData as { restaurant_evidence_frames?: unknown }).restaurant_evidence_frames;
     return {
         ...dbData,
+        evidence_frames: publicEvidenceFrames([Array.isArray(embedded) ? embedded : []]),
         address: dbData.road_address || dbData.jibun_address || '',
         category: dbData.categories,
     } as Restaurant;
@@ -55,7 +58,7 @@ export function useRestaurantWithMergeContext(mergeContextRestaurant: Restaurant
         queryFn: async () => {
             if (!mergeContextRestaurant || mergeContextIds.length === 0) return null;
 
-            const rows = await fetchSupabaseRows<DBRestaurant>('restaurants', [
+            const rows = await fetchRestaurantsRecoveringMissingEmbed<DBRestaurant>([
                 ['select', RESTAURANT_MERGE_SELECT],
                 ['id', postgrestIn(mergeContextIds)],
             ]);

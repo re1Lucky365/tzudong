@@ -1,3 +1,6 @@
+import { evidenceFrameEmbedRow } from '@/components/restaurant/RestaurantEvidenceCarousel';
+import { parseEvidenceFrame, unionApprovedEvidenceFrames } from '@/lib/evidence-engineering/frames';
+import type { RestaurantEvidenceFrame } from '@/lib/evidence-engineering/types';
 import type { Restaurant, YoutubeMeta } from '@/types/restaurant';
 
 type BaseMergedRestaurant = NonNullable<Restaurant['mergedRestaurants']>[number];
@@ -7,6 +10,7 @@ export interface RestaurantMergedMedia {
     youtubeLinks: string[];
     tzuyangReviews: string[];
     youtubeMetas: YoutubeMeta[];
+    evidenceFrames: RestaurantEvidenceFrame[];
 }
 
 export interface TzuyangReviewEntry {
@@ -111,7 +115,7 @@ const mergeCategories = (restaurant: Restaurant, mergeContext?: Restaurant | nul
 
 export const collectRestaurantMergedMedia = (restaurant: Restaurant | null | undefined): RestaurantMergedMedia => {
     if (!restaurant) {
-        return { youtubeLinks: [], tzuyangReviews: [], youtubeMetas: [] };
+        return { youtubeLinks: [], tzuyangReviews: [], youtubeMetas: [], evidenceFrames: [] };
     }
 
     const youtubeLinks: string[] = [];
@@ -130,7 +134,37 @@ export const collectRestaurantMergedMedia = (restaurant: Restaurant | null | und
         addUniqueMeta(youtubeMetas, record.youtube_meta);
     });
 
-    return { youtubeLinks, tzuyangReviews, youtubeMetas };
+    const evidenceGroups: RestaurantEvidenceFrame[][] = [];
+    const pushFrames = (value: unknown) => {
+        if (!Array.isArray(value)) return;
+        const frames: RestaurantEvidenceFrame[] = [];
+        for (const item of value) {
+            if (!item || typeof item !== 'object') continue;
+            try {
+                frames.push(parseEvidenceFrame(evidenceFrameEmbedRow(item)));
+            } catch {
+                continue;
+            }
+        }
+        if (frames.length > 0) evidenceGroups.push(frames);
+    };
+    const pushRecordFrames = (record: object) => {
+        const value = record as { evidence_frames?: unknown; restaurant_evidence_frames?: unknown };
+        pushFrames(value.evidence_frames);
+        pushFrames(value.restaurant_evidence_frames);
+    };
+    pushRecordFrames(restaurant);
+    pushFrames((restaurant as { mergedEvidenceFrames?: unknown }).mergedEvidenceFrames);
+    getRestaurantRecordsByMediaDate(restaurant).forEach((record) => {
+        pushRecordFrames(record);
+    });
+
+    return {
+        youtubeLinks,
+        tzuyangReviews,
+        youtubeMetas,
+        evidenceFrames: evidenceGroups.length > 0 ? unionApprovedEvidenceFrames(evidenceGroups) : [],
+    };
 };
 
 const readReviewMeta = (record: RestaurantLike | undefined): Pick<TzuyangReviewEntry, 'title' | 'publishedAt'> => {
@@ -222,6 +256,7 @@ export const hydrateRestaurantDetailWithMergeContext = (
         mergedYoutubeLinks: mergedMedia.youtubeLinks,
         mergedTzuyangReviews: mergedMedia.tzuyangReviews,
         mergedYoutubeMetas: mergedMedia.youtubeMetas,
+        mergedEvidenceFrames: mergedMedia.evidenceFrames,
         mergedRestaurants,
-    } as Restaurant;
+    } as unknown as Restaurant;
 };
