@@ -1,6 +1,7 @@
 import { evidenceFrameEmbedRow } from '@/components/restaurant/RestaurantEvidenceCarousel';
 import { parseEvidenceFrame, unionApprovedEvidenceFrames } from '@/lib/evidence-engineering/frames';
-import type { RestaurantEvidenceFrame } from '@/lib/evidence-engineering/types';
+import { mergePopularityTierRecords } from '@/lib/evidence-engineering/records';
+import type { PopularityTier, PopularityTierAssignment, RestaurantEvidenceFrame, ScoringCohortIdentity } from '@/lib/evidence-engineering/types';
 import type { Restaurant, YoutubeMeta } from '@/types/restaurant';
 
 type BaseMergedRestaurant = NonNullable<Restaurant['mergedRestaurants']>[number];
@@ -11,6 +12,9 @@ export interface RestaurantMergedMedia {
     tzuyangReviews: string[];
     youtubeMetas: YoutubeMeta[];
     evidenceFrames: RestaurantEvidenceFrame[];
+    popularityCohort: ScoringCohortIdentity | null;
+    popularityTiers: PopularityTier[];
+    picksHighestTier: false;
 }
 
 export interface TzuyangReviewEntry {
@@ -115,7 +119,15 @@ const mergeCategories = (restaurant: Restaurant, mergeContext?: Restaurant | nul
 
 export const collectRestaurantMergedMedia = (restaurant: Restaurant | null | undefined): RestaurantMergedMedia => {
     if (!restaurant) {
-        return { youtubeLinks: [], tzuyangReviews: [], youtubeMetas: [], evidenceFrames: [] };
+        return {
+            youtubeLinks: [],
+            tzuyangReviews: [],
+            youtubeMetas: [],
+            evidenceFrames: [],
+            popularityCohort: null,
+            popularityTiers: [],
+            picksHighestTier: false,
+        };
     }
 
     const youtubeLinks: string[] = [];
@@ -155,15 +167,29 @@ export const collectRestaurantMergedMedia = (restaurant: Restaurant | null | und
     };
     pushRecordFrames(restaurant);
     pushFrames((restaurant as { mergedEvidenceFrames?: unknown }).mergedEvidenceFrames);
+    const popularityAssignments: PopularityTierAssignment[] = [];
+    const pushMetrics = (record: object) => {
+        const value = (record as { restaurant_popularity_metrics?: unknown }).restaurant_popularity_metrics;
+        const rows = Array.isArray(value) ? value : value == null ? [] : [value];
+        for (const row of rows) {
+            if (!row || typeof row !== 'object') continue;
+            popularityAssignments.push(row as PopularityTierAssignment);
+        }
+    };
     getRestaurantRecordsByMediaDate(restaurant).forEach((record) => {
         pushRecordFrames(record);
+        pushMetrics(record);
     });
+    const popularity = mergePopularityTierRecords(popularityAssignments);
 
     return {
         youtubeLinks,
         tzuyangReviews,
         youtubeMetas,
         evidenceFrames: evidenceGroups.length > 0 ? unionApprovedEvidenceFrames(evidenceGroups) : [],
+        popularityCohort: popularity.cohort,
+        popularityTiers: popularity.tiers,
+        picksHighestTier: popularity.picksHighestTier,
     };
 };
 
