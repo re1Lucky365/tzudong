@@ -37,7 +37,9 @@ import { safeErrorName } from '../../utils/privacy-log.mjs';
 import {
     buildHeatmapDecodeArgs,
     buildKeyframeProbeArgs,
+    decideDownloadRetry,
     KEYFRAME_LOOKBACK_SEC,
+    mayRetryProviderFetch,
     parseKeyframeProbeCsv,
     selectDecodeStartSec,
 } from './evidence-frame-sampling.mjs';
@@ -1715,12 +1717,14 @@ async function downloadVideo(videoId, outputDir, quality, options = {}) {
         `https://www.youtube.com/watch?v=${videoId}`,
     ];
     const execOptions = buildYtDlpExecOptions();
+    const invoke = options.runProcess ?? runProcess;
+    let dailyRemaining = options.dailyRemaining;
 
     const maxRetries = getYtDlpMaxRetries();
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             log('info', 'FRAME_VIDEO_DOWNLOAD_ATTEMPTED');
-            await runProcess(ytDlpInvocation.file, ytDlpArgs, {
+            await invoke(ytDlpInvocation.file, ytDlpArgs, {
                 timeoutMs: execOptions.timeout,
                 stdoutMaxBytes: execOptions.maxBuffer,
                 stderrMaxBytes: execOptions.maxBuffer,
@@ -1745,6 +1749,22 @@ async function downloadVideo(videoId, outputDir, quality, options = {}) {
             log('warn', 'FRAME_VIDEO_DOWNLOAD_OUTPUT_MISSING');
         } catch (e) {
             logOperationError('warn', 'FRAME_VIDEO_DOWNLOAD_FAILED', e);
+            const decision = decideDownloadRetry(e);
+            if (decision === 'stop_source') {
+                log('error', 'FRAME_PROVIDER_STOP_SOURCE');
+                return null;
+            }
+            const retryAfterSeconds = e && Object.hasOwn(e, 'retryAfterSeconds') ? e.retryAfterSeconds : null;
+            if (!mayRetryProviderFetch(decision, {
+                retryAfterSeconds,
+                attemptsUsed: attempt,
+                maxAttempts: maxRetries,
+                circuitOpen: options.circuitOpen === true,
+                dailyRemaining,
+            })) {
+                break;
+            }
+            dailyRemaining -= 1;
         }
 
         // 재시도 전 대기 (2초)
