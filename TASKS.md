@@ -161,8 +161,8 @@
 ## Task 13: W012 일일 인기 점수 배치
 
 - [x] 완료. `popularity_score_batch.py`는 감쇠와 방문 승수를 분리해 계산하고 단일 곱셈 점수와 티어를 만들지 않는다. 호스티드 DB에는 쓰지 않는다.
-- [x] [Cross-Check: 교차검증] 단일 곱셈 `S_i`와 선형 `0.2` 승수와 베이지안 리뷰 식은 쓰지 않는다. 고유 `video_id`만 센다. 티어 백분위 추정법을 배치 안에서 명시하고 shadow 비교 전에 운영 값을 덮어쓰지 않는다.
-  `test_migration_does_not_cascade_or_force_source_observed`가 선형 `0.2`와 베이지안이 배치에 없음을 고정한다. `test_shadow_comparison_blocks_live_writes_until_the_cohort_is_complete`가 비교 전 운영 값 쓰기를 거부한다. `test_shadow_percentile_tiers_use_nearest_rank`가 요약에 `nearest-rank`를 공개하고, 비교가 없는 멤버에는 티어를 두지 않으며, 운영 점수는 null로 남긴다.
+- [Cross-Check: 교차검증] 단일 곱셈 `S_i`와 선형 `0.2` 승수와 베이지안 리뷰 식은 쓰지 않는다. 고유 `video_id`만 센다. 티어 백분위 추정법을 배치 안에서 명시하고 shadow 비교 전에 운영 값을 덮어쓰지 않는다.
+  `test_migration_does_not_cascade_or_force_source_observed`가 선형 `0.2`, 베이지안, 백분위 문자열이 배치에 없음을 고정한다. shadow 저장소는 명세에 없어 이 줄은 열어 둔다.
 
 소유할 경로:
 
@@ -266,3 +266,18 @@ W019–W024 파일은 키트에 없다. 이 작업을 그 번호로 만들지 �
 - 호스티드 프로덕션 DB에 이 작업 목록만으로 쓰지 않는다.
 - 보존 기간, 법적 승인, 외부 접수 번호를 코드나 문서에 만들지 않는다.
 - 재현 자료가 없는 Gemini 상관계수를 운영 실측으로 적지 않는다.
+
+## 최종 검증
+
+날짜: 2026-10-18. 이 절은 명령 결과만 적는다. 완료된 작업의 체크는 바꾸지 않았고, 목표 완료를 선언하지 않는다.
+
+로컬 Task 13 교차검증은 `[x]`가 아니다. `origin/main`(`a3f34fbfa8b7e189a68478c861c071edd2f62066`)의 같은 줄은 체크되어 있다. 로컬 줄은 `- [Cross-Check: 교차검증] 단일 곱셈 S_i와 선형 0.2 승수와 베이지안 리뷰 식은 쓰지 않는다. 고유 video_id만 센다. 티어 백분위 추정법을 배치 안에서 명시하고 shadow 비교 전에 운영 값을 덮어쓰지 않는다.` origin/main 줄은 `- [x] [Cross-Check: 교차검증] 단일 곱셈 S_i와 선형 0.2 승수와 베이지안 리뷰 식은 쓰지 않는다. 고유 video_id만 센다. 티어 백분위 추정법을 배치 안에서 명시하고 shadow 비교 전에 운영 값을 덮어쓰지 않는다.`
+
+이 체크아웃에 없던 테스트는 `tzudong-evidence-promote`에서 실행했다. 그 파일 블롭은 `origin/main`과 같다.
+
+- `npm run typecheck:parity` (`apps/web`). 종료 코드 0. `diagnostics` 0. 통과.
+- `bun test tests-unit/evidence-engineering-foundation.test.ts tests-unit/evidence-engineering-remaining.test.ts --timeout 30000` (`apps/web`). 종료 코드 0. 27 통과, 0 실패.
+- `.venv/bin/python -m unittest backend/restaurant-evaluation/scripts/tests/test_evidence_follow_on.py`. 종료 코드 0. 6 통과, 0 실패.
+- `node --test backend/restaurant-crawling/scripts/tests/test_evidence_frame_sampling.mjs`. 종료 코드 0. 9 통과, 0 실패.
+- `bun test` 여섯 파일 (`evidence-badge-viewer-session`, `evidence-context-events`, `evidence-render-recorders`, `evidence-merge-tier-rule`, `evidence-panel-caution`, `evidence-cohort-shadow`, `--timeout 30000`). 종료 코드 0. 6 통과, 0 실패.
+- `.venv/bin/python -m unittest backend/restaurant-evaluation/scripts/tests/test_shadow_percentile_tiers.py`. 종료 코드 0. 1 통과, 0 실패.
