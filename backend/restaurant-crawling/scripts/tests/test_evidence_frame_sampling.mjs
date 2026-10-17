@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
     assignFrameIdentity,
     reconcileFrameIdentities,
+    samplingLedgerDocument,
     sha256Hex,
 } from '../evidence-frame-identity.mjs';
 import {
@@ -73,6 +74,11 @@ test('content hash and frame id stay separate and the same hash keeps one key pr
     const reconciled = reconcileFrameIdentities([first, second]);
     assert.equal(reconciled.population.used_as_success_gate, false);
     assert.notEqual(reconciled.population.reconciled_count, 609);
+    const ledger = samplingLedgerDocument(reconciled);
+    assert.equal(ledger.duplicate_check.reconciled_count, reconciled.population.reconciled_count);
+    assert.equal(ledger.duplicate_check.used_as_success_gate, false);
+    assert.equal(ledger.records.length, ledger.duplicate_check.reconciled_count);
+    assert.equal(Object.hasOwn(ledger.duplicate_check, 'reviewed_frame_claim'), false);
     assert.throws(() => reconcileFrameIdentities([
         first,
         { ...first, content_sha256: 'a'.repeat(64) },
@@ -372,6 +378,11 @@ test('processSingleVideo writes a 2fps evidence manifest from the local file wit
             manifest.frame_identities[0].storage_object_key.includes(manifest.frame_identities[0].content_sha256.slice(0, 12)),
             true,
         );
+        const ledgerPath = path.join(framesDir, VIDEO_ID, '0', 'evidence-frame-ledger.json');
+        const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+        assert.equal(ledger.duplicate_check.used_as_success_gate, false);
+        assert.equal(ledger.duplicate_check.reconciled_count, ledger.records.length);
+        assert.equal(ledger.records.length, 2);
         assert.equal(ffmpegArgs[0].includes('-skip_frame'), false);
         assert.equal(ffmpegArgs[0][ffmpegArgs[0].indexOf('-vf') + 1], 'fps=2');
         assert.equal(videoBytesRead, 0);

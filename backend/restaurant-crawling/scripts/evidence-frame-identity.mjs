@@ -74,3 +74,22 @@ export function reconcileFrameIdentities(records, options = {}) {
         },
     };
 }
+
+export function samplingLedgerDocument(reconciled) {
+    if (!reconciled || !Array.isArray(reconciled.records) || !reconciled.population) {
+        throw fail('FRAME_INVALID_LEDGER');
+    }
+    if (reconciled.population.used_as_success_gate !== false) {
+        throw fail('FRAME_POPULATION_GATE_FORBIDDEN');
+    }
+    if (!Number.isSafeInteger(reconciled.population.reconciled_count) || reconciled.population.reconciled_count < 0) {
+        throw fail('FRAME_INVALID_LEDGER');
+    }
+    return {
+        records: reconciled.records,
+        duplicate_check: {
+            reconciled_count: reconciled.population.reconciled_count,
+            used_as_success_gate: false,
+        },
+    };
+}
