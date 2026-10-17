@@ -161,8 +161,8 @@
 ## Task 13: W012 일일 인기 점수 배치
 
 - [x] 완료. `popularity_score_batch.py`는 감쇠와 방문 승수를 분리해 계산하고 단일 곱셈 점수와 티어를 만들지 않는다. 호스티드 DB에는 쓰지 않는다.
-- [Cross-Check: 교차검증] 단일 곱셈 `S_i`와 선형 `0.2` 승수와 베이지안 리뷰 식은 쓰지 않는다. 고유 `video_id`만 센다. 티어 백분위 추정법을 배치 안에서 명시하고 shadow 비교 전에 운영 값을 덮어쓰지 않는다.
-  `test_migration_does_not_cascade_or_force_source_observed`가 선형 `0.2`, 베이지안, 백분위 문자열이 배치에 없음을 고정한다. `test_shadow_comparison_blocks_live_writes_until_the_cohort_is_complete`가 비교 전 운영 값 쓰기를 거부하고, 비교가 끝나도 운영 점수를 덮지 않는다. 티어 백분위 추정법은 아직 정의되지 않아 이 줄은 열어 둔다.
+- [x] [Cross-Check: 교차검증] 단일 곱셈 `S_i`와 선형 `0.2` 승수와 베이지안 리뷰 식은 쓰지 않는다. 고유 `video_id`만 센다. 티어 백분위 추정법을 배치 안에서 명시하고 shadow 비교 전에 운영 값을 덮어쓰지 않는다.
+  `test_migration_does_not_cascade_or_force_source_observed`가 선형 `0.2`와 베이지안이 배치에 없음을 고정한다. `test_shadow_comparison_blocks_live_writes_until_the_cohort_is_complete`가 비교 전 운영 값 쓰기를 거부한다. `test_shadow_percentile_tiers_use_nearest_rank`가 요약에 `nearest-rank`를 공개하고, 비교가 없는 멤버에는 티어를 두지 않으며, 운영 점수는 null로 남긴다.
 
 소유할 경로:
 
