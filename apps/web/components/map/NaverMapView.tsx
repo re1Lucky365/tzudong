@@ -71,6 +71,7 @@ import {
 } from "@/lib/cluster-marker";
 import { syncPopularityMarkerInteraction } from "@/lib/evidence-engineering/popularity-marker";
 import { getNaverIndividualMarkerVisual } from "@/lib/naver-map-marker-visuals";
+import { projectPublishedPopularityTier } from "@/lib/evidence-engineering/published-popularity";
 import { deferMarkerRenders } from "@/lib/deferred-marker-renders";
 import './marker-icons.css';
 import {
@@ -2080,12 +2081,22 @@ const NaverMapView = memo(({
         }
     }, [showUserSubmittedMarkers]);
 
+    // History/search selections can outlive the visible query and omit its
+    // projected tier. Use one publication projection for the guard and visual.
+    const publishedSelectedRestaurant = useMemo(
+        () => selectedRestaurant ? projectPublishedPopularityTier(selectedRestaurant) : null,
+        [selectedRestaurant],
+    );
+    const publishedSearchedRestaurant = useMemo(
+        () => activeSearchedRestaurant ? projectPublishedPopularityTier(activeSearchedRestaurant) : null,
+        [activeSearchedRestaurant],
+    );
     const markerKindSignature = useMemo(
         () => buildRestaurantMarkerKindSignature(displayRestaurants, undefined, {
-            selected: selectedRestaurant?.popularity_tier,
-            searched: activeSearchedRestaurant?.popularity_tier,
+            selected: publishedSelectedRestaurant?.popularity_tier,
+            searched: publishedSearchedRestaurant?.popularity_tier,
         }),
-        [displayRestaurants, selectedRestaurant?.popularity_tier, activeSearchedRestaurant?.popularity_tier],
+        [displayRestaurants, publishedSelectedRestaurant?.popularity_tier, publishedSearchedRestaurant?.popularity_tier],
     );
     const overlappingMarkerOffsets = useMemo(
         () => buildNaverOverlappingMarkerOffsets(displayRestaurants),
@@ -2104,12 +2115,12 @@ const NaverMapView = memo(({
     const { idSet: displayRestaurantIds, mergedRestaurantIds } = displayRestaurantLookup;
     const { byId: restaurantById, mergedRestaurantById } = restaurantLookup;
     const markerVisibleActiveSearchedRestaurant =
-        showUserSubmittedMarkers || !isUserSubmittedRestaurant(activeSearchedRestaurant)
-            ? activeSearchedRestaurant
+        showUserSubmittedMarkers || !isUserSubmittedRestaurant(publishedSearchedRestaurant)
+            ? publishedSearchedRestaurant
             : null;
     const markerVisibleSelectedRestaurant =
-        showUserSubmittedMarkers || !isUserSubmittedRestaurant(selectedRestaurant)
-            ? selectedRestaurant
+        showUserSubmittedMarkers || !isUserSubmittedRestaurant(publishedSelectedRestaurant)
+            ? publishedSelectedRestaurant
             : null;
     const expandedClusterRetainIds = useMemo(() => {
         const ids: string[] = [];
