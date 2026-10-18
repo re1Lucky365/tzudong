@@ -2081,8 +2081,11 @@ const NaverMapView = memo(({
     }, [showUserSubmittedMarkers]);
 
     const markerKindSignature = useMemo(
-        () => buildRestaurantMarkerKindSignature(displayRestaurants),
-        [displayRestaurants],
+        () => buildRestaurantMarkerKindSignature(displayRestaurants, undefined, {
+            selected: selectedRestaurant?.popularity_tier,
+            searched: activeSearchedRestaurant?.popularity_tier,
+        }),
+        [displayRestaurants, selectedRestaurant?.popularity_tier, activeSearchedRestaurant?.popularity_tier],
     );
     const overlappingMarkerOffsets = useMemo(
         () => buildNaverOverlappingMarkerOffsets(displayRestaurants),
