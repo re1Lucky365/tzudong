@@ -206,6 +206,7 @@ export async function callGeminiReceiptOcr(input: {
   const inferenceConfig = input.inferenceConfig ?? getGeminiOcrInferenceConfigSnapshot(env);
   const attempts: ReceiptOcrAttempt[] = [];
   const deadline = Date.now() + timeoutMs;
+  let nonCredentialOutcomeObserved = false;
 
   for (const model of getGeminiOcrModels(env)) {
     if (input.signal?.aborted || Date.now() >= deadline) break;
@@ -255,11 +256,15 @@ export async function callGeminiReceiptOcr(input: {
       // response, may try the next declared model. Timeouts, cancellation and
       // transport/server failures have an uncertain provider outcome and must
       // not dispatch another model automatically.
-      const definitiveCredentialRejection = !providerResponseReceived
+      const currentCredentialRejection = !providerResponseReceived
         && isDefinitiveGeminiCredentialRejection(error);
-      if (definitiveCredentialRejection) {
-        throw new GeminiOcrError(attempts, true);
+      if (currentCredentialRejection) {
+        if (!nonCredentialOutcomeObserved) {
+          throw new GeminiOcrError(attempts, true);
+        }
+        break;
       }
+      nonCredentialOutcomeObserved = true;
       const fallbackSafe = providerResponseReceived || providerStatus === 400 || providerStatus === 404;
       if (!fallbackSafe) break;
     } finally {

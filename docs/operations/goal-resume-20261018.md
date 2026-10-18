@@ -113,3 +113,13 @@ Evidence-prefixed successor의 aggregate compile 결과 자체도 별도 PG17.6 
 최종 사용자·배너 390·834·1440px 캡처6개 모두 문서 가로 넘침0이며 title18px, 데스크톱/태블릿 공통 header56px다. 모바일 header는 사용자150→96px(-54px,-36%), 배너142→88px(-54px,-38.03%); 주요 목록·페이지 버튼은32→44px(+12px,+37.5%)다. 조건별1회 관측으로95%구간을 산출하지 않으며 작업 시간·운영 성능 개선으로 해석하지 않는다. 원본 중간 관측과 최종 JPEG byte/hash·source hash는 `admin-cms-followup-20261018/artifact-map.json`에 구분해 보존했다.
 
 CMS-FINAL-001~004는 관측 revision CAS, 실제 삭제된 행의 미디어 정리, 명시적 최신 상태 수용으로 보완됐고 독립 재검토에서도 로컬 소스 결함이 닫혔다. Hosted revision trigger 동작은 아직 미확인이다. 기존 Gemini FIFO/job/hash는 유지하고, 최신 소스 추가 묶음은 준비만 한다. 연구·운영·배포 gate는 미완료다.
+
+### 혼합 모델 이력 복구와 보충 연구
+
+모델 A가 응답한 뒤 parsing 실패하고 모델 B가 credential 거절을 반환한 경우, 이전 구현은 이력을 잃고 durable claim release를 허용할 수 있었다. 첫 수정에서도 세 번째 모델로 계속 진행하는 반례를 발견했다. 최종 helper는 operation 전체의 non-credential outcome을 단조 누적하고, 혼합 이력 뒤 credential 거절에서는 definitive=false로 중지한다. 이 조건에서 세 번째 모델·다음 credential 호출은0이며 pure credential-only 복구는 유지한다.
+
+수정 전 직접 반례 두 건의 실패와 중간 수정은 보존했다. 최종 helper26/116, 통합79/447, TypeScript parity3,351입력/진단0과 build54페이지가 통과했다. 이후 test-only composition2/12와 durable 전체34/207이 실제 helper→durable 경로의 no-payload·force-refresh에서 release0·markIndeterminate1, 기존 result/payload/revision 보존과 추가 provider0을 확인했다. 이 그룹은 겹치므로 합산하지 않으며 fakeStore application 경계를 SQL 재증명으로 취급하지 않는다. [최종 소스·검증 경계](../../apps/web/performance/cross-audit-20261019/ocr-mixed-model-integrated-verification/final-source-readback.json).
+
+실제 GPT-6 Pro + Deep Research 보충 보고서38,673bytes를 원문 그대로 저장했고 SHA는117b7a0f220af81c5283b385a1b5f46b440c628521fc5ca3522f3a5e7517a215다. [원본 대화](https://chatgpt.com/c/6ad50f71-6e94-83ee-bdf1-851a80101df8)와 frozen14a8f5da/bundle90c4e3f0…를 결속했다. 13개 consequential finding을 [판정표](../../apps/web/performance/cross-audit-20261019/ocr-credential-admission-supplemental-review/decision-matrix.json)와 [후속 판정](../../apps/web/performance/cross-audit-20261019/ocr-credential-admission-supplemental-review/decision-matrix-followup.json)에 매핑했다. 연구 슬롯은 전문 저장 직후 반환했다. 이 보충 연구는 Gemini 반대 감사나 최종 역검증이 아니다.
+
+Initial canonical ACL admission은 미해결이다. 기존106은 운영 applied가 아닌 held_unapplied이며 실제 적용 lineage는89→100→105다. Frozen/published106 pins를 보존하는 별도107과 versioned fail-closed admission을 준비한다. 새 P1 리뷰의 stale-pending admin rerun은 단순 generation 회전으로 해결하지 않는다. 일반 dispatch retry와 명시 recovery operation을 분리하고 ACK 손실·processing·stale generation의 중복 호출을 막는108 계약을 준비한다. 실제 구현·DB 검증·후속 CI·운영 단계는 별도 gate다.

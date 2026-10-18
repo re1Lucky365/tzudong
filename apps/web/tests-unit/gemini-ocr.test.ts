@@ -308,6 +308,66 @@ describe('gemini receipt ocr helper', () => {
     }
   });
 
+  test('does not downgrade a prior model response to a definitive credential-only rejection', async () => {
+    const originalFetch = globalThis.fetch;
+    const seenModels: string[] = [];
+    const seenCredentials: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init);
+      const model = new URL(request.url).pathname.split('/').at(-1)!.replace(':generateContent', '');
+      seenModels.push(model);
+      seenCredentials.push(request.headers.get('x-goog-api-key') ?? '');
+      if (model === 'response-model') {
+        return Response.json({
+          candidates: [{ content: { parts: [{ text: 'synthetic non-json response' }] } }],
+        });
+      }
+      if (model === 'third-model') {
+        return Response.json({
+          candidates: [{ content: { parts: [{ text: '{"store_name":"unexpected third model"}' }] } }],
+        });
+      }
+      return Response.json({
+        error: {
+          code: 400,
+          message: 'synthetic rejected credential',
+          status: 'INVALID_ARGUMENT',
+          details: [{
+            '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
+            reason: 'API_KEY_INVALID',
+            domain: 'googleapis.com',
+          }],
+        },
+      }, { status: 400 });
+    }) as typeof fetch;
+
+    try {
+      await expect(callGeminiReceiptOcrWithCredentialFallback({
+        credentials: [
+          { apiKey: 'credential-mixed-model-marker' },
+          { apiKey: 'credential-unused-marker' },
+        ],
+        imageBase64: 'AA==',
+        mimeType: 'image/png',
+        prompt: 'synthetic receipt',
+        env: { GEMINI_OCR_MODEL: 'response-model,credential-model,third-model' } as NodeJS.ProcessEnv,
+      })).rejects.toMatchObject({
+        definitiveCredentialRejection: false,
+        attempts: [
+          { model: 'response-model', ok: false },
+          { model: 'credential-model', ok: false },
+        ],
+      });
+      expect(seenModels).toEqual(['response-model', 'credential-model']);
+      expect(seenCredentials).toEqual([
+        'credential-mixed-model-marker',
+        'credential-mixed-model-marker',
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test('does not rotate credentials after transport or generic request uncertainty', async () => {
     const originalFetch = globalThis.fetch;
     const seenCredentials: string[] = [];

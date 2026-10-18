@@ -14,7 +14,11 @@ import {
   RECEIPT_OCR_CREDENTIAL_RELEASE_CAPABILITY_VERSION,
   RECEIPT_OCR_DEFAULT_GENERATION,
 } from '@/lib/ocr/durable-result';
-import { GeminiOcrError, getGeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini';
+import {
+  callGeminiReceiptOcrWithCredentialFallback,
+  GeminiOcrError,
+  getGeminiOcrInferenceConfigSnapshot,
+} from '@/lib/ocr/gemini';
 import { buildReceiptOcrEnvelope, RECEIPT_OCR_NORMALIZATION_VERSION } from '@/lib/ocr/receipt-normalization';
 import { ReviewSaveOperation } from '@/lib/reviews/review-save-operation';
 import { buildReviewPhotoObjectPath } from '@/lib/review-photo-url';
@@ -201,6 +205,52 @@ function gate() {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => { resolve = done; });
   return { promise, resolve };
+}
+
+type MixedProviderCall = { credential: string; model: string };
+
+function installResponseThenCredentialProvider(calls: MixedProviderCall[]) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    const model = new URL(request.url).pathname.split('/').at(-1)!.replace(':generateContent', '');
+    calls.push({
+      credential: request.headers.get('x-goog-api-key') ?? '',
+      model,
+    });
+    if (model === 'model-a') {
+      return Response.json({
+        candidates: [{ content: { parts: [{ text: 'synthetic non-json response' }] } }],
+      });
+    }
+    if (model !== 'model-b') throw new Error('unexpected synthetic model dispatch');
+    return Response.json({
+      error: {
+        code: 400,
+        message: 'synthetic rejected credential',
+        status: 'INVALID_ARGUMENT',
+        details: [{
+          '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
+          reason: 'API_KEY_INVALID',
+          domain: 'googleapis.com',
+        }],
+      },
+    }, { status: 400 });
+  }) as typeof fetch;
+  return () => { globalThis.fetch = originalFetch; };
+}
+
+function runResponseThenCredentialProvider() {
+  return callGeminiReceiptOcrWithCredentialFallback({
+    credentials: [
+      { apiKey: 'credential-primary-marker' },
+      { apiKey: 'credential-unused-marker' },
+    ],
+    imageBase64: 'AA==',
+    mimeType: 'image/png',
+    prompt: 'synthetic receipt',
+    env: { GEMINI_OCR_MODEL: 'model-a,model-b' } as NodeJS.ProcessEnv,
+  });
 }
 
 describe('durable receipt OCR execution', () => {
@@ -526,6 +576,115 @@ describe('durable receipt OCR execution', () => {
       runProvider: async () => { providerCalls++; return payload(); },
     })).rejects.toMatchObject({ state: 'indeterminate' } satisfies Partial<DurableReceiptOcrPendingError>);
     expect(providerCalls).toBe(1);
+  });
+
+  test('marks a no-payload mixed model result indeterminate without credential release', async () => {
+    const delegate = fakeStore();
+    let markIndeterminateCalls = 0;
+    let credentialReleaseCalls = 0;
+    const store: DurableReceiptOcrStore = {
+      ...delegate,
+      async markIndeterminate(input) {
+        markIndeterminateCalls++;
+        await delegate.markIndeterminate(input);
+      },
+      async releaseDefinitiveCredentialRejection(input) {
+        credentialReleaseCalls++;
+        await delegate.releaseDefinitiveCredentialRejection(input);
+      },
+    };
+    const calls: MixedProviderCall[] = [];
+    const restoreFetch = installResponseThenCredentialProvider(calls);
+    const bound = binding({ modelPolicy: ['model-a', 'model-b'] });
+
+    try {
+      await expect(executeDurableReceiptOcr({
+        store,
+        binding: bound,
+        operationId: crypto.randomUUID(),
+        forceRefresh: false,
+        runProvider: runResponseThenCredentialProvider,
+      })).rejects.toMatchObject({ definitiveCredentialRejection: false });
+    } finally {
+      restoreFetch();
+    }
+
+    expect(calls).toEqual([
+      { credential: 'credential-primary-marker', model: 'model-a' },
+      { credential: 'credential-primary-marker', model: 'model-b' },
+    ]);
+    expect(credentialReleaseCalls).toBe(0);
+    expect(markIndeterminateCalls).toBe(1);
+    expect(await store.read(bound)).toMatchObject({ status: 'indeterminate' });
+  });
+
+  test('preserves a verified payload after a mixed model force refresh without credential release', async () => {
+    const delegate = fakeStore();
+    let markIndeterminateCalls = 0;
+    let credentialReleaseCalls = 0;
+    const store: DurableReceiptOcrStore = {
+      ...delegate,
+      async markIndeterminate(input) {
+        markIndeterminateCalls++;
+        await delegate.markIndeterminate(input);
+      },
+      async releaseDefinitiveCredentialRejection(input) {
+        credentialReleaseCalls++;
+        await delegate.releaseDefinitiveCredentialRejection(input);
+      },
+    };
+    const bound = binding({ modelPolicy: ['model-a', 'model-b'] });
+    const originalPayload = payload('model-a');
+    const original = await executeDurableReceiptOcr({
+      store,
+      binding: bound,
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => originalPayload,
+    });
+    const calls: MixedProviderCall[] = [];
+    const restoreFetch = installResponseThenCredentialProvider(calls);
+
+    try {
+      await expect(executeDurableReceiptOcr({
+        store,
+        binding: bound,
+        operationId: crypto.randomUUID(),
+        forceRefresh: true,
+        runProvider: runResponseThenCredentialProvider,
+      })).rejects.toMatchObject({ definitiveCredentialRejection: false });
+    } finally {
+      restoreFetch();
+    }
+
+    expect(calls).toEqual([
+      { credential: 'credential-primary-marker', model: 'model-a' },
+      { credential: 'credential-primary-marker', model: 'model-b' },
+    ]);
+    expect(credentialReleaseCalls).toBe(0);
+    expect(markIndeterminateCalls).toBe(1);
+    expect(await store.read(bound)).toEqual({
+      status: 'succeeded',
+      resultRef: original.resultRef,
+      resultRevision: original.resultRevision,
+      payload: originalPayload,
+    });
+
+    let retryProviderCalls = 0;
+    const blockedRetry = await executeDurableReceiptOcr({
+      store,
+      binding: bound,
+      operationId: crypto.randomUUID(),
+      forceRefresh: true,
+      runProvider: async () => { retryProviderCalls++; return payload('model-b'); },
+    });
+    expect(blockedRetry).toMatchObject({
+      cacheReused: true,
+      resultRef: original.resultRef,
+      resultRevision: original.resultRevision,
+      payload: originalPayload,
+    });
+    expect(retryProviderCalls).toBe(0);
   });
 
   test('releases only a typed definitive credential exhaustion so a repaired credential can retry', async () => {
