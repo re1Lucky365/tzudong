@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useDevicePerformance } from "@/hooks/useDevicePerformance";
+import { shouldUseStaticBadgeViewer } from "@/lib/evidence-engineering/badge-device-capability";
 import { handleBadgeViewerCloseKey, restoreBadgeViewerFocus } from "@/lib/evidence-engineering/badge-viewer-lifecycle";
 
 const Badge3DViewer = dynamic(
@@ -51,7 +52,11 @@ export function PopularityBadge({
   tier: "fire" | "rainbow" | "standard";
   experimental3D?: boolean;
 }) {
-  const { isLowEndDevice } = useDevicePerformance();
+  const performance = useDevicePerformance();
+  const useStaticViewer = shouldUseStaticBadgeViewer(
+    performance,
+    typeof navigator === "undefined" ? null : navigator,
+  );
   const [open, setOpen] = useState(false);
   const [assetFailed, setAssetFailed] = useState(false);
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -103,9 +108,9 @@ export function PopularityBadge({
         </button>
       ) : null}
       {phase === "open" ? (
-        isLowEndDevice
+        useStaticViewer
           ? <StaticBadgeViewer tier={tier} onClose={closeViewer} />
-          : <Badge3DViewer tier={tier} onClose={closeViewer} lowPower={isLowEndDevice} />
+          : <Badge3DViewer tier={tier} onClose={closeViewer} lowPower={useStaticViewer} />
       ) : null}
     </section>
   );
