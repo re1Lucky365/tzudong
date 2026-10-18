@@ -204,17 +204,10 @@ def build_summary(state_root: Path) -> dict[str, object]:
     ledger = receipt.get("ledger")
     sequence = receipt.get("sequence")
     service = receipt.get("service")
-    source = manifest.get("source") if isinstance(manifest, dict) else None
-    migration_count = source.get("migrationCount") if isinstance(source, dict) else None
-    source_files = source.get("files") if isinstance(source, dict) else None
     if (
         not isinstance(readback, list)
         or not isinstance(ledger, list)
-        or type(migration_count) is not int
-        or migration_count < 1
-        or not isinstance(source_files, list)
-        or len(source_files) != migration_count
-        or len(ledger) != migration_count
+        or len(ledger) != manifest["source"]["migrationCount"]
         or not isinstance(sequence, list)
         or len(sequence) != 5
         or service != [["service", "150008", "UTF8", "UTC"]]

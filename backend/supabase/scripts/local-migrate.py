@@ -1236,8 +1236,6 @@ def migration_files(root: Path | None = None) -> list[Path]:
 
 
 def expected_ledger_units() -> int:
-    # The admissible migration list is the unit count. A separate pin goes stale
-    # on the next added file.
     return len(migration_files())
 
 

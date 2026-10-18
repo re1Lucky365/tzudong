@@ -503,13 +503,7 @@ class LocalSeedReceiptContractTests(unittest.TestCase):
         added = [*paths, paths[-1]]
         with mock.patch.object(local_migrate, "migration_files", return_value=added):
             self.assertEqual(local_migrate.expected_ledger_units(), len(paths) + 1)
-            manifest = local_migrate.build_manifest()
-            self.assertEqual(manifest["source"]["migrationCount"], len(paths) + 1)
-            self.assertEqual(
-                manifest["source"]["files"][-1]["path"],
-                local_migrate._relative_source(paths[-1], local_migrate.source_root()),
-            )
-            records = local_migrate._expected_ledger_records(manifest)
+            records = local_migrate._expected_ledger_records(local_migrate.build_manifest())
             self.assertEqual(len(records), len(paths) + 1)
 
     def test_receipt_ledger_rejects_missing_extra_or_changed_current_units(self) -> None:

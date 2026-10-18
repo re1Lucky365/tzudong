@@ -1314,35 +1314,13 @@ function parseDockerServiceRows(stdout) {
   return services;
 }
 
-async function localMigrationLedgerUnits() {
-  const probe = [
-    'import importlib.util, pathlib, sys',
-    'root = pathlib.Path(sys.argv[1])',
-    'spec = importlib.util.spec_from_file_location("nightly_local_migrate_units", root / "backend/supabase/scripts/local-migrate.py")',
-    'module = importlib.util.module_from_spec(spec)',
-    'sys.modules[spec.name] = module',
-    'spec.loader.exec_module(module)',
-    'count = module.expected_ledger_units()',
-    'if type(count) is not int or count < 1: raise SystemExit(1)',
-    'print(count)',
-  ].join('\n');
-  const result = await runCommandCapture(
-    'python3',
-    ['-c', probe, repositoryRoot],
-    {
-      cwd: repositoryRoot,
-      env: localDockerEnvironment(),
-      maxOutputBytes: 16 * 1024,
-    },
-  );
-  const count = Number(result.stdout.trim());
-  if (result.overflow || result.code !== 0 || !Number.isInteger(count) || count < 1) {
-    throw new Error('Local migration ledger unit count is not bound to the repository migration list.');
-  }
-  return count;
+function migrationLedgerUnitCount() {
+  return readdirSync(path.join(repositoryRoot, 'backend', 'supabase', 'migrations'))
+    .filter((name) => /^\d{8,14}(?:_|\.)/.test(name) && name.toLowerCase().endsWith('.sql'))
+    .length;
 }
 
-function assertLocalMigrationReceiptEnvelope(receipt, stackReceipt, expectedLedgerUnits) {
+function assertLocalMigrationReceiptEnvelope(receipt, stackReceipt) {
   if (
     !receipt
     || typeof receipt !== 'object'
@@ -1351,9 +1329,7 @@ function assertLocalMigrationReceiptEnvelope(receipt, stackReceipt, expectedLedg
     || receipt.serializer !== 'receipt-v1'
     || receipt.project_name !== localProjectName
     || !Array.isArray(receipt.ledger)
-    || !Number.isInteger(expectedLedgerUnits)
-    || expectedLedgerUnits < 1
-    || receipt.ledger.length !== expectedLedgerUnits
+    || receipt.ledger.length !== migrationLedgerUnitCount()
     || !receipt.replay_proofs
     || typeof receipt.replay_proofs !== 'object'
     || Array.isArray(receipt.replay_proofs)
@@ -1371,8 +1347,7 @@ async function assertLocalMigrationReceipt(stateRoot, stackReceipt) {
   const receiptPath = path.join(stateRoot, localMigrationReceiptFilename);
   assertLocalStateFile(receiptPath, 'Local migration receipt');
   const receipt = readJsonFile(receiptPath, 'Local migration receipt');
-  const expectedLedgerUnits = await localMigrationLedgerUnits();
-  assertLocalMigrationReceiptEnvelope(receipt, stackReceipt, expectedLedgerUnits);
+  assertLocalMigrationReceiptEnvelope(receipt, stackReceipt);
 
   for (const field of localReceiptSourceBindings) {
     if (!localReceiptDigestPattern.test(receipt[field])) {

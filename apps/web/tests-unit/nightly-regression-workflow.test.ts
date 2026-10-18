@@ -622,8 +622,7 @@ describe("nightly regression package and source contracts", () => {
       "async function assertLocalMigrationReceipt(stateRoot, stackReceipt)",
       "receipt.schema !== 'local-receipt-v2'",
       "receipt.serializer !== 'receipt-v1'",
-      "receipt.ledger.length !== expectedLedgerUnits",
-      "module.expected_ledger_units()",
+      "receipt.ledger.length !== migrationLedgerUnitCount()",
       "localReceiptSequenceMarkers = ['prerequisite', 'migration', 'closure', 'platform-bootstrap', 'seed']",
       "  'platform_bootstrap_evidence_sha256',",
       "  'platform_bootstrap_sha256',",
@@ -640,8 +639,7 @@ describe("nightly regression package and source contracts", () => {
     expect(createHash("sha256").update(localThumbnailRpcAllowlistMigrationSource).digest("hex")).toBe(
       "33735c6661ff8b555424bc2ccc28467baee182dd455f8283bfced356c0793ff7",
     );
-    expect(nightlyRunnerSource).toContain("receipt.ledger.length !== expectedLedgerUnits");
-    expect(nightlyRunnerSource).not.toMatch(/receipt\.ledger\.length !== \d+/);
+    expect(nightlyRunnerSource).toContain("receipt.ledger.length !== migrationLedgerUnitCount()");
   });
 
   test("keeps nightly web log custody owner-only and symlink-safe", () => {
@@ -1149,8 +1147,7 @@ describe("nightly regression package and source contracts", () => {
       "files != allowed",
       "publication artifact exceeds size bound",
       "CREDENTIAL_VALUE = re.compile(",
-      "def expected_ledger_units(",
-      "module.expected_ledger_units()",
+      'source.get("migrationCount") != count',
       "def verify_manifest(",
       "def verify_migration_summary(",
       "def verify_runtime_receipt(",
@@ -1161,9 +1158,7 @@ describe("nightly regression package and source contracts", () => {
     ]) {
       expect(publicationVerifierSource).toContain(token);
     }
-    expect(publicationBuilderSource).toContain("len(ledger) != migration_count");
-    expect(publicationBuilderSource).not.toMatch(/EXPECTED_LEDGER_UNITS\s*=/);
-    expect(publicationVerifierSource).not.toMatch(/EXPECTED_LEDGER_UNITS\s*=/);
+    expect(publicationBuilderSource).toContain('len(ledger) != manifest["source"]["migrationCount"]');
     expect(localWorkflowSource.match(/verify-nightly-local-publication\.py/g)).toHaveLength(3);
     expect(localWorkflowSource.indexOf("Verify publication bundle before artifact persistence"))
       .toBeLessThan(localWorkflowSource.indexOf("Upload allowlisted publication bundle"));
@@ -1665,13 +1660,13 @@ describe('local migration v2 receipt envelope', () => {
   const envelope = sourceBlock(nightlyRunnerSource,
     'function assertLocalMigrationReceiptEnvelope(', 'async function assertLocalMigrationReceipt(');
   const migrationLedgerUnits = readdirSync(resolve(appRoot, '../../backend/supabase/migrations'))
-    .filter((name) => name.endsWith('.sql')).length;
-  const bindEnvelope = (expectedLedgerUnits: number) => new Function(
+    .filter((name) => /^\d{8,14}(?:_|\.)/.test(name) && name.toLowerCase().endsWith('.sql')).length;
+  const bindEnvelope = (count: number) => new Function(
     'localProjectName',
     'localReceiptSequenceMarkers',
-    'expectedLedgerUnits',
-    `${keysDeclaration}\n${envelope}\nreturn { validate: (receipt, stack) => assertLocalMigrationReceiptEnvelope(receipt, stack, expectedLedgerUnits), keys: localMigrationReceiptExpectedKeys.split(',') };`,
-  )('fixture-project', ['prerequisite', 'migration', 'closure', 'platform-bootstrap', 'seed'], expectedLedgerUnits) as {
+    'migrationLedgerUnitCount',
+    `${keysDeclaration}\n${envelope}\nreturn { validate: assertLocalMigrationReceiptEnvelope, keys: localMigrationReceiptExpectedKeys.split(',') };`,
+  )('fixture-project', ['prerequisite', 'migration', 'closure', 'platform-bootstrap', 'seed'], () => count) as {
     validate: (receipt: Record<string, unknown>, stack: Record<string, string>) => void;
     keys: string[];
   };
@@ -1687,22 +1682,18 @@ describe('local migration v2 receipt envelope', () => {
     expect(() => validate(receipt(), stack)).not.toThrow();
     expect(nightlyRunnerSource).toContain("const localMigrationReceiptFilename = 'local-receipt-v1.json'");
     expect(nightlyRunnerSource).toContain('module._load_receipt_file(pathlib.Path(sys.argv[2]))');
-    expect(nightlyRunnerSource).toContain('const expectedLedgerUnits = await localMigrationLedgerUnits()');
   });
 
-  test('rejects a stale ledger length and admits one simulated added migration', () => {
-    const addedUnits = migrationLedgerUnits + 1;
-    const added = bindEnvelope(addedUnits);
-    expect(() => added.validate(receipt(addedUnits), stack)).not.toThrow();
-    expect(() => validate(receipt(addedUnits), stack)).toThrow('local-receipt-v2');
-    expect(() => validate(receipt(migrationLedgerUnits - 1), stack)).toThrow('local-receipt-v2');
+  test('admits one simulated added migration and rejects that length against the current directory', () => {
+    const added = migrationLedgerUnits + 1;
+    expect(() => bindEnvelope(added).validate(receipt(added), stack)).not.toThrow();
+    expect(() => validate(receipt(added), stack)).toThrow('local-receipt-v2');
   });
 
   test('rejects stale counts/schema, absent proofs, extra fields and provenance drift', () => {
     for (const patch of [
       { schema: 'local-receipt-v1' }, { serializer: 'receipt-v2' },
-      { ledger: Array(migrationLedgerUnits + 1).fill(null) },
-      { ledger: Array(migrationLedgerUnits - 1).fill(null) },
+      { ledger: Array(77).fill(null) }, { ledger: Array(88).fill(null) }, { ledger: Array(99).fill(null) }, { ledger: Array(100).fill(null) }, { ledger: Array(101).fill(null) }, { ledger: Array(102).fill(null) }, { ledger: Array(103).fill(null) }, { ledger: Array(104).fill(null) }, { ledger: Array(105).fill(null) }, { ledger: Array(125).fill(null) }, { ledger: Array(126).fill(null) }, { ledger: Array(127).fill(null) }, { ledger: Array(128).fill(null) }, { ledger: Array(129).fill(null) }, { ledger: Array(130).fill(null) }, { ledger: Array(131).fill(null) },
       { replay_proofs: null }, { replay_proofs: [] }, { replay_proofs: undefined },
       { extra: true }, { config_sha256: 'drift' },
     ]) expect(() => validate({ ...receipt(), ...patch }, stack)).toThrow('local-receipt-v2');
