@@ -2,18 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  AmbientLight,
+  CylinderGeometry,
+  DirectionalLight,
   Mesh,
-  MeshBasicMaterial,
+  MeshStandardMaterial,
   PerspectiveCamera,
   Scene,
-  SphereGeometry,
   WebGLRenderer,
 } from "three";
 
+import { createBadgeViewerSession } from "@/lib/evidence-engineering/badge-viewer-session";
 import {
-  badgeViewerClosesOnKey,
-  createBadgeViewerSession,
-} from "@/lib/evidence-engineering/badge-viewer-session";
+  createBadgeContextLossHandler,
+  createBadgeContextRecoveryLimit,
+  handleBadgeViewerCloseKey,
+  releaseBadgeRendererResources,
+  sizeBadgeCanvas,
+  startBadgeRenderLoop,
+} from "@/lib/evidence-engineering/badge-viewer-lifecycle";
 
 const TIER_COLOR = { fire: 0xff6a00, rainbow: 0x7c5cff } as const;
 
@@ -37,21 +44,29 @@ export default function Badge3DViewer({
     const session = createBadgeViewerSession();
     let disposed = false;
     let renderer: WebGLRenderer | null = null;
-    let geometry: SphereGeometry | null = null;
-    let material: MeshBasicMaterial | null = null;
+    let geometry: CylinderGeometry | null = null;
+    let material: MeshStandardMaterial | null = null;
     let canvas: HTMLCanvasElement | null = null;
-    let frame = 0;
+    let contextLossListener: EventListener | null = null;
+    let stopAnimation: (() => void) | null = null;
+    const tryContextRecovery = createBadgeContextRecoveryLimit();
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const teardownRenderer = () => {
-      cancelAnimationFrame(frame);
-      geometry?.dispose();
-      material?.dispose();
-      renderer?.dispose();
+      releaseBadgeRendererResources({
+        canvas,
+        contextLossListener,
+        stopAnimation,
+        disposeGeometry: () => geometry?.dispose(),
+        disposeMaterial: () => material?.dispose(),
+        disposeRenderer: () => renderer?.dispose(),
+        forceContextLoss: () => renderer?.forceContextLoss(),
+      });
+      stopAnimation = null;
+      contextLossListener = null;
       geometry = null;
       material = null;
       renderer = null;
-      canvas?.remove();
       canvas = null;
     };
 
@@ -77,8 +92,6 @@ export default function Badge3DViewer({
         throw error;
       }
       canvas = document.createElement("canvas");
-      canvas.width = 120;
-      canvas.height = 120;
       canvas.setAttribute("aria-hidden", "true");
       host.appendChild(canvas);
       try {
@@ -90,27 +103,47 @@ export default function Badge3DViewer({
         showStaticFallback();
         return;
       }
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      renderer.setSize(120, 120, false);
+      sizeBadgeCanvas(canvas, renderer, window.devicePixelRatio);
       const scene = new Scene();
       const camera = new PerspectiveCamera(40, 1, 0.1, 10);
-      camera.position.z = 2.6;
-      geometry = new SphereGeometry(0.62, 32, 20);
-      material = new MeshBasicMaterial({ color: TIER_COLOR[tier] });
-      const mesh = new Mesh(geometry, material);
-      scene.add(mesh);
-      const draw = () => {
-        if (!reducedMotion) mesh.rotation.y += 0.015;
-        renderer?.render(scene, camera);
-        frame = requestAnimationFrame(draw);
-      };
-      draw();
-      canvas.addEventListener("webglcontextlost", (event) => {
-        event.preventDefault();
-        session.loseContext();
-        teardownRenderer();
-        mount();
+      camera.position.z = 2.8;
+      geometry = new CylinderGeometry(0.66, 0.5, 0.24, 7, 1, false);
+      material = new MeshStandardMaterial({
+        color: TIER_COLOR[tier],
+        flatShading: true,
+        metalness: 0.3,
+        roughness: 0.34,
       });
+      const mesh = new Mesh(geometry, material);
+      mesh.rotation.x = Math.PI / 2 - 0.22;
+      mesh.rotation.y = 0.36;
+      mesh.rotation.z = -0.14;
+      const ambientLight = new AmbientLight(0xffffff, 1.15);
+      const keyLight = new DirectionalLight(0xffffff, 3.2);
+      keyLight.position.set(2.5, 3.5, 4);
+      const fillLight = new DirectionalLight(0x8fb8ff, 1.1);
+      fillLight.position.set(-3, -1.5, 2.5);
+      scene.add(mesh, ambientLight, keyLight, fillLight);
+      stopAnimation = startBadgeRenderLoop({
+        reducedMotion,
+        rotate: () => {
+          mesh.rotation.y += 0.015;
+          mesh.rotation.z += 0.0025;
+        },
+        render: () => renderer?.render(scene, camera),
+        requestFrame: (callback) => window.requestAnimationFrame(callback),
+        cancelFrame: (handle) => window.cancelAnimationFrame(handle),
+      });
+      contextLossListener = createBadgeContextLossHandler({
+        releaseLostContext: () => {
+          session.loseContext();
+          teardownRenderer();
+        },
+        tryRecover: tryContextRecovery,
+        recover: mount,
+        fallback: showStaticFallback,
+      });
+      canvas.addEventListener("webglcontextlost", contextLossListener);
     };
 
     mount();
@@ -131,7 +164,7 @@ export default function Badge3DViewer({
       data-badge-3d={tier}
       data-badge-viewer={lowPower ? "fallback" : "viewer"}
       onKeyDown={(event) => {
-        if (badgeViewerClosesOnKey(event.key)) onClose();
+        handleBadgeViewerCloseKey(event, onClose);
       }}
     >
       <div ref={hostRef} />

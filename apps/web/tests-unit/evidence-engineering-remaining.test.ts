@@ -294,8 +294,8 @@ describe("evidence engineering remaining tasks", () => {
     const badge = readFileSync(resolve(import.meta.dir, "../components/restaurant/PopularityBadge.tsx"), "utf8");
     expect(panel).not.toContain("assetAvailable={false}");
     expect(badge).toContain("onError");
-    expect(badge).toContain("/assets/badges/badge_popular_fire_3d.webp");
-    expect(badge).toContain("/assets/badges/badge_popular_rainbow_3d.webp");
+    expect(badge).toContain("/assets/badges/badge_popular_fire_40.webp");
+    expect(badge).toContain("/assets/badges/badge_popular_rainbow_40.webp");
   });
 
   test("open cross-check clauses stay locked without new formulas", () => {

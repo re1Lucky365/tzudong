@@ -57,3 +57,13 @@ Cursor의 앞선 근거·섀도 작업이 legacy release manifest를 3개에서 
 독립 읽기 전용 보안 검토에서 legacy manifest/workflow의 복구 전 바이트 일치, 11개 SQL 및 7개 toolchain 해시 일치, Python 경계 테스트 누락을 확인했고 그 누락도 수정했다. 추가 이력은 `d006986d → 7e2fc534 → d11e57aa → 1c213fc0`의 실제 파일 바이트로 보존했다.
 
 운영 프로젝트 `aqlcofblfxdrjhhdmarw`의 읽기 전용 migration 목록은 현재 89개이며 위 세 근거·섀도 version이 포함된다. 세 apply job 성공과 한 dry-run의 apply 생략도 별도 확인했다. 이는 과거 DB 변경을 소스 복구가 되돌린다는 뜻이 아니며, 현재 ledger의 statements·권한·데이터 전체를 재검증한 증거도 아니다. 기존 86→97 successor의 신규 운영 admission은 여전히 별도 현황 검증이 필요하다. 이번 작업에서 DB/Storage 변경은 없다.
+
+## PR 리뷰에서 추가로 확인한 결함과 수정
+
+1d7ed099의 필수 CI는 29개 양성·Freshness 1개 생략·실패 0개였지만, 미해결 리뷰 9건으로 정상 merge가 거부됐다. 이를 우회하지 않고 공개 발행 경로, 외부 마커 가드의 등급 무효화, 식당·등급 변경 시 배지 실패 상태 초기화, DPR2 크기, reduced-motion의 RAF 정지, 키보드 포커스/Escape, 비대칭 3D 표현, 명시적 WebGL 해제를 수정했다.
+
+운영에 없는 restaurants.popularity_tier 컬럼을 임의로 추가하거나 private shadow를 복사하지 않는다. 보호된 Git으로 발행할 수 있는 bounded 공개 스냅샷을 목록·상세의 실제 projection 경로에 연결했다. 초기 자료는 unpublished/빈 entries이며 활성 인기 등급이나 점수·cohort 승인을 주장하지 않는다. 새 공개 자료는 새 배포·페이지 로드로 반영되며 실시간 원격 점수 조회가 아니다.
+
+정적 fire/rainbow 배지 2종을 생성하고 투명 알파를 확인했다. 256/512px 무손실 원본 변환본은 55,470–178,678B로 15KB 목표를 충족하지 못했다. 실제 40px 화면에는 40/80px 무손실 파생본(2,410–8,766B)을 사용하고 원본 변환본을 초기 로드하지 않는다. 생성·변환 해시와 알파 결과는 별도 증거다.
+
+Chrome Headless Shell 153.0.8010.12의 production-mode 컴포넌트 harness에서 DPR2의 120 CSS px/240px buffer, 모션 감소시 추가 RAF 0회, 동작시 픽셀 변경, 닫기/Escape 포커스 복원, 상위 Escape 차단, 반복 열기·닫기 및 컨텍스트 손실 1회 복구 후 폴백을 확인했다. 실제 컴포넌트·Three를 사용했지만 소프트웨어 WebGL 및 합성 tier 자료다. 운영 앱·실기기·field 증거로 대체하지 않는다. 전체 앱 production build·최신 HEAD CI·배포 결과는 해당 단계의 별도 영수증으로 확정한다.
