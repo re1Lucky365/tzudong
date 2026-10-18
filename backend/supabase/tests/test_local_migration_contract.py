@@ -91,6 +91,33 @@ class LocalMigrationContractTests(unittest.TestCase):
                         invalid_functions, invalid_records
                     )
 
+    def test_service_registry_prerequisites_are_applied_immediately_before_it(self) -> None:
+        names = [path.name for path in local_migrate.migration_files()]
+        order = (
+            "20261001123253_app_web_vitals_aggregate.sql",
+            "20261001152740_app_web_vitals_ingest_budget.sql",
+            "20261003065735_app_web_vitals_postgres_owner.sql",
+            "20261003095444_restore_service_identity_helpers.sql",
+            "20261003065736_g014_current_service_rpc_registry.sql",
+            "20261003081915_restaurant_review_automation.sql",
+        )
+        indexes = [names.index(name) for name in order]
+        self.assertEqual(indexes, sorted(indexes))
+        self.assertEqual(indexes[4] - indexes[3], 1)
+        self.assertLess(
+            names.index("20260417_prevent_active_restaurant_identity_duplicates.sql"),
+            names.index("20260417_harden_submission_identity_duplicate_checks.sql"),
+        )
+        owner = (ROOT / "backend/supabase/migrations" / order[2]).read_text(encoding="utf-8")
+        self.assertIn(
+            "ALTER FUNCTION public.record_app_web_vitals(text, text, text, text, smallint) OWNER TO postgres;",
+            owner,
+        )
+        self.assertIn(
+            "ALTER FUNCTION public.record_app_web_vitals_bounded(text, text, text, text, smallint) OWNER TO postgres;",
+            owner,
+        )
+
     def test_manifest_is_source_bound_hash_bound_and_name_ordered(self) -> None:
         manifest = local_migrate.build_manifest()
         source = manifest["source"]
