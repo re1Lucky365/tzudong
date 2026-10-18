@@ -20,6 +20,50 @@
       "completion_evidence": "UI: research complete9m,5sources,99searches; full Markdown exported by UI.",
       "backend_identity": "UNVERIFIED",
       "interpretation": "Report original preserved verbatim; claims require local adjudication and Gemini antithesis."
+    },
+    {
+      "stage": "supplemental-ocr-claim-acl-14a8f5da",
+      "provider": "chatgpt",
+      "model_label": "GPT-6",
+      "reasoning_label": "Pro",
+      "research_mode": "심층 리서치",
+      "conversation_url": "https://chatgpt.com/c/6ad50f71-6e94-83ee-bdf1-851a80101df8",
+      "report_path": "apps/web/performance/cross-audit-20261019/ocr-credential-admission-supplemental-review/chatgpt-full-report.md",
+      "sha256": "117b7a0f220af81c5283b385a1b5f46b440c628521fc5ca3522f3a5e7517a215",
+      "bytes": 38673,
+      "source_revision": "14a8f5da4268df890c7adf10bf89e99ce071f6f5",
+      "source_bundle_sha256": "90c4e3f0540c90d4be1f9ea1439538e73feddaf79790e0cdb90ebcd179921866",
+      "source_bundle_path": "/Users/twoimo/.codex/runtime-cache/tzudong-resume-20261018/gpt-ocr-admission-delta-14a8f5da/source_bundle.txt",
+      "master_plan_path": "/Users/twoimo/.codex/runtime-cache/tzudong-resume-20261018/gpt-ocr-admission-delta-14a8f5da/plan.md",
+      "master_plan_sha256": "b46b396329f7958305cb121e9c6db7772b49204a4085093a6af6f5709a85ac2b",
+      "preparation_manifest_path": "/Users/twoimo/.codex/runtime-cache/tzudong-resume-20261018/gpt-ocr-admission-delta-14a8f5da/manifest.json",
+      "preparation_manifest_sha256": "a8077faec1fe76990be4316def0fb232c5899b99b8af2456a1bf4351ec9e8947",
+      "submission_checkpoint_path": "/Users/twoimo/.codex/runtime-cache/tzudong-resume-20261018/gpt-ocr-admission-delta-14a8f5da/submission-checkpoint.json",
+      "submission_checkpoint_sha256_at_report_save": "e4b9958042b17286b68b6c1540cb8b60f2476aa765def7e1ddd8fba763241f2e",
+      "original_optimistic_url": "https://chatgpt.com/c/local-chatgpt%3Ab31e6da9-f503-4407-b3a4-972015131453",
+      "url_mapping": "Same submitted user prompt and both attachments reconciled to permanent conversation; no resend. Coordinator retains original immutable optimistic identity.",
+      "completion_evidence": "Actual completed card6m/5sources/53searches and native complete Markdown download; original Downloads byte copy verified locally. UI-reported counters are not independent provider statistics.",
+      "backend_identity": "UNVERIFIED",
+      "substitution_for_gemini_or_reverse": false,
+      "source_decisions": [
+        {
+          "decision": "mixed-history release authorization",
+          "report_verdict": "REJECT",
+          "local_resolution": "Monotone history + immediate stop; helper26/116, composition2/12, durable34/207; overlapping groups not summed.",
+          "implementation_state": "committed65c98679; no hosted proof",
+          "verification_path": "apps/web/performance/cross-audit-20261019/ocr-mixed-model-integrated-verification/final-source-readback.json"
+        },
+        {
+          "decision": "independent initial canonical ACL admission",
+          "report_verdict": "REJECT",
+          "local_resolution": "Accepted and reproduced in PG17.6 across4functions/2tables. Forward107 in preparation; unresolved.",
+          "implementation_state": "not complete",
+          "verification_path": "apps/web/performance/cross-audit-20261019/ocr-credential-admission-supplemental-review/initial-default-acl-all-six-counterexample.json"
+        }
+      ],
+      "decision_matrix_path": "apps/web/performance/cross-audit-20261019/ocr-credential-admission-supplemental-review/decision-matrix.json",
+      "decision_matrix_followup_path": "apps/web/performance/cross-audit-20261019/ocr-credential-admission-supplemental-review/decision-matrix-followup.json",
+      "interpretation": "Frozen supplemental review and local adjudication only. Existing required antithesis/reverse stages remain incomplete."
     }
   ],
   "findings": [
@@ -395,7 +439,7 @@
   "execution_state": "One actual thesis completed and saved verbatim; its reservation was released. Gemini antithesis is queued with its original job and hash; no antithesis or reverse report has completed.",
   "installation_state": "Node24.22.0/npm11.6.2 npm ci758packages completed in isolated candidate.",
   "deployment_state": "No deployment or operating DB write in this resumed task.",
-  "updated_at": "2026-10-18T14:09:35.693642+00:00",
+  "updated_at": "2026-10-18T18:52:27.739503+00:00",
   "original_bundle_source_revision": "eba019509a1f7fd04d833f90afea25b9875598bb",
   "final_source_verification": "apps/web/performance/cross-audit-20261018/followup-verification/index.json",
   "remaining_report_stages": [
