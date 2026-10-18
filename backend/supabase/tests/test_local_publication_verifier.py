@@ -771,7 +771,7 @@ complete_lifecycle_stage
             "platform_bootstrap_evidence_sha256": digest,
             "prerequisite_sha256": digest,
             "closure_binding_sha256": digest,
-            "ledger": [["private"]] * verifier.EXPECTED_LEDGER_UNITS,
+            "ledger": [["private"]] * manifest["source"]["migrationCount"],
             "ledger_sha256": digest,
             "replay_proofs": fixture_replay_proofs(),
             "readback": readback,
@@ -804,7 +804,7 @@ complete_lifecycle_stage
                 summary = builder.build_summary(state)
         serialized = json.dumps(summary, sort_keys=True, separators=(",", ":"))
         self.assertEqual(summary["readback_row_count"], len(readback))
-        self.assertEqual(summary["ledger_count"], verifier.EXPECTED_LEDGER_UNITS)
+        self.assertEqual(summary["ledger_count"], manifest["source"]["migrationCount"])
         self.assertNotIn("readback", summary)
         self.assertNotIn("ledger", summary)
         self.assertEqual(summary["replay_proofs"], receipt["replay_proofs"])
@@ -1049,7 +1049,7 @@ complete_lifecycle_stage
             "env_provenance_sha256": digest,
             "environment_contract_sha256": digest,
             "commit_sha256": self.FIXTURE_GITHUB_SHA,
-            "ledger_count": verifier.EXPECTED_LEDGER_UNITS,
+            "ledger_count": manifest["source"]["migrationCount"],
             "ledger_sha256": verifier.sha256_bytes(verifier.serialize_rows(
                 local_migrate._expected_ledger_records(manifest)
             )),
@@ -1086,11 +1086,82 @@ complete_lifecycle_stage
             self._write_bundle(root)
             verifier.verify(root)
 
-    def test_publication_uses_the_current_140_unit_manifest(self) -> None:
-        self.assertEqual(local_migrate.verify_manifest()["source"]["migrationCount"], 143)
-        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 143)
-        self.assertEqual(verifier.EXPECTED_LEDGER_UNITS, 143)
-        self.assertEqual(builder.EXPECTED_LEDGER_UNITS, 143)
+    def test_publication_ledger_unit_count_follows_the_migration_list(self) -> None:
+        count = len(local_migrate.migration_files())
+        self.assertEqual(local_migrate.verify_manifest()["source"]["migrationCount"], count)
+        self.assertEqual(local_migrate.expected_ledger_units(), count)
+        self.assertEqual(verifier.expected_ledger_units(), count)
+        self.assertNotRegex(BUILDER_PATH.read_text(encoding="utf-8"), r"EXPECTED_LEDGER_UNITS\s*=")
+        self.assertNotRegex(VERIFIER_PATH.read_text(encoding="utf-8"), r"EXPECTED_LEDGER_UNITS\s*=")
+        module = verifier.load_source_module(
+            "nightly_publication_local_migrate",
+            verifier.LOCAL_MIGRATE_PATH,
+        )
+        added = [*module.migration_files(), module.migration_files()[-1]]
+        with mock.patch.object(module, "migration_files", return_value=added):
+            self.assertEqual(verifier.expected_ledger_units(), count + 1)
+            grown = module.build_manifest()
+            self.assertEqual(len(module._expected_ledger_records(grown)), count + 1)
+
+    def test_builder_accepts_one_added_migration_unit(self) -> None:
+        manifest = json.loads(json.dumps(local_migrate.verify_manifest()))
+        extra = json.loads(json.dumps(manifest["source"]["files"][-1]))
+        extra["ordinal"] += 1
+        extra["path"] = "backend/supabase/migrations/20990101000000_added.sql"
+        manifest["source"]["files"].append(extra)
+        manifest["source"]["migrationCount"] = len(manifest["source"]["files"])
+        digest = "a" * 64
+        manifest_digest = verifier.sha256_bytes(verifier.canonical_json(manifest))
+        readback = [
+            [section, "private@example.invalid"]
+            for section in local_migrate.READBACK_SECTIONS
+        ]
+        sequence = [
+            ["sequence", marker, ordinal, digest, manifest_digest]
+            for ordinal, marker in enumerate(verifier.SEQUENCE_MARKERS, 1)
+        ]
+        receipt = {
+            "project_name": "tzudong-local-123456abcdef",
+            "commit_sha256": self.FIXTURE_GITHUB_SHA,
+            "config_sha256": digest,
+            "input_provenance_sha256": digest,
+            "env_provenance_sha256": digest,
+            "environment_contract_sha256": digest,
+            "source_manifest_sha256": manifest_digest,
+            "source_chain_sha256": manifest["source"]["chainSha256"],
+            "seed_source_sha256": verifier.sha256_file(REPOSITORY_ROOT / local_migrate.SEED_SOURCE),
+            "function_source_sha256": digest,
+            "platform_bootstrap_sha256": digest,
+            "platform_bootstrap_evidence_sha256": digest,
+            "prerequisite_sha256": digest,
+            "closure_binding_sha256": digest,
+            "ledger": [["private"]] * manifest["source"]["migrationCount"],
+            "ledger_sha256": digest,
+            "replay_proofs": fixture_replay_proofs(),
+            "readback": readback,
+            "readback_sha256": digest,
+            "readback_sql_sha256": digest,
+            "catalog_sha256": digest,
+            "seed_sha256": digest,
+            "sequence": sequence,
+            "sequence_sha256": digest,
+            "service": [["service", "150008", "UTF8", "UTC"]],
+            "service_sha256": digest,
+        }
+        fake_validator = types.SimpleNamespace(
+            _load_receipt_file=lambda _path: receipt,
+            verify_manifest=lambda _path: manifest,
+            READBACK_SECTIONS=local_migrate.READBACK_SECTIONS,
+            SEED_SOURCE=local_migrate.SEED_SOURCE,
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            state = Path(raw)
+            (state / "local-receipt-v1.json").write_text(json.dumps(receipt), encoding="utf-8")
+            (state / "local-migration-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            with mock.patch.object(builder, "load_local_migrate", return_value=fake_validator):
+                summary = builder.build_summary(state)
+        self.assertEqual(summary["ledger_count"], len(local_migrate.migration_files()) + 1)
+
     def test_publication_rejects_review_media_catalog_counts_even_with_matching_total(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)

@@ -484,16 +484,33 @@ class LocalSeedReceiptContractTests(unittest.TestCase):
 
     def test_manifest_contains_exactly_current_immutable_units(self) -> None:
         manifest = local_migrate.build_manifest()
-        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 143)
-        self.assertEqual(len(manifest["source"]["files"]), 143)
+        paths = local_migrate.migration_files()
+        files = manifest["source"]["files"]
+        last = paths[-1]
+        self.assertEqual(local_migrate.expected_ledger_units(), len(paths))
+        self.assertEqual(len(files), len(paths))
         self.assertEqual(
-            manifest["source"]["files"][-1]["path"],
-            "backend/supabase/migrations/20261017160000_restaurant_popularity_shadow_tier.sql",
+            files[-1]["path"],
+            local_migrate._relative_source(last, local_migrate.source_root()),
         )
         self.assertEqual(
-            manifest["source"]["files"][-1]["transaction"]["class"],
-            "transactional",
+            files[-1]["transaction"]["class"],
+            local_migrate.transaction_control(last.read_bytes())["class"],
         )
+
+    def test_ledger_unit_count_follows_an_added_migration(self) -> None:
+        paths = local_migrate.migration_files()
+        added = [*paths, paths[-1]]
+        with mock.patch.object(local_migrate, "migration_files", return_value=added):
+            self.assertEqual(local_migrate.expected_ledger_units(), len(paths) + 1)
+            manifest = local_migrate.build_manifest()
+            self.assertEqual(manifest["source"]["migrationCount"], len(paths) + 1)
+            self.assertEqual(
+                manifest["source"]["files"][-1]["path"],
+                local_migrate._relative_source(paths[-1], local_migrate.source_root()),
+            )
+            records = local_migrate._expected_ledger_records(manifest)
+            self.assertEqual(len(records), len(paths) + 1)
 
     def test_receipt_ledger_rejects_missing_extra_or_changed_current_units(self) -> None:
         manifest = local_migrate.build_manifest()
