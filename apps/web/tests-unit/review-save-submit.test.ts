@@ -7,7 +7,7 @@ import * as jsxRuntime from 'react/jsx-runtime';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ReactNode } from 'react';
 import type { ReviewDraft } from '../lib/reviewDraftDB';
-import { ReviewSaveOperation } from '../lib/reviews/review-save-operation';
+import { REVIEW_FOOD_PHOTO_MAX_COUNT, ReviewSaveOperation } from '../lib/reviews/review-save-operation';
 import { buildReviewPhotoObjectPath, cleanupCanonicalReviewPhotoObjects, normalizeReviewPhotoFilename } from '../lib/review-photo-url';
 import { getEditableFoodPhotoValues } from '../lib/reviews/review-edit-food-values';
 import { createLatestSelection, type LatestSelectionLease } from '../lib/ocr/latest-selection';
@@ -133,6 +133,7 @@ function fixture() {
     const bindings = {
         ...fields, selectedRestaurant: { id: fields.restaurantId, name: 'Fixture' }, restaurant: null,
         user: { id: 'fixture-owner' }, saveOwnerRef: { current: 'fixture-owner' },
+        foodPhotosRef: { current: fields.foodPhotos },
         saveOperationRef: { current: create(() => currentOwner()!, () => draftScopeRef.current.revision) },
         draftScopeRef,
         submitInFlightRef: { current: false }, closeRequestedRef: { current: false }, composerOpenRef: { current: true },
@@ -140,7 +141,7 @@ function fixture() {
         verificationSelectionRef: { current: { invalidate() {} } },
         verificationInputModeRef: { current: 'manual' as 'ai' | 'manual' }, isAnalyzing: false,
         ocrRunGenerationRef: { current: 0 },
-        latestSaveInputsRef, reviseLatestSaveInputs, REVIEW_CONTENT_MAX_LENGTH: 4_000,
+        latestSaveInputsRef, reviseLatestSaveInputs, REVIEW_CONTENT_MAX_LENGTH: 4_000, REVIEW_FOOD_PHOTO_MAX_COUNT,
         sameReviewSaveInputsSnapshot,
         setIsSubmitting() {}, toast: (message: {title: string}) => messages.push(message),
         fetchFeatureDatabaseReadiness: async () => featureReady
@@ -165,7 +166,8 @@ function fixture() {
         setOcrFallbackNotice() {}, setAiFilledFields() {}, setCurrentStep() {},
     }) as () => Promise<void>;
     const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, bindings) as () => Promise<void>;
-    return { counts, rows, objects, messages, recoveryStates, selected, filters, bindings, submit, close,
+    const confirm = evaluate(`${nodeText(source, 'handleConfirmSaveResult')};`, bindings) as () => Promise<void>;
+    return { counts, rows, objects, messages, recoveryStates, selected, filters, bindings, submit, confirm, close,
         setMode: (value: typeof mode) => { mode = value; }, failReads: (value: boolean) => { readFail = value; },
         onInsert: (callback: () => void) => { afterInsert = callback; },
         setPrepareDeletion: (callback: typeof prepareDeletion) => { prepareDeletion = callback; },
@@ -173,7 +175,186 @@ function fixture() {
         setFeatureReady: (value: boolean) => { featureReady = value; } };
 }
 
+describe('review food photo limit contract', () => {
+    const routeSource = readFileSync(join(import.meta.dir, '../app/api/ocr/reviews/save/route.ts'), 'utf8');
+    const photos = (count: number) => Array.from({ length: count }, (_, index) => new File([String(index)], `${index}.jpg`, { type: 'image/jpeg' }));
+    const appendHarness = (initial: File[]) => {
+        let current = initial;
+        const messages: { title: string; description?: string }[] = [];
+        const appendFoodPhotos = evaluate(`${nodeText(source, 'appendFoodPhotos')};`, {
+            useCallback: (callback: unknown) => callback,
+            foodPhotosRef: { get current() { return current; }, set current(value: File[]) { current = value; } },
+            REVIEW_FOOD_PHOTO_MAX_COUNT,
+            toast: (message: { title: string; description?: string }) => messages.push(message),
+            setFoodPhotos: (update: File[] | ((value: File[]) => File[])) => {
+                current = typeof update === 'function' ? update(current) : update;
+            },
+        }) as (files: File[]) => void;
+        return { appendFoodPhotos, messages, current: () => current };
+    };
+
+    test('file selection keeps exactly 20 and rejects a 21st without truncating existing photos', () => {
+        const exact = appendHarness([]);
+        exact.appendFoodPhotos(photos(REVIEW_FOOD_PHOTO_MAX_COUNT));
+        expect(exact.current()).toHaveLength(REVIEW_FOOD_PHOTO_MAX_COUNT);
+        expect(exact.messages).toEqual([]);
+
+        const extra = appendHarness(exact.current());
+        const before = [...extra.current()];
+        extra.appendFoodPhotos(photos(1));
+        expect(extra.current()).toEqual(before);
+        expect(extra.messages).toHaveLength(1);
+        expect(extra.messages[0].title).toBe('음식 사진이 너무 많습니다');
+        expect(extra.messages[0].description).toContain('최대 20장');
+        expect(nodeText(source, 'handleFoodPhotosChange')).toContain('appendFoodPhotos');
+        expect(nodeText(source, 'handleFoodPhotosDrop')).toContain('appendFoodPhotos');
+    });
+
+    test('AI route and both client save paths bind to the shared maximum', () => {
+        expect(REVIEW_FOOD_PHOTO_MAX_COUNT).toBe(20);
+        expect(routeSource).toContain("import { REVIEW_FOOD_PHOTO_MAX_COUNT } from '@/lib/reviews/review-save-operation';");
+        expect(routeSource).toContain('value.foodPhotos.length > REVIEW_FOOD_PHOTO_MAX_COUNT');
+        expect(source).toContain('submittedInputs.foodPhotos.length > REVIEW_FOOD_PHOTO_MAX_COUNT');
+        expect(source).toContain('foodPhotos.length <= REVIEW_FOOD_PHOTO_MAX_COUNT');
+    });
+});
+
 describe('actual receipt result recovery', () => {
+    test('submit keeps 20 photos but rejects 21 before compression, upload, insert, or draft cleanup', async () => {
+        const exact = fixture();
+        exact.bindings.reviseLatestSaveInputs({
+            foodPhotos: Array.from({ length: REVIEW_FOOD_PHOTO_MAX_COUNT }, (_, index) => new File([String(index)], `${index}.jpg`)),
+        });
+        await exact.submit();
+        expect(exact.counts.uploads).toBe(REVIEW_FOOD_PHOTO_MAX_COUNT + 1);
+        expect(exact.counts.inserts).toBe(1);
+
+        const exceeded = fixture();
+        const selected = Array.from({ length: REVIEW_FOOD_PHOTO_MAX_COUNT + 1 }, (_, index) => new File([String(index)], `${index}.jpg`));
+        exceeded.bindings.reviseLatestSaveInputs({ foodPhotos: selected });
+        await exceeded.submit();
+        expect(exceeded.bindings.latestSaveInputsRef.current.foodPhotos).toEqual(selected);
+        expect(exceeded.counts.uploads).toBe(0); expect(exceeded.counts.inserts).toBe(0);
+        expect(exceeded.counts.cleared).toBe(0); expect(exceeded.counts.closes).toBe(0);
+        expect(exceeded.messages.at(-1)?.title).toBe('음식 사진이 너무 많습니다');
+    });
+    test.each([0, REVIEW_FOOD_PHOTO_MAX_COUNT + 1])('result check recovers a committed 20-photo request after the live form changes to %i photos', async liveCount => {
+        const f = fixture();
+        const dispatched = Array.from({ length: REVIEW_FOOD_PHOTO_MAX_COUNT }, (_, index) => new File([String(index)], `${index}.jpg`));
+        f.bindings.reviseLatestSaveInputs({ foodPhotos: dispatched });
+        f.setMode('lost-read-fails');
+        await f.submit();
+        expect(f.rows.size).toBe(1); expect(f.counts.uploads).toBe(REVIEW_FOOD_PHOTO_MAX_COUNT + 1);
+        expect(f.counts.inserts).toBe(1); expect(f.recoveryStates.at(-1)).toBe('result-check');
+
+        const current = Array.from({ length: liveCount }, (_, index) => new File([String(index)], `live-${index}.jpg`));
+        f.bindings.reviseLatestSaveInputs({ foodPhotos: current });
+        const before = { uploads: f.counts.uploads, inserts: f.counts.inserts };
+        f.setMode('normal');
+        await f.confirm();
+
+        expect(f.bindings.latestSaveInputsRef.current.foodPhotos).toEqual(current);
+        expect({ uploads: f.counts.uploads, inserts: f.counts.inserts }).toEqual(before);
+        expect(f.counts.cleared).toBe(1); expect(f.counts.closes).toBe(0);
+        expect(f.recoveryStates.at(-1)).toBe('edit');
+        expect(f.messages.at(-1)?.title).toBe('이전 내용으로 등록되었습니다');
+    });
+    test('result check respects owner changes and its in-flight guard without another write', async () => {
+        const f = fixture();
+        const dispatched = Array.from({ length: REVIEW_FOOD_PHOTO_MAX_COUNT }, (_, index) => new File([String(index)], `${index}.jpg`));
+        f.bindings.reviseLatestSaveInputs({ foodPhotos: dispatched });
+        f.setMode('lost-read-fails');
+        await f.submit();
+        const before = { uploads: f.counts.uploads, inserts: f.counts.inserts, cleared: f.counts.cleared };
+        f.setMode('normal');
+        f.bindings.saveOwnerRef.current = 'other-owner';
+        await f.confirm();
+        expect({ uploads: f.counts.uploads, inserts: f.counts.inserts, cleared: f.counts.cleared }).toEqual(before);
+        expect(f.recoveryStates.at(-1)).toBe('result-check');
+
+        f.bindings.saveOwnerRef.current = 'fixture-owner';
+        f.bindings.submitInFlightRef.current = true;
+        await f.confirm();
+        expect({ uploads: f.counts.uploads, inserts: f.counts.inserts, cleared: f.counts.cleared }).toEqual(before);
+        f.bindings.submitInFlightRef.current = false;
+    });
+    test('a blocked close resets its request flag and the result-check action can still recover the commit', async () => {
+        const f = fixture();
+        const dispatched = Array.from({ length: REVIEW_FOOD_PHOTO_MAX_COUNT }, (_, index) => new File([String(index)], `${index}.jpg`));
+        f.bindings.reviseLatestSaveInputs({ foodPhotos: dispatched });
+        f.setMode('lost-read-fails');
+        await f.submit();
+        f.recoveryStates.length = 0;
+        await f.close()();
+        expect(f.bindings.closeRequestedRef.current).toBe(false);
+        expect(f.counts.closes).toBe(0);
+        expect(f.recoveryStates).toEqual(['result-check']);
+        const before = { uploads: f.counts.uploads, inserts: f.counts.inserts };
+        f.setMode('normal');
+        await f.confirm();
+        expect({ uploads: f.counts.uploads, inserts: f.counts.inserts }).toEqual(before);
+        expect(f.recoveryStates.at(-1)).toBe('edit');
+    });
+    test.each([0, REVIEW_FOOD_PHOTO_MAX_COUNT + 1])('draft cleanup retry remains available with %i live photos and never writes again', async liveCount => {
+        const f = fixture();
+        const dispatched = Array.from({ length: REVIEW_FOOD_PHOTO_MAX_COUNT }, (_, index) => new File([String(index)], `${index}.jpg`));
+        f.bindings.reviseLatestSaveInputs({ foodPhotos: dispatched });
+        f.bindings.clearDraft = async () => false;
+        const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, f.bindings) as () => Promise<void>;
+        await submit();
+        expect(f.recoveryStates.at(-1)).toBe('draft-cleanup');
+
+        const current = Array.from({ length: liveCount }, (_, index) => new File([String(index)], `live-${index}.jpg`));
+        f.bindings.reviseLatestSaveInputs({ foodPhotos: current });
+        const before = { uploads: f.counts.uploads, inserts: f.counts.inserts };
+        f.bindings.clearDraft = async () => { f.counts.cleared++; return true; };
+        const retryCleanup = evaluate(`${nodeText(source, 'handleRetryDraftCleanup')};`, f.bindings) as () => Promise<void>;
+        await retryCleanup();
+        expect(f.bindings.latestSaveInputsRef.current.foodPhotos).toEqual(current);
+        expect({ uploads: f.counts.uploads, inserts: f.counts.inserts }).toEqual(before);
+        expect(f.counts.cleared).toBe(1); expect(f.recoveryStates.at(-1)).toBe('edit');
+    });
+    test.each(['owner', 'close', 'mount'])('result check rechecks %s after deferred draft cleanup before UI effects', async transition => {
+        const f = fixture();
+        const dispatched = Array.from({ length: REVIEW_FOOD_PHOTO_MAX_COUNT }, (_, index) => new File([String(index)], `${index}.jpg`));
+        f.bindings.reviseLatestSaveInputs({ foodPhotos: dispatched });
+        f.setMode('lost-read-fails');
+        await f.submit();
+        f.setMode('normal');
+        const entered = gate(); const release = gate();
+        f.bindings.clearDraft = async () => { entered.resolve(); await release.promise; return true; };
+        const confirm = evaluate(`${nodeText(source, 'handleConfirmSaveResult')};`, f.bindings) as () => Promise<void>;
+        const recoveryCount = f.recoveryStates.length; const messageCount = f.messages.length;
+        const pending = confirm(); await entered.promise;
+        if (transition === 'owner') f.bindings.saveOwnerRef.current = 'other-owner';
+        if (transition === 'close') f.bindings.closeRequestedRef.current = true;
+        if (transition === 'mount') f.bindings.composerOpenRef.current = false;
+        release.resolve(); await pending;
+        expect(f.recoveryStates).toHaveLength(recoveryCount);
+        expect(f.messages).toHaveLength(messageCount);
+        expect(f.counts.uploads).toBe(REVIEW_FOOD_PHOTO_MAX_COUNT + 1); expect(f.counts.inserts).toBe(1);
+    });
+    test('a blocked result confirmation cannot notify a composer closed by its parent while awaiting readback', async () => {
+        const f = fixture();
+        f.setMode('lost-read-fails');
+        await f.submit();
+        const entered = gate(); const release = gate();
+        const operation = f.bindings.saveOperationRef.current!;
+        const confirmPending = operation.confirmPending.bind(operation);
+        operation.confirmPending = async () => {
+            const result = await confirmPending();
+            entered.resolve(); await release.promise;
+            return result;
+        };
+        const recoveryCount = f.recoveryStates.length; const messageCount = f.messages.length;
+        const before = { uploads: f.counts.uploads, inserts: f.counts.inserts };
+        const pending = f.confirm(); await entered.promise;
+        f.bindings.composerOpenRef.current = false;
+        release.resolve(); await pending;
+        expect(f.recoveryStates).toHaveLength(recoveryCount);
+        expect(f.messages).toHaveLength(messageCount);
+        expect({ uploads: f.counts.uploads, inserts: f.counts.inserts }).toEqual(before);
+    });
     test('switching to photo-only during deferred compression preserves the attachment without starting OCR', async () => {
         const verificationSelectionRef = { current: createLatestSelection() };
         const receiptOcrSelection = createLatestSelection();
@@ -852,13 +1033,33 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         await retry();
         expect(f.counts.inserts).toBe(1); expect(f.counts.uploads).toBe(2); expect(f.counts.closes).toBe(1);
     });
-    test('recovery renders an accessible new-tab edit destination and disables every create control', () => {
+    test('recovery renders edit and result-check actions while every create control stays disabled', () => {
         const notice = evaluate(`${nodeText(source, 'saveRecoveryNotice')};`, { saveRecovery: 'edit' }) as ReactNode;
         const html = renderToStaticMarkup(notice);
         expect(html).toContain('role="status"'); expect(html).toContain('href="/mypage/reviews"');
         expect(html).toContain('target="_blank"'); expect(html).toContain('rel="noopener noreferrer"');
+        const resultCheck = evaluate(`${nodeText(source, 'saveRecoveryNotice')};`, {
+            saveRecovery: 'result-check', isSubmitting: false, handleConfirmSaveResult() {},
+            Button: ({ children, ...props }: { children: ReactNode }) => jsxRuntime.jsx('button', { ...props, children }),
+        }) as ReactNode;
+        const resultCheckHtml = renderToStaticMarkup(resultCheck);
+        expect(resultCheckHtml).toContain('저장 결과 확인'); expect(resultCheckHtml).not.toContain('href="/mypage/reviews"');
+        expect(resultCheckHtml).toContain('h-11'); expect(resultCheckHtml).toContain('sm:h-8');
+        const draftCleanup = evaluate(`${nodeText(source, 'saveRecoveryNotice')};`, {
+            saveRecovery: 'draft-cleanup', isSubmitting: false, handleRetryDraftCleanup() {},
+            Button: ({ children, ...props }: { children: ReactNode }) => jsxRuntime.jsx('button', { ...props, children }),
+        }) as ReactNode;
+        expect(renderToStaticMarkup(draftCleanup)).toContain('임시 저장 정리');
+        expect(source).toContain('onClick={handleConfirmSaveResult}');
+        expect(source).toContain('onClick={handleRetryDraftCleanup}');
+        const resultCheckAction = nodeText(source, 'handleConfirmSaveResult');
+        expect(resultCheckAction).toContain('confirmPending()');
+        expect(resultCheckAction).not.toContain('fetchFeatureDatabaseReadiness');
+        expect(resultCheckAction).not.toContain('saveInputsStillCurrent');
+        expect(resultCheckAction).toContain('saveOwnerRef.current === ownerAtStart && composerOpenRef.current && !closeRequestedRef.current');
+        expect(nodeText(source, 'handleRetryDraftCleanup')).toContain('saveOwnerRef.current === ownerAtStart && composerOpenRef.current && !closeRequestedRef.current');
         expect(source.match(/\{saveRecoveryNotice\}/g)?.length).toBe(3);
-        expect(source.match(/disabled=\{featureHeld \|\| !canSubmitReview \|\| isSubmitting \|\| saveRecovery === 'edit'\}/g)?.length).toBe(3);
+        expect(source.match(/disabled=\{featureHeld \|\| !canSubmitReview \|\| isSubmitting \|\| saveRecovery !== null\}/g)?.length).toBe(3);
     });
     test('actual close handler retains form and blocks close for unresolved write', async () => {
         const f = fixture(); f.setMode('lost-read-fails'); await f.submit();

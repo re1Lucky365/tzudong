@@ -15,7 +15,12 @@ import {
     cleanupCanonicalReviewPhotoObjects,
     normalizeReviewPhotoFilename,
 } from "@/lib/review-photo-url";
-import { ReviewSaveOperation, type ReviewSaveDraft, type ReviewSaveUpload } from "@/lib/reviews/review-save-operation";
+import {
+    REVIEW_FOOD_PHOTO_MAX_COUNT,
+    ReviewSaveOperation,
+    type ReviewSaveDraft,
+    type ReviewSaveUpload,
+} from "@/lib/reviews/review-save-operation";
 import {
     FEATURE_DATABASE_HELD_MESSAGE,
     fetchFeatureDatabaseReadiness,
@@ -507,9 +512,10 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     const [content, setContent] = useState("");
     const [verificationPhoto, setVerificationPhoto] = useState<File | null>(null);
     const [foodPhotos, setFoodPhotos] = useState<File[]>([]);
+    const foodPhotosRef = useRef<File[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [saveRecovery, setSaveRecovery] = useState<'edit' | 'draft-cleanup' | null>(null);
+    const [saveRecovery, setSaveRecovery] = useState<'result-check' | 'edit' | 'draft-cleanup' | null>(null);
     const autoSaveInFlightRef = useRef<Promise<void> | null>(null);
     const consumerNotifiedRef = useRef(false);
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -1026,21 +1032,34 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         e.target.value = '';
     };
 
-    const handleFoodPhotosChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
+    const appendFoodPhotos = useCallback((files: File[]) => {
         if (files.length === 0) return;
+        const current = foodPhotosRef.current;
+        const requestedCount = current.length + files.length;
+        if (requestedCount > REVIEW_FOOD_PHOTO_MAX_COUNT) {
+            toast({
+                title: "음식 사진이 너무 많습니다",
+                description: `음식 사진은 최대 ${REVIEW_FOOD_PHOTO_MAX_COUNT}장까지 등록할 수 있습니다. 현재 ${current.length}장을 유지했으니 사진을 제거한 뒤 다시 선택해 주세요.`,
+                variant: "destructive",
+            });
+            return;
+        }
+        const next = [...current, ...files];
+        foodPhotosRef.current = next;
+        setFoodPhotos(next);
+    }, []);
 
-        // requestAnimationFrame을 사용하여 UI 블로킹 방지
-        requestAnimationFrame(() => {
-            setFoodPhotos(prev => [...prev, ...files]);
-        });
+    const handleFoodPhotosChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        appendFoodPhotos(Array.from(e.target.files || []));
 
         // input 초기화 (같은 파일 재선택 가능하도록)
         e.target.value = '';
-    }, []);
+    }, [appendFoodPhotos]);
 
     const removeFoodPhoto = useCallback((index: number) => {
-        setFoodPhotos(prev => prev.filter((_, i) => i !== index));
+        const next = foodPhotosRef.current.filter((_, i) => i !== index);
+        foodPhotosRef.current = next;
+        setFoodPhotos(next);
     }, []);
 
     // 드래그 앤 드롭 핸들러 (useCallback으로 메모이제이션)
@@ -1094,10 +1113,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         const files = Array.from(e.dataTransfer.files);
         const imageFiles = files.filter(file => file.type.startsWith('image/'));
 
-        if (imageFiles.length > 0) {
-            setFoodPhotos(prev => [...prev, ...imageFiles]);
-        }
-    }, []);
+        appendFoodPhotos(imageFiles);
+    }, [appendFoodPhotos]);
 
     // 파일 선택기 열기 함수들 (useCallback으로 메모이제이션)
     const openVerificationFileDialog = useCallback(() => {
@@ -1669,6 +1686,14 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
             title: "입력 내용이 변경되었습니다",
             description: "현재 내용을 확인한 뒤 다시 등록해주세요.",
         });
+        if (submittedInputs.foodPhotos.length > REVIEW_FOOD_PHOTO_MAX_COUNT) {
+            toast({
+                title: "음식 사진이 너무 많습니다",
+                description: `음식 사진은 최대 ${REVIEW_FOOD_PHOTO_MAX_COUNT}장까지 등록할 수 있습니다. 현재 ${submittedInputs.foodPhotos.length}장에서 초과한 사진을 직접 제거해 주세요.`,
+                variant: "destructive",
+            });
+            return;
+        }
         const liveReadiness = await fetchFeatureDatabaseReadiness();
         void mutateFeatureReadiness(liveReadiness, { revalidate: false });
         if (liveReadiness.status !== 'ready') {
@@ -1798,6 +1823,9 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                 notifySavedReview();
                 await handleClose();
             } else if (result !== 'cancelled') {
+                if (result === 'blocked' && saveOperationRef.current!.hasPendingConfirmation()) {
+                    setSaveRecovery('result-check');
+                }
                 toast({
                     title: result === 'blocked' ? "저장 상태 확인 필요" : "리뷰 등록 실패",
                     description: result === 'blocked'
@@ -1814,12 +1842,84 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         }
     };
 
+    const handleConfirmSaveResult = async () => {
+        const ownerAtStart = saveOwnerRef.current;
+        if (!ownerAtStart || submitInFlightRef.current || closeRequestedRef.current) return;
+        submitInFlightRef.current = true;
+        setIsSubmitting(true);
+        try {
+            const confirmation = await saveOperationRef.current!.confirmPending();
+            if (confirmation.status !== 'saved') {
+                if (saveOwnerRef.current === ownerAtStart && composerOpenRef.current && !closeRequestedRef.current) {
+                    setSaveRecovery('result-check');
+                    toast({
+                        title: "저장 결과를 아직 확인하지 못했습니다",
+                        description: "기존 저장 요청은 그대로 보존했습니다. 새 리뷰를 등록하지 않았으며 잠시 후 다시 확인해 주세요.",
+                        variant: "destructive",
+                    });
+                }
+                return;
+            }
+            if (saveOwnerRef.current !== ownerAtStart) {
+                await saveOperationRef.current!.clearSavedDraft();
+                return;
+            }
+            if (closeRequestedRef.current) return;
+            const draftCleared = await clearDraft();
+            if (saveOwnerRef.current !== ownerAtStart || closeRequestedRef.current) return;
+            if (!composerOpenRef.current) {
+                if (draftCleared) notifySavedReview();
+                return;
+            }
+            if (!draftCleared) {
+                setSaveRecovery('draft-cleanup');
+                toast({ title: "리뷰는 등록되었습니다", description: "임시 저장 정리를 완료하지 못했습니다. 이 창에서 다시 시도해주세요." });
+                return;
+            }
+            setSaveRecovery('edit');
+            toast({ title: "이전 내용으로 등록되었습니다", description: "현재 입력은 유지했습니다. 저장된 리뷰는 내 리뷰에서 확인하고 수정해주세요." });
+        } finally {
+            submitInFlightRef.current = false;
+            if (saveOwnerRef.current === ownerAtStart && composerOpenRef.current && !closeRequestedRef.current) {
+                setIsSubmitting(false);
+            }
+        }
+    };
+
+    const handleRetryDraftCleanup = async () => {
+        const ownerAtStart = saveOwnerRef.current;
+        if (!ownerAtStart || submitInFlightRef.current || closeRequestedRef.current) return;
+        submitInFlightRef.current = true;
+        setIsSubmitting(true);
+        try {
+            const draftCleared = await clearDraft();
+            if (saveOwnerRef.current !== ownerAtStart || closeRequestedRef.current) return;
+            if (!composerOpenRef.current) {
+                if (draftCleared) notifySavedReview();
+                return;
+            }
+            if (!draftCleared) {
+                setSaveRecovery('draft-cleanup');
+                toast({ title: "임시 저장 정리 필요", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
+                return;
+            }
+            setSaveRecovery('edit');
+            toast({ title: "임시 저장 정리 완료", description: "현재 입력은 유지했습니다." });
+        } finally {
+            submitInFlightRef.current = false;
+            if (saveOwnerRef.current === ownerAtStart && composerOpenRef.current && !closeRequestedRef.current) {
+                setIsSubmitting(false);
+            }
+        }
+    };
+
     const handleClose = useCallback(async () => {
         closeRequestedRef.current = true;
         verificationSelectionRef.current.invalidate();
         const cancellation = await saveOperationRef.current!.cancel();
         if (cancellation.status === 'blocked') {
             closeRequestedRef.current = false;
+            if (saveOperationRef.current!.hasPendingConfirmation()) setSaveRecovery('result-check');
             toast({ title: "저장 상태 확인 필요", description: "저장 결과 또는 사진 정리를 확인하지 못했습니다. 이 창에서 다시 시도해주세요.", variant: "destructive" });
             return;
         }
@@ -1844,6 +1944,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         setCategories([]);
         setContent("");
         replaceVerificationPhoto(null);
+        foodPhotosRef.current = [];
         setFoodPhotos([]);
         setReceiptVerificationInputMode("ai");
         setForceOcrRefresh(false);
@@ -1857,12 +1958,24 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
 
     const saveRecoveryNotice = saveRecovery ? (
         <div role="status" className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
-            <p>{saveRecovery === 'edit'
-                ? "리뷰가 이미 등록되었습니다. 현재 변경한 입력은 이 창에 유지됩니다. 등록된 리뷰를 열어 수정해주세요."
-                : "리뷰는 등록되었지만 임시 저장 정리가 남아 있습니다. 다시 시도하면 정리만 확인하며 중복 등록하지 않습니다."}</p>
-            <a className="mt-2 inline-block underline underline-offset-4" href="/mypage/reviews" target="_blank" rel="noopener noreferrer">
-                등록된 리뷰 확인 (새 탭)
-            </a>
+            <p>{saveRecovery === 'result-check'
+                ? "저장 결과를 확인해 주세요."
+                : saveRecovery === 'edit'
+                    ? "이전 내용으로 등록되었습니다. 현재 입력은 유지됩니다."
+                    : "임시 저장 정리가 필요합니다."}</p>
+            {saveRecovery === 'result-check' ? (
+                <Button type="button" variant="outline" size="sm" className="mt-2 h-11 sm:h-8" onClick={handleConfirmSaveResult} disabled={isSubmitting}>
+                    저장 결과 확인
+                </Button>
+            ) : saveRecovery === 'draft-cleanup' ? (
+                <Button type="button" variant="outline" size="sm" className="mt-2 h-11 sm:h-8" onClick={handleRetryDraftCleanup} disabled={isSubmitting}>
+                    임시 저장 정리
+                </Button>
+            ) : (
+                <a className="mt-2 inline-block underline underline-offset-4" href="/mypage/reviews" target="_blank" rel="noopener noreferrer">
+                    등록된 리뷰 확인 (새 탭)
+                </a>
+            )}
         </div>
     ) : null;
 
@@ -1871,7 +1984,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     const isFormValid = useMemo(() => {
         return visitedDate && visitedTime && reviewTargetRestaurant?.id && categories.length > 0
             && normalizedContentLength >= 20 && normalizedContentLength <= REVIEW_CONTENT_MAX_LENGTH
-            && verificationPhoto && foodPhotos.length > 0;
+            && verificationPhoto && foodPhotos.length > 0 && foodPhotos.length <= REVIEW_FOOD_PHOTO_MAX_COUNT;
     }, [visitedDate, visitedTime, reviewTargetRestaurant?.id, categories.length, normalizedContentLength, verificationPhoto, foodPhotos.length]);
 
     const isOcrBindingReadyForSubmit = verificationInputMode === "manual"
@@ -1881,7 +1994,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
     const isStepValid = useMemo<Record<ReviewFormStep, boolean>>(() => ({
         1: Boolean(verificationPhoto) && !isAnalyzing,
         2: Boolean(visitedDate && visitedTime && reviewTargetRestaurant?.id && categories.length > 0),
-        3: Boolean(normalizedContentLength >= 20 && normalizedContentLength <= REVIEW_CONTENT_MAX_LENGTH && foodPhotos.length > 0),
+        3: Boolean(normalizedContentLength >= 20 && normalizedContentLength <= REVIEW_CONTENT_MAX_LENGTH
+            && foodPhotos.length > 0 && foodPhotos.length <= REVIEW_FOOD_PHOTO_MAX_COUNT),
     }), [categories.length, foodPhotos.length, isAnalyzing, normalizedContentLength, reviewTargetRestaurant?.id, verificationPhoto, visitedDate, visitedTime]);
 
     const getStepValidationMessage = useCallback((step: ReviewFormStep) => {
@@ -1897,8 +2011,11 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         if (normalizedContentLength > REVIEW_CONTENT_MAX_LENGTH) {
             return `리뷰 내용은 최대 ${REVIEW_CONTENT_MAX_LENGTH.toLocaleString()}자까지 작성할 수 있습니다.`;
         }
+        if (foodPhotos.length > REVIEW_FOOD_PHOTO_MAX_COUNT) {
+            return `음식 사진은 최대 ${REVIEW_FOOD_PHOTO_MAX_COUNT}장까지 등록할 수 있습니다.`;
+        }
         return "음식 사진 1장 이상과 리뷰 내용 20자 이상을 입력해주세요.";
-    }, [isAnalyzing, normalizedContentLength]);
+    }, [foodPhotos.length, isAnalyzing, normalizedContentLength]);
 
     const handleNextStep = useCallback(() => {
         userStepOverrideDuringOcrRef.current = true;
@@ -1946,6 +2063,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                     replaceVerificationPhoto(draft.verificationPhoto);
                 }
                 if (draft.foodPhotos && draft.foodPhotos.length > 0) {
+                    foodPhotosRef.current = draft.foodPhotos;
                     setFoodPhotos(draft.foodPhotos);
                 }
                 if (draft.currentStep && REVIEW_FORM_STEPS.some((step) => step.id === draft.currentStep)) {
@@ -2178,6 +2296,12 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                 음식 사진 (다양한 각도) <span className="text-red-500">*</span>
             </Label>
 
+            {foodPhotos.length > REVIEW_FOOD_PHOTO_MAX_COUNT && (
+                <p role="alert" className="text-sm text-destructive">
+                    음식 사진은 최대 {REVIEW_FOOD_PHOTO_MAX_COUNT}장까지 등록할 수 있습니다. 현재 {foodPhotos.length}장이므로 초과한 사진을 직접 제거해 주세요.
+                </p>
+            )}
+
             {foodPhotos.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                     {foodPhotos.map((photo, index) => (
@@ -2224,6 +2348,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                 onDragLeave={handleFoodPhotosDragLeave}
                 onDrop={handleFoodPhotosDrop}
                 onClick={openFoodPhotosFileDialog}
+                aria-invalid={foodPhotos.length > REVIEW_FOOD_PHOTO_MAX_COUNT}
             >
                 <div className="flex flex-col items-center gap-4">
                     <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors ${isFoodPhotosDragging ? 'bg-primary/10' : 'bg-muted'}`}>
@@ -2243,7 +2368,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                             </Button>
                             {foodPhotos.length > 0 && (
                                 <Badge variant="secondary" className="px-3 py-1">
-                                    📷 {foodPhotos.length}장 업로드됨
+                                    📷 {foodPhotos.length} / {REVIEW_FOOD_PHOTO_MAX_COUNT}장
                                 </Badge>
                             )}
                         </div>
@@ -2253,7 +2378,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
             </Card>
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs text-muted-foreground">
-                <span>💡 다양한 각도의 사진을 업로드하면 더 풍부한 리뷰가 됩니다</span>
+                <span>💡 다양한 각도의 사진을 최대 {REVIEW_FOOD_PHOTO_MAX_COUNT}장까지 업로드할 수 있습니다</span>
             </div>
         </div>
     ), [foodPhotoUrls, foodPhotos, handleDragOver, handleFoodPhotosChange, handleFoodPhotosDragEnter, handleFoodPhotosDragLeave, handleFoodPhotosDrop, isFoodPhotosDragging, openFoodPhotosFileDialog, removeFoodPhoto]);
@@ -2770,8 +2895,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                         <Button variant="outline" onClick={handleClose} className="flex-1 sm:flex-none">
                             취소
                         </Button>
-                        <Button onClick={handleSubmit} disabled={featureHeld || !canSubmitReview || isSubmitting || saveRecovery === 'edit'} className="bg-primary text-primary-foreground hover:bg-primary/90 flex-1 sm:flex-none">
-                            {isSubmitting ? "등록 중..." : saveRecovery === "draft-cleanup" ? "임시 저장 정리 재시도" : "리뷰 등록"}
+                        <Button onClick={handleSubmit} disabled={featureHeld || !canSubmitReview || isSubmitting || saveRecovery !== null} className="bg-primary text-primary-foreground hover:bg-primary/90 flex-1 sm:flex-none">
+                            {isSubmitting ? "등록 중..." : "리뷰 등록"}
                         </Button>
                     </div>
                 </div>
@@ -3347,10 +3472,10 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                                     <Button
                                         type="button"
                                         onClick={handleSubmit}
-                                        disabled={featureHeld || !canSubmitReview || isSubmitting || saveRecovery === 'edit'}
+                                        disabled={featureHeld || !canSubmitReview || isSubmitting || saveRecovery !== null}
                                         className={`${mobileSheetStyles.primaryAction} flex-1`}
                                     >
-                                        {isSubmitting ? "등록 중..." : saveRecovery === "draft-cleanup" ? "임시 저장 정리 재시도" : "리뷰 등록"}
+                                        {isSubmitting ? "등록 중..." : "리뷰 등록"}
                                     </Button>
                                 )}
                             </div>
@@ -3904,10 +4029,10 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                                 </Button>
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={featureHeld || !canSubmitReview || isSubmitting || saveRecovery === 'edit'}
+                                    disabled={featureHeld || !canSubmitReview || isSubmitting || saveRecovery !== null}
                                     className="bg-primary text-primary-foreground hover:bg-primary/90 flex-1 sm:flex-none"
                                 >
-                                    {isSubmitting ? "등록 중..." : saveRecovery === "draft-cleanup" ? "임시 저장 정리 재시도" : "리뷰 등록"}
+                                    {isSubmitting ? "등록 중..." : "리뷰 등록"}
                                 </Button>
                             </div>
                         </div>

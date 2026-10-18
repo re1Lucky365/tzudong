@@ -11,6 +11,7 @@ import { isTrustedSameOriginMutation } from '@/lib/security/same-origin-mutation
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/service-role';
 import { FEATURE_DATABASE_HELD_CODE, FEATURE_DATABASE_HELD_MESSAGE } from '@/lib/runtime-feature-readiness-contract';
 import { readFeatureDatabaseReadiness } from '@/lib/server/runtime-feature-readiness';
+import { REVIEW_FOOD_PHOTO_MAX_COUNT } from '@/lib/reviews/review-save-operation';
 
 export const runtime = 'nodejs';
 
@@ -93,7 +94,7 @@ function parseBody(value: unknown): ReviewSaveBody | null {
     || typeof value.verificationPhoto !== 'string'
     || !Array.isArray(value.foodPhotos)
     || value.foodPhotos.length < 1
-    || value.foodPhotos.length > 20
+    || value.foodPhotos.length > REVIEW_FOOD_PHOTO_MAX_COUNT
     || !value.foodPhotos.every((path) => typeof path === 'string')
     || !Array.isArray(value.categories)
     || value.categories.length < 1
