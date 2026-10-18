@@ -24,6 +24,7 @@ import {
     RECEIPT_OCR_NORMALIZATION_VERSION,
 } from '@/lib/ocr/receipt-normalization';
 import {
+    DurableReceiptOcrCapabilityHeldError,
     DurableReceiptOcrPendingError,
     buildDurableReceiptOcrPayload,
     buildOcrInputContextHash,
@@ -329,6 +330,15 @@ export async function POST(req: Request) {
       }
       send('done', { data: responsePayload, model: durable.payload.model, attempts: freshArtifacts.current?.result.attempts ?? [] });
     } catch (error) {
+      if (error instanceof DurableReceiptOcrCapabilityHeldError) {
+        send('error', {
+          code: FEATURE_DATABASE_HELD_CODE,
+          message: FEATURE_DATABASE_HELD_MESSAGE,
+          terminal: true,
+          status: 503,
+        });
+        return;
+      }
       if (error instanceof DurableReceiptOcrPendingError) {
         send('error', {
           code: error.state === 'processing' ? 'OCR_RESULT_PROCESSING' : 'OCR_RESULT_INDETERMINATE',

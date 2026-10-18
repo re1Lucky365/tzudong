@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import type { GeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini';
+import { GeminiOcrError, type GeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini';
 import type { ReceiptOcrEnvelope } from '@/lib/ocr/receipt-normalization';
 import type { OcrRoutingProvider } from '@/lib/ocr/runtime-config';
 import type { SelectedRestaurantContext } from '@/lib/ocr/restaurant-matching';
@@ -8,6 +8,7 @@ import type { ReceiptOcrData } from '@/lib/ocr/types';
 export const DURABLE_RECEIPT_OCR_SCHEMA_VERSION = 'receipt-public-ocr-v1';
 export const RECEIPT_OCR_DEFAULT_GENERATION = '00000000-0000-0000-0000-000000000000';
 export const RECEIPT_OCR_INPUT_CONTEXT_VERSION = 'receipt-ocr-input-context-v2';
+export const RECEIPT_OCR_CREDENTIAL_RELEASE_CAPABILITY_VERSION = 'receipt-ocr-definitive-credential-release-v1';
 
 type DurableReceiptOcrNormalized = Pick<
   ReceiptOcrData,
@@ -49,6 +50,7 @@ export type DurableReceiptOcrRead =
   | { status: 'succeeded'; resultRef: string; resultRevision: string; payload: DurableReceiptOcrPayload };
 
 export interface DurableReceiptOcrStore {
+  assertDefinitiveCredentialReleaseReady(): Promise<void>;
   claim(input: DurableReceiptOcrBinding & { operationId: string; forceRefresh: boolean }): Promise<DurableReceiptOcrClaim>;
   markDispatched(input: {
     binding: DurableReceiptOcrBinding;
@@ -62,6 +64,11 @@ export interface DurableReceiptOcrStore {
     payload: DurableReceiptOcrPayload;
   }): Promise<string>;
   markIndeterminate(input: {
+    binding: DurableReceiptOcrBinding;
+    resultRef: string;
+    claimToken: string;
+  }): Promise<void>;
+  releaseDefinitiveCredentialRejection(input: {
     binding: DurableReceiptOcrBinding;
     resultRef: string;
     claimToken: string;
@@ -107,6 +114,15 @@ export class DurableReceiptOcrPersistenceError extends Error {
   constructor() {
     super('OCR_RESULT_PERSISTENCE_FAILED');
     this.name = 'DurableReceiptOcrPersistenceError';
+  }
+}
+
+export class DurableReceiptOcrCapabilityHeldError extends Error {
+  readonly code = 'FEATURE_DATABASE_HELD';
+
+  constructor() {
+    super('FEATURE_DATABASE_HELD');
+    this.name = 'DurableReceiptOcrCapabilityHeldError';
   }
 }
 
@@ -364,6 +380,22 @@ function bindingArgs(binding: DurableReceiptOcrBinding) {
 
 export function createSupabaseDurableReceiptOcrStore(client: RpcClient): DurableReceiptOcrStore {
   return {
+    async assertDefinitiveCredentialReleaseReady() {
+      let result: RpcResult;
+      try {
+        result = await client.rpc('get_receipt_ocr_credential_release_capability', {});
+      } catch {
+        throw new DurableReceiptOcrCapabilityHeldError();
+      }
+      const { data, error } = result;
+      if (error || !isRecord(data)
+        || !hasOnlyKeys(data, new Set(['schema_version', 'status', 'capability_version']))
+        || data.schema_version !== 1
+        || data.status !== 'ready'
+        || data.capability_version !== RECEIPT_OCR_CREDENTIAL_RELEASE_CAPABILITY_VERSION) {
+        throw new DurableReceiptOcrCapabilityHeldError();
+      }
+    },
     async claim(input) {
       const { data, error } = await client.rpc('claim_receipt_ocr_result', {
         ...bindingArgs(input),
@@ -407,6 +439,22 @@ export function createSupabaseDurableReceiptOcrStore(client: RpcClient): Durable
         p_claim_token: input.claimToken,
       });
       if (error || !isRecord(data) || !['indeterminate', 'succeeded'].includes(String(data.status))) {
+        throw new DurableReceiptOcrPersistenceError();
+      }
+    },
+    async releaseDefinitiveCredentialRejection(input) {
+      const { data, error } = await client.rpc('release_receipt_ocr_definitive_credential_rejection', {
+        p_result_id: input.resultRef,
+        p_claim_token: input.claimToken,
+      });
+      if (error || !isRecord(data) || data.status !== 'released' || data.result_ref !== input.resultRef
+        || !hasOnlyKeys(data, new Set([
+          'status', 'result_ref', 'disposition', 'result_revision', 'idempotent',
+        ]))
+        || typeof data.idempotent !== 'boolean'
+        || (data.disposition !== 'deleted' && data.disposition !== 'restored')
+        || (data.disposition === 'deleted' && data.result_revision !== null)
+        || (data.disposition === 'restored' && !isUuid(data.result_revision))) {
         throw new DurableReceiptOcrPersistenceError();
       }
     },
@@ -544,6 +592,7 @@ export async function executeDurableReceiptOcr(input: {
   beforeProvider?: () => Promise<void>;
   runProvider: () => Promise<DurableReceiptOcrPayload>;
 }): Promise<{ resultRef: string; resultRevision: string; payload: DurableReceiptOcrPayload; cacheReused: boolean }> {
+  await input.store.assertDefinitiveCredentialReleaseReady();
   const claim = await input.store.claim({
     ...input.binding,
     operationId: input.operationId,
@@ -588,6 +637,17 @@ export async function executeDurableReceiptOcr(input: {
     const resultRevision = await input.store.complete({ ...claimInput, payload });
     return { resultRef: claim.resultRef, resultRevision, payload, cacheReused: false };
   } catch (error) {
+    if (error instanceof GeminiOcrError && error.definitiveCredentialRejection) {
+      try {
+        await input.store.releaseDefinitiveCredentialRejection(claimInput);
+      } catch {
+        // An absent or failed successor RPC must retain the existing replay
+        // fence. If the release committed but its acknowledgement was lost,
+        // this mark safely fails against the already released/restored row.
+        try { await input.store.markIndeterminate(claimInput); } catch { /* State remains fail-closed. */ }
+      }
+      throw error;
+    }
     try { await input.store.markIndeterminate(claimInput); } catch { /* Processing remains non-retryable. */ }
     throw error;
   }

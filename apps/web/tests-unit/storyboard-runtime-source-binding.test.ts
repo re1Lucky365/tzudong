@@ -135,6 +135,97 @@ test('worker and retired-route boundary edits change both source and policy dige
   }
 });
 
+test('binds the production asset and worker memory gates imported by declared execution sources', () => {
+  const productionStore = readFileSync(
+    join(repositoryRoot, 'apps/web/lib/admin/storyboard/production-store.ts'),
+    'utf8',
+  );
+  const outboundWorker = readFileSync(
+    join(repositoryRoot, 'apps/web/lib/admin/storyboard/outbound-worker.ts'),
+    'utf8',
+  );
+  expect(productionStore).toMatch(/from ['"]\.\/production-assets['"]/);
+  expect(outboundWorker).toMatch(/from ['"]\.\/resource-invariants\.ts['"]/);
+  expect(STORYBOARD_RUNTIME_SOURCE_PATHS).toContain(
+    'apps/web/lib/admin/storyboard/production-assets.ts',
+  );
+  expect(STORYBOARD_RUNTIME_SOURCE_PATHS).toContain(
+    'apps/web/lib/admin/storyboard/resource-invariants.ts',
+  );
+});
+
+test('asset validation and memory admission edits change both source and policy digests', () => {
+  const before = calculateStoryboardRuntimeSourceBinding({ repositoryRoot });
+  const executionGates = [
+    'apps/web/lib/admin/storyboard/production-assets.ts',
+    'apps/web/lib/admin/storyboard/resource-invariants.ts',
+  ];
+  for (const sourcePath of executionGates) {
+    const root = copiedSourceRoot();
+    try {
+      const absolute = join(root, sourcePath);
+      writeFileSync(absolute, `${readFileSync(absolute, 'utf8')}\n// fixture: execution gate drift\n`);
+      const after = calculateStoryboardRuntimeSourceBinding({ repositoryRoot: root });
+      expect(after.sha256).not.toBe(before.sha256);
+      expect(evaluateStoryboardRuntimePolicy(after.sha256).canonicalPolicySha256)
+        .not.toBe(evaluateStoryboardRuntimePolicy(before.sha256).canonicalPolicySha256);
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  }
+});
+
+test('binds the dynamic budget module, its Python target, and the privileged Storage client', () => {
+  const geminiClient = readFileSync(
+    join(repositoryRoot, 'apps/web/lib/admin/storyboard/gemini-client.ts'),
+    'utf8',
+  );
+  const providerBudget = readFileSync(
+    join(repositoryRoot, 'backend/utils/provider-budget.mjs'),
+    'utf8',
+  );
+  const productionStore = readFileSync(
+    join(repositoryRoot, 'apps/web/lib/admin/storyboard/production-store.ts'),
+    'utf8',
+  );
+  expect(geminiClient).toMatch(
+    /import\(['"]\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/backend\/utils\/provider-budget\.mjs['"]\)/,
+  );
+  expect(providerBudget).toMatch(
+    /\['-m', 'backend\.utils\.provider_budget', \.\.\.args\]/,
+  );
+  expect(productionStore).toMatch(
+    /from ['"]@\/lib\/supabase\/storage-server['"]/,
+  );
+  expect(STORYBOARD_RUNTIME_SOURCE_PATHS).toContain('backend/utils/provider-budget.mjs');
+  expect(STORYBOARD_RUNTIME_SOURCE_PATHS).toContain('backend/utils/provider_budget.py');
+  expect(STORYBOARD_RUNTIME_SOURCE_PATHS).toContain('apps/web/lib/supabase/storage-server.ts');
+});
+
+test('budget and Storage execution dependency edits change both source and policy digests', () => {
+  const before = calculateStoryboardRuntimeSourceBinding({ repositoryRoot });
+  const executionDependencies = [
+    'backend/utils/provider-budget.mjs',
+    'backend/utils/provider_budget.py',
+    'apps/web/lib/supabase/storage-server.ts',
+  ];
+  for (const sourcePath of executionDependencies) {
+    const root = copiedSourceRoot();
+    try {
+      const absolute = join(root, sourcePath);
+      const comment = sourcePath.endsWith('.py') ? '# fixture: execution dependency drift'
+        : '// fixture: execution dependency drift';
+      writeFileSync(absolute, `${readFileSync(absolute, 'utf8')}\n${comment}\n`);
+      const after = calculateStoryboardRuntimeSourceBinding({ repositoryRoot: root });
+      expect(after.sha256).not.toBe(before.sha256);
+      expect(evaluateStoryboardRuntimePolicy(after.sha256).canonicalPolicySha256)
+        .not.toBe(evaluateStoryboardRuntimePolicy(before.sha256).canonicalPolicySha256);
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  }
+});
+
 test('fails closed if a declared execution source is missing', () => {
   const root = copiedSourceRoot();
   try {

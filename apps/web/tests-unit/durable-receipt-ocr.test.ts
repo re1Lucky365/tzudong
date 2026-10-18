@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  DurableReceiptOcrCapabilityHeldError,
   DurableReceiptOcrPendingError,
   type DurableReceiptOcrBinding,
   type DurableReceiptOcrPayload,
@@ -10,9 +11,10 @@ import {
   executeDurableReceiptOcr,
   hasDurableOcrReviewResult,
   pollDurableReceiptOcrResult,
+  RECEIPT_OCR_CREDENTIAL_RELEASE_CAPABILITY_VERSION,
   RECEIPT_OCR_DEFAULT_GENERATION,
 } from '@/lib/ocr/durable-result';
-import { getGeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini';
+import { GeminiOcrError, getGeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini';
 import { buildReceiptOcrEnvelope, RECEIPT_OCR_NORMALIZATION_VERSION } from '@/lib/ocr/receipt-normalization';
 import { ReviewSaveOperation } from '@/lib/reviews/review-save-operation';
 import { buildReviewPhotoObjectPath } from '@/lib/review-photo-url';
@@ -76,8 +78,10 @@ function fakeStore(): DurableReceiptOcrStore {
     payload?: DurableReceiptOcrPayload;
     resultRevision?: string;
   }>();
+  const credentialRejectionReleases = new Set<string>();
   let sequence = 1;
   return {
+    async assertDefinitiveCredentialReleaseReady() {},
     async claim(input) {
       const key = fingerprint(input);
       let row = rows.get(key);
@@ -149,6 +153,24 @@ function fakeStore(): DurableReceiptOcrStore {
       row.dispatchStage = 'uncertain';
       row.claimToken = null;
     },
+    async releaseDefinitiveCredentialRejection(input) {
+      const releaseKey = `${input.resultRef}:${input.claimToken}`;
+      if (credentialRejectionReleases.has(releaseKey)) return;
+      const key = fingerprint(input.binding);
+      const row = rows.get(key);
+      if (!row || row.resultRef !== input.resultRef || row.claimToken !== input.claimToken
+        || row.status !== 'processing' || row.dispatchStage !== 'possibly_dispatched') {
+        throw new Error('claim mismatch');
+      }
+      credentialRejectionReleases.add(releaseKey);
+      if (row.payload) {
+        row.status = 'succeeded';
+        row.dispatchStage = 'completed';
+        row.claimToken = null;
+      } else {
+        rows.delete(key);
+      }
+    },
     async release(input) {
       const key = fingerprint(input.binding);
       const row = rows.get(key);
@@ -182,6 +204,114 @@ function gate() {
 }
 
 describe('durable receipt OCR execution', () => {
+  test('holds before claim, quota reservation, and provider dispatch when the recovery capability is unavailable', async () => {
+    const delegate = fakeStore();
+    let claims = 0;
+    let quotaReservations = 0;
+    let providerCalls = 0;
+    const store: DurableReceiptOcrStore = {
+      ...delegate,
+      async assertDefinitiveCredentialReleaseReady() {
+        throw new DurableReceiptOcrCapabilityHeldError();
+      },
+      async claim(input) {
+        claims++;
+        return delegate.claim(input);
+      },
+    };
+    await expect(executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      beforeProvider: async () => { quotaReservations++; },
+      runProvider: async () => { providerCalls++; return payload(); },
+    })).rejects.toBeInstanceOf(DurableReceiptOcrCapabilityHeldError);
+    expect({ claims, quotaReservations, providerCalls }).toEqual({
+      claims: 0, quotaReservations: 0, providerCalls: 0,
+    });
+  });
+
+  test('accepts only the exact versioned recovery capability response', async () => {
+    const valid = {
+      schema_version: 1,
+      status: 'ready',
+      capability_version: RECEIPT_OCR_CREDENTIAL_RELEASE_CAPABILITY_VERSION,
+    };
+    const responses: Array<{ data: unknown; error: unknown; accepted: boolean }> = [
+      { data: valid, error: null, accepted: true },
+      { data: null, error: { code: 'missing' }, accepted: false },
+      { data: { ...valid, status: 'held' }, error: null, accepted: false },
+      { data: { ...valid, schema_version: 2 }, error: null, accepted: false },
+      { data: { ...valid, capability_version: 'other' }, error: null, accepted: false },
+      { data: { ...valid, extra: true }, error: null, accepted: false },
+    ];
+    for (const response of responses) {
+      const store = createSupabaseDurableReceiptOcrStore({ rpc: async () => response });
+      if (response.accepted) {
+        await expect(store.assertDefinitiveCredentialReleaseReady()).resolves.toBeUndefined();
+      } else {
+        await expect(store.assertDefinitiveCredentialReleaseReady())
+          .rejects.toBeInstanceOf(DurableReceiptOcrCapabilityHeldError);
+      }
+    }
+  });
+
+  test('normalizes a throwing capability RPC to held before claim, quota, or provider work', async () => {
+    const rpcCalls: string[] = [];
+    let quotaReservations = 0;
+    let providerCalls = 0;
+    const store = createSupabaseDurableReceiptOcrStore({
+      async rpc(name) {
+        rpcCalls.push(name);
+        throw new Error('synthetic capability transport failure');
+      },
+    });
+
+    await expect(executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      beforeProvider: async () => { quotaReservations++; },
+      runProvider: async () => { providerCalls++; return payload(); },
+    })).rejects.toBeInstanceOf(DurableReceiptOcrCapabilityHeldError);
+    expect(rpcCalls).toEqual(['get_receipt_ocr_credential_release_capability']);
+    expect(quotaReservations).toBe(0);
+    expect(providerCalls).toBe(0);
+  });
+
+  test('requires an exact bounded definitive release reply', async () => {
+    const valid = {
+      status: 'released',
+      result_ref: '10000000-0000-4000-8000-000000000001',
+      disposition: 'deleted',
+      result_revision: null,
+      idempotent: false,
+    };
+    const responses = [
+      valid,
+      { ...valid, extra: true },
+      { ...valid, idempotent: 'false' },
+      { ...valid, result_revision: crypto.randomUUID() },
+      { ...valid, disposition: 'restored', result_revision: null },
+      { ...valid, disposition: 'restored', result_revision: crypto.randomUUID() },
+    ];
+    for (const [index, data] of responses.entries()) {
+      const store = createSupabaseDurableReceiptOcrStore({ rpc: async () => ({ data, error: null }) });
+      const release = store.releaseDefinitiveCredentialRejection({
+        binding: binding(),
+        resultRef: valid.result_ref,
+        claimToken: '10000000-0000-4000-8000-000000000002',
+      });
+      if (index === 0 || index === responses.length - 1) {
+        await expect(release).resolves.toBeUndefined();
+      } else {
+        await expect(release).rejects.toThrow('OCR_RESULT_PERSISTENCE_FAILED');
+      }
+    }
+  });
+
   test('calls the funded provider once, then reuses the verified result without consuming another call', async () => {
     const store = fakeStore();
     let providerCalls = 0;
@@ -396,6 +526,206 @@ describe('durable receipt OCR execution', () => {
       runProvider: async () => { providerCalls++; return payload(); },
     })).rejects.toMatchObject({ state: 'indeterminate' } satisfies Partial<DurableReceiptOcrPendingError>);
     expect(providerCalls).toBe(1);
+  });
+
+  test('releases only a typed definitive credential exhaustion so a repaired credential can retry', async () => {
+    const store = fakeStore();
+    let providerCalls = 0;
+    await expect(executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => {
+        providerCalls++;
+        throw new GeminiOcrError([], true);
+      },
+    })).rejects.toMatchObject({ definitiveCredentialRejection: true });
+    expect(await store.read(binding())).toEqual({ status: 'not_found' });
+
+    const repaired = await executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => { providerCalls++; return payload(); },
+    });
+    expect(repaired.cacheReused).toBe(false);
+    expect(providerCalls).toBe(2);
+  });
+
+  test('does not trust an arbitrary credential rejection sentinel', async () => {
+    const store = fakeStore();
+    const untrusted = Object.assign(new Error('synthetic untrusted sentinel'), {
+      definitiveCredentialRejection: true,
+    });
+    let providerCalls = 0;
+    await expect(executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => { providerCalls++; throw untrusted; },
+    })).rejects.toBe(untrusted);
+    await expect(executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: true,
+      runProvider: async () => { providerCalls++; return payload(); },
+    })).rejects.toMatchObject({ state: 'indeterminate' } satisfies Partial<DurableReceiptOcrPendingError>);
+    expect(providerCalls).toBe(1);
+  });
+
+  test('fails closed when the definitive credential release RPC is unavailable', async () => {
+    const delegate = fakeStore();
+    const store: DurableReceiptOcrStore = {
+      ...delegate,
+      async releaseDefinitiveCredentialRejection() {
+        throw new Error('synthetic successor unavailable');
+      },
+    };
+    let providerCalls = 0;
+    await expect(executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => { providerCalls++; throw new GeminiOcrError([], true); },
+    })).rejects.toMatchObject({ definitiveCredentialRejection: true });
+    await expect(executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: true,
+      runProvider: async () => { providerCalls++; return payload(); },
+    })).rejects.toMatchObject({ state: 'indeterminate' } satisfies Partial<DurableReceiptOcrPendingError>);
+    expect(providerCalls).toBe(1);
+  });
+
+  test('allows retry after a committed definitive release acknowledgement is lost', async () => {
+    const delegate = fakeStore();
+    let loseReleaseAck = true;
+    const store: DurableReceiptOcrStore = {
+      ...delegate,
+      async releaseDefinitiveCredentialRejection(input) {
+        await delegate.releaseDefinitiveCredentialRejection(input);
+        if (loseReleaseAck) {
+          loseReleaseAck = false;
+          throw new Error('synthetic release ACK loss');
+        }
+      },
+    };
+    let providerCalls = 0;
+    await expect(executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => { providerCalls++; throw new GeminiOcrError([], true); },
+    })).rejects.toMatchObject({ definitiveCredentialRejection: true });
+
+    await executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => { providerCalls++; return payload(); },
+    });
+    expect(providerCalls).toBe(2);
+  });
+
+  test('restores the last verified payload and revision after a definitive refresh rejection', async () => {
+    const store = fakeStore();
+    let providerCalls = 0;
+    const original = await executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => { providerCalls++; return payload(); },
+    });
+
+    await expect(executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: true,
+      runProvider: async () => { providerCalls++; throw new GeminiOcrError([], true); },
+    })).rejects.toMatchObject({ definitiveCredentialRejection: true });
+
+    const restored = await executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => { providerCalls++; return payload(); },
+    });
+    expect(restored.cacheReused).toBe(true);
+    expect(restored.resultRef).toBe(original.resultRef);
+    expect(restored.resultRevision).toBe(original.resultRevision);
+    expect(providerCalls).toBe(2);
+  });
+
+  test('supports repeated rejected refreshes while a stale release replay cannot overwrite the new claim', async () => {
+    const delegate = fakeStore();
+    const releaseInputs: Array<{
+      binding: DurableReceiptOcrBinding;
+      resultRef: string;
+      claimToken: string;
+    }> = [];
+    const store: DurableReceiptOcrStore = {
+      ...delegate,
+      async releaseDefinitiveCredentialRejection(input) {
+        releaseInputs.push(input);
+        await delegate.releaseDefinitiveCredentialRejection(input);
+      },
+    };
+    const original = await executeDurableReceiptOcr({
+      store,
+      binding: binding(),
+      operationId: crypto.randomUUID(),
+      forceRefresh: false,
+      runProvider: async () => payload(),
+    });
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await expect(executeDurableReceiptOcr({
+        store,
+        binding: binding(),
+        operationId: crypto.randomUUID(),
+        forceRefresh: true,
+        runProvider: async () => { throw new GeminiOcrError([], true); },
+      })).rejects.toMatchObject({ definitiveCredentialRejection: true });
+    }
+    expect(releaseInputs).toHaveLength(2);
+    expect(releaseInputs[0].resultRef).toBe(original.resultRef);
+    expect(releaseInputs[1].resultRef).toBe(original.resultRef);
+    expect(releaseInputs[1].claimToken).not.toBe(releaseInputs[0].claimToken);
+
+    const active = await store.claim({
+      ...binding(), operationId: crypto.randomUUID(), forceRefresh: true,
+    });
+    expect(active.status).toBe('claimed');
+    if (active.status !== 'claimed') throw new Error('fixture claim failed');
+    await store.markDispatched({
+      binding: binding(), resultRef: active.resultRef, claimToken: active.claimToken,
+    });
+
+    await store.releaseDefinitiveCredentialRejection(releaseInputs[0]);
+    const replacement = payload();
+    const replacementRevision = await store.complete({
+      binding: binding(),
+      resultRef: active.resultRef,
+      claimToken: active.claimToken,
+      payload: replacement,
+    });
+    expect(replacementRevision).not.toBe(original.resultRevision);
+    expect(await store.read(binding())).toMatchObject({
+      status: 'succeeded',
+      resultRef: original.resultRef,
+      resultRevision: replacementRevision,
+    });
   });
 
   test('recovers only an explicitly forced reservation that was durably undispatched', async () => {
@@ -791,5 +1121,42 @@ describe('durable receipt OCR execution', () => {
       migration.indexOf('FROM ocr_private.review_generations\n  WHERE review_id = p_review_id AND user_id = p_user_id\n  FOR SHARE;'),
     );
     expect(migration).toContain('pg_advisory_xact_lock');
+  });
+
+  test('adds a post-held-105 credential recovery capability without rewriting the OCR predecessor', () => {
+    const predecessor = readFileSync(
+      join(import.meta.dir, '../../../backend/supabase/migrations/20261013190000_durable_receipt_ocr_results.sql'),
+      'utf8',
+    );
+    const successor = readFileSync(
+      join(import.meta.dir, '../../../backend/supabase/migrations/20261018152032_receipt_ocr_definitive_credential_rejection_release.sql'),
+      'utf8',
+    );
+    const fixture = readFileSync(
+      join(import.meta.dir, '../../../backend/supabase/tests/receipt_ocr_definitive_credential_rejection_release.sql'),
+      'utf8',
+    );
+    const catalogFixture = readFileSync(
+      join(import.meta.dir, '../../../backend/supabase/tests/receipt_ocr_credential_release_catalog_readiness.sql'),
+      'utf8',
+    );
+    expect(predecessor).not.toContain('release_receipt_ocr_definitive_credential_rejection');
+    expect(successor).toContain('PRIMARY KEY (result_id, claim_token)');
+    expect(successor).toContain('ocr_private.valid_result_payload(durable_result.result_payload)');
+    expect(successor).toContain("durable_result.model_policy ? (durable_result.result_payload->>'model')");
+    expect(successor).toContain('CREATE FUNCTION public.get_receipt_ocr_credential_release_capability()');
+    expect(successor).toContain("'receipt-ocr-definitive-credential-release-v1'");
+    expect(successor).toContain('TO service_role');
+    expect(successor).toContain('FROM PUBLIC, anon, authenticated');
+    expect(successor).not.toContain('reserve_ocr_daily_quota');
+    expect(fixture).toContain('public.claim_receipt_ocr_result(');
+    expect(fixture).toContain('public.mark_receipt_ocr_dispatched(');
+    expect(fixture).toContain('RECEIPT_OCR_CREDENTIAL_RELEASE_STALE_ACK_NOT_IDEMPOTENT');
+    expect(fixture).toContain('extensions.dblink_send_query');
+    expect(catalogFixture).toContain('RECEIPT_OCR_RELEASE_HELPER_BODY_DRIFT=held');
+    expect(catalogFixture).toContain('PRIMARY KEY (result_id)');
+    expect(catalogFixture).toContain('DISABLE ROW LEVEL SECURITY');
+    expect(catalogFixture).toContain('DROP POLICY receipt_credential_rejection_releases_owner_only');
+    expect(catalogFixture).toContain("WHERE version = '20261018152032'");
   });
 });

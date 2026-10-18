@@ -54,6 +54,14 @@ function terminal(row: ReceiptOcrReviewState): ReceiptOcrReviewState {
   };
 }
 
+function terminalFailure(row: ReceiptOcrReviewState): ReceiptOcrReviewState {
+  return {
+    ...row,
+    ocr_processed_at: '2026-10-15T00:00:00.000Z',
+    receipt_status: 'failed',
+  };
+}
+
 function dependencies(
   rows: ReceiptOcrReviewState[],
   overrides: Partial<ReceiptOcrBatchDependencies> = {},
@@ -153,6 +161,64 @@ describe('trusted administrator receipt OCR workflow', () => {
 
     expect(processCalls).toEqual([rows[0]!.id]);
     expect(summary).toMatchObject({ indeterminate: 1, unattempted: 1, processed: 0 });
+  });
+
+  test('advances on the next workflow selection after a terminal row defect', async () => {
+    const defective = pending(1);
+    const later = pending(2);
+    const states = new Map([defective, later].map((row) => [row.id, row]));
+    const calls: string[] = [];
+    const deps = dependencies([], {
+      select: async ({ batchLimit }) => [...states.values()]
+        .filter((row) => row.ocr_processed_at === null)
+        .slice(0, batchLimit),
+      read: async (reviewId) => states.get(reviewId) ?? null,
+      process: async ({ reviewId }) => {
+        calls.push(reviewId);
+        const current = states.get(reviewId)!;
+        if (reviewId === defective.id) {
+          states.set(reviewId, terminalFailure(current));
+          return Response.json({ code: 'RECEIPT_NOT_FOUND' }, { status: 422 });
+        }
+        states.set(reviewId, terminal(current));
+        return Response.json({ success: true });
+      },
+    });
+
+    const first = await runAdminReceiptOcrBatch(
+      { batchLimit: 1, reviewIds: null, policy },
+      deps,
+    );
+    const second = await runAdminReceiptOcrBatch(
+      { batchLimit: 1, reviewIds: null, policy },
+      deps,
+    );
+    const third = await runAdminReceiptOcrBatch(
+      { batchLimit: 1, reviewIds: null, policy },
+      deps,
+    );
+
+    expect(first).toMatchObject({ selected: 1, recovered: 1, terminalFailures: 1 });
+    expect(second).toMatchObject({ selected: 1, processed: 1, terminalFailures: 0 });
+    expect(third.selected).toBe(0);
+    expect(calls).toEqual([defective.id, later.id]);
+  });
+
+  test('keeps global or uncertain failures pending and stops the batch', async () => {
+    const rows = [pending(1), pending(2)];
+    const processCalls: string[] = [];
+    const summary = await runAdminReceiptOcrBatch(
+      { batchLimit: 2, reviewIds: null, policy },
+      dependencies(rows, {
+        process: async ({ reviewId }) => {
+          processCalls.push(reviewId);
+          return Response.json({ code: 'OCR_PROVIDER_UNAVAILABLE' }, { status: 503 });
+        },
+      }),
+    );
+
+    expect(summary).toMatchObject({ failed: 1, unattempted: 1, terminalFailures: 0 });
+    expect(processCalls).toEqual([rows[0]!.id]);
   });
 
   test('requires both review and owner identity on before and after readback', async () => {
@@ -293,6 +359,49 @@ describe('trusted administrator receipt OCR workflow', () => {
     expect(url.searchParams.get('receipt_data')).toBe(`eq.${JSON.stringify(receiptData)}`);
     expect(requestUrl).not.toContain('[object+Object]');
     expect(requestUrl).not.toContain('%5Bobject%20Object%5D');
+  });
+
+  test('allows guarded rerun to reset a terminal row defect after photo replacement', async () => {
+    const reviewId = uuid(42);
+    const receiptData = {
+      schema_version: 'receipt_summary_v1',
+      status: 'failed',
+      failure_code: 'verification_object_invalid',
+    };
+    let requestUrl = '';
+    let requestBody = '';
+    const client = createClient('https://fixture.supabase.co', 'synthetic-anon-key', {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: {
+        fetch: async (input, init) => {
+          requestUrl = String(input);
+          requestBody = typeof init?.body === 'string' ? init.body : '';
+          return new Response(JSON.stringify({ id: reviewId, ...RECEIPT_OCR_RESET_STATE }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        },
+      },
+    });
+
+    const result = await resetReceiptOcrRowWithCas(client as never, {
+      id: reviewId,
+      ocr_processed_at: '2026-10-19T00:00:00.000Z',
+      receipt_data: receiptData,
+      receipt_hash: null,
+      is_duplicate: false,
+    });
+
+    expect(result).toBe('applied');
+    const url = new URL(requestUrl);
+    expect(url.searchParams.get('receipt_data')).toBe(`eq.${JSON.stringify(receiptData)}`);
+    expect(url.searchParams.get('ocr_processed_at')).toBe('eq.2026-10-19T00:00:00.000Z');
+    expect(JSON.parse(requestBody)).toEqual(RECEIPT_OCR_RESET_STATE);
+
+    const rerun = readFileSync(join(import.meta.dir, '../app/api/admin/ocr-receipts/rerun/route.ts'), 'utf8');
+    expect(rerun).toContain(".select('id, verification_photo, ocr_processed_at, receipt_data, receipt_hash, is_duplicate')");
+    expect(rerun).toContain('if (!review.verification_photo)');
+    expect(rerun).toContain('resetReceiptOcrRowWithCas(');
   });
 
   test('allows one concurrent reset winner and stops the loser before dispatch', async () => {

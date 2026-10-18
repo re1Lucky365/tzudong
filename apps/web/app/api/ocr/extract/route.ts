@@ -21,6 +21,7 @@ import {
     RECEIPT_OCR_NORMALIZATION_VERSION,
 } from '@/lib/ocr/receipt-normalization';
 import {
+    DurableReceiptOcrCapabilityHeldError,
     DurableReceiptOcrPendingError,
     buildDurableReceiptOcrPayload,
     buildOcrInputContextHash,
@@ -289,6 +290,12 @@ export async function POST(req: Request) {
         return NextResponse.json(responsePayload, { headers: { 'Cache-Control': 'no-store' } });
 
     } catch (error: unknown) {
+        if (error instanceof DurableReceiptOcrCapabilityHeldError) {
+            return NextResponse.json(
+                { code: FEATURE_DATABASE_HELD_CODE, error: FEATURE_DATABASE_HELD_MESSAGE },
+                { status: 503, headers: { 'Cache-Control': 'no-store' } },
+            );
+        }
         if (error instanceof OcrHttpError) {
             return NextResponse.json({ error: error.publicMessage }, {
                 status: error.status,

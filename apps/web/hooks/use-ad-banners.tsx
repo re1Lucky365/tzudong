@@ -149,6 +149,7 @@ export class AdminBannerMutationError extends Error {
     constructor(
         public readonly code: AdminBannerMutationErrorCode,
         public readonly latest: AdBanner | null = null,
+        public readonly status: number | null = null,
     ) {
         super(code);
         this.name = 'AdminBannerMutationError';
@@ -167,6 +168,25 @@ function isAdminBannerMutationErrorCode(value: unknown): value is AdminBannerMut
     ].includes(value);
 }
 
+function getAdminBannerMutationErrorCode(
+    status: number,
+    value: unknown,
+): AdminBannerMutationErrorCode {
+    if (!isAdminBannerMutationErrorCode(value)) return 'banner_invalid_response';
+    if ((status === 400 && value === 'banner_mutation_invalid')
+        || (status === 403 && value === 'banner_mutation_forbidden')
+        || (status === 404 && value === 'banner_not_found')
+        || (status === 409 && value === 'banner_revision_conflict')
+        || (status === 500 && (
+            value === 'banner_readback_failed'
+            || value === 'banner_update_failed'
+            || value === 'banner_delete_failed'
+        ))) {
+        return value;
+    }
+    return 'banner_invalid_response';
+}
+
 async function requestAdminBannerMutation(
     method: 'PATCH' | 'DELETE',
     body: Record<string, unknown>,
@@ -178,12 +198,12 @@ async function requestAdminBannerMutation(
     });
     const payload = await response.json().catch(() => null) as { banner?: unknown; deletedBanner?: unknown; code?: unknown } | null;
     if (!response.ok) {
-        const code = isAdminBannerMutationErrorCode(payload?.code) ? payload.code : 'banner_invalid_response';
+        const code = getAdminBannerMutationErrorCode(response.status, payload?.code);
         const latest = code === 'banner_revision_conflict' ? mapAdBannerRow(payload?.banner) : null;
         if (code === 'banner_revision_conflict' && !latest) {
-            throw new AdminBannerMutationError('banner_invalid_response');
+            throw new AdminBannerMutationError('banner_invalid_response', null, response.status);
         }
-        throw new AdminBannerMutationError(code, latest);
+        throw new AdminBannerMutationError(code, latest, response.status);
     }
     return payload;
 }

@@ -5,14 +5,29 @@
 ## 현재 실행
 
 - 실제 `/목표`는 전체 요청·보존 조건·정량 보고 범위를 유지한 `active`다. 완료 상태로 변경하지 않았다.
-- `17eec51ae1f487d6e4445368cc2a7fead0dc8911`을 PR #3215에 반영했다. 해당 head의 32개 check 상태에 실패는 없고 Swift도 성공했다. Freshness·hosted ledger의 skipped 2개와 Vercel status는 운영 SQL·배포 증거로 사용하지 않는다.
+- 후속 수정의 기준 PR #3215 HEAD는 `b1c505cd4f065fac8a4ebefe235a85a5513acbd7`이다. 10월19일 재조회한 이 head의 33개 check 상태는 success31·skipped2이며 대기·실패0, Swift도 성공했다. 이 결과는 후속 수정의 CI 증거가 아니다. Freshness·hosted ledger의 skipped 2개와 Vercel status는 운영 SQL·배포 증거로 사용하지 않는다.
 - 리뷰 음식 사진은 20장으로 경계를 맞췄다. 신규 21장은 압축·업로드·insert 전에 차단하고 기존 입력을 유지한다. 불확실한 저장 뒤 현재 사진이 0장·21장이어도 별도 결과 확인과 임시 저장 정리를 실행할 수 있다. 닫힌 composer에 늦은 실패 알림이 나오는 반례도 실제 실패를 재현한 뒤 보완했다. 최종 영향 검사174개/2,642 assertions·ESLint·parity3,350입력/진단0·build54페이지가 통과했다. 독립 표적13건은 기존 검사와 겹치므로 합산하지 않는다. [최종 source-bound 검증](../../apps/web/performance/cross-audit-20261018/review-food-photo-final-verification/index.json)과 최초 반례·중간 영수증을 구분해 보존했다.
-- Gemini 반대 감사는 기존 FIFO/job/hash 그대로 대기 중이다. 준비된 post-CMS 패키지는 `17eec51a` 범위이며 이번 사진·복구 수정을 포함하지 않는다. 외부 최종 검토 전에 새 전체 소스 묶음을 만들어야 한다. 실제 반대 감사·최종 역검증·운영 SQL·승격·배포·모든 메뉴 실검증은 미완료다.
+- Gemini 반대 감사는 기존 FIFO/job/hash 그대로 대기 중이다. 10월19일 최신 coordinator 조회에서 다른 owner의 예약2건은 `uncertain`이고 사용 가능한 슬롯은0이다. 한 계정의5시간 cap도 공유 장부에 기록돼 있으며, 상태 파일만으로 실제 연구 진행이나 현재 계정 허용량을 확정하지 않는다. 내 작업의 업로드·dispatch는0건이다. 준비된 post-CMS 패키지는 `17eec51a` 범위이고 별도 runtime snapshot은 `b1c505cd` 범위이므로, 아래 추가 수정을 포함한 최종 전체 소스 묶음이 필요하다. 실제 반대 감사·최종 역검증·운영 SQL·승격·배포·모든 메뉴 실검증은 미완료다.
+
+### 10월19일 후속 리뷰
+
+| 항목 | 현재 증거 | 남은 gate |
+| --- | --- | --- |
+| OCR oldest-row 반복 선택 | 확정된 사진 결함만 terminal 처리, 전체 입력 snapshot CAS와 독립 readback. held 분기 추가 후26개/155 assertions 및 독립 source 결속 검토 통과 | 후속 head CI·hosted 실행 |
+| 스토리보드 source binding | 실행·Storage·provider-budget 경계30→35개(+16.7%). 직접9개/82 assertions, compatibility/readback38개/264 assertions 및 독립 freeze 검토 통과. 실제 build route에 새 digest 포함 | 후속 head CI·승인된 배포·alias/private policy readback |
+| 배너 업로드 정리 | 제목100자 경계 및 정상 status/code 조합에서만 현재 업로드 정리. 관련18개/151 assertions 통과. 실제 component의 합성 HTTPS 브라우저에서101자 요청0/0/0,100자+400은upload/PATCH/cleanup1/1/1,100자+500은1/1/0. 세 경우 draft 유지 | 후속 head CI·실제 운영 Storage readback |
+| OCR 확정 credential 거절 복구 | 앱32개/195 assertions와 compiler7개/59 assertions 통과. PG17.6의 constituent·aggregate 적용/rollback/idempotency·catalog10/10·정확한 target 폐기 통과. 별도 일반 postgres 권한의 canonical 비-dblink core 통과. SUPERUSER lease dblink race는 별도 분류 | 후속 CI·별도 hosted 적용/readback. NOSUPERUSER dblink race는 미확인 |
+
+앱의 통합 ESLint, 고정 TypeScript parity3,351입력/진단0, production build54페이지가 통과했다. 이후 SQL·catalog fixture·held manifest만 바뀌었고 compile 관련20개 파일의 해시는 같음을 별도 확인했다. 테스트 그룹은 서로 겹쳐 합산하지 않는다. 경로 수·테스트 통과·단일 build 시간은 운영 속도나 비용 개선의 표본이 아니며 95% 구간을 만들지 않는다. [통합 검증](../../apps/web/performance/cross-audit-20261019/integrated-review-fixes-verification/verification.json), [앱 source 연속성](../../apps/web/performance/cross-audit-20261019/integrated-review-fixes-verification/app-source-continuity-followup.json).
+
+기존89→100→105 successor와 applied migration은 불변이다. 새 credential-release migration은 기존105 증거에 포함되지 않으며 별도 적용·readiness 증거가 필요하다. 기존 일일 quota 상한·과금 예약 정책은 유지한다. 새 capability 확인은 실행당 RPC1회를 추가하며 지연·비용 효과는 미측정이다. 후속 소스의 PR 반영과 운영 반영은 별도 단계다.
+
+PG17.6의 최초 GRANT no-op과 합성 사용자 정리 실패는 각각 보존했다. 수정 후 event009의 constituent·aggregate 두 경로 및 exact teardown이 통과했고 원본·retained105 fixture의 dump는 같았다. 임시 SUPERUSER lease의 dblink 증거와 별도 event011의 NOSUPERUSER 비-dblink core 증거를 구분하며, 이 결과를 hosted 적용 증거로 사용하지 않는다. 자세한 범위는 [후속 검증](review-recovery-20261019.md)에 기록했다.
 
 ## 즉시 진행
 
 - [x] 실제 목표 등록·활성 상태 확인. 심층 메타인지, 수학적·점근적 접근, 정량 결과·불확실성 보고를 포함했다.
-- [x] 격리 후보의 소스·dirty/untracked 작업 복구. 후보 HEAD `ea08db3ae0c1a8d2525da15e6026ca4556ec0260`이며 사용자 소유 `apps/web/supabase/.temp/`는 보존한다.
+- [x] 격리 후보의 소스·dirty/untracked 작업 복구. 복구 당시 HEAD는 `ea08db3ae0c1a8d2525da15e6026ca4556ec0260`였으며 현재 HEAD는 상단 실행 상태를 따른다. 사용자 소유 `apps/web/supabase/.temp/`는 보존한다.
 - [x] PR #3215 원격 상태 재확인. OPEN, 기존 head의 Swift 및 주요 CI 성공, develop과 병합 충돌 확인. 이후 head의 성공은 별도 확인한다.
 - [x] taste-skill의 기존 dense-tiles 방향을 유지하며 맛집·제보·리뷰 CMS 테이블을 완성한다. 열 정렬·행 밀도·상태 의미·작업 버튼·빈 결과·로딩·키보드 상세 열기/닫기·포커스 복원을 확인한다.
 - [x] 최종 1440·834·390px 브라우저에서 실제 viewport를 확인하고 overflow·행 높이·상세·검색·필터를 재검증한다. 과거 viewport 불일치 캡처를 최종 증빙으로 쓰지 않는다.

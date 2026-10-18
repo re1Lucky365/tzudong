@@ -30,6 +30,7 @@ import { getOcrModelPolicy, resolveOcrAiRuntimeConfig } from '@/lib/ocr/runtime-
 import { getRunnableCredentials } from '@/lib/ocr/route-helpers';
 import { buildReceiptOcrEnvelope, RECEIPT_OCR_NORMALIZATION_VERSION } from '@/lib/ocr/receipt-normalization';
 import {
+    DurableReceiptOcrCapabilityHeldError,
     DurableReceiptOcrPendingError,
     DurableReceiptOcrPersistenceError,
     buildDurableReceiptOcrPayload,
@@ -45,6 +46,13 @@ import { createSupabaseServiceRoleClient } from '@/lib/supabase/service-role';
 import { createSupabaseStorageServerClient } from '@/lib/supabase/storage-server';
 import { FEATURE_DATABASE_HELD_CODE, FEATURE_DATABASE_HELD_MESSAGE } from '@/lib/runtime-feature-readiness-contract';
 import { readFeatureDatabaseReadiness } from '@/lib/server/runtime-feature-readiness';
+import {
+    AdminReceiptRowFailurePersistenceError,
+    getAdminReceiptStorageRowFailureCode,
+    persistAdminReceiptRowFailure,
+    type AdminReceiptRowFailureCode,
+    type AdminReceiptRowFailureSnapshot,
+} from '@/lib/ocr/admin-receipt-row-failure';
 
 
 const MAX_RECEIPT_TEXT_LENGTH = 120;
@@ -310,6 +318,35 @@ function hasExpectedReviewReadback(
         && hasExpectedReceiptData(value.receipt_data, expected.receipt_data);
 }
 
+async function terminalRowFailureResponse(
+    client: ReturnType<typeof getSupabaseAdmin>,
+    snapshot: AdminReceiptRowFailureSnapshot,
+    failureCode: AdminReceiptRowFailureCode,
+    correlationId: string,
+): Promise<Response> {
+    const outcome = await persistAdminReceiptRowFailure(client, {
+        snapshot,
+        failureCode,
+        processedAt: new Date().toISOString(),
+    });
+    return noStoreJson(
+        {
+            success: false,
+            code: 'RECEIPT_NOT_FOUND',
+            error: OCR_ERROR_MESSAGES.RECEIPT_NOT_FOUND,
+            guardedMutation: buildInlineOcrGuardedMutation(correlationId, {
+                reviewId: snapshot.id,
+                applied: outcome === 'applied',
+                readbackVerified: true,
+                status: 'failed',
+                failureCode,
+                outcome,
+            }),
+        },
+        { status: 422 },
+    );
+}
+
 async function persistOcrResult(
     supabase: ReturnType<typeof getSupabaseAdmin>,
     reviewId: string,
@@ -493,7 +530,6 @@ export async function processAdminReceiptOcr(input: {
                 { status: 409 },
             );
         }
-        if (!review.verification_photo) return errorResponse('RECEIPT_NOT_FOUND', 400);
         if (hasDurableOcrReviewResult(review)) {
             return NextResponse.json({
                 success: true,
@@ -507,12 +543,36 @@ export async function processAdminReceiptOcr(input: {
                 }),
             }, { headers: { 'Cache-Control': 'no-store' } });
         }
+        const rowFailureSnapshot: AdminReceiptRowFailureSnapshot = {
+            id: review.id,
+            user_id: review.user_id,
+            verification_photo: review.verification_photo,
+            receipt_hash: review.receipt_hash,
+            receipt_data: review.receipt_data,
+            is_duplicate: review.is_duplicate,
+            ocr_processed_at: review.ocr_processed_at,
+        };
+        if (!review.verification_photo) {
+            return terminalRowFailureResponse(
+                supabase,
+                rowFailureSnapshot,
+                'verification_photo_missing',
+                correlationId,
+            );
+        }
         const receiptObjectPath = getOwnedReviewPhotoObjectPath(review.verification_photo, {
             ownerId: review.user_id,
             reviewId: body.reviewId,
             purpose: 'verification',
         });
-        if (!receiptObjectPath) return errorResponse('RECEIPT_NOT_FOUND', 400);
+        if (!receiptObjectPath) {
+            return terminalRowFailureResponse(
+                supabase,
+                rowFailureSnapshot,
+                'verification_object_invalid',
+                correlationId,
+            );
+        }
         assertSafeReceiptObjectPath(receiptObjectPath);
 
         const cleanup = createAdminVerificationCleanupDependencies(supabase, storageAdmin);
@@ -521,11 +581,31 @@ export async function processAdminReceiptOcr(input: {
         if (!await drainAdminVerificationCleanup(cleanup, body.reviewId, review.user_id)) throw new OcrPersistenceError();
 
         const receiptDownload = await downloadReviewVerification(storageAdmin, receiptObjectPath);
+        const storageRowFailureCode = getAdminReceiptStorageRowFailureCode(receiptDownload.error);
+        if (storageRowFailureCode) {
+            return terminalRowFailureResponse(
+                supabase,
+                rowFailureSnapshot,
+                storageRowFailureCode,
+                correlationId,
+            );
+        }
         const downloadedImage = await downloadPrivateReceiptObject(() => Promise.resolve(receiptDownload));
-        const canonicalStorageImage = await canonicalizeReceiptImage(
-            downloadedImage.bytes,
-            downloadedImage.mimeType,
-        );
+        let canonicalStorageImage: Awaited<ReturnType<typeof canonicalizeReceiptImage>>;
+        try {
+            canonicalStorageImage = await canonicalizeReceiptImage(
+                downloadedImage.bytes,
+                downloadedImage.mimeType,
+            );
+        } catch (error) {
+            if (!(error instanceof AdminReceiptImageSecurityError)) throw error;
+            return terminalRowFailureResponse(
+                supabase,
+                rowFailureSnapshot,
+                'verification_object_invalid',
+                correlationId,
+            );
+        }
         if (receiptDownload.bucket === LEGACY_REVIEW_VERIFICATION_BUCKET
             || canonicalStorageImage.bytes.byteLength < downloadedImage.bytes.byteLength) {
             await replaceReceiptWithCompressedObject(
@@ -704,8 +784,15 @@ export async function processAdminReceiptOcr(input: {
         if (error instanceof OcrProviderUnavailableError) {
             return errorResponse('OCR_PROVIDER_UNAVAILABLE', 503);
         }
+        if (error instanceof DurableReceiptOcrCapabilityHeldError) {
+            return noStoreJson(
+                { code: FEATURE_DATABASE_HELD_CODE, error: FEATURE_DATABASE_HELD_MESSAGE },
+                { status: 503 },
+            );
+        }
         if (error instanceof AdminReceiptImageSecurityError
             || error instanceof OcrPersistenceError
+            || error instanceof AdminReceiptRowFailurePersistenceError
             || error instanceof DurableReceiptOcrPersistenceError
             || error instanceof DurableReceiptOcrPendingError) {
             return errorResponse('OCR_READBACK_FAILED', 503);

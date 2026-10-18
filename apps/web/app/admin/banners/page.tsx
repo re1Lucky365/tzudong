@@ -138,6 +138,51 @@ function getBannerPendingReadbackDecision(
     return latest ? { kind: 'delete-diverged', latest } : { kind: 'delete-confirmed' };
 }
 
+const MAX_BANNER_TITLE_LENGTH = 100;
+
+type DefiniteBannerMutationRejectionCode =
+    | 'banner_revision_conflict'
+    | 'banner_not_found'
+    | 'banner_mutation_forbidden'
+    | 'banner_mutation_invalid';
+
+function isDefiniteBannerMutationRejection(
+    status: number | null,
+    code: string,
+): code is DefiniteBannerMutationRejectionCode {
+    return (status === 400 && code === 'banner_mutation_invalid')
+        || (status === 403 && code === 'banner_mutation_forbidden')
+        || (status === 404 && code === 'banner_not_found')
+        || (status === 409 && code === 'banner_revision_conflict');
+}
+
+function getBannerTitleValidationError(title: string) {
+    const normalizedTitle = title.trim();
+    if (!normalizedTitle) return '제목을 입력해주세요';
+    if (normalizedTitle.length > MAX_BANNER_TITLE_LENGTH) {
+        return `제목은 ${MAX_BANNER_TITLE_LENGTH}자 이하로 입력해주세요`;
+    }
+    return null;
+}
+
+async function cleanupOwnedBannerUploads(
+    paths: readonly string[],
+    remove: (path: string) => Promise<unknown>,
+) {
+    const results = await Promise.allSettled(paths.map(remove));
+    return results.some((result) => result.status === 'rejected');
+}
+
+async function cleanupDefiniteRejectedBannerUploads(
+    status: number | null,
+    code: string,
+    paths: readonly string[],
+    remove: (path: string) => Promise<unknown>,
+) {
+    if (!isDefiniteBannerMutationRejection(status, code)) return null;
+    return cleanupOwnedBannerUploads(paths, remove);
+}
+
 type BannerRefreshEditorDecision =
     | { kind: 'none' | 'unchanged' }
     | { kind: 'rebase'; banner: AdBanner }
@@ -589,9 +634,10 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             return;
         }
         if (isBusy || bannersError || !isDirty || Boolean(pendingReadback)) return;
-        if (!formData.title.trim()) {
+        const titleValidationError = getBannerTitleValidationError(formData.title);
+        if (titleValidationError) {
             toast({
-                title: '제목을 입력해주세요',
+                title: titleValidationError,
                 variant: 'destructive',
             });
             return;
@@ -656,9 +702,13 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             };
             const resolvedUrls = resolveAdBannerPersistenceUrls(dataToSubmit);
             if (!resolvedUrls) {
+                const cleanupFailed = await cleanupOwnedBannerUploads(
+                    uploadedPaths,
+                    (path) => deleteImage.mutateAsync(path),
+                );
                 toast({
                     title: '배너 저장 실패',
-                    description: AD_BANNER_URL_VALIDATION_ERROR,
+                    description: `${AD_BANNER_URL_VALIDATION_ERROR}${cleanupFailed ? ' 새 업로드 미디어 일부를 정리하지 못했습니다.' : ''}`,
                     variant: 'destructive',
                 });
                 return;
@@ -694,16 +744,29 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             }
         } catch (error) {
             console.error('배너 저장 실패:');
-            if (error instanceof AdminBannerMutationError && (error.code === 'banner_revision_conflict' || error.code === 'banner_not_found')) {
-                const cleanupFailed = (await Promise.allSettled(uploadedPaths.map((path) => deleteImage.mutateAsync(path))))
-                    .some((result) => result.status === 'rejected');
-                if (editingBanner) setRefreshConflict({ bannerId: editingBanner.id, latest: error.latest });
-                setActionResult({
-                    status: 'warning',
-                    message: error.latest
-                        ? `배너가 다른 관리자에 의해 변경되어 현재 입력을 보존했습니다. 최신 상태를 다시 열어 비교해 주세요.${cleanupFailed ? ' 새 업로드 미디어 일부를 정리하지 못했습니다.' : ''}`
-                        : `편집하던 배너가 사라져 현재 입력을 보존했습니다. 상세를 닫기 전 내용을 확인해 주세요.${cleanupFailed ? ' 새 업로드 미디어 일부를 정리하지 못했습니다.' : ''}`,
-                });
+            const cleanupFailed = error instanceof AdminBannerMutationError
+                ? await cleanupDefiniteRejectedBannerUploads(
+                    error.status,
+                    error.code,
+                    uploadedPaths,
+                    (path) => deleteImage.mutateAsync(path),
+                )
+                : null;
+            if (error instanceof AdminBannerMutationError && cleanupFailed !== null) {
+                if (error.code === 'banner_revision_conflict' || error.code === 'banner_not_found') {
+                    if (editingBanner) setRefreshConflict({ bannerId: editingBanner.id, latest: error.latest });
+                    setActionResult({
+                        status: 'warning',
+                        message: error.latest
+                            ? `배너가 다른 관리자에 의해 변경되어 현재 입력을 보존했습니다. 최신 상태를 다시 열어 비교해 주세요.${cleanupFailed ? ' 새 업로드 미디어 일부를 정리하지 못했습니다.' : ''}`
+                            : `편집하던 배너가 사라져 현재 입력을 보존했습니다. 상세를 닫기 전 내용을 확인해 주세요.${cleanupFailed ? ' 새 업로드 미디어 일부를 정리하지 못했습니다.' : ''}`,
+                    });
+                } else {
+                    setActionResult({
+                        status: 'error',
+                        message: `배너 저장 요청이 적용 전에 거부되었습니다. 입력 내용은 유지됩니다.${cleanupFailed ? ' 새 업로드 미디어 일부를 정리하지 못했습니다.' : ''}`,
+                    });
+                }
             } else {
                 setActionResult({ status: 'error', message: '배너를 저장하지 못했습니다. 입력 내용은 유지됩니다. 목록에서 적용 여부를 확인한 후 다시 시도해 주세요.' });
             }
