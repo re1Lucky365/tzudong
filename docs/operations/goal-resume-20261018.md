@@ -5,7 +5,7 @@
 ## 현재 실행
 
 - 실제 `/목표`는 전체 요청·보존 조건·정량 보고 범위를 유지한 `active`다. 완료 상태로 변경하지 않았다.
-- 후속 수정의 기준 PR #3215 HEAD는 `b1c505cd4f065fac8a4ebefe235a85a5513acbd7`이다. 10월19일 재조회한 이 head의 33개 check 상태는 success31·skipped2이며 대기·실패0, Swift도 성공했다. 이 결과는 후속 수정의 CI 증거가 아니다. Freshness·hosted ledger의 skipped 2개와 Vercel status는 운영 SQL·배포 증거로 사용하지 않는다.
+- 후속 수정의 기준 PR #3215 HEAD는 `b1c505cd4f065fac8a4ebefe235a85a5513acbd7`이다. 앱 복구 수정 `dfa77ca0b509c508ac29ec5f93fe7eb3f45cc16f`를 PR에 push했고 관련 리뷰4건을 resolve한 뒤 재조회했다. 10월19일 재조회한 기존 `b1c505cd`의 33개 check 상태는 success31·skipped2이며 대기·실패0, Swift도 성공했다. 이 결과는 후속 수정의 CI 증거가 아니다. Freshness·hosted ledger의 skipped 2개와 Vercel status는 운영 SQL·배포 증거로 사용하지 않는다.
 - 리뷰 음식 사진은 20장으로 경계를 맞췄다. 신규 21장은 압축·업로드·insert 전에 차단하고 기존 입력을 유지한다. 불확실한 저장 뒤 현재 사진이 0장·21장이어도 별도 결과 확인과 임시 저장 정리를 실행할 수 있다. 닫힌 composer에 늦은 실패 알림이 나오는 반례도 실제 실패를 재현한 뒤 보완했다. 최종 영향 검사174개/2,642 assertions·ESLint·parity3,350입력/진단0·build54페이지가 통과했다. 독립 표적13건은 기존 검사와 겹치므로 합산하지 않는다. [최종 source-bound 검증](../../apps/web/performance/cross-audit-20261018/review-food-photo-final-verification/index.json)과 최초 반례·중간 영수증을 구분해 보존했다.
 - Gemini 반대 감사는 기존 FIFO/job/hash 그대로 대기 중이다. 10월19일 최신 coordinator 조회에서 다른 owner의 예약2건은 `uncertain`이고 사용 가능한 슬롯은0이다. 한 계정의5시간 cap도 공유 장부에 기록돼 있으며, 상태 파일만으로 실제 연구 진행이나 현재 계정 허용량을 확정하지 않는다. 내 작업의 업로드·dispatch는0건이다. 준비된 post-CMS 패키지는 `17eec51a` 범위이고 별도 runtime snapshot은 `b1c505cd` 범위이므로, 아래 추가 수정을 포함한 최종 전체 소스 묶음이 필요하다. 실제 반대 감사·최종 역검증·운영 SQL·승격·배포·모든 메뉴 실검증은 미완료다.
 
@@ -23,6 +23,15 @@
 기존89→100→105 successor와 applied migration은 불변이다. 새 credential-release migration은 기존105 증거에 포함되지 않으며 별도 적용·readiness 증거가 필요하다. 기존 일일 quota 상한·과금 예약 정책은 유지한다. 새 capability 확인은 실행당 RPC1회를 추가하며 지연·비용 효과는 미측정이다. 후속 소스의 PR 반영과 운영 반영은 별도 단계다.
 
 PG17.6의 최초 GRANT no-op과 합성 사용자 정리 실패는 각각 보존했다. 수정 후 event009의 constituent·aggregate 두 경로 및 exact teardown이 통과했고 원본·retained105 fixture의 dump는 같았다. 임시 SUPERUSER lease의 dblink 증거와 별도 event011의 NOSUPERUSER 비-dblink core 증거를 구분하며, 이 결과를 hosted 적용 증거로 사용하지 않는다. 자세한 범위는 [후속 검증](review-recovery-20261019.md)에 기록했다.
+
+### 10월19일 CI·헤더 후속 이행
+
+- 원격 `dfa77ca0`의 Catalog/generate 실행 `39150206730`, job `117742111488`은 source-only 재생에 migration ledger가 없어 새 credential-release prerequisite에서 실패했다. 필수 검사나 migration을 완화하지 않고, 로컬 커밋 `14a8f5da4268df890c7adf10bf89e99ce071f6f5`에 격리된 PG15 source-only adapter를 추가했다. 기존 schema/ledger는 거부하며 raw migration hash는 그대로다.
+- 새 adapter의 두 깨끗한 로컬 재생이 각각1,960행을 검증했고 비교 대상 hash58개가 전부 같았다. 기존 schema-only·1행 ledger 반례2개 모두 고정 거절 코드와 전후 보존을 확인했다. 관련 Python 검사9개 통과는 관측됐지만 원본 출력 파일이 없어 별도 봉인된 테스트 영수증으로 취급하지 않는다. 이는 hosted readiness나 운영 적용 증거가 아니다.
+- Replay B는 container4·volume2·network1의 실제 소유 label과 exact-ID teardown을 확인했다. Replay A는 generator 성공 후 wrapper의 zsh 예약변수 오류로 exact ID를 수집하지 못했다. A는 이름 기반 부재·label residual0만 확인했으므로 exact-ID 폐기를 주장하지 않는다. source와 retained105 dump는 전후 같았다.
+- 승인받은 GitGuardian #38364337·#38364338·#38364339 세 건만 `This is not a secret (false positive)`로 처리하고 `Ignored`를 재조회했다. 스캐너 설정·다른 탐지·자격정보·workflow 재실행은 바꾸지 않았다. 기존 실패 check와 다음 head의 재검사 결과는 구분한다.
+- 현재 앱 헤더 입력7개의 source hash를 결속해15메뉴×3폭(1423·768·390px)45/45의 sidebar 진입·제목·헤더 배치 검증을 마쳤다. clipping·가로 넘침·H1 위반·page error는0이다. 미구현 loopback API의404 121건·405 88건과 의도된 KG503 3건을 보존했다. 운영 전체 메뉴 기능 검증은0/15이며 이 헤더 결과로 대신하지 않는다. [현재 헤더 증거](../../apps/web/performance/cross-audit-20261019/admin-header-current-scope-readback.json).
+- 기존 Gemini 반대 감사는 원래 FIFO·job·primary bundle hash로 보존한다. ChatGPT 보충 검토는 기존 thesis를 반복하지 않고 확정 credential release의 재시도 안전성과 초기 creator default ACL의 operating admission 조건이라는 미검토 delta만 준비한다. 보충 검토는 Gemini 반대 감사나 최종 역검증의 대체물이 아니다.
 
 ## 즉시 진행
 

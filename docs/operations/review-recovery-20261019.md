@@ -34,3 +34,15 @@ ACL seal은 봉인 후 변경을 검사한다. 생성 시점의 creator default 
 ## 전달 조건
 
 기존 applied migration·89→100→105 manifest와 사용자 작업을 보존한다. 새 successor는 `held_unapplied`인 source-only 계약이며 기존 운영 실행기에 연결하지 않았다. 실제 Gemini 반대 감사와 최신 소스 역검증, 새 head CI, 현재 writer fence·admission에 따른 hosted SQL 적용/readback, 보호된 develop→data→main 승격, 운영 SHA·도메인 readback, 전체 메뉴의 관리자 실검증은 별도 단계다.
+
+## CI 재생·후속 전달
+
+`dfa77ca0b509c508ac29ec5f93fe7eb3f45cc16f`의 앱 복구를 PR #3215에 push하고 리뷰4건을 resolve했다. 해당 head의 Catalog/generate는 실행39150206730의 step12에서 `RECEIPT_OCR_CREDENTIAL_RELEASE_PREREQUISITE_DRIFT`로 실패했다. source-only generator가 Supabase migration ledger 없이 직접 SQL을 재생하기 때문이다.
+
+후속 `14a8f5da4268df890c7adf10bf89e99ce071f6f5`는 정확한 raw migration hash에만 적용되는 PG15 disposable ledger fixture adapter다. 기존 ledger/schema가 있으면 거부하고 raw SQL 자체는 바꾸지 않는다. fixture가 있는 동안 unsealed held를 확인하고, 함수·table body/owner/ACL digest가 같아야 RESTRICT로 자기 자원만 정리한다. ledger 제거 후 getter ready를 주장하지 않는다. workflow의 표본·scorer·필수 검증은 줄이지 않았다.
+
+독립 clean replay2회는 각각1,960행과 source-only candidate validation이 통과했고 산출물 hash58개가 일치했다. 두 candidate의 manifest SHA는 `ec7f3771722786fa0e8bb93e1cf7a00239dbf0477ee184d989eba53ffad3bc42`, SHA256SUMS는 `bb655d2bf637f95eed0f163bafc1a8611597e67203fdc0e33549f02367b48051`다. schema-only 및 synthetic1행 ledger2개 반례도 거절·보존됐다. 상세 범위는 [CI 재생 후속 증거](../../apps/web/performance/cross-audit-20261019/catalog-clean-replay-ci-recovery-followup.json)에 기록한다. Replay A는 exact ID 수집이 누락돼 이름·label 잔존0만 성립하고, Replay B만 exact-ID 폐기가 성립한다. 이 검증은 로컬 source-only 복원이며 운영 SQL·배포 증거가 아니다.
+
+사용자 승인 범위의 GitGuardian 세 탐지 #38364337·#38364338·#38364339만 오탐 처리하고 UI에서 Ignored를 확인했다. [범위별 readback](../../apps/web/performance/cross-audit-20261019/gitguardian-owner-markers-false-positive-readback.json)을 보존했다. 다음 head의 CI는 별도 확인한다.
+
+현재15메뉴×3화면 폭의 헤더45건이 source-bound로 통과했다. 미구현 loopback fixture 오류212건을 보존하며 전체 기능·인증 세션·운영 API 성공으로 해석하지 않는다. [헤더 후속 증거](../../apps/web/performance/cross-audit-20261019/admin-header-current-scope-readback.json)의 범위만 인정한다.
