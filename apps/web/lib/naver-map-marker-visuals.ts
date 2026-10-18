@@ -1,4 +1,5 @@
 import type { Restaurant } from '@/types/restaurant';
+import { publicPopularityTier, wrapMarkerWithPopularityTier } from '@/lib/evidence-engineering/popularity-marker';
 import { createIndividualMarkerHTML } from '@/lib/cluster-marker';
 import { getPrimaryCategory } from '@/lib/naver-map-view-helpers';
 import { getTzuyangVisitCount } from '@/lib/restaurant-visit-count';
@@ -21,6 +22,7 @@ type NaverIndividualMarkerRestaurant = Partial<Pick<
     | 'mergedTzuyangReviews'
     | 'mergedRestaurants'
     | 'source_type'
+    | 'popularity_tier'
 >> & {
     category?: string | string[] | null;
 };
@@ -149,6 +151,7 @@ type IndividualMarkerStamp = {
     categories0: string;
     category0: string;
     source: string;
+    popularityTier: ReturnType<typeof publicPopularityTier>;
     visual: IndividualMarkerVisual;
 };
 
@@ -167,6 +170,7 @@ function individualMarkerStampFields(restaurant: NaverIndividualMarkerRestaurant
         categories0: Array.isArray(restaurant.categories) ? restaurant.categories[0] ?? '' : '',
         category0: Array.isArray(restaurant.category) ? restaurant.category[0] ?? '' : restaurant.category ?? '',
         source: restaurant.source_type ?? '',
+        popularityTier: publicPopularityTier(restaurant.popularity_tier),
     };
 }
 
@@ -178,7 +182,8 @@ function individualStampMatches(stamp: IndividualMarkerStamp, restaurant: NaverI
         && stamp.hasReview === (restaurant.tzuyang_review ? 1 : 0)
         && stamp.categories0 === (Array.isArray(restaurant.categories) ? restaurant.categories[0] ?? '' : '')
         && stamp.category0 === (Array.isArray(restaurant.category) ? restaurant.category[0] ?? '' : restaurant.category ?? '')
-        && stamp.source === (restaurant.source_type ?? '');
+        && stamp.source === (restaurant.source_type ?? '')
+        && stamp.popularityTier === publicPopularityTier(restaurant.popularity_tier);
 }
 
 export function getNaverIndividualMarkerVisual(
@@ -187,6 +192,7 @@ export function getNaverIndividualMarkerVisual(
     overlayKinds: readonly RestaurantOverlayMarkerKind[] = [],
 ) {
     const slot = isSelected ? 'selected' : 'plain';
+    const popularityTier = publicPopularityTier(restaurant.popularity_tier);
     const canReuseObject = overlayKinds.length === 0;
     if (canReuseObject) {
         const cachedStamp = individualVisualCache.get(restaurant)?.[slot];
@@ -207,6 +213,7 @@ export function getNaverIndividualMarkerVisual(
         Array.isArray(restaurant.categories) ? restaurant.categories[0] ?? '' : '',
         Array.isArray(restaurant.category) ? restaurant.category[0] ?? '' : restaurant.category ?? '',
         restaurant.source_type ?? '',
+        popularityTier,
     ].join('|');
     const cached = readMarkerVisualCache(cacheKey);
     if (cached) return cached;
@@ -229,11 +236,11 @@ export function getNaverIndividualMarkerVisual(
                     ? '제철'
                     : category;
     const content = createIndividualMarkerHTML(markerCategory, isSelected, visitCount, restaurant.id);
-
+    const markerHtml = markerKind !== 'category'
+        ? wrapSpecialMarkerContent(content, isSelected, markerKind)
+        : `<div data-restaurant-marker-kind="category" data-restaurant-marker-asset-version="${RESTAURANT_MARKER_ASSET_VERSION}">${content}</div>`;
     const visual = writeMarkerVisualCache(cacheKey, {
-        content: markerKind !== 'category'
-            ? wrapSpecialMarkerContent(content, isSelected, markerKind)
-            : `<div data-restaurant-marker-kind="category" data-restaurant-marker-asset-version="${RESTAURANT_MARKER_ASSET_VERSION}">${content}</div>`,
+        content: wrapMarkerWithPopularityTier(markerHtml, popularityTier),
         anchor: isSelected ? { x: 18, y: 18 } : { x: 14, y: 14 },
         zIndex: isSelected ? 100 : 1,
     });

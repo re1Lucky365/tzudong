@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "verifiedAt": "2026-10-18T11:29:18.561Z",
+  "verifiedAt": "2026-10-18T11:36:23.509Z",
   "node": "v24.22.0",
   "evidenceClass": "source-and-pure-transport-boundary-only",
   "checks": {

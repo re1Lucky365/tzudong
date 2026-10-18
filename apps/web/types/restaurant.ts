@@ -1,4 +1,5 @@
 import type { RestaurantDatabaseRow, ReviewDatabaseRow } from "@/integrations/supabase/types";
+import type { RestaurantEvidenceFrame } from "@/lib/evidence-engineering/types";
 
 // DB에서 가져온 기본 Restaurant 타입
 type BaseRestaurant = RestaurantDatabaseRow;
@@ -23,6 +24,14 @@ export interface Restaurant extends BaseRestaurant {
     // 호환성 속성들 (기존 코드와의 호환을 위해)
     address?: string; // road_address 또는 jibun_address의 가상 속성
     category?: string[]; // categories의 별칭
+    // 상세 패널 운영 주의가 읽는 선택 필드. 행에 없으면 주의 문구는 나오지 않는다.
+    automaticState?: string | null;
+    automatic_state?: string | null;
+    reviewedStatus?: string | null;
+    reviewed_status?: string | null;
+    reviewed?: boolean | null;
+    // 공개 행에 없으면 standard다. shadow 테이블에서는 읽지 않는다.
+    popularity_tier?: "fire" | "rainbow" | "standard" | null;
 
     // 검색 관련 (주간 인기 검색용)
     weekly_search_count: number | null; // 주간 검색 횟수
@@ -31,6 +40,7 @@ export interface Restaurant extends BaseRestaurant {
     mergedYoutubeLinks?: string[]; // 병합된 모든 유튜브 링크
     mergedTzuyangReviews?: string[]; // 병합된 모든 쯔양 리뷰
     mergedYoutubeMetas?: YoutubeMeta[]; // 병합된 모든 유튜브 메타
+    mergedEvidenceFrames?: RestaurantEvidenceFrame[];
 
     // 마커 클릭 시 동일 name+jibun_address 레코드 병합 데이터
     youtube_links?: string[]; // 모든 유튜브 링크 배열

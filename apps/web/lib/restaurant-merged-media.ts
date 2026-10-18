@@ -1,3 +1,7 @@
+import { evidenceFrameEmbedRow } from '@/components/restaurant/RestaurantEvidenceCarousel';
+import { parseEvidenceFrame, unionApprovedEvidenceFrames } from '@/lib/evidence-engineering/frames';
+import { mergePopularityTierRecords } from '@/lib/evidence-engineering/records';
+import type { PopularityTier, PopularityTierAssignment, RestaurantEvidenceFrame, ScoringCohortIdentity } from '@/lib/evidence-engineering/types';
 import type { Restaurant, YoutubeMeta } from '@/types/restaurant';
 
 type BaseMergedRestaurant = NonNullable<Restaurant['mergedRestaurants']>[number];
@@ -7,6 +11,10 @@ export interface RestaurantMergedMedia {
     youtubeLinks: string[];
     tzuyangReviews: string[];
     youtubeMetas: YoutubeMeta[];
+    evidenceFrames: RestaurantEvidenceFrame[];
+    popularityCohort: ScoringCohortIdentity | null;
+    popularityTiers: PopularityTier[];
+    picksHighestTier: false;
 }
 
 export interface TzuyangReviewEntry {
@@ -111,7 +119,15 @@ const mergeCategories = (restaurant: Restaurant, mergeContext?: Restaurant | nul
 
 export const collectRestaurantMergedMedia = (restaurant: Restaurant | null | undefined): RestaurantMergedMedia => {
     if (!restaurant) {
-        return { youtubeLinks: [], tzuyangReviews: [], youtubeMetas: [] };
+        return {
+            youtubeLinks: [],
+            tzuyangReviews: [],
+            youtubeMetas: [],
+            evidenceFrames: [],
+            popularityCohort: null,
+            popularityTiers: [],
+            picksHighestTier: false,
+        };
     }
 
     const youtubeLinks: string[] = [];
@@ -130,7 +146,51 @@ export const collectRestaurantMergedMedia = (restaurant: Restaurant | null | und
         addUniqueMeta(youtubeMetas, record.youtube_meta);
     });
 
-    return { youtubeLinks, tzuyangReviews, youtubeMetas };
+    const evidenceGroups: RestaurantEvidenceFrame[][] = [];
+    const pushFrames = (value: unknown) => {
+        if (!Array.isArray(value)) return;
+        const frames: RestaurantEvidenceFrame[] = [];
+        for (const item of value) {
+            if (!item || typeof item !== 'object') continue;
+            try {
+                frames.push(parseEvidenceFrame(evidenceFrameEmbedRow(item)));
+            } catch {
+                continue;
+            }
+        }
+        if (frames.length > 0) evidenceGroups.push(frames);
+    };
+    const pushRecordFrames = (record: object) => {
+        const value = record as { evidence_frames?: unknown; restaurant_evidence_frames?: unknown };
+        pushFrames(value.evidence_frames);
+        pushFrames(value.restaurant_evidence_frames);
+    };
+    pushRecordFrames(restaurant);
+    pushFrames((restaurant as { mergedEvidenceFrames?: unknown }).mergedEvidenceFrames);
+    const popularityAssignments: PopularityTierAssignment[] = [];
+    const pushMetrics = (record: object) => {
+        const value = (record as { restaurant_popularity_metrics?: unknown }).restaurant_popularity_metrics;
+        const rows = Array.isArray(value) ? value : value == null ? [] : [value];
+        for (const row of rows) {
+            if (!row || typeof row !== 'object') continue;
+            popularityAssignments.push(row as PopularityTierAssignment);
+        }
+    };
+    getRestaurantRecordsByMediaDate(restaurant).forEach((record) => {
+        pushRecordFrames(record);
+        pushMetrics(record);
+    });
+    const popularity = mergePopularityTierRecords(popularityAssignments);
+
+    return {
+        youtubeLinks,
+        tzuyangReviews,
+        youtubeMetas,
+        evidenceFrames: evidenceGroups.length > 0 ? unionApprovedEvidenceFrames(evidenceGroups) : [],
+        popularityCohort: popularity.cohort,
+        popularityTiers: popularity.tiers,
+        picksHighestTier: popularity.picksHighestTier,
+    };
 };
 
 const readReviewMeta = (record: RestaurantLike | undefined): Pick<TzuyangReviewEntry, 'title' | 'publishedAt'> => {
@@ -222,6 +282,7 @@ export const hydrateRestaurantDetailWithMergeContext = (
         mergedYoutubeLinks: mergedMedia.youtubeLinks,
         mergedTzuyangReviews: mergedMedia.tzuyangReviews,
         mergedYoutubeMetas: mergedMedia.youtubeMetas,
+        mergedEvidenceFrames: mergedMedia.evidenceFrames,
         mergedRestaurants,
-    } as Restaurant;
+    } as unknown as Restaurant;
 };

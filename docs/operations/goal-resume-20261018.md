@@ -43,3 +43,18 @@
 ## 2026-10-18 로컬 증빙
 
 [CMS 측정](../../apps/web/performance/admin-tables-20261018/README.md), [실제 PG17.6 재생](../../apps/web/performance/feature-sql-integration-20261013/pg17-existing-catalog-replay-review-verification-readiness-20261018.json), [외부 감사 준비](../../apps/web/performance/cross-audit-20261018/master-plan.md)를 보존했다. 외부 감사는 공통 대기열이며 업로드·전송은 0회다. 최신 develop 통합·새 head CI·운영 배포·전체 메뉴 실제 검증은 남아 있다.
+
+## 웹 심층 리서치 왕복 검증
+
+- [ ] GPT-6 Pro + 심층 리서치의 실제 시작·완료, 전문·원래 URL·SHA를 보존한다.
+- [ ] Gemini 4 Argon 최고가 + Deep Research로 앞선 보고서와 소스에 반대 감사를 수행한다.
+- [ ] 모든 지적에 안정적인 ID를 부여하고 ACCEPT/CONDITIONAL/REJECT/DEFER를 근거와 함께 판정한다.
+- [ ] 수용 지적을 실제 수정·경계/회귀 검사와 연결한다.
+- [ ] 최종 수정 소스로 GPT-6 Pro + 심층 리서치 역검증을 수행하고 새 결함도 조치한다.
+- [ ] completion-manifest.json의 세 보고서·조치·필수 검증이 충족될 때만 교차 감사 complete로 판정한다. 운영 배포와 전체 목표 완료는 별도다.
+
+공통 coordinator의 기존 job·FIFO·서비스당 한 건·소유자 해제 계약을 보존한다. 현재 manifest는 incomplete_queued이며 빈 파일이나 로컬 리뷰를 웹 연구 완료로 대체하지 않는다.
+
+## SQL 승격 경계
+
+review-media feature successor와 PG17.6 receipt는 정확한 97→102 다섯 migration 증빙이다. `20261017`의 evidence/popularity migration 세 개는 별도 102→105 승격이며, 기존 102 receipt를 105 증빙으로 표시하거나 재사용하지 않는다.

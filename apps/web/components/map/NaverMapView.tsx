@@ -69,7 +69,9 @@ import {
     injectClusterCSS,
     removeClusterCSS
 } from "@/lib/cluster-marker";
+import { syncPopularityMarkerInteraction } from "@/lib/evidence-engineering/popularity-marker";
 import { getNaverIndividualMarkerVisual } from "@/lib/naver-map-marker-visuals";
+import { projectPublishedPopularityTier } from "@/lib/evidence-engineering/published-popularity";
 import { deferMarkerRenders } from "@/lib/deferred-marker-renders";
 import './marker-icons.css';
 import {
@@ -2079,9 +2081,22 @@ const NaverMapView = memo(({
         }
     }, [showUserSubmittedMarkers]);
 
+    // History/search selections can outlive the visible query and omit its
+    // projected tier. Use one publication projection for the guard and visual.
+    const publishedSelectedRestaurant = useMemo(
+        () => selectedRestaurant ? projectPublishedPopularityTier(selectedRestaurant) : null,
+        [selectedRestaurant],
+    );
+    const publishedSearchedRestaurant = useMemo(
+        () => activeSearchedRestaurant ? projectPublishedPopularityTier(activeSearchedRestaurant) : null,
+        [activeSearchedRestaurant],
+    );
     const markerKindSignature = useMemo(
-        () => buildRestaurantMarkerKindSignature(displayRestaurants),
-        [displayRestaurants],
+        () => buildRestaurantMarkerKindSignature(displayRestaurants, undefined, {
+            selected: publishedSelectedRestaurant?.popularity_tier,
+            searched: publishedSearchedRestaurant?.popularity_tier,
+        }),
+        [displayRestaurants, publishedSelectedRestaurant?.popularity_tier, publishedSearchedRestaurant?.popularity_tier],
     );
     const overlappingMarkerOffsets = useMemo(
         () => buildNaverOverlappingMarkerOffsets(displayRestaurants),
@@ -2100,12 +2115,12 @@ const NaverMapView = memo(({
     const { idSet: displayRestaurantIds, mergedRestaurantIds } = displayRestaurantLookup;
     const { byId: restaurantById, mergedRestaurantById } = restaurantLookup;
     const markerVisibleActiveSearchedRestaurant =
-        showUserSubmittedMarkers || !isUserSubmittedRestaurant(activeSearchedRestaurant)
-            ? activeSearchedRestaurant
+        showUserSubmittedMarkers || !isUserSubmittedRestaurant(publishedSearchedRestaurant)
+            ? publishedSearchedRestaurant
             : null;
     const markerVisibleSelectedRestaurant =
-        showUserSubmittedMarkers || !isUserSubmittedRestaurant(selectedRestaurant)
-            ? selectedRestaurant
+        showUserSubmittedMarkers || !isUserSubmittedRestaurant(publishedSelectedRestaurant)
+            ? publishedSelectedRestaurant
             : null;
     const expandedClusterRetainIds = useMemo(() => {
         const ids: string[] = [];
@@ -3612,6 +3627,15 @@ const NaverMapView = memo(({
 
         // passive: false여야 preventDefault()가 동작함
         mapElement.addEventListener('wheel', handleWheel, { passive: false });
+        const markMapInteracting = () => syncPopularityMarkerInteraction(mapElement, true);
+        const markMapSettled = () => syncPopularityMarkerInteraction(mapElement, false);
+        const interactionListeners = window.naver?.maps?.Event
+            ? [
+                window.naver.maps.Event.addListener(map, "dragstart", markMapInteracting),
+                window.naver.maps.Event.addListener(map, "idle", markMapSettled),
+                window.naver.maps.Event.addListener(map, "zoom_changed", markMapInteracting),
+            ]
+            : [];
 
         return () => {
             if (pendingAnchorAdjustListener && window.naver?.maps?.Event) {
@@ -3624,6 +3648,12 @@ const NaverMapView = memo(({
             isAnchorAdjusting = cleanupState.nextIsAnchorAdjusting;
             queuedWheelInput = cleanupState.nextQueuedWheelInput;
             mapElement.removeEventListener('wheel', handleWheel);
+            if (window.naver?.maps?.Event) {
+                for (const listener of interactionListeners) {
+                    window.naver.maps.Event.removeListener(listener);
+                }
+            }
+            markMapSettled();
         };
     }, [activateNoncriticalMapEffects, isMapInitialized]);
 

@@ -1,8 +1,38 @@
 import { describe, expect, test } from 'bun:test';
 
 import { getNaverIndividualMarkerVisual } from '../lib/naver-map-marker-visuals';
+import type { Restaurant } from '../types/restaurant';
 
 describe('naver map marker visuals', () => {
+    test('refreshes both cached selection states when the public popularity tier changes in place', () => {
+        const restaurant: Pick<Restaurant, 'id' | 'categories' | 'popularity_tier'> = {
+            id: 'tier-mutation-marker',
+            categories: ['한식'],
+            popularity_tier: 'standard',
+        };
+        for (const tier of ['standard', 'fire', 'rainbow', null] as const) {
+            restaurant.popularity_tier = tier;
+            for (const selected of [false, true]) {
+                const visual = getNaverIndividualMarkerVisual(restaurant, selected);
+                expect(visual.content).toContain(`class="tz-popularity-marker" data-popularity-tier="${tier ?? 'standard'}"`);
+                expect(getNaverIndividualMarkerVisual(restaurant, selected)).toBe(visual);
+            }
+        }
+    });
+
+    test('keeps shared visual cache entries distinct across refreshed rows and overlay markers', () => {
+        const restaurant = { id: 'tier-refetch-marker', categories: ['분식'] };
+        for (const overlay of [[], ['trend']] as const) {
+            for (const tier of ['fire', 'rainbow', 'standard', null] as const) {
+                for (const selected of [false, true]) {
+                    const visual = getNaverIndividualMarkerVisual({ ...restaurant, popularity_tier: tier }, selected, overlay);
+                    expect(visual.content).toContain(`class="tz-popularity-marker" data-popularity-tier="${tier ?? 'standard'}"`);
+                    expect(visual.content).toContain(`data-restaurant-marker-kind="${overlay.length ? 'trend' : 'category'}"`);
+                }
+            }
+        }
+    });
+
     test('reuses the visual for the same restaurant until a displayed field changes', () => {
         const restaurant = { categories: ['한식'], category: [] as string[] };
         const first = getNaverIndividualMarkerVisual(restaurant, false);

@@ -34,6 +34,20 @@ import https from 'https';
 import ffmpegStatic from 'ffmpeg-static';
 import ffprobeStatic from 'ffprobe-static';
 import { safeErrorName } from '../../utils/privacy-log.mjs';
+import {
+    buildDecodeSampleArgs,
+    buildEvidenceSamplingManifest,
+    buildHeatmapDecodeArgs,
+    buildKeyframeProbeArgs,
+    decideDownloadRetry,
+    EVIDENCE_SAMPLE_FPS,
+    KEYFRAME_LOOKBACK_SEC,
+    mayRetryProviderFetch,
+    parseKeyframeProbeCsv,
+    planEvidenceSamplingWindow,
+    selectDecodeStartSec,
+} from './evidence-frame-sampling.mjs';
+import { assignFrameIdentity, reconcileFrameIdentities, samplingLedgerDocument } from './evidence-frame-identity.mjs';
 
 const STATIC_FFMPEG_PATH = typeof ffmpegStatic === 'string' ? ffmpegStatic : '';
 const STATIC_FFPROBE_PATH = typeof ffprobeStatic?.path === 'string' ? ffprobeStatic.path : '';
@@ -1708,12 +1722,14 @@ async function downloadVideo(videoId, outputDir, quality, options = {}) {
         `https://www.youtube.com/watch?v=${videoId}`,
     ];
     const execOptions = buildYtDlpExecOptions();
+    const invoke = options.runProcess ?? runProcess;
+    let dailyRemaining = options.dailyRemaining;
 
     const maxRetries = getYtDlpMaxRetries();
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             log('info', 'FRAME_VIDEO_DOWNLOAD_ATTEMPTED');
-            await runProcess(ytDlpInvocation.file, ytDlpArgs, {
+            await invoke(ytDlpInvocation.file, ytDlpArgs, {
                 timeoutMs: execOptions.timeout,
                 stdoutMaxBytes: execOptions.maxBuffer,
                 stderrMaxBytes: execOptions.maxBuffer,
@@ -1738,6 +1754,22 @@ async function downloadVideo(videoId, outputDir, quality, options = {}) {
             log('warn', 'FRAME_VIDEO_DOWNLOAD_OUTPUT_MISSING');
         } catch (e) {
             logOperationError('warn', 'FRAME_VIDEO_DOWNLOAD_FAILED', e);
+            const decision = decideDownloadRetry(e);
+            if (decision === 'stop_source') {
+                log('error', 'FRAME_PROVIDER_STOP_SOURCE');
+                return null;
+            }
+            const retryAfterSeconds = e && Object.hasOwn(e, 'retryAfterSeconds') ? e.retryAfterSeconds : null;
+            if (!mayRetryProviderFetch(decision, {
+                retryAfterSeconds,
+                attemptsUsed: attempt,
+                maxAttempts: maxRetries,
+                circuitOpen: options.circuitOpen === true,
+                dailyRemaining,
+            })) {
+                break;
+            }
+            dailyRemaining -= 1;
         }
 
         // 재시도 전 대기 (2초)
@@ -1779,7 +1811,7 @@ async function frameSourceContext(videoPath) {
     return { duration, sourceHash, toolHash, implementationHash };
 }
 
-async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, bufferSec, ext) {
+async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, bufferSec, ext, options = {}) {
     const safeSegments = assertFrameSegments(segments);
     const { quality: safeQuality } = assertFrameQuality(quality);
     const safeExt = assertFrameExtension(ext);
@@ -1788,6 +1820,17 @@ async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, b
     if (!Number.isFinite(safeFps) || safeFps <= 0 || safeFps > 120 || !Number.isFinite(safeBufferSec) || safeBufferSec < 0 || safeBufferSec > 3600) {
         throw createOperationError('FRAME_INVALID_EXTRACTION_OPTIONS');
     }
+    const invoke = options.runProcess ?? runProcess;
+    const ffprobePath = options.ffprobePath ?? getMediaTools().ffprobePath;
+    const ffmpegPath = options.ffmpegPath ?? getMediaTools().ffmpegPath;
+    const probeKeyframes = options.probeKeyframes ?? (async (mediaPath, startSec, endSec) => {
+        const { stdout } = await invoke(
+            ffprobePath,
+            buildKeyframeProbeArgs(mediaPath, startSec, endSec),
+            { timeoutMs: FFPROBE_TIMEOUT_MS },
+        );
+        return parseKeyframeProbeCsv(stdout);
+    });
 
     const outputDirectory = requireExistingDirectory(outputBaseDir);
     if (hasControlCharacters(videoPath) || !fs.existsSync(videoPath) || !fs.statSync(videoPath).isFile()) {
@@ -1822,7 +1865,18 @@ async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, b
 
         log('info', 'FRAME_SEGMENT_EXTRACTION_STARTED');
 
-        let segDuration = endTime - startTime;
+        let keyframeTimes = [];
+        try {
+            keyframeTimes = await probeKeyframes(
+                videoPath,
+                Math.max(0, startTime - KEYFRAME_LOOKBACK_SEC),
+                endTime,
+            );
+        } catch (e) {
+            logOperationError('warn', 'FRAME_KEYFRAME_PROBE_FAILED', e);
+        }
+        const decodeStart = selectDecodeStartSec(keyframeTimes, startTime);
+        let segDuration = endTime - decodeStart;
         if (segDuration < (1.0 / safeFps)) {
             segDuration = 1.0 / safeFps; // 최소 1프레임 보장
         }
@@ -1831,18 +1885,16 @@ async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, b
         const outputPattern = resolveContainedPath(staged, `frame_%d.${safeExt}`);
         assertPathContainmentBeforeMutation(staged, outputPattern);
         try {
-            await runProcess(
-                getMediaTools().ffmpegPath,
-                [
-                    '-y',
-                    '-ss', String(startTime),
-                    '-t', String(segDuration),
-                    '-i', videoPath,
-                    '-vf', `fps=${safeFps}`,
-                    ...encodingArgs,
-                    '-frame_pts', '1',
+            await invoke(
+                ffmpegPath,
+                buildHeatmapDecodeArgs({
+                    videoPath,
+                    decodeStartSec: decodeStart,
+                    durationSec: segDuration,
+                    fps: safeFps,
                     outputPattern,
-                ],
+                    encodingArgs,
+                }),
                 { timeoutMs: FFMPEG_TIMEOUT_MS, sharedMedia: true }
             );
 
@@ -1854,7 +1906,7 @@ async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, b
                 if (match && getSafeProviderBasename(fileName)) {
                     const idx = Number.parseInt(match[1], 10);
                     const timeOffset = (idx - 1) / safeFps;
-                    const actualTime = startTime + timeOffset;
+                    const actualTime = decodeStart + timeOffset;
                     const newName = `${actualTime.toFixed(2)}.${safeExt}`;
                     const oldPath = resolveContainedPath(staged, fileName);
                     const newPath = resolveContainedPath(staged, newName);
@@ -1890,11 +1942,163 @@ async function extractFrames(videoPath, segments, outputBaseDir, quality, fps, b
     };
 }
 
+function evidenceTargetsFromSegments(segments) {
+    return segments.map((segment, index) => {
+        const midpointSec = (segment.startSec + segment.endSec) / 2;
+        const targetSec = Number.isFinite(segment.peakSec) ? segment.peakSec : midpointSec;
+        return {
+            rank: index + 1,
+            targetTimestampMs: Math.max(0, Math.round(targetSec * 1000)),
+        };
+    });
+}
+
+async function sampleEvidenceFramesAtTargets(request, options = {}) {
+    const {
+        videoPath,
+        videoId,
+        recollectId,
+        outputDir,
+        targets,
+    } = request;
+    assertValidYouTubeVideoId(videoId);
+    if (!Number.isSafeInteger(recollectId) || recollectId < 0) {
+        throw createOperationError('FRAME_INVALID_RECOLLECT_ID');
+    }
+    if (hasControlCharacters(videoPath) || !fs.existsSync(videoPath) || !fs.statSync(videoPath).isFile()) {
+        return { skipped: true, failedTargets: 0, records: [] };
+    }
+
+    const invoke = options.runProcess ?? runProcess;
+    const ffprobePath = options.ffprobePath ?? getMediaTools().ffprobePath;
+    const ffmpegPath = options.ffmpegPath ?? getMediaTools().ffmpegPath;
+    const probeKeyframes = options.probeKeyframes ?? (async (mediaPath, startSec, endSec) => {
+        const { stdout } = await invoke(
+            ffprobePath,
+            buildKeyframeProbeArgs(mediaPath, startSec, endSec),
+            { timeoutMs: FFPROBE_TIMEOUT_MS },
+        );
+        return parseKeyframeProbeCsv(stdout);
+    });
+    const outputDirectory = requireExistingDirectory(outputDir);
+    const encodingArgs = getFrameEncodingArgs('webp');
+    const records = [];
+    const newIdentities = [];
+    let failedTargets = 0;
+
+    for (const target of targets) {
+        const plan = planEvidenceSamplingWindow(videoId, target.targetTimestampMs);
+        const windowStartSec = plan.window_start_ms / 1000;
+        const windowEndSec = plan.window_end_ms / 1000;
+        const targetDir = ensureContainedDirectory(outputDirectory, 'evidence-w001', String(target.rank));
+        let keyframeTimes = [];
+        try {
+            keyframeTimes = await probeKeyframes(
+                videoPath,
+                Math.max(0, windowStartSec - KEYFRAME_LOOKBACK_SEC),
+                windowEndSec,
+            );
+        } catch (e) {
+            logOperationError('warn', 'FRAME_KEYFRAME_PROBE_FAILED', e);
+        }
+        const decodeStartSec = selectDecodeStartSec(keyframeTimes, windowStartSec);
+        const durationSec = Math.max(windowEndSec - decodeStartSec, 1 / EVIDENCE_SAMPLE_FPS);
+        const outputPattern = resolveContainedPath(targetDir, 'frame_%d.webp');
+        assertPathContainmentBeforeMutation(targetDir, outputPattern);
+        try {
+            await invoke(
+                ffmpegPath,
+                buildDecodeSampleArgs({
+                    videoPath,
+                    decodeStartSec,
+                    durationSec,
+                    fps: EVIDENCE_SAMPLE_FPS,
+                    outputPattern,
+                    encodingArgs,
+                }),
+                { timeoutMs: FFMPEG_TIMEOUT_MS },
+            );
+            const staged = fs.readdirSync(targetDir)
+                .filter((fileName) => /^frame_\d+\.webp$/.test(fileName))
+                .sort((left, right) => {
+                    const leftIndex = Number(left.match(/^frame_(\d+)\.webp$/)[1]);
+                    const rightIndex = Number(right.match(/^frame_(\d+)\.webp$/)[1]);
+                    return leftIndex - rightIndex;
+                });
+            const framePts = [];
+            const fileNames = [];
+            const frameIdentities = [];
+            for (const fileName of staged) {
+                const match = fileName.match(/^frame_(\d+)\.webp$/);
+                if (!match || !getSafeProviderBasename(fileName)) continue;
+                const index = Number.parseInt(match[1], 10);
+                const ptsSec = Number((decodeStartSec + ((index - 1) / EVIDENCE_SAMPLE_FPS)).toFixed(3));
+                const renamed = `${ptsSec.toFixed(2)}.webp`;
+                const oldPath = resolveContainedPath(targetDir, fileName);
+                const newPath = resolveContainedPath(targetDir, renamed);
+                assertExistingPathContained(targetDir, oldPath);
+                assertPathContainmentBeforeMutation(targetDir, newPath);
+                fs.renameSync(oldPath, newPath);
+                assertExistingPathContained(targetDir, newPath);
+                fileNames.push(renamed);
+                framePts.push({ file_name: renamed, pts_sec: ptsSec });
+                const identity = assignFrameIdentity({
+                    videoId,
+                    timestampMs: Math.round(ptsSec * 1000),
+                    bytes: fs.readFileSync(newPath),
+                });
+                frameIdentities.push({ file_name: renamed, ...identity });
+                newIdentities.push(identity);
+            }
+            if (fileNames.length === 0) {
+                failedTargets += 1;
+                log('error', 'FRAME_EVIDENCE_OUTPUT_MISSING');
+                continue;
+            }
+            const manifest = buildEvidenceSamplingManifest({
+                videoId,
+                recollectId,
+                rank: target.rank,
+                plan,
+                decodeStartSec,
+                fileNames,
+                framePts,
+            });
+            manifest.frame_identities = frameIdentities;
+            const manifestPath = resolveContainedPath(targetDir, 'sampling-manifest.json');
+            assertPathContainmentBeforeMutation(targetDir, manifestPath);
+            fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`, 'utf8');
+            assertExistingPathContained(targetDir, manifestPath);
+            records.push(manifest);
+        } catch (e) {
+            failedTargets += 1;
+            logOperationError('error', 'FRAME_EVIDENCE_SAMPLE_FAILED', e);
+        }
+    }
+
+    if (failedTargets === 0 && newIdentities.length > 0) {
+        const ledgerPath = resolveContainedPath(outputDirectory, 'evidence-frame-ledger.json');
+        let prior = [];
+        if (fs.existsSync(ledgerPath)) {
+            assertExistingPathContained(outputDirectory, ledgerPath);
+            const parsed = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+            prior = Array.isArray(parsed?.records) ? parsed.records : [];
+        }
+        const reconciled = reconcileFrameIdentities([...prior, ...newIdentities]);
+        assertPathContainmentBeforeMutation(outputDirectory, ledgerPath);
+        fs.writeFileSync(ledgerPath, `${JSON.stringify(samplingLedgerDocument(reconciled))}\n`, 'utf8');
+        assertExistingPathContained(outputDirectory, ledgerPath);
+    }
+
+    return { skipped: false, failedTargets, records };
+}
+
 async function processSingleVideo(videoId, params, dependencies = {}) {
     const {
         loadSegments = fetchAndSaveHeatmap,
         acquireVideo = downloadVideo,
         extractFramesFn = extractFrames,
+        sampleEvidenceFrames = sampleEvidenceFramesAtTargets,
     } = dependencies;
     const { channel, fps, buffer, quality, ext } = params;
     assertValidYouTubeVideoId(videoId);
@@ -1913,6 +2117,7 @@ async function processSingleVideo(videoId, params, dependencies = {}) {
     let downloadPerformed = false;
     let videoHadFailure = false;
     let latestRecollectId = null;
+    let evidenceSampled = false;
     const canonicalVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     // 1. 히트맵 데이터 수집 (Recollect ID 자동 감지)
@@ -1921,6 +2126,7 @@ async function processSingleVideo(videoId, params, dependencies = {}) {
         log('info', 'FRAME_OPENING_FALLBACK');
         segments = [{ startSec: 0, endSec: 90, peakSec: 18 }];
     }
+    const evidenceTargets = evidenceTargetsFromSegments(segments);
     const safeSegments = assertFrameSegments(segments);
 
     log('info', 'FRAME_HEATMAP_SEGMENTS_FOUND');
@@ -2019,6 +2225,20 @@ async function processSingleVideo(videoId, params, dependencies = {}) {
                 log('error', 'FRAME_VIDEO_UNAVAILABLE');
                 logFailedUrl(channel, canonicalVideoUrl);
                 throw createOperationError('FRAME_VIDEO_UNAVAILABLE');
+            }
+
+            if (!evidenceSampled) {
+                const evidenceSummary = await sampleEvidenceFrames({
+                    videoPath,
+                    videoId,
+                    recollectId,
+                    outputDir,
+                    targets: evidenceTargets,
+                }, dependencies);
+                if (!evidenceSummary.skipped && evidenceSummary.failedTargets > 0) {
+                    throw createOperationError('FRAME_SEGMENT_EXTRACTION_FAILED');
+                }
+                evidenceSampled = true;
             }
 
             for (const currentExt of extensions) {

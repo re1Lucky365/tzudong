@@ -352,6 +352,48 @@ test('monotonic expiry cannot be revived by replaying an earlier clock value', a
   expect(locationGateSource).not.toContain('Date.now()');
 });
 
+test('fractional monotonic timestamps retain authorization until exact expiry and never revive it', async () => {
+  const grantedTimes = [262144.02702702704, 262144.1081081081, 262144.1621621622];
+  for (const [index, grantedAt] of grantedTimes.entries()) {
+    const clock = { value: grantedAt };
+    const original = Object.getOwnPropertyDescriptor(globalThis.performance, 'now');
+    let gate: typeof import('../lib/privacy/location-gate');
+    Object.defineProperty(globalThis.performance, 'now', {
+      configurable: true,
+      value: () => clock.value,
+    });
+    try {
+      gate = await import(`../lib/privacy/location-gate.ts?fractional-clock=${index}`);
+    } finally {
+      if (original) Object.defineProperty(globalThis.performance, 'now', original);
+      else delete (globalThis.performance as { now?: () => number }).now;
+    }
+
+    await withReadinessResponse(READY_AVAILABLE, async () => {
+      const authorization = await gate.acquireDeviceLocationUseAuthorization();
+      if (isPublicRestrictedMode) {
+        expect(authorization).toBeNull();
+        return;
+      }
+      expect(authorization).not.toBeNull();
+      if (!authorization) throw new Error('Expected ready authorization.');
+      const use = () => gate.evaluateLocationUse({
+        purpose: 'home-map-device-marker',
+        destination: 'network',
+        networkSink: DEVICE_LOCATION_NETWORK_SINK,
+        authorization,
+      });
+      expect(use().allowed).toBe(true);
+      clock.value = authorization.expiresAt - 0.001;
+      expect(use().allowed).toBe(true);
+      clock.value = authorization.expiresAt;
+      expect(use().allowed).toBe(false);
+      clock.value = grantedAt;
+      expect(use().allowed).toBe(false);
+    });
+  }
+});
+
 test('tracking lifecycle revokes the genuine capability exactly once on every stop path', async () => {
   await withReadinessResponse(READY_AVAILABLE, async () => {
     const stopFor = async (

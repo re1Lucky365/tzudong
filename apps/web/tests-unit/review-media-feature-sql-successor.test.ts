@@ -638,6 +638,11 @@ test('state contract binds G014, Storage, roles, catalog and cumulative feature 
     priorCount: 97,
     suffixRoot: fiveMigrationBundleSuffixRoot(featureManifest.migrations),
   });
+  const reusedAtLedger105 = structuredClone(stages);
+  reusedAtLedger105[5].bundle.ledgerCount = 105;
+  reusedAtLedger105[5].bundle.priorCount = 100;
+  expect(() => validateFeatureStageStates(reusedAtLedger105, featureManifest))
+    .toThrow('FEATURE_SUCCESSOR_ADMISSION_INVALID');
   const roleDrift = structuredClone(stages);
   roleDrift[3].state.roleRoot = sha256('drift');
   expect(() => validateFeatureStageStates(roleDrift, featureManifest))
