@@ -186,7 +186,7 @@
 
 ## Task 15: W014 상세 패널의 실험 3D 배지
 
-- [x] 완료. 기본 배지는 정적 WebP다. 파이어·무지개 티어는 지정된 경로를 그리고, 이미지 로드가 실패하면 깨진 이미지를 남기지 않는다. 실험 3D는 기본 꺼짐이다. `three` 패키지는 저장소에 없다.
+- [x] 완료. 기본 배지는 정적 WebP다. 파이어·무지개 티어는 지정된 경로를 그리고, 이미지 로드가 실패하면 깨진 이미지를 남기지 않는다. 실험 3D는 기본 꺼짐이다. 사용자가 켠 뒤에만 `Badge3DViewer`가 `three`를 로드하고, `PopularityBadge`는 `three`를 직접 import하지 않는다. 배지 호버는 `scale(1.15)`이고 모션 축소 설정에서는 확대하지 않는다.
 - [x] [Cross-Check: 교차검증] 기본 렌더는 정적 WebP다. Three.js는 사용자가 켠 뒤 `next/dynamic`과 `ssr: false`로만 로드한다. 마커에는 로드하지 않는다.
   `open cross-check clauses stay locked without new formulas`가 `ssr: false`와 마커에 3D 뷰어가 없음을 고정한다.
 

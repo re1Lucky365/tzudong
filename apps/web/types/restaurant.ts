@@ -30,6 +30,8 @@ export interface Restaurant extends BaseRestaurant {
     reviewedStatus?: string | null;
     reviewed_status?: string | null;
     reviewed?: boolean | null;
+    // 공개 행에 없으면 standard다. shadow 테이블에서는 읽지 않는다.
+    popularity_tier?: "fire" | "rainbow" | "standard" | null;
 
     // 검색 관련 (주간 인기 검색용)
     weekly_search_count: number | null; // 주간 검색 횟수

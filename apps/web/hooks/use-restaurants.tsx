@@ -15,6 +15,7 @@ import {
 } from "@/lib/home-map-theme-filters";
 import { enrichRestaurantsWithHomeMapYoutubeKpiMetrics } from "@/lib/home-map-youtube-kpi";
 import { describeErrorCodeForLog } from "@/lib/debug-log";
+import { lookupPublishedPopularityTier, resolvePublishedPopularityTier, type PublishedPopularityLookup } from "@/lib/evidence-engineering/published-popularity";
 
 
 type DBRestaurant = Tables<"restaurants">;
@@ -331,7 +332,7 @@ function buildRestaurantQueryKey(
     ];
 }
 
-function projectSingletonRestaurant(restaurant: DBRestaurant): Restaurant {
+function projectSingletonRestaurant(restaurant: DBRestaurant, publishedTier: PublishedPopularityLookup): Restaurant {
     const categories = Array.from(new Set(restaurant.categories || []));
     const youtubeLink = restaurant.youtube_link || null;
     const review = restaurant.tzuyang_review || null;
@@ -339,6 +340,7 @@ function projectSingletonRestaurant(restaurant: DBRestaurant): Restaurant {
 
     return {
         ...restaurant,
+        popularity_tier: publishedTier(restaurant.id),
         name: getRestaurantName(restaurant as RestaurantWithOptionalName),
         lat: restaurant.lat || 0,
         lng: restaurant.lng || 0,
@@ -459,7 +461,10 @@ function isNameBetterForMainCandidate(candidate: RestaurantWithOptionalName, cur
  * @param restaurants DB에서 조회된 레스토랑 목록
  * @returns 병합된 레스토랑 목록
  */
-export function mergeRestaurants(restaurants: DBRestaurant[]): Restaurant[] {
+export function mergeRestaurants(
+    restaurants: DBRestaurant[],
+    publishedTier: PublishedPopularityLookup = lookupPublishedPopularityTier,
+): Restaurant[] {
     if (!restaurants.length) return [];
 
     perfMonitor.startMeasure('mergeRestaurants');
@@ -570,7 +575,7 @@ export function mergeRestaurants(restaurants: DBRestaurant[]): Restaurant[] {
 
     const mergedResults: Restaurant[] = Array.from(groups.values()).map((indices) => {
         if (indices.length === 1) {
-            return projectSingletonRestaurant(restaurants[indices[0]]);
+            return projectSingletonRestaurant(restaurants[indices[0]], publishedTier);
         }
         const groupRestaurants = indices.map(idx => restaurants[idx]);
 
@@ -619,6 +624,7 @@ export function mergeRestaurants(restaurants: DBRestaurant[]): Restaurant[] {
 
         return {
             ...mainRestaurant,
+            popularity_tier: resolvePublishedPopularityTier(mainRestaurant, publishedTier, groupRestaurants),
             name: getRestaurantName(mainRestaurant as RestaurantWithOptionalName),
             lat,
             lng,
