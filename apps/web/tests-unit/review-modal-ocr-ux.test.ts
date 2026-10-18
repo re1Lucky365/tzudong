@@ -191,4 +191,17 @@ describe('review modal OCR terminal recovery contract', () => {
     expect(reviewModalSource).toContain('이번 분석은 캐시 없이 재호출');
     expect(reviewModalSource).not.toContain('dev/admin: OCR 강제 재호출');
   });
+
+  test('shows the shared content limit and requires a complete AI binding before submit', () => {
+    expect(reviewModalSource).toContain('const REVIEW_CONTENT_MAX_LENGTH = 4_000');
+    expect(reviewModalSource).toContain('content.length <= REVIEW_CONTENT_MAX_LENGTH');
+    expect(reviewModalSource).toContain('content.length > REVIEW_CONTENT_MAX_LENGTH');
+    expect(reviewModalSource).toContain('aria-invalid={content.length > REVIEW_CONTENT_MAX_LENGTH}');
+    expect(reviewModalSource).toContain('const isOcrBindingReadyForSubmit = verificationInputMode === "manual"');
+    expect(reviewModalSource).toContain('!isAnalyzing && Boolean(ocrResultRef && ocrResultRevision)');
+    expect(reviewModalSource).toContain('const currentInputs = latestSaveInputsRef.current');
+    expect(reviewModalSource).toContain('currentInputs.ocrResultRef !== submittedInputs.ocrResultRef');
+    expect(reviewModalSource).toContain('submissionMode === "manual" ? null : submittedInputs.ocrResultRef');
+    expect(reviewModalSource).toContain('AI 분석이 끝난 뒤 등록하거나 사진만 첨부를 선택해주세요.');
+  });
 });

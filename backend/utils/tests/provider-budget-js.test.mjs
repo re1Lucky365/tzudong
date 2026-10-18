@@ -63,6 +63,50 @@ test('a spawn failure creates no fictitious release debt', async () => {
     }), 'recovered');
 });
 
+test('a definitive acquire rejection creates no release debt for a corrected environment', async () => {
+    const budgetPath = path.join(directory, 'rejected-budget.sqlite');
+    const rejectedEnv = {
+        ...process.env,
+        GEMINI_BUDGET_PATH: budgetPath,
+        GEMINI_BUDGET_PROJECT: 'invalid/project',
+        GEMINI_REQUESTS_PER_MINUTE: '100000',
+        GEMINI_MAX_INFLIGHT: '1',
+    };
+    delete rejectedEnv.RUN_DAILY_PYTHON;
+    let workStarted = false;
+
+    await assert.rejects(withProjectBudget(async () => { workStarted = true; }, {
+        env: rejectedEnv,
+        acquireTimeoutMs: 1000,
+    }), /PROVIDER_BUDGET_UNAVAILABLE/);
+    assert.equal(workStarted, false);
+
+    const correctedEnv = { ...rejectedEnv, GEMINI_BUDGET_PROJECT: 'corrected-project' };
+    assert.equal(await withProjectBudget(async () => 'recovered', {
+        env: correctedEnv,
+        acquireTimeoutMs: 1000,
+    }), 'recovered');
+});
+
+test('a nonzero exit after committed partial output is ambiguous and releases the selected lease', async () => {
+    const script = path.join(directory, 'ambiguous-exit-budget-fixture');
+    const ledger = path.join(directory, 'ambiguous-exit-budget-ledger');
+    const releases = path.join(directory, 'ambiguous-exit-budget-releases');
+    fs.writeFileSync(script, `#!${process.execPath}\nconst fs=require('fs');\nconst args=process.argv.slice(2);\nconst action=args.find(value=>['acquire','release'].includes(value));\nconst lease=args[args.indexOf('--lease')+1];\nif(action==='acquire'){fs.writeFileSync(process.env.FX_LEDGER,lease);process.stdout.write(lease.slice(0,8));process.stderr.write('PROVIDER_BUDGET_UNAVAILABLE\\n');process.exit(1);}\nif(action==='release'){if(fs.existsSync(process.env.FX_LEDGER)&&fs.readFileSync(process.env.FX_LEDGER,'utf8')===lease)fs.unlinkSync(process.env.FX_LEDGER);fs.appendFileSync(process.env.FX_RELEASES,lease+'\\n');}\n`, { mode: 0o700 });
+    const env = {
+        ...process.env, RUN_DAILY_PYTHON: script, FX_LEDGER: ledger, FX_RELEASES: releases,
+    };
+    let workStarted = false;
+
+    await assert.rejects(withProjectBudget(async () => { workStarted = true; }, {
+        env, acquireTimeoutMs: 1000,
+    }), /PROVIDER_BUDGET_UNAVAILABLE/);
+
+    assert.equal(workStarted, false);
+    assert.equal(fs.existsSync(ledger), false);
+    assert.equal(fs.readFileSync(releases, 'utf8').trim().split('\n').length, 1);
+});
+
 test('abort terminates a waiting acquire child and releases a commit-before-close lease exactly once', async () => {
     const script = path.join(directory, 'abort-budget-fixture');
     const started = path.join(directory, 'abort-budget-started.json');

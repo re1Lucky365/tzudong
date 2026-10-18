@@ -1,5 +1,14 @@
 import { createHash } from 'node:crypto';
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -23,6 +32,23 @@ function copiedSourceRoot() {
     cpSync(join(repositoryRoot, sourcePath), destination);
   }
   return root;
+}
+
+function sourceFilesBelow(root: string): string[] {
+  const files: string[] = [];
+  const visit = (directory: string) => {
+    for (const entry of readdirSync(directory)) {
+      const absolute = join(directory, entry);
+      if (statSync(absolute).isDirectory()) visit(absolute);
+      else if (entry.endsWith('.ts')) files.push(absolute);
+    }
+  };
+  visit(root);
+  return files;
+}
+
+function repositoryPath(absolute: string): string {
+  return absolute.slice(repositoryRoot.length + 1).replaceAll('\\', '/');
 }
 
 test('next config injects the deterministic digest of every declared production execution source', async () => {
@@ -50,6 +76,60 @@ test('a fallback edit in the real worker path changes both source binding and ca
     expect(after.sha256).not.toBe(before.sha256);
     expect(evaluateStoryboardRuntimePolicy(after.sha256).canonicalPolicySha256)
       .not.toBe(evaluateStoryboardRuntimePolicy(before.sha256).canonicalPolicySha256);
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test('binds every worker entrypoint and every route delegated to the retired API', () => {
+  const apiSources = sourceFilesBelow(join(repositoryRoot, 'apps/web/app/api'));
+  const delegatedRoutes = apiSources
+    .filter((sourcePath) => {
+      const source = readFileSync(sourcePath, 'utf8');
+      return source.includes('storyboardProductionApi.worker') || source.includes('retiredStoryboardApi');
+    })
+    .map(repositoryPath)
+    .sort();
+
+  expect(delegatedRoutes).toEqual([
+    'apps/web/app/api/admin/storyboard/chat/route.ts',
+    'apps/web/app/api/admin/storyboard/images/route.ts',
+    'apps/web/app/api/admin/storyboard/jobs/route.ts',
+    'apps/web/app/api/admin/storyboard/production/[id]/images/route.ts',
+    'apps/web/app/api/admin/storyboard/route.ts',
+    'apps/web/app/api/storyboard-worker/images/route.ts',
+    'apps/web/app/api/storyboard-worker/route.ts',
+  ]);
+  for (const sourcePath of delegatedRoutes) {
+    expect(STORYBOARD_RUNTIME_SOURCE_PATHS).toContain(sourcePath);
+  }
+  expect(STORYBOARD_RUNTIME_SOURCE_PATHS).toContain('apps/web/lib/admin/storyboard/retired-api.ts');
+});
+
+test('worker and retired-route boundary edits change both source and policy digests', () => {
+  const root = copiedSourceRoot();
+  try {
+    const before = calculateStoryboardRuntimeSourceBinding({ repositoryRoot: root });
+    const paths = [
+      'apps/web/app/api/storyboard-worker/route.ts',
+      'apps/web/app/api/storyboard-worker/images/route.ts',
+      'apps/web/lib/admin/storyboard/retired-api.ts',
+      'apps/web/app/api/admin/storyboard/route.ts',
+      'apps/web/app/api/admin/storyboard/jobs/route.ts',
+    ];
+    for (const sourcePath of paths) {
+      const isolatedRoot = copiedSourceRoot();
+      try {
+        const absolute = join(isolatedRoot, sourcePath);
+        writeFileSync(absolute, `${readFileSync(absolute, 'utf8')}\n// fixture: policy boundary drift\n`);
+        const after = calculateStoryboardRuntimeSourceBinding({ repositoryRoot: isolatedRoot });
+        expect(after.sha256).not.toBe(before.sha256);
+        expect(evaluateStoryboardRuntimePolicy(after.sha256).canonicalPolicySha256)
+          .not.toBe(evaluateStoryboardRuntimePolicy(before.sha256).canonicalPolicySha256);
+      } finally {
+        rmSync(isolatedRoot, { force: true, recursive: true });
+      }
+    }
   } finally {
     rmSync(root, { force: true, recursive: true });
   }

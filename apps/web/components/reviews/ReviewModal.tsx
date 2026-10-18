@@ -53,6 +53,7 @@ const SUPPORTED_RECEIPT_MIME_TYPES = new Set([
     "image/webp",
 ]);
 const RECEIPT_IMAGE_ACCEPT = "image/avif,image/jpeg,image/png,image/webp";
+const REVIEW_CONTENT_MAX_LENGTH = 4_000;
 const isSupportedReceiptImage = (file: File): boolean => SUPPORTED_RECEIPT_MIME_TYPES.has(file.type);
 
 // 안전한 랜덤 파일명 생성 유틸리티 (한글 파일명 문제 해결)
@@ -843,6 +844,12 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         setVerificationPhoto(file);
         setOcrResultRef(null);
         setOcrResultRevision(null);
+        latestSaveInputsRef.current = {
+            ...latestSaveInputsRef.current,
+            verificationPhoto: file,
+            ocrResultRef: null,
+            ocrResultRevision: null,
+        };
         return true;
     }, []);
 
@@ -1401,6 +1408,11 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
             }
             setOcrResultRef(data.ocr_result_ref);
             setOcrResultRevision(data.ocr_result_revision);
+            latestSaveInputsRef.current = {
+                ...latestSaveInputsRef.current,
+                ocrResultRef: data.ocr_result_ref,
+                ocrResultRevision: data.ocr_result_revision,
+            };
 
             // 4. provider/model/prompt/preprocess-aware server cache에만 저장한다.
             // 클라이언트 sessionStorage cache는 Track 1 정확도 실험 동안 사용하지 않는다.
@@ -1585,6 +1597,28 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
             });
             return;
         }
+        if (content.length > REVIEW_CONTENT_MAX_LENGTH) {
+            toast({
+                title: "리뷰 내용이 너무 깁니다",
+                description: `리뷰 내용은 최대 ${REVIEW_CONTENT_MAX_LENGTH.toLocaleString()}자까지 작성할 수 있습니다.`,
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const currentInputs = latestSaveInputsRef.current;
+        const submissionMode = verificationInputModeRef.current;
+        if (submissionMode === "ai"
+            && (isAnalyzing
+                || !submittedInputs.ocrResultRef || !submittedInputs.ocrResultRevision
+                || currentInputs.ocrResultRef !== submittedInputs.ocrResultRef
+                || currentInputs.ocrResultRevision !== submittedInputs.ocrResultRevision)) {
+            toast({
+                title: "영수증 분석을 확인해주세요",
+                description: "AI 분석이 끝난 뒤 등록하거나 사진만 첨부를 선택해주세요.",
+            });
+            return;
+        }
 
         if (!user) {
             toast({
@@ -1615,8 +1649,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
             ownerId: user.id, restaurantId: targetRestaurant.id,
             title: `${targetRestaurant.name} 방문 후기`, content: content.trim(), visitedAt,
             categories, verificationPhoto, foodPhotos,
-            ocrResultRef: submittedInputs.ocrResultRef,
-            ocrResultRevision: submittedInputs.ocrResultRevision,
+            ocrResultRef: submissionMode === "manual" ? null : submittedInputs.ocrResultRef,
+            ocrResultRevision: submissionMode === "manual" ? null : submittedInputs.ocrResultRevision,
         };
         submitInFlightRef.current = true;
         setIsSubmitting(true);
@@ -1731,15 +1765,21 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
         </div>
     ) : null;
 
-    // 폼 유효성 검사 메모이제이션 (리뷰 내용 최소 20자)
+    // 폼 유효성 검사 메모이제이션 (리뷰 내용 20~4,000자)
     const isFormValid = useMemo(() => {
-        return visitedDate && visitedTime && reviewTargetRestaurant?.id && categories.length > 0 && content.trim().length >= 20 && verificationPhoto && foodPhotos.length > 0;
+        return visitedDate && visitedTime && reviewTargetRestaurant?.id && categories.length > 0
+            && content.trim().length >= 20 && content.length <= REVIEW_CONTENT_MAX_LENGTH
+            && verificationPhoto && foodPhotos.length > 0;
     }, [visitedDate, visitedTime, reviewTargetRestaurant?.id, categories.length, content, verificationPhoto, foodPhotos.length]);
+
+    const isOcrBindingReadyForSubmit = verificationInputMode === "manual"
+        || (!isAnalyzing && Boolean(ocrResultRef && ocrResultRevision));
+    const canSubmitReview = Boolean(isFormValid && isOcrBindingReadyForSubmit);
 
     const isStepValid = useMemo<Record<ReviewFormStep, boolean>>(() => ({
         1: Boolean(verificationPhoto) && !isAnalyzing,
         2: Boolean(visitedDate && visitedTime && reviewTargetRestaurant?.id && categories.length > 0),
-        3: Boolean(content.trim().length >= 20 && foodPhotos.length > 0),
+        3: Boolean(content.trim().length >= 20 && content.length <= REVIEW_CONTENT_MAX_LENGTH && foodPhotos.length > 0),
     }), [categories.length, content, foodPhotos.length, isAnalyzing, reviewTargetRestaurant?.id, verificationPhoto, visitedDate, visitedTime]);
 
     const getStepValidationMessage = useCallback((step: ReviewFormStep) => {
@@ -1752,8 +1792,11 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
             return "방문 맛집, 방문 날짜/시간, 카테고리를 모두 입력해주세요.";
         }
 
+        if (content.length > REVIEW_CONTENT_MAX_LENGTH) {
+            return `리뷰 내용은 최대 ${REVIEW_CONTENT_MAX_LENGTH.toLocaleString()}자까지 작성할 수 있습니다.`;
+        }
         return "음식 사진 1장 이상과 리뷰 내용 20자 이상을 입력해주세요.";
-    }, [isAnalyzing]);
+    }, [content.length, isAnalyzing]);
 
     const handleNextStep = useCallback(() => {
         userStepOverrideDuringOcrRef.current = true;
@@ -2138,6 +2181,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                 id={id}
                 placeholder="맛집에 대한 솔직한 후기를 작성해주세요..."
                 value={content}
+                aria-invalid={content.length > REVIEW_CONTENT_MAX_LENGTH}
+                aria-describedby={`${id}-length`}
                 onChange={(e) => {
                     markManualOcrInteraction("review");
                     setContent(e.target.value);
@@ -2145,8 +2190,8 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                 rows={8}
                 className="resize-none"
             />
-            <p className="text-xs text-muted-foreground text-right">
-                {content.length} / 최소 20자
+            <p id={`${id}-length`} className={`text-xs text-right ${content.length > REVIEW_CONTENT_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {content.length.toLocaleString()} / 최대 {REVIEW_CONTENT_MAX_LENGTH.toLocaleString()}자 (최소 20자)
             </p>
         </div>
     ), [content, getOcrFocusClass, markManualOcrInteraction, renderAiFilledBadge]);
@@ -2623,7 +2668,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                         <Button variant="outline" onClick={handleClose} className="flex-1 sm:flex-none">
                             취소
                         </Button>
-                        <Button onClick={handleSubmit} disabled={featureHeld || !isFormValid || isSubmitting || saveRecovery === 'edit'} className="bg-primary text-primary-foreground hover:bg-primary/90 flex-1 sm:flex-none">
+                        <Button onClick={handleSubmit} disabled={featureHeld || !canSubmitReview || isSubmitting || saveRecovery === 'edit'} className="bg-primary text-primary-foreground hover:bg-primary/90 flex-1 sm:flex-none">
                             {isSubmitting ? "등록 중..." : saveRecovery === "draft-cleanup" ? "임시 저장 정리 재시도" : "리뷰 등록"}
                         </Button>
                     </div>
@@ -3200,7 +3245,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                                     <Button
                                         type="button"
                                         onClick={handleSubmit}
-                                        disabled={featureHeld || !isFormValid || isSubmitting || saveRecovery === 'edit'}
+                                        disabled={featureHeld || !canSubmitReview || isSubmitting || saveRecovery === 'edit'}
                                         className={`${mobileSheetStyles.primaryAction} flex-1`}
                                     >
                                         {isSubmitting ? "등록 중..." : saveRecovery === "draft-cleanup" ? "임시 저장 정리 재시도" : "리뷰 등록"}
@@ -3757,7 +3802,7 @@ function ReviewComposer({ isOpen, onClose, restaurant, onSuccess, inline = false
                                 </Button>
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={featureHeld || !isFormValid || isSubmitting || saveRecovery === 'edit'}
+                                    disabled={featureHeld || !canSubmitReview || isSubmitting || saveRecovery === 'edit'}
                                     className="bg-primary text-primary-foreground hover:bg-primary/90 flex-1 sm:flex-none"
                                 >
                                     {isSubmitting ? "등록 중..." : saveRecovery === "draft-cleanup" ? "임시 저장 정리 재시도" : "리뷰 등록"}

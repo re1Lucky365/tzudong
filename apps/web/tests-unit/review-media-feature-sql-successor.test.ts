@@ -37,7 +37,7 @@ import {
 } from '../scripts/review-media-sql-successor.mjs';
 import {
   elevenMigrationBundleSuffixRoot,
-  migrationBundleSuffixRoot,
+  fiveMigrationBundleSuffixRoot,
 } from '../scripts/supabase-migration-bundle.mjs';
 
 const predecessorRecord = loadSuccessorManifest();
@@ -466,12 +466,12 @@ function featureStageStates() {
   const storageAfter = sha256('feature-storage-after');
   const storyboardBefore = sha256('feature-storyboard-before');
   const storyboardAfter = sha256('feature-storyboard-after');
-  return Array.from({ length: 5 }, (_, index) => ({
+  return Array.from({ length: 6 }, (_, index) => ({
     bundle: {
       ledgerCount: 97 + index,
       prefixRoot,
       priorCount: 97,
-      suffixRoot: index === 4 ? migrationBundleSuffixRoot(featureManifest.migrations) : null,
+      suffixRoot: index === 5 ? fiveMigrationBundleSuffixRoot(featureManifest.migrations) : null,
       targetCount: index,
     },
     state: {
@@ -480,7 +480,7 @@ function featureStageStates() {
       catalogRoot: sha256(`feature-catalog-${index}`),
       currentUser: 'postgres',
       databaseName: 'postgres',
-      featureRuntimeReady: index >= 4,
+      featureRuntimeReady: index >= 5,
       g014Ready: index >= 3,
       g014Root: index < 3 ? g014Before : g014After,
       immutableReady: index >= 4,
@@ -490,6 +490,7 @@ function featureStageStates() {
       reviewPolicyEnabled: false,
       reviewRuns: 0,
       roleRoot,
+      runtimePredicateReady: index >= 5,
       serverMajor: 17,
       sessionUser: 'postgres',
       storageRoot: index < 4 ? storageBefore : storageAfter,
@@ -542,7 +543,7 @@ function publishFeatureRehearsal(custody: string) {
     sourceRoot: featureManifest.sourceRoot,
     stageStates: stages,
     stageStatesSha256: sha256(JSON.stringify(canonical(stages))),
-    suffixRoot: migrationBundleSuffixRoot(featureManifest.migrations),
+    suffixRoot: fiveMigrationBundleSuffixRoot(featureManifest.migrations),
   };
   const receiptBytes = canonicalBytes(receipt);
   const receiptSha256 = sha256(receiptBytes);
@@ -574,8 +575,8 @@ function publishFeatureRehearsal(custody: string) {
   chmodSync(join(custody, FEATURE_SUCCESSOR_FILES.rehearsalJournal), 0o600);
 }
 
-test('manifest freezes the exact four sources and ledger 97 to 101 while launch remains held', () => {
-  expect(featureManifest.operatingTransition).toEqual({ beforeFour: 97, afterFour: 101 });
+test('manifest freezes the exact five sources and ledger 97 to 102 while launch remains held', () => {
+  expect(featureManifest.operatingTransition).toEqual({ beforeFive: 97, afterFive: 102 });
   expect(featureManifest.launchPolicy.state).toBe('held');
   expect(featureManifest.migrations.map((migration: any) => [
     migration.version,
@@ -586,6 +587,7 @@ test('manifest freezes the exact four sources and ledger 97 to 101 while launch 
     ['20261013190000', 56061, '7a140594826c3375da71e74be44bdfe9c6e99c4465d8a9484a9d8180d696480d'],
     ['20261013190100', 25506, '0c3f8b4cadc1d4bb0d88b53de49be34ef8e2751a47bfc18ebad89ae543b4c370'],
     ['20261013190200', 14358, '0a060ca537d3558779fd0cb1b780e7965189eb129f5018987f157c1cb5f2cd3d'],
+    ['20261016090000', 19008, '469dbea773cc838feecb4519ca1b5c03e9ea2fab32462007f7769c5ed1b7fed9'],
   ]);
   expect(featureManifest.predecessor).toMatchObject({
     afterLedger: 97,
@@ -616,18 +618,25 @@ test('state contract binds G014, Storage, roles, catalog and cumulative feature 
   const query = buildFeatureSuccessorStateQuery(featureRecord);
   for (const token of [
     "'catalogRoot'", "'g014Root'", "'storageRoot'", "'roleRoot'",
-    "'storyboardReady'", "'ocrReady'", "'g014Ready'", "'immutableReady'", "'featureRuntimeReady'",
+    "'storyboardReady'", "'ocrReady'", "'g014Ready'", "'immutableReady'", "'runtimePredicateReady'", "'featureRuntimeReady'",
     'pg_auth_members', 'g014_public_rpc_allowlist', "polrelid='storage.objects'::regclass",
     "a.attrelid='public.reviews'::regclass", 'a.atttypmod = -1', "a.attidentity = ''", "a.attgenerated = ''",
     "WHEN 'idx_reviews_receipt_hash'", "pg_get_indexdef(c.oid,1,true)='receipt_hash'",
     "WHEN 'reviews_ocr_pending_idx'", "WHEN 'reviews_duplicate_idx'", "am.amname='btree'",
     'i.indisvalid AND i.indisready AND i.indislive',
+    "t.tgname='a01_review_verification_guard_delete'", "t.tgenabled='O'", 'pg_get_triggerdef(t.oid,false)',
+    '24311fc7071597fbc78c4c54897690da5aaa70edb62c24f7912fd23fecf515b0',
+    "p.proowner='postgres'::regrole", "p.proconfig=ARRAY['search_path=\"\"']::text[]",
+    "p.provolatile='s'", "p.prorettype='jsonb'::regtype",
+    'public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamptz,text,text[],text[],uuid,uuid,uuid,text,timestamptz,text,jsonb)',
+    '7160f72a9a7a18bb235f65bbf7db8bbbec1fe984a363d1a96f3a61cd6540ee7f',
+    "has_function_privilege('privacy_workflow_owner',p.oid,'EXECUTE')",
   ]) expect(query).toContain(token);
   const stages = featureStageStates();
   expect(validateFeatureStageStates(stages, featureManifest)).toEqual({
     prefixRoot: '8'.repeat(64),
     priorCount: 97,
-    suffixRoot: migrationBundleSuffixRoot(featureManifest.migrations),
+    suffixRoot: fiveMigrationBundleSuffixRoot(featureManifest.migrations),
   });
   const roleDrift = structuredClone(stages);
   roleDrift[3].state.roleRoot = sha256('drift');
@@ -641,14 +650,18 @@ test('state contract binds G014, Storage, roles, catalog and cumulative feature 
   falseG014[3].state.g014Ready = false;
   expect(() => validateFeatureStageStates(falseG014, featureManifest))
     .toThrow('FEATURE_SUCCESSOR_ADMISSION_INVALID');
+  const readyBeforeRuntimePredicate = structuredClone(stages);
+  readyBeforeRuntimePredicate[4].state.featureRuntimeReady = true;
+  expect(() => validateFeatureStageStates(readyBeforeRuntimePredicate, featureManifest))
+    .toThrow('FEATURE_SUCCESSOR_ADMISSION_INVALID');
 });
 
-test('four-stage rehearsal and apply plans preserve source order, rollback, and expiry guards', () => {
+test('five-stage rehearsal and apply plans preserve source order, rollback, and expiry guards', () => {
   const stages = featureStageStates();
   const admission = { expiresAt, stageStates: stages } as any;
   const rehearsal = compileFeatureRehearsalPlan(featureRecord, admission, stages[0]);
   expect(rehearsal.transactionMode).toBe('explicit-rollback-only');
-  expect(rehearsal.sql.match(/feature-successor-rehearsal-stage/g)).toHaveLength(5);
+  expect(rehearsal.sql.match(/feature-successor-rehearsal-stage/g)).toHaveLength(6);
   expect(rehearsal.sql).toContain('ROLLBACK;');
   for (const migration of featureManifest.migrations) {
     expect(rehearsal.sql).toContain(
@@ -656,7 +669,7 @@ test('four-stage rehearsal and apply plans preserve source order, rollback, and 
     );
   }
   const apply = compileFeatureApplyPlan(featureRecord, admission);
-  expect(apply.plans).toHaveLength(4);
+  expect(apply.plans).toHaveLength(5);
   expect(apply.priorCount).toBe(97);
   expect(apply.sql).toContain(FEATURE_SUCCESSOR_PRE_COMMIT_EXPIRY_MARKER);
   expect(apply.sql).toContain('pg_advisory_xact_lock(7311754282260212::bigint)');

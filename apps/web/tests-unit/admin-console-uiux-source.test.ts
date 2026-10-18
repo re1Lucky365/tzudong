@@ -6064,6 +6064,15 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(adminUiSource).toContain(
       ".admin-page-header .admin-restaurant-header-automation, .admin-page-header .admin-review-automation-controls { flex: 0 0 auto; min-width: max-content; flex-wrap: nowrap; }",
     );
+    expect(adminUiSource).toContain(
+      "@media (max-width: 1023px) {\n  .admin-restaurant-primary-header .admin-page-header-controls { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible; }",
+    );
+    expect(adminUiSource).toContain(
+      ".admin-restaurant-primary-header .admin-page-header-context { width: 100%; min-width: 0; flex-wrap: wrap; }",
+    );
+    expect(adminUiSource).toContain(
+      ".admin-restaurant-primary-header .admin-review-automation-controls { flex-wrap: wrap; }",
+    );
     expect(adminUiSource).not.toContain("admin-storyboard-page-header");
     expect(consoleSource).toContain("min-h-[360px] flex-1");
     expect(consoleSource).toContain("overflow-visible md:overflow-hidden");

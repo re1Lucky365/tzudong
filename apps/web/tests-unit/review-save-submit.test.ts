@@ -124,7 +124,9 @@ function fixture() {
         submitInFlightRef: { current: false }, closeRequestedRef: { current: false }, composerOpenRef: { current: true },
         autoSaveInFlightRef: { current: null },
         verificationSelectionRef: { current: { invalidate() {} } },
-        latestSaveInputsRef: { current: fields }, setIsSubmitting() {}, toast: (message: {title: string}) => messages.push(message),
+        verificationInputModeRef: { current: 'manual' as 'ai' | 'manual' }, isAnalyzing: false,
+        latestSaveInputsRef: { current: fields }, REVIEW_CONTENT_MAX_LENGTH: 4_000,
+        setIsSubmitting() {}, toast: (message: {title: string}) => messages.push(message),
         fetchFeatureDatabaseReadiness: async () => featureReady
             ? { schemaVersion: 1, status: 'ready', code: 'FEATURE_DATABASE_READY' }
             : { schemaVersion: 1, status: 'held', code: 'FEATURE_DATABASE_HELD' },
@@ -242,6 +244,7 @@ describe('actual receipt result recovery', () => {
             useCallback: (callback: unknown) => callback,
             verificationSelectionRef: { current: { invalidate() {} } },
             receiptOcrPreparationRef: { current: { invalidate() {} } },
+            latestSaveInputsRef: { current: {} },
             verificationPhotoUrlRef: { current: null },
             ocrRunGenerationRef: generation, ocrAbortControllerRef: { current: controller },
             ocrRecoveryContextRef: recovery,
@@ -514,6 +517,126 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         expect(f.counts).toEqual({ uploads: 2, inserts: 1, removes: 0, reads: 0, cleared: 1, success: 1, closes: 1 });
         expect([...f.rows.values()][0]).not.toHaveProperty('receipt_data');
     });
+    test.each(['manual', 'ai'] as const)('blocks an oversized %s review before any upload', async mode => {
+        const f = fixture();
+        f.bindings.verificationInputModeRef.current = mode;
+        f.bindings.latestSaveInputsRef.current = {
+            ...f.bindings.latestSaveInputsRef.current,
+            ocrResultRef: mode === 'ai' ? '11111111-1111-4111-8111-111111111111' : null,
+            ocrResultRevision: mode === 'ai' ? '22222222-2222-4222-8222-222222222222' : null,
+        };
+        const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, {
+            ...f.bindings,
+            content: '가'.repeat(4_001),
+        }) as () => Promise<void>;
+
+        await submit();
+
+        expect(f.counts.uploads).toBe(0);
+        expect(f.counts.inserts).toBe(0);
+        expect(f.rows.size).toBe(0);
+        expect(f.messages.at(-1)?.title).toBe('리뷰 내용이 너무 깁니다');
+    });
+    test.each([
+        { name: 'active analysis', isAnalyzing: true, ref: '11111111-1111-4111-8111-111111111111', revision: '22222222-2222-4222-8222-222222222222' },
+        { name: 'missing result', isAnalyzing: false, ref: null, revision: null },
+        { name: 'partial result', isAnalyzing: false, ref: '11111111-1111-4111-8111-111111111111', revision: null },
+    ])('blocks AI submission with $name before any upload', async ({ isAnalyzing, ref, revision }) => {
+        const f = fixture();
+        f.bindings.verificationInputModeRef.current = 'ai';
+        f.bindings.latestSaveInputsRef.current = {
+            ...f.bindings.latestSaveInputsRef.current,
+            ocrResultRef: ref,
+            ocrResultRevision: revision,
+        };
+        const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, {
+            ...f.bindings,
+            isAnalyzing,
+        }) as () => Promise<void>;
+
+        await submit();
+
+        expect(f.counts.uploads).toBe(0);
+        expect(f.counts.inserts).toBe(0);
+        expect(f.rows.size).toBe(0);
+        expect(f.messages.at(-1)?.title).toBe('영수증 분석을 확인해주세요');
+    });
+    test('photo-only selection during readiness cannot submit the captured OCR binding', async () => {
+        const f = fixture();
+        f.bindings.verificationInputModeRef.current = 'ai';
+        f.bindings.latestSaveInputsRef.current = {
+            ...f.bindings.latestSaveInputsRef.current,
+            ocrResultRef: '11111111-1111-4111-8111-111111111111',
+            ocrResultRevision: '22222222-2222-4222-8222-222222222222',
+        };
+        let enterReadiness!: () => void;
+        let finishReadiness!: () => void;
+        const readinessStarted = new Promise<void>(resolve => { enterReadiness = resolve; });
+        const readiness = new Promise<void>(resolve => { finishReadiness = resolve; });
+        const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, {
+            ...f.bindings,
+            fetchFeatureDatabaseReadiness: async () => {
+                enterReadiness();
+                await readiness;
+                return { schemaVersion: 1, status: 'ready', code: 'FEATURE_DATABASE_READY' };
+            },
+        }) as () => Promise<void>;
+        const setMode = evaluate(`${nodeText(source, 'setReceiptVerificationInputMode')};`, {
+            useCallback: (callback: unknown) => callback,
+            verificationInputModeRef: f.bindings.verificationInputModeRef,
+            receiptOcrPreparationRef: { current: createLatestSelection() },
+            ocrRunGenerationRef: { current: 0 }, ocrAbortControllerRef: { current: null },
+            userStepOverrideDuringOcrRef: { current: false },
+            latestSaveInputsRef: f.bindings.latestSaveInputsRef,
+            setVerificationInputMode() {}, setOcrResultRef() {}, setOcrResultRevision() {},
+            setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
+        }) as (mode: 'ai' | 'manual') => void;
+
+        const pending = submit();
+        await readinessStarted;
+        setMode('manual');
+        finishReadiness();
+        await pending;
+
+        expect(f.rows.size).toBe(1);
+        expect(f.counts.uploads).toBe(2);
+        expect([...f.rows.values()][0]).not.toHaveProperty('receipt_data');
+    });
+    test('an AI binding changed during readiness is rejected before upload', async () => {
+        const f = fixture();
+        f.bindings.verificationInputModeRef.current = 'ai';
+        f.bindings.latestSaveInputsRef.current = {
+            ...f.bindings.latestSaveInputsRef.current,
+            ocrResultRef: '11111111-1111-4111-8111-111111111111',
+            ocrResultRevision: '22222222-2222-4222-8222-222222222222',
+        };
+        let enterReadiness!: () => void;
+        let finishReadiness!: () => void;
+        const readinessStarted = new Promise<void>(resolve => { enterReadiness = resolve; });
+        const readiness = new Promise<void>(resolve => { finishReadiness = resolve; });
+        const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, {
+            ...f.bindings,
+            fetchFeatureDatabaseReadiness: async () => {
+                enterReadiness();
+                await readiness;
+                return { schemaVersion: 1, status: 'ready', code: 'FEATURE_DATABASE_READY' };
+            },
+        }) as () => Promise<void>;
+
+        const pending = submit();
+        await readinessStarted;
+        f.bindings.latestSaveInputsRef.current = {
+            ...f.bindings.latestSaveInputsRef.current,
+            ocrResultRef: null,
+            ocrResultRevision: null,
+        };
+        finishReadiness();
+        await pending;
+
+        expect(f.counts.uploads).toBe(0);
+        expect(f.counts.inserts).toBe(0);
+        expect(f.messages.at(-1)?.title).toBe('영수증 분석을 확인해주세요');
+    });
     test('held feature readiness stops before draft capture, upload, or review insert', async () => {
         const f = fixture(); f.setFeatureReady(false); await f.submit();
         expect(f.rows.size).toBe(0); expect(f.objects.size).toBe(0);
@@ -625,7 +748,7 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         expect(html).toContain('role="status"'); expect(html).toContain('href="/mypage/reviews"');
         expect(html).toContain('target="_blank"'); expect(html).toContain('rel="noopener noreferrer"');
         expect(source.match(/\{saveRecoveryNotice\}/g)?.length).toBe(3);
-        expect(source.match(/disabled=\{featureHeld \|\| !isFormValid \|\| isSubmitting \|\| saveRecovery === 'edit'\}/g)?.length).toBe(3);
+        expect(source.match(/disabled=\{featureHeld \|\| !canSubmitReview \|\| isSubmitting \|\| saveRecovery === 'edit'\}/g)?.length).toBe(3);
     });
     test('actual close handler retains form and blocks close for unresolved write', async () => {
         const f = fixture(); f.setMode('lost-read-fails'); await f.submit();

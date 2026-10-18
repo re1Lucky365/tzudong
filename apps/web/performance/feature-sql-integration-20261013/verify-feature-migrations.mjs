@@ -14,6 +14,11 @@ import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 
+import {
+  buildFeatureSuccessorStateQuery,
+  loadFeatureSuccessorManifest,
+} from '../../scripts/review-media-feature-sql-successor.mjs';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../../../..');
 const DOCKER_CONTEXT = 'colima-tzudong-catalog-20261007';
@@ -37,6 +42,7 @@ const FEATURE_PATHS = Object.freeze([
   'backend/supabase/migrations/20261013190000_durable_receipt_ocr_results.sql',
   'backend/supabase/migrations/20261013190100_g014_feature_rpc_catalog_contract.sql',
   'backend/supabase/migrations/20261013190200_review_verification_immutable_key_fence.sql',
+  'backend/supabase/migrations/20261016090000_review_verification_delete_guard_readiness.sql',
 ]);
 const PREDECESSOR_PATHS = Object.freeze([
   'backend/supabase/migrations/20261004190259_admin_record_guarded_actions.sql',
@@ -58,6 +64,7 @@ const REQUIRED_ROLES = Object.freeze([
   'tzudong_g037_readonly',
 ]);
 const SUCCESSOR_MANIFEST_PATH = '.github/review-media-sql-successor.v1.json';
+const FEATURE_SUCCESSOR_MANIFEST_PATH = '.github/review-media-feature-sql-successor.v1.json';
 const EXPECTED_FEATURE_RPC_ALLOWLIST = Object.freeze([
   'public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean)',
   'public.complete_receipt_ocr_result(uuid,uuid,jsonb)',
@@ -295,11 +302,17 @@ GRANT privacy_workflow_owner TO postgres WITH ADMIN TRUE,INHERIT FALSE,SET FALSE
   psql('GRANT privacy_workflow_owner TO privacy_auth_bridge WITH ADMIN FALSE,INHERIT TRUE,SET TRUE GRANTED BY postgres;');
 }
 
-function insertLedger(path, statement = 'feature integration replay') {
+function insertLedger(path, statements) {
   const version = basename(path).slice(0, 14);
   const name = basename(path).slice(15, -4);
+  if (!Array.isArray(statements) || statements.length === 0
+    || statements.some(statement => typeof statement !== 'string' || statement.length === 0)) {
+    fail('FEATURE_SQL_LEDGER_STATEMENTS_INVALID', path);
+  }
   psql(`INSERT INTO supabase_migrations.schema_migrations(version,statements,name)
-VALUES(${quote(version)},ARRAY[${quote(statement)}],${quote(name)});`);
+VALUES(${quote(version)},ARRAY(SELECT jsonb_array_elements_text(
+  ${quote(JSON.stringify(statements))}::jsonb
+)),${quote(name)});`);
 }
 
 function applyFile(path, bytes = readFileSync(resolve(ROOT, path), 'utf8')) {
@@ -655,7 +668,8 @@ function storageContractState() {
         AND policyname='review_verifications_immutable_update'),
     'immutableTrigger',(SELECT jsonb_build_object(
       'name',trigger_row.tgname,'enabled',trigger_row.tgenabled,'type',trigger_row.tgtype,
-      'function',trigger_row.tgfoid::regprocedure::text)
+      'function',trigger_row.tgfoid::regprocedure::text,
+      'definition',pg_get_triggerdef(trigger_row.oid,false))
       FROM pg_trigger trigger_row WHERE trigger_row.tgrelid='storage.objects'::regclass
         AND trigger_row.tgname='a01_review_verification_immutable_update' AND NOT trigger_row.tgisinternal),
     'immutableFunction',(SELECT jsonb_build_object(
@@ -671,12 +685,14 @@ function storageContractState() {
         AND has_function_privilege(role_matrix.role_name,procedure.oid,'EXECUTE')),
     'deleteTrigger',(SELECT jsonb_build_object(
       'name',trigger_row.tgname,'enabled',trigger_row.tgenabled,'type',trigger_row.tgtype,
-      'function',trigger_row.tgfoid::regprocedure::text)
+      'function',trigger_row.tgfoid::regprocedure::text,
+      'definition',pg_get_triggerdef(trigger_row.oid,false))
       FROM pg_trigger trigger_row WHERE trigger_row.tgrelid='storage.objects'::regclass
         AND trigger_row.tgname='a01_review_verification_guard_delete' AND NOT trigger_row.tgisinternal),
     'deleteFunction',(SELECT jsonb_build_object(
       'owner',pg_get_userbyid(procedure.proowner),'securityDefiner',procedure.prosecdef,
-      'config',procedure.proconfig,'returnType',procedure.prorettype::regtype::text)
+      'config',procedure.proconfig,'returnType',procedure.prorettype::regtype::text,
+      'sourceSha256',encode(sha256(convert_to(procedure.prosrc,'UTF8')),'hex'))
       FROM pg_proc procedure
       WHERE procedure.oid=to_regprocedure('review_media_private.guard_verification_object_delete()')),
     'deleteFunctionExecuteExposureCount',(SELECT count(*)
@@ -885,6 +901,22 @@ function assertFeatureRuntimeCapability(state, ready) {
 }
 
 function verifyRuntimeCapabilityCatalogDrift() {
+  const originalUpdateFunction = scalar(`SELECT pg_get_functiondef(
+    'review_media_private.reject_verification_object_update()'::regprocedure
+  );`);
+  const originalUpdateTrigger = scalar(`SELECT pg_get_triggerdef(trigger_row.oid, false)
+    FROM pg_trigger trigger_row
+    WHERE trigger_row.tgrelid='storage.objects'::regclass
+      AND trigger_row.tgname='a01_review_verification_immutable_update'
+      AND NOT trigger_row.tgisinternal;`);
+  const originalDeleteFunction = scalar(`SELECT pg_get_functiondef(
+    'review_media_private.guard_verification_object_delete()'::regprocedure
+  );`);
+  const originalDeleteTrigger = scalar(`SELECT pg_get_triggerdef(trigger_row.oid, false)
+    FROM pg_trigger trigger_row
+    WHERE trigger_row.tgrelid='storage.objects'::regclass
+      AND trigger_row.tgname='a01_review_verification_guard_delete'
+      AND NOT trigger_row.tgisinternal;`);
   const cases = [
     {
       kind: 'column',
@@ -944,12 +976,82 @@ CREATE INDEX reviews_duplicate_idx
 CREATE INDEX reviews_duplicate_idx
   ON public.reviews USING btree (is_duplicate);`,
     },
+    {
+      actor: 'supabase_admin',
+      kind: 'trigger',
+      name: 'a01_review_verification_immutable_update_enabled',
+      drift: 'ALTER TABLE storage.objects DISABLE TRIGGER a01_review_verification_immutable_update;',
+      restore: 'ALTER TABLE storage.objects ENABLE TRIGGER a01_review_verification_immutable_update;',
+    },
+    {
+      actor: 'supabase_admin',
+      kind: 'trigger',
+      name: 'a01_review_verification_immutable_update_definition',
+      drift: `DROP TRIGGER a01_review_verification_immutable_update ON storage.objects;
+CREATE TRIGGER a01_review_verification_immutable_update
+  AFTER UPDATE ON storage.objects
+  FOR EACH ROW
+  EXECUTE FUNCTION review_media_private.reject_verification_object_update();`,
+      restore: `DROP TRIGGER a01_review_verification_immutable_update ON storage.objects;
+${originalUpdateTrigger};`,
+    },
+    {
+      actor: 'supabase_admin',
+      kind: 'function',
+      name: 'reject_verification_object_update_body',
+      drift: `CREATE OR REPLACE FUNCTION review_media_private.reject_verification_object_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $drift$
+BEGIN
+  RETURN NEW;
+END;
+$drift$;`,
+      restore: originalUpdateFunction,
+    },
+    {
+      actor: 'supabase_admin',
+      kind: 'trigger',
+      name: 'a01_review_verification_guard_delete_enabled',
+      drift: 'ALTER TABLE storage.objects DISABLE TRIGGER a01_review_verification_guard_delete;',
+      restore: 'ALTER TABLE storage.objects ENABLE TRIGGER a01_review_verification_guard_delete;',
+    },
+    {
+      actor: 'supabase_admin',
+      kind: 'trigger',
+      name: 'a01_review_verification_guard_delete_definition',
+      drift: `DROP TRIGGER a01_review_verification_guard_delete ON storage.objects;
+CREATE TRIGGER a01_review_verification_guard_delete
+  AFTER DELETE ON storage.objects
+  FOR EACH ROW
+  EXECUTE FUNCTION review_media_private.guard_verification_object_delete();`,
+      restore: `DROP TRIGGER a01_review_verification_guard_delete ON storage.objects;
+${originalDeleteTrigger};`,
+    },
+    {
+      actor: 'supabase_admin',
+      kind: 'function',
+      name: 'guard_verification_object_delete_body',
+      drift: `CREATE OR REPLACE FUNCTION review_media_private.guard_verification_object_delete()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $drift$
+BEGIN
+  RETURN OLD;
+END;
+$drift$;`,
+      restore: originalDeleteFunction,
+    },
   ];
   const receipts = [];
   const initial = featureRuntimeCapabilityState('catalog-drift-initial');
   assertFeatureRuntimeCapability(initial, true);
   for (const item of cases) {
-    psql(item.drift);
+    psql(item.drift, { actor: item.actor ?? 'postgres' });
     let held;
     try {
       held = featureRuntimeCapabilityState(`${item.kind}-${item.name}-held`);
@@ -957,7 +1059,7 @@ CREATE INDEX reviews_duplicate_idx
       // Keep the disposable harness internally recoverable even when the
       // held-state assertion exposes a regression. Later cases and cleanup
       // must observe the admitted catalog, not the intentionally damaged one.
-      psql(item.restore);
+      psql(item.restore, { actor: item.actor ?? 'postgres' });
     }
     assertFeatureRuntimeCapability(held, false);
     const ready = featureRuntimeCapabilityState(`${item.kind}-${item.name}-restored`);
@@ -975,7 +1077,75 @@ CREATE INDEX reviews_duplicate_idx
   });
 }
 
-async function checkFeatureRollbacks(featureBytes) {
+function verifyRuntimeReadinessSuccessorIdempotency(bytes) {
+  const before = rollbackState();
+  const capabilityBefore = featureRuntimeCapabilityState('readiness-idempotency-before');
+  assertFeatureRuntimeCapability(capabilityBefore, true);
+  applyFile(FEATURE_PATHS.at(-1), bytes);
+  const capabilityAfter = featureRuntimeCapabilityState('readiness-idempotency-after');
+  assertFeatureRuntimeCapability(capabilityAfter, true);
+  const after = rollbackState();
+  if (after !== before) fail('FEATURE_SQL_RUNTIME_READINESS_IDEMPOTENCY_DRIFT');
+  return Object.freeze({
+    catalogStateUnchanged: true,
+    before: capabilityBefore.status,
+    after: capabilityAfter.status,
+  });
+}
+
+function verifyFeatureSuccessorCapabilityIdentity(featureSuccessorRecord) {
+  const query = buildFeatureSuccessorStateQuery(featureSuccessorRecord);
+  const originalFunction = scalar(`SELECT pg_get_functiondef(
+    'ocr_private.get_feature_runtime_capability(uuid)'::regprocedure
+  );`);
+  const baseline = json(query);
+  if (baseline.state?.runtimePredicateReady !== true
+    || baseline.state?.featureRuntimeReady !== true) {
+    fail('FEATURE_SQL_RUNTIME_PREDICATE_BASELINE_INVALID');
+  }
+  psql(`CREATE OR REPLACE FUNCTION ocr_private.get_feature_runtime_capability(p_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $drift$
+BEGIN
+  -- Keep the former substring sentinels while changing the executable body:
+  -- a01_review_verification_guard_delete
+  -- 24311fc7071597fbc78c4c54897690da5aaa70edb62c24f7912fd23fecf515b0
+  -- pg_catalog.pg_get_triggerdef(trigger_row.oid, false)
+  RETURN pg_catalog.jsonb_build_object(
+    'schema_version', 1,
+    'status', 'ready',
+    'code', 'FEATURE_DATABASE_READY',
+    'capability_version', 'review-media-feature-v1'
+  );
+END;
+$drift$;`);
+  let held;
+  try {
+    held = json(query);
+  } finally {
+    psql(originalFunction);
+  }
+  if (held.state?.runtimePredicateReady !== false
+    || held.state?.featureRuntimeReady !== false) {
+    fail('FEATURE_SQL_RUNTIME_PREDICATE_DRIFT_ADMITTED');
+  }
+  const restored = json(query);
+  if (restored.state?.runtimePredicateReady !== true
+    || restored.state?.featureRuntimeReady !== true) {
+    fail('FEATURE_SQL_RUNTIME_PREDICATE_RESTORE_INVALID');
+  }
+  return Object.freeze({
+    baselineReady: true,
+    substringPreservingBodyDriftHeld: true,
+    restoredReady: true,
+  });
+}
+
+async function checkFeatureRollbacks(featureBytes, migrations) {
   const verified = {};
   let storyboardCutoverRace = null;
   const runtimeCapabilityStages = [featureRuntimeCapabilityState('base97')];
@@ -987,14 +1157,23 @@ async function checkFeatureRollbacks(featureBytes) {
     const before = rollbackState();
     const fault = psql(faultedMigration(path, bytes, marker), { allowFailure: true });
     if (fault.status === 0 || !fault.stderr.includes(marker)) {
-      fail('FEATURE_SQL_ROLLBACK_FAULT_MISSING', path);
+      fail(
+        'FEATURE_SQL_ROLLBACK_FAULT_MISSING',
+        `${path}:${fault.status}:${fault.stderr.replace(/\s+/g, ' ').slice(0, 220)}`,
+      );
     }
     if (rollbackState() !== before) fail('FEATURE_SQL_ROLLBACK_DRIFT', path);
     if (index === 0) storyboardCutoverRace = await applyStoryboardWithLateInvocations(bytes);
     else applyFile(path, bytes);
-    insertLedger(path);
+    const migration = migrations.find(entry => entry.path === path);
+    if (!migration) fail('FEATURE_SQL_LEDGER_MIGRATION_MISSING', path);
+    insertLedger(path, migration.originalStatementVector);
     const capability = featureRuntimeCapabilityState(`feature${98 + index}`);
-    assertFeatureRuntimeCapability(capability, index === FEATURE_PATHS.length - 1);
+    // The already-applied 101 contract historically reported ready after the
+    // immutable-key fence. The 102 successor cannot rewrite that ledger row;
+    // it hardens the helper forward-only. The successor controller separately
+    // keeps operational admission held until the fifth source is present.
+    assertFeatureRuntimeCapability(capability, index >= 3);
     runtimeCapabilityStages.push(capability);
     verified[path] = true;
   }
@@ -1810,6 +1989,7 @@ try {
   const frozenSourcePaths = [
     HARNESS_PATH,
     SUCCESSOR_MANIFEST_PATH,
+    FEATURE_SUCCESSOR_MANIFEST_PATH,
     ...PREDECESSOR_PATHS,
     ...successorManifest.migrations.map(({ path }) => path),
     ...FEATURE_PATHS,
@@ -1863,7 +2043,7 @@ try {
 
   for (const migration of successorManifest.migrations) {
     applyFile(migration.path, frozenSourceBytes.get(migration.path));
-    insertLedger(migration.path, migration.sha256);
+    insertLedger(migration.path, migration.originalStatementVector);
   }
   if (Number(scalar('SELECT count(*) FROM supabase_migrations.schema_migrations;')) !== 97) {
     fail('FEATURE_SQL_SUCCESSOR_LEDGER_INVALID');
@@ -1887,7 +2067,40 @@ try {
     path,
     frozenSourceBytes.get(path).toString('utf8'),
   ]));
-  const rollback = await checkFeatureRollbacks(featureBytes);
+  const featureSuccessorRecord = loadFeatureSuccessorManifest();
+  const rollback = await checkFeatureRollbacks(
+    featureBytes,
+    featureSuccessorRecord.manifest.migrations,
+  );
+  const runtimeReadinessSuccessorIdempotency = verifyRuntimeReadinessSuccessorIdempotency(
+    featureBytes.get(FEATURE_PATHS.at(-1)),
+  );
+  const featureSuccessorControllerState = json(
+    buildFeatureSuccessorStateQuery(featureSuccessorRecord),
+  );
+  if (featureSuccessorControllerState.bundle?.priorCount !== 97
+    || featureSuccessorControllerState.bundle?.targetCount !== 5
+    || featureSuccessorControllerState.bundle?.ledgerCount !== 102
+    || !/^[0-9a-f]{64}$/.test(featureSuccessorControllerState.bundle?.suffixRoot ?? '')
+    || featureSuccessorControllerState.state?.predecessorReady !== true
+    || featureSuccessorControllerState.state?.immutableReady !== true
+    || featureSuccessorControllerState.state?.runtimePredicateReady !== true
+    || featureSuccessorControllerState.state?.featureRuntimeReady !== true) {
+    fail('FEATURE_SQL_SUCCESSOR_CONTROLLER_STATE_INVALID', JSON.stringify({
+      ledgerCount: featureSuccessorControllerState.bundle?.ledgerCount,
+      priorCount: featureSuccessorControllerState.bundle?.priorCount,
+      targetCount: featureSuccessorControllerState.bundle?.targetCount,
+      storyboardReady: featureSuccessorControllerState.state?.storyboardReady,
+      ocrReady: featureSuccessorControllerState.state?.ocrReady,
+      g014Ready: featureSuccessorControllerState.state?.g014Ready,
+      immutableReady: featureSuccessorControllerState.state?.immutableReady,
+      runtimePredicateReady: featureSuccessorControllerState.state?.runtimePredicateReady,
+      featureRuntimeReady: featureSuccessorControllerState.state?.featureRuntimeReady,
+    }));
+  }
+  const featureSuccessorCapabilityIdentity = verifyFeatureSuccessorCapabilityIdentity(
+    featureSuccessorRecord,
+  );
   const runtimeCapabilityCatalogDrift = verifyRuntimeCapabilityCatalogDrift();
   const storyboard = verifyStoryboard();
   const ocr = await verifyOcr();
@@ -1933,6 +2146,7 @@ try {
     && storageAfter.immutableTrigger?.enabled === 'O'
     && storageAfter.immutableTrigger?.type === 19
     && storageAfter.immutableTrigger?.function === 'review_media_private.reject_verification_object_update()'
+    && storageAfter.immutableTrigger?.definition === 'CREATE TRIGGER a01_review_verification_immutable_update BEFORE UPDATE ON storage.objects FOR EACH ROW EXECUTE FUNCTION review_media_private.reject_verification_object_update()'
     && storageAfter.immutableFunction?.owner === 'privacy_workflow_owner'
     && storageAfter.immutableFunction?.securityDefiner === false
     && JSON.stringify(storageAfter.immutableFunction?.config) === JSON.stringify(['search_path=""'])
@@ -1941,10 +2155,12 @@ try {
     && storageAfter.deleteTrigger?.enabled === 'O'
     && storageAfter.deleteTrigger?.type === 11
     && storageAfter.deleteTrigger?.function === 'review_media_private.guard_verification_object_delete()'
+    && storageAfter.deleteTrigger?.definition === 'CREATE TRIGGER a01_review_verification_guard_delete BEFORE DELETE ON storage.objects FOR EACH ROW EXECUTE FUNCTION review_media_private.guard_verification_object_delete()'
     && storageAfter.deleteFunction?.owner === 'privacy_workflow_owner'
     && storageAfter.deleteFunction?.securityDefiner === true
     && JSON.stringify(storageAfter.deleteFunction?.config) === JSON.stringify(['search_path=""'])
     && storageAfter.deleteFunction?.returnType === 'trigger'
+    && storageAfter.deleteFunction?.sourceSha256 === '24311fc7071597fbc78c4c54897690da5aaa70edb62c24f7912fd23fecf515b0'
     && storageAfter.deleteFunctionExecuteExposureCount === 0;
   const findings = [];
   if (g014MatrixBefore.length !== 0 || g014AssertionsBefore.some(result => !result.passed)) {
@@ -2001,7 +2217,7 @@ try {
     }));
   }
   if (rolesAfter !== rolesBefore) fail('FEATURE_SQL_ROLE_CATALOG_DRIFT');
-  if (Number(scalar('SELECT count(*) FROM supabase_migrations.schema_migrations;')) !== 101) {
+  if (Number(scalar('SELECT count(*) FROM supabase_migrations.schema_migrations;')) !== 102) {
     fail('FEATURE_SQL_TERMINAL_LEDGER_INVALID');
   }
   const featureHashesAfter = FEATURE_PATHS.map(path => ({
@@ -2039,6 +2255,9 @@ try {
       frozenSourceBytes: frozenSourceEntries.reduce((sum, entry) => sum + entry.bytes, 0),
       harness: frozenSourceEntries.find(entry => entry.path === HARNESS_PATH),
       successorManifest: frozenSourceEntries.find(entry => entry.path === SUCCESSOR_MANIFEST_PATH),
+      featureSuccessorManifest: frozenSourceEntries.find(
+        entry => entry.path === FEATURE_SUCCESSOR_MANIFEST_PATH,
+      ),
       predecessorMigrations: PREDECESSOR_PATHS.map(path => frozenSourceEntries.find(entry => entry.path === path)),
       successorMigrations: successorManifest.migrations.map(({ path }) => frozenSourceEntries.find(entry => entry.path === path)),
       featureMigrations: FEATURE_PATHS.map(path => frozenSourceEntries.find(entry => entry.path === path)),
@@ -2047,7 +2266,7 @@ try {
       predecessorLedgerRows: 86,
       successorMigrationCount: successorManifest.migrations.length,
       featureMigrationCount: FEATURE_PATHS.length,
-      terminalLedgerRows: 101,
+      terminalLedgerRows: 102,
       sourceCatalogSha256Before: sourceBeforeSha256,
       sourceCatalogSha256After: sourceAfterSha256,
       sourceCatalogBytesBefore: Buffer.byteLength(normalizedBeforeDump),
@@ -2062,7 +2281,10 @@ try {
       migrationRollbackExact: rollback.migrations,
       storyboardCutoverRace: rollback.storyboardCutoverRace,
       runtimeCapabilityStages: rollback.runtimeCapabilityStages,
+      runtimeReadinessSuccessorIdempotency,
+      featureSuccessorCapabilityIdentity,
       runtimeCapabilityCatalogDrift,
+      featureSuccessorControllerState,
       storyboard,
       ocr,
       preexistingReviewAndAdminCorrectionExact: true,

@@ -1345,6 +1345,10 @@ def _known_segment_disposition(state, row, config):
                         "uncertaintyReason": "REQUEST_OBSERVATION_BINDING_MISMATCH",
                         "providerGetEligible": False}
             observation = validate_observation(observation)
+            provider_get_eligible = (
+                observation["responseId"] is not None
+                and observation["operation"] in ("generate", "readback")
+            )
             confirmed = (state_name == "rejected"
                          and observation["httpOutcome"] in ("http_success", "http_rejected")
                          and receipt.get("code") not in ("WATCH_RESPONSE_NOT_COMPLETED", "WATCH_TRANSPORT_UNCERTAIN"))
@@ -1356,7 +1360,7 @@ def _known_segment_disposition(state, row, config):
                 continue
             return {"state": "readback_required", "kind": "uncertain", "code": receipt.get("code"),
                     "uncertaintyReason": "PROVIDER_RESULT_UNCERTAIN",
-                    "providerGetEligible": False}
+                    "providerGetEligible": provider_get_eligible}
     return terminal
 
 

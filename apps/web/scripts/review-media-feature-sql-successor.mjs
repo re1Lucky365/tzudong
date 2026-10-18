@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Protected four-stage feature successor chained to the review-media 86->97 controller. */
+/** Protected five-stage feature successor chained to the review-media 86->97 controller. */
 import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
@@ -33,9 +33,9 @@ import {
   validateSuccessorAdmission,
 } from './review-media-sql-successor.mjs';
 import {
-  compileMigrationBundle,
+  compileFiveMigrationBundle,
   executeMigrationBundle,
-  migrationBundleSuffixRoot,
+  fiveMigrationBundleSuffixRoot,
 } from './supabase-migration-bundle.mjs';
 import {
   atomicMigrationSql,
@@ -65,7 +65,9 @@ const HEX_SHA256 = /^[0-9a-f]{64}$/;
 const REVISION = /^[0-9a-f]{40}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const PROJECT_REF = 'aqlcofblfxdrjhhdmarw';
-const PURPOSE = 'review-media-feature-four-stage';
+const PURPOSE = 'review-media-feature-five-stage';
+const FEATURE_RUNTIME_CAPABILITY_SOURCE_SHA256 =
+  '7160f72a9a7a18bb235f65bbf7db8bbbec1fe984a363d1a96f3a61cd6540ee7f';
 
 export const FEATURE_SUCCESSOR_FILES = Object.freeze({
   baseAdmission: 'apply-admission.json',
@@ -197,9 +199,9 @@ export function loadFeatureSuccessorManifest({
     || manifest.advisoryLockKey !== '7311754282260212'
     || manifest.stateRootAlgorithm !== 'review-media-feature-successor-state/v1'
     || !Array.isArray(manifest.migrations)
-    || manifest.migrations.length !== 4) fail('FEATURE_SUCCESSOR_MANIFEST_INVALID');
-  exactKeys(manifest.operatingTransition, ['afterFour', 'beforeFour'], 'FEATURE_SUCCESSOR_MANIFEST_INVALID');
-  if (!equal(manifest.operatingTransition, { beforeFour: 97, afterFour: 101 })) {
+    || manifest.migrations.length !== 5) fail('FEATURE_SUCCESSOR_MANIFEST_INVALID');
+  exactKeys(manifest.operatingTransition, ['afterFive', 'beforeFive'], 'FEATURE_SUCCESSOR_MANIFEST_INVALID');
+  if (!equal(manifest.operatingTransition, { beforeFive: 97, afterFive: 102 })) {
     fail('FEATURE_SUCCESSOR_MANIFEST_INVALID');
   }
   exactKeys(manifest.protectedSource, ['ref', 'remote', 'repositoryUrl'], 'FEATURE_SUCCESSOR_MANIFEST_INVALID');
@@ -261,6 +263,7 @@ export function loadFeatureSuccessorManifest({
     'durable_receipt_ocr_results',
     'g014_feature_rpc_catalog_contract',
     'review_verification_immutable_key_fence',
+    'review_verification_delete_guard_readiness',
   ];
   const materials = manifest.migrations.map((migration, index) => {
     exactKeys(migration, [
@@ -315,7 +318,7 @@ function sortedAclSql(expression) {
 
 export function buildFeatureSuccessorStateQuery(
   manifestRecord,
-  suffixRoot = migrationBundleSuffixRoot(manifestRecord.manifest.migrations),
+  suffixRoot = fiveMigrationBundleSuffixRoot(manifestRecord.manifest.migrations),
 ) {
   const { manifest, predecessor } = manifestRecord;
   const versions = manifest.migrations.map(migration => migration.version);
@@ -338,7 +341,7 @@ export function buildFeatureSuccessorStateQuery(
     'public.publish_review_receipt_ocr_result(uuid,uuid,uuid,uuid,uuid,text,jsonb,boolean)',
     'public.get_feature_runtime_capability(uuid)',
     'public.get_owned_review_storage_objects(uuid,uuid,text,text[])',
-    'public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamp with time zone,text,text[],text[],uuid,uuid,uuid,text,timestamp with time zone,text,jsonb)',
+    'public.create_review_with_receipt_ocr(uuid,uuid,uuid,text,text,timestamptz,text,text[],text[],uuid,uuid,uuid,text,timestamptz,text,jsonb)',
   ];
   const ocrValues = ocrFunctions.map(quote).join(',');
   return `SELECT * FROM (WITH
@@ -449,10 +452,41 @@ export function buildFeatureSuccessorStateQuery(
     AND NOT EXISTS(SELECT 1 FROM unnest(ARRAY[${ocrValues}]) signature WHERE to_regprocedure(signature) IS NULL) AS ocr_ready,
    (SELECT count(*)=11 FROM privacy_retention.g014_public_rpc_allowlist WHERE source_signature=ANY(ARRAY[${ocrValues}]) AND grantee='service_role') AS g014_ready,
    EXISTS(SELECT 1 FROM pg_policy WHERE polrelid='storage.objects'::regclass AND polname='review_verifications_immutable_update' AND polcmd='w' AND NOT polpermissive)
-    AND EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='storage.objects'::regclass AND tgname='a01_review_verification_immutable_update' AND NOT tgisinternal)
-    AND EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='storage.objects'::regclass AND tgname='a01_review_verification_guard_delete' AND NOT tgisinternal)
-    AND to_regprocedure('review_media_private.reject_verification_object_update()') IS NOT NULL
-    AND to_regprocedure('review_media_private.guard_verification_object_delete()') IS NOT NULL AS immutable_ready
+    AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid=t.tgfoid
+      WHERE t.tgrelid='storage.objects'::regclass AND t.tgname='a01_review_verification_immutable_update'
+        AND t.tgenabled='O' AND NOT t.tgisinternal AND t.tgtype=19
+        AND pg_get_triggerdef(t.oid,false)='CREATE TRIGGER a01_review_verification_immutable_update BEFORE UPDATE ON storage.objects FOR EACH ROW EXECUTE FUNCTION review_media_private.reject_verification_object_update()'
+        AND p.oid='review_media_private.reject_verification_object_update()'::regprocedure
+        AND NOT p.prosecdef AND p.proowner='privacy_workflow_owner'::regrole
+        AND p.proconfig=ARRAY['search_path=""']::text[] AND p.prokind='f' AND p.provolatile='v'
+        AND NOT p.proretset AND p.prorettype='trigger'::regtype
+        AND p.prolang=(SELECT oid FROM pg_language WHERE lanname='plpgsql')
+        AND encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')='aa1d4951b8d5fdd15249b090c6d6efba897f39eaceee86bf09221eb1d942d545'
+        AND NOT EXISTS(SELECT 1 FROM unnest(ARRAY['anon','authenticated','service_role','supabase_storage_admin','postgres']) role_name
+          WHERE has_function_privilege(role_name,p.oid,'EXECUTE')))
+    AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid=t.tgfoid
+      WHERE t.tgrelid='storage.objects'::regclass AND t.tgname='a01_review_verification_guard_delete'
+        AND t.tgenabled='O' AND NOT t.tgisinternal AND t.tgtype=11
+        AND pg_get_triggerdef(t.oid,false)='CREATE TRIGGER a01_review_verification_guard_delete BEFORE DELETE ON storage.objects FOR EACH ROW EXECUTE FUNCTION review_media_private.guard_verification_object_delete()'
+        AND p.oid='review_media_private.guard_verification_object_delete()'::regprocedure
+        AND p.prosecdef AND p.proowner='privacy_workflow_owner'::regrole
+        AND p.proconfig=ARRAY['search_path=""']::text[] AND p.prokind='f' AND p.provolatile='v'
+        AND NOT p.proretset AND p.prorettype='trigger'::regtype
+        AND p.prolang=(SELECT oid FROM pg_language WHERE lanname='plpgsql')
+        AND encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')='24311fc7071597fbc78c4c54897690da5aaa70edb62c24f7912fd23fecf515b0'
+        AND NOT EXISTS(SELECT 1 FROM unnest(ARRAY['anon','authenticated','service_role','supabase_storage_admin','postgres']) role_name
+          WHERE has_function_privilege(role_name,p.oid,'EXECUTE'))) AS immutable_ready,
+   EXISTS(SELECT 1 FROM pg_proc p
+      WHERE p.oid=to_regprocedure('ocr_private.get_feature_runtime_capability(uuid)')
+        AND p.proowner='postgres'::regrole AND p.prosecdef
+        AND p.proconfig=ARRAY['search_path=""']::text[] AND p.prokind='f' AND p.provolatile='s'
+        AND NOT p.proretset AND p.prorettype='jsonb'::regtype
+        AND p.prolang=(SELECT oid FROM pg_language WHERE lanname='plpgsql')
+        AND encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')='${FEATURE_RUNTIME_CAPABILITY_SOURCE_SHA256}'
+        AND has_function_privilege('privacy_workflow_owner',p.oid,'EXECUTE')
+        AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+        AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE')
+        AND NOT has_function_privilege('service_role',p.oid,'EXECUTE')) AS runtime_predicate_ready
  )
  SELECT json_build_object(
   'bundle',json_build_object(
@@ -460,7 +494,7 @@ export function buildFeatureSuccessorStateQuery(
    'priorCount',ledger_prefix.row_count,
    'prefixRoot',encode(sha256(convert_to(ledger_prefix.material,'UTF8')),'hex'),
    'targetCount',target_state.target_count,
-   'suffixRoot',CASE WHEN target_state.target_count=4 AND ${targetRows} THEN ${quote(suffixRoot)} ELSE NULL END
+   'suffixRoot',CASE WHEN target_state.target_count=5 AND ${targetRows} THEN ${quote(suffixRoot)} ELSE NULL END
   ),
   'state',json_build_object(
    'activeReviewItems',(SELECT count(*)::int FROM pipeline_control.restaurant_review_items WHERE state IN('queued','running')),
@@ -468,7 +502,7 @@ export function buildFeatureSuccessorStateQuery(
    'catalogRoot',encode(sha256(convert_to(catalog_material.material,'UTF8')),'hex'),
    'currentUser',current_user,
    'databaseName',current_database(),
-   'featureRuntimeReady',contract.storyboard_ready AND contract.ocr_ready AND contract.g014_ready AND contract.immutable_ready,
+   'featureRuntimeReady',contract.storyboard_ready AND contract.ocr_ready AND contract.g014_ready AND contract.immutable_ready AND contract.runtime_predicate_ready,
    'g014Ready',contract.g014_ready,
    'g014Root',encode(sha256(convert_to(g014_material.material,'UTF8')),'hex'),
    'immutableReady',contract.immutable_ready,
@@ -477,6 +511,7 @@ export function buildFeatureSuccessorStateQuery(
    'predecessorReady',contract.predecessor_ready,
    'reviewPolicyEnabled',coalesce((SELECT enabled FROM pipeline_control.restaurant_review_policy WHERE singleton),true),
    'reviewRuns',(SELECT count(*)::int FROM pipeline_control.restaurant_review_runs),
+   'runtimePredicateReady',contract.runtime_predicate_ready,
    'roleRoot',encode(sha256(convert_to(role_material.material,'UTF8')),'hex'),
    'serverMajor',(current_setting('server_version_num')::int/10000),
    'sessionUser',session_user,
@@ -495,31 +530,33 @@ function validateFeatureStageState(stage, index, manifest, binding) {
     'activeReviewItems', 'baseReviewReady', 'catalogRoot', 'currentUser', 'databaseName',
     'featureRuntimeReady', 'g014Ready', 'g014Root', 'immutableReady', 'ledgerRoot', 'ocrReady',
     'predecessorReady', 'reviewPolicyEnabled', 'reviewRuns', 'roleRoot', 'serverMajor',
-    'sessionUser', 'storageRoot', 'storyboardReady', 'storyboardRoot',
+    'runtimePredicateReady', 'sessionUser', 'storageRoot', 'storyboardReady', 'storyboardRoot',
   ]);
   const readiness = [
-    [false, false, false, false],
-    [true, false, false, false],
-    [true, true, false, false],
-    [true, true, true, false],
-    [true, true, true, true],
+    [false, false, false, false, false],
+    [true, false, false, false, false],
+    [true, true, false, false, false],
+    [true, true, true, false, false],
+    [true, true, true, true, false],
+    [true, true, true, true, true],
   ][index];
   if (stage.bundle.ledgerCount !== binding.priorCount + index
     || stage.bundle.priorCount !== binding.priorCount
     || stage.bundle.prefixRoot !== binding.prefixRoot
     || stage.bundle.targetCount !== index
-    || stage.bundle.suffixRoot !== (index === 4 ? binding.suffixRoot : null)
+    || stage.bundle.suffixRoot !== (index === 5 ? binding.suffixRoot : null)
     || stage.state.activeReviewItems !== 0
     || stage.state.baseReviewReady !== true
     || stage.state.currentUser !== manifest.executorRole
     || stage.state.databaseName !== manifest.databaseName
-    || stage.state.featureRuntimeReady !== (index === 4)
+    || stage.state.featureRuntimeReady !== (index === 5)
     || stage.state.g014Ready !== readiness[2]
     || stage.state.immutableReady !== readiness[3]
     || stage.state.ocrReady !== readiness[1]
     || stage.state.predecessorReady !== true
     || stage.state.reviewPolicyEnabled !== false
     || stage.state.reviewRuns !== 0
+    || stage.state.runtimePredicateReady !== readiness[4]
     || stage.state.serverMajor !== manifest.serverMajor
     || stage.state.sessionUser !== manifest.executorRole
     || stage.state.storyboardReady !== readiness[0]) fail('FEATURE_SUCCESSOR_ADMISSION_INVALID');
@@ -532,25 +569,26 @@ function validateFeatureStageState(stage, index, manifest, binding) {
 }
 
 export function validateFeatureStageStates(stageStates, manifest) {
-  if (!Array.isArray(stageStates) || stageStates.length !== 5) {
+  if (!Array.isArray(stageStates) || stageStates.length !== 6) {
     fail('FEATURE_SUCCESSOR_ADMISSION_INVALID');
   }
   const binding = {
     prefixRoot: stageStates[0]?.bundle?.prefixRoot,
-    priorCount: manifest.operatingTransition.beforeFour,
-    suffixRoot: migrationBundleSuffixRoot(manifest.migrations),
+    priorCount: manifest.operatingTransition.beforeFive,
+    suffixRoot: fiveMigrationBundleSuffixRoot(manifest.migrations),
   };
   assertHex(binding.prefixRoot);
   stageStates.forEach((stage, index) => validateFeatureStageState(stage, index, manifest, binding));
   const roots = key => stageStates.map(stage => stage.state[key]);
-  if (new Set(roots('ledgerRoot')).size !== 5
-    || new Set(roots('catalogRoot')).size !== 5
+  if (new Set(roots('ledgerRoot')).size !== 6
+    || new Set(roots('catalogRoot')).size !== 6
     || new Set(roots('roleRoot')).size !== 1
     || new Set(roots('g014Root').slice(0, 3)).size !== 1
     || new Set(roots('g014Root').slice(3)).size !== 1
     || roots('g014Root')[2] === roots('g014Root')[3]
     || new Set(roots('storageRoot').slice(0, 4)).size !== 1
     || roots('storageRoot')[3] === roots('storageRoot')[4]
+    || new Set(roots('storageRoot').slice(4)).size !== 1
     || new Set(roots('storyboardRoot').slice(1)).size !== 1) {
     fail('FEATURE_SUCCESSOR_ADMISSION_INVALID');
   }
@@ -1043,8 +1081,8 @@ function compileFeatureSources(manifestRecord) {
 export function validateFeatureBaseline(stage, manifest) {
   const binding = {
     prefixRoot: stage?.bundle?.prefixRoot,
-    priorCount: manifest.operatingTransition.beforeFour,
-    suffixRoot: migrationBundleSuffixRoot(manifest.migrations),
+    priorCount: manifest.operatingTransition.beforeFive,
+    suffixRoot: fiveMigrationBundleSuffixRoot(manifest.migrations),
   };
   assertHex(binding.prefixRoot, 'FEATURE_SUCCESSOR_REHEARSAL_BASELINE_INVALID');
   try { validateFeatureStageState(stage, 0, manifest, binding); }
@@ -1086,7 +1124,7 @@ export function compileFeatureRehearsalPlan(manifestRecord, admission, baseline)
   return Object.freeze({
     sql: parts.join('\n'),
     stateQuery,
-    suffixRoot: migrationBundleSuffixRoot(manifest.migrations),
+    suffixRoot: fiveMigrationBundleSuffixRoot(manifest.migrations),
     transactionMode: 'explicit-rollback-only',
   });
 }
@@ -1094,7 +1132,7 @@ export function compileFeatureRehearsalPlan(manifestRecord, admission, baseline)
 function parseFeatureRehearsalStages(output, manifest, expectedBaseline) {
   if (typeof output !== 'string') fail('FEATURE_SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
   const lines = output.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-  if (lines.length !== 5) fail('FEATURE_SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
+  if (lines.length !== 6) fail('FEATURE_SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
   let serverVersionNum;
   const stages = lines.map((line, index) => {
     const value = parseJsonObject(line, 'FEATURE_SUCCESSOR_REHEARSAL_OUTPUT_INVALID');
@@ -1309,7 +1347,7 @@ function validateFeatureRehearsalArtifacts(custody, rehearsalAdmission, manifest
     || receipt.value.purpose !== manifestRecord.manifest.purpose
     || receipt.value.sourceRevision !== rehearsalAdmission.sourceRevision
     || receipt.value.sourceRoot !== rehearsalAdmission.sourceRoot
-    || receipt.value.suffixRoot !== migrationBundleSuffixRoot(manifestRecord.manifest.migrations)
+    || receipt.value.suffixRoot !== fiveMigrationBundleSuffixRoot(manifestRecord.manifest.migrations)
     || receipt.value.stageStatesSha256 !== sha256(Buffer.from(JSON.stringify(canonical(receipt.value.stageStates))))
     || receipt.value.preflightStateSha256 !== sha256(Buffer.from(JSON.stringify(canonical(receipt.value.stageStates[0]))))
     || receipt.value.restoredStateSha256 !== receipt.value.preflightStateSha256
@@ -1423,8 +1461,8 @@ export function compileFeatureApplyPlan(manifestRecord, admission) {
     statementVectorSha256: migration.statementVectorSha256,
     terminalReadback: { expected: admission.stageStates[index + 1], query: stateQuery },
   }));
-  const compiled = compileMigrationBundle({
-    finalReadback: { expected: admission.stageStates[4], query: stateQuery },
+  const compiled = compileFiveMigrationBundle({
+    finalReadback: { expected: admission.stageStates[5], query: stateQuery },
     id: manifest.id,
     migrations,
     prefixRoot: binding.prefixRoot,

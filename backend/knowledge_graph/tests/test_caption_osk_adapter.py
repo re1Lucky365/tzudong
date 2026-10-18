@@ -11,11 +11,33 @@ import unittest
 from unittest import mock
 
 from backend.knowledge_graph import caption_osk_adapter as c
+from backend.knowledge_graph import longform_inventory as inventory
 from backend.knowledge_graph import osk_projection as projection
 
 
 def video_id(prefix, index):
     return f"{prefix}{index:010d}"
+
+
+def membership_document(tab, rows):
+    raw_response = c.canonical(rows).encode()
+    return {
+        "schema": inventory.SHARD_SCHEMA,
+        "tab": tab,
+        "sourceUrl": f"{inventory.CHANNEL_URL}/{tab}",
+        "channelId": c.CHANNEL_ID,
+        "observedAtUtc": "2026-10-13T00:00:00Z",
+        "exitCode": 0,
+        "noPlaylistLimit": True,
+        "canonicalSourceOrQueueChanged": False,
+        "noMediaOrCaptionsDownloaded": True,
+        "rawPersonalContactFieldsPersisted": False,
+        "entryCount": len(rows),
+        "reportedPlaylistCount": len(rows),
+        "rawResponseBytes": len(raw_response),
+        "rawResponseSha256": c.digest(raw_response),
+        "rows": rows,
+    }
 
 
 class FakeApi:
@@ -84,13 +106,7 @@ class Fixture:
         }
         for tab in ("videos", "streams", "shorts"):
             path = root / (tab + ".json")
-            path.write_text(json.dumps({
-                "schema": "synthetic-membership/v1",
-                "tab": tab,
-                "channelId": c.CHANNEL_ID,
-                "entryCount": len(rows[tab]),
-                "rows": rows[tab],
-            }))
+            path.write_text(json.dumps(membership_document(tab, rows[tab])))
             self.memberships[tab] = path
 
     def add_review(self, vid, *, content="synthetic captions only\n", directory=None):
@@ -219,6 +235,50 @@ class CaptionInventoryTests(unittest.TestCase):
             self.assertEqual(admitted, {vid})
             self.assertEqual(fixture.memberships["videos"].read_bytes(), replacement)
 
+    def test_membership_requires_complete_inventory_source_contract(self):
+        invalid_values = (
+            ("schema", "unreviewed-membership/v1"),
+            ("sourceUrl", "https://www.youtube.com/@other/videos"),
+            ("observedAtUtc", "not-a-timestamp"),
+            ("exitCode", 1),
+            ("noPlaylistLimit", False),
+            ("canonicalSourceOrQueueChanged", True),
+            ("noMediaOrCaptionsDownloaded", False),
+            ("rawPersonalContactFieldsPersisted", True),
+            ("reportedPlaylistCount", 0),
+            ("rawResponseSha256", "not-a-sha256"),
+        )
+        for field, replacement in invalid_values:
+            with self.subTest(field=field), tempfile.TemporaryDirectory(
+                prefix="caption-membership-contract-"
+            ) as directory:
+                root = Path(directory)
+                vid = video_id("V", 1)
+                fixture = Fixture(root, videos=[vid])
+                document = json.loads(fixture.memberships["videos"].read_text())
+                document[field] = replacement
+                fixture.memberships["videos"].write_text(json.dumps(document))
+                with self.assertRaisesRegex(c.PublicationError, "CAPTION_COVERAGE_INVALID"):
+                    c.source_inventory(fixture.channel, fixture.memberships)
+
+    def test_membership_rows_match_inventory_shard_contract(self):
+        mutations = (
+            lambda row: row.update(extra="unexpected"),
+            lambda row: row.update(duration=0),
+            lambda row: row.update(liveStatus="is_live"),
+        )
+        for mutate in mutations:
+            with self.subTest(mutate=mutate), tempfile.TemporaryDirectory(
+                prefix="caption-membership-row-contract-"
+            ) as directory:
+                root = Path(directory)
+                fixture = Fixture(root, videos=[video_id("V", 1)])
+                document = json.loads(fixture.memberships["videos"].read_text())
+                mutate(document["rows"][0])
+                fixture.memberships["videos"].write_text(json.dumps(document))
+                with self.assertRaisesRegex(c.PublicationError, "CAPTION_COVERAGE_INVALID"):
+                    c.source_inventory(fixture.channel, fixture.memberships)
+
     def test_membership_linked_parent_is_rejected(self):
         with tempfile.TemporaryDirectory(prefix="caption-membership-parent-link-") as directory:
             root = Path(directory)
@@ -239,17 +299,14 @@ class CaptionInventoryTests(unittest.TestCase):
     def test_active_or_upcoming_membership_never_admits_longform(self):
         with tempfile.TemporaryDirectory(prefix="caption-active-live-") as directory:
             root = Path(directory)
-            vids = [video_id("V", index) for index in range(4)]
-            fixture = Fixture(root, videos=vids)
+            vids = [video_id("V", index) for index in range(3)]
+            fixture = Fixture(root, videos=(), streams=vids)
             for vid in vids:
                 fixture.add_review(vid)
-            videos = json.loads(fixture.memberships["videos"].read_text())
-            for row, status in zip(videos["rows"], ("is_live", "is_upcoming", "post_live", None)):
-                row["liveStatus"] = status
-            fixture.memberships["videos"].write_text(json.dumps(videos))
             streams = json.loads(fixture.memberships["streams"].read_text())
-            streams["rows"] = [{"id": vids[3], "liveStatus": "is_live", "channelId": None}]
-            streams["entryCount"] = 1
+            for row, status in zip(streams["rows"], ("is_live", "is_upcoming", "post_live")):
+                row["duration"] = None
+                row["liveStatus"] = status
             fixture.memberships["streams"].write_text(json.dumps(streams))
 
             coverage, candidates, _ = c.source_inventory(fixture.channel, fixture.memberships)
@@ -448,14 +505,10 @@ class CaptionApplyTests(unittest.TestCase):
             outside.mkdir()
             sentinel = outside / "sentinel"
             sentinel.write_text("preserve")
-            changed = json.dumps({
-                "tab": "videos", "channelId": c.CHANNEL_ID,
-                "entryCount": 2,
-                "rows": [
-                    {"id": vids[0], "duration": 100, "liveStatus": None, "channelId": None},
-                    {"id": video_id("V", 99), "duration": 100, "liveStatus": None, "channelId": None},
-                ],
-            }).encode()
+            changed = json.dumps(membership_document("videos", [
+                {"id": vids[0], "duration": 100, "liveStatus": None, "channelId": None},
+                {"id": video_id("V", 99), "duration": 100, "liveStatus": None, "channelId": None},
+            ])).encode()
 
             def mutate_membership_at_update_entry(_name):
                 fixture.memberships["videos"].write_bytes(changed)

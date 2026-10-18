@@ -1,7 +1,7 @@
 'use client';
 
 import { formatTzuyangReviewForDisplay } from '@/lib/tzuyang-review-display';
-import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, memo, type ReactNode } from 'react';
 import { useFilledSkeletonCount } from '@/lib/use-filled-skeleton-count';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import {
     AlertTriangle,
     ScanSearch,
     RefreshCw,
+    ChevronRight,
 } from 'lucide-react';
 import { YouTubeIcon } from '@/components/icons/YouTubeIcon';
 import { Card } from '@/components/ui/card';
@@ -77,6 +78,28 @@ const OCR_RESET_ALL_CONFIRMATION = 'OCR초기화';
 const OVERRIDE_APPROVAL_CONFIRMATION = '무시승인';
 const GUARDED_OCR_CONFIRMATION_MESSAGE =
     `이 OCR 작업은 ${GUARDED_MUTATION_CONFIRMATION} 보호 절차로 실행됩니다. 계속하시겠습니까?`;
+
+const SUBMISSION_TYPE_LABELS: Record<SubmissionRecord['submission_type'], string> = {
+    new: '신규 제보',
+    edit: '수정 요청',
+    recommend: '쯔양 제보',
+};
+
+function formatModerationReceivedAt(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+
+    return date.toLocaleString('ko-KR', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+function getModerationRecordLabel(id: string): string {
+    return `…${id.slice(-8)}`;
+}
 
 function confirmGuardedOcrMutation(actionLabel: string): boolean {
     return window.confirm(`${actionLabel}\n\n${GUARDED_OCR_CONFIRMATION_MESSAGE}`);
@@ -198,7 +221,7 @@ const ReviewPhotoItem = memo(function ReviewPhotoItem({
         <button
             type="button"
             className={cn(
-                "flex-shrink-0 border rounded-lg overflow-hidden relative cursor-pointer hover:ring-2 hover:ring-primary transition-shadow",
+                "flex-shrink-0 border rounded-lg overflow-hidden relative cursor-pointer hover:ring-2 hover:ring-primary transition-shadow", // taste-skill-ignore: Selectable receipt/image form control.
                 isReceipt ? "h-48 min-w-28" : "h-32 min-w-24"  // 영수증은 더 크게
             )}
             onClick={onClick}
@@ -252,6 +275,7 @@ interface SubmissionListViewProps {
     isFetchingNextSubmissionPage?: boolean;
     onLoadMoreSubmissions?: () => void;
     onRefresh?: () => void;
+    toolbarTrailingAction?: ReactNode;
     loading?: boolean;
     // 리뷰 관련 props
     reviews?: Review[];
@@ -273,6 +297,7 @@ export function SubmissionListView({
     isFetchingNextSubmissionPage = false,
     onLoadMoreSubmissions,
     onRefresh,
+    toolbarTrailingAction,
     // 리뷰 관련 props
     reviews = [],
     onApproveReview,
@@ -382,12 +407,13 @@ export function SubmissionListView({
     const [visibleEditCount, setVisibleEditCount] = useState(SUBMISSION_LIST_PAGE_SIZE);
     const [visibleRecommendCount, setVisibleRecommendCount] = useState(SUBMISSION_LIST_PAGE_SIZE);
     const [visibleReviewCount, setVisibleReviewCount] = useState(SUBMISSION_LIST_PAGE_SIZE);
+    const isFocusedReviewWorkspace = initialTab === 'reviews';
 
 
     const SUBMISSION_TAB_SWIPE_DISTANCE = 24;
 
     const handleSubmissionTabTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-        if (isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current === 'pointer') return;
+        if (isFocusedReviewWorkspace || isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current === 'pointer') return;
         submissionTabSwipeInputRef.current = 'touch';
         submissionTabSwipePointerIdRef.current = null;
         submissionTabSwipeStartXRef.current = e.touches[0].clientX;
@@ -395,7 +421,7 @@ export function SubmissionListView({
         submissionTabSwipeEndXRef.current = null;
         submissionTabSwipeEndYRef.current = null;
         isSubmissionTabSwipeActiveRef.current = true;
-    }, []);
+    }, [isFocusedReviewWorkspace]);
 
     const handleSubmissionTabTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
         if (!isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current !== 'touch') return;
@@ -483,7 +509,7 @@ export function SubmissionListView({
     }, [activeTab, setActiveTabWithReset]);
 
     const handleSubmissionTabPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-        if (isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current === 'touch') return;
+        if (isFocusedReviewWorkspace || isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current === 'touch') return;
         submissionTabSwipeInputRef.current = 'pointer';
         submissionTabSwipePointerIdRef.current = e.pointerId;
         isSubmissionTabSwipeActiveRef.current = true;
@@ -491,7 +517,7 @@ export function SubmissionListView({
         submissionTabSwipeStartYRef.current = e.clientY;
         submissionTabSwipeEndXRef.current = null;
         submissionTabSwipeEndYRef.current = null;
-    }, []);
+    }, [isFocusedReviewWorkspace]);
 
     const handleSubmissionTabPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         if (!isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current !== 'pointer' || submissionTabSwipePointerIdRef.current !== e.pointerId) return;
@@ -1261,20 +1287,20 @@ export function SubmissionListView({
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'approved':
-                return <Badge className="bg-green-600 text-xs">승인</Badge>;
+                return <Badge variant="outline" className="rounded border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200">승인</Badge>;
             case 'partially_approved':
-                return <Badge className="bg-amber-500 text-xs">부분승인</Badge>;
+                return <Badge variant="outline" className="rounded border-amber-200 bg-amber-50 text-xs font-medium text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200">부분승인</Badge>;
             case 'rejected':
-                return <Badge variant="destructive" className="text-xs">거부</Badge>;
+                return <Badge variant="outline" className="rounded border-destructive/30 bg-destructive/5 text-xs font-medium text-destructive">거부</Badge>;
             case 'pending':
-                return <Badge variant="secondary" className="text-xs"><Clock className="h-3 w-3 mr-1" />대기</Badge>;
+                return <Badge variant="outline" className="rounded border-border bg-muted/55 text-xs font-medium text-foreground"><Clock className="mr-1 h-3 w-3" />대기</Badge>;
             default:
-                return <Badge variant="outline" className="text-xs">미확인</Badge>;
+                return <Badge variant="outline" className="rounded text-xs font-medium text-muted-foreground">미확인</Badge>;
         }
     };
     const getSubmissionQueueReasonBadgeClassName = (reason: AdminSubmissionQueueReason) =>
         cn(
-            "max-w-full rounded-full px-2 py-0 text-2xs font-semibold leading-5 xl:text-2xs",
+            "max-w-full rounded px-1.5 py-0 text-2xs font-medium leading-5 xl:text-2xs",
             reason.severity === 'danger' && "border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/25 dark:text-red-200",
             reason.severity === 'warning' && "border-border bg-secondary text-foreground",
             reason.severity === 'info' && "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/25 dark:text-blue-200"
@@ -1290,7 +1316,7 @@ export function SubmissionListView({
 
         return (
             <div
-                className="mt-1 flex flex-wrap gap-1"
+                className={cn("flex flex-wrap gap-1", placement === 'detail' && "mt-2")}
                 data-admin-submission-safety-badges={placement}
                 aria-label="제보 큐 검수 사유"
             >
@@ -1308,7 +1334,7 @@ export function SubmissionListView({
                 {placement === 'card' && summary.reasons.length > reasons.length && (
                     <Badge
                         variant="outline"
-                        className="rounded-full px-2 py-0 text-2xs leading-5 text-muted-foreground xl:text-2xs"
+                        className="rounded px-1.5 py-0 text-2xs leading-5 text-muted-foreground xl:text-2xs"
                         data-admin-submission-safety-badge="more"
                     >
                         +{summary.reasons.length - reasons.length}
@@ -1330,7 +1356,7 @@ export function SubmissionListView({
 
         if (isPending) {
             return (
-                <Badge variant="secondary" className="gap-1 text-xs">
+                <Badge variant="outline" className="gap-1 rounded border-border bg-muted/55 text-xs font-medium text-foreground">
                     <Clock className="h-3 w-3" /> 대기
                 </Badge>
             );
@@ -1338,7 +1364,7 @@ export function SubmissionListView({
 
         if (isApproved) {
             return (
-                <Badge className="gap-1 bg-green-500 text-xs">
+                <Badge variant="outline" className="gap-1 rounded border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200">
                     <CheckCircle2 className="h-3 w-3" /> 승인
                 </Badge>
             );
@@ -1346,7 +1372,7 @@ export function SubmissionListView({
 
         if (isRejected) {
             return (
-                <Badge variant="destructive" className="gap-1 text-xs">
+                <Badge variant="outline" className="gap-1 rounded border-destructive/30 bg-destructive/5 text-xs font-medium text-destructive">
                     <XCircle className="h-3 w-3" /> 거부
                 </Badge>
             );
@@ -2036,9 +2062,10 @@ export function SubmissionListView({
             data-admin-moderation-inspector="true"
             className={cn("admin-surface flex h-full min-h-0 min-w-0 flex-col overflow-hidden", inlineInspector && "admin-cms-inspector")}
         >
-            <div className="flex min-h-11 items-center justify-between gap-2 border-b px-3 py-2 md:min-h-10">
+            <div data-ui="moderation-inspector-header" className="flex min-h-11 items-center justify-between gap-2 border-b px-3 py-2 md:min-h-10">
                 <div className="min-w-0">
                     <h3 className="admin-section-title truncate">{selectedSubmission?.restaurant_name || '왼쪽 목록에서 제보를 선택하세요'}</h3>
+                    {selectedSubmission && <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={selectedSubmission.id}>{SUBMISSION_TYPE_LABELS[selectedSubmission.submission_type]} · <span aria-hidden="true">{getModerationRecordLabel(selectedSubmission.id)}</span><span className="sr-only">전체 식별자 {selectedSubmission.id}</span></p>}
                 </div>
                 {selectedSubmission && (
                     <div className="flex shrink-0 gap-1">
@@ -2057,13 +2084,14 @@ export function SubmissionListView({
                 <>
                     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
                         <Card className="admin-detail-section p-3 shadow-none">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="min-w-0">
-                                    <p className="truncate text-sm font-semibold">{selectedSubmission.restaurant_name}</p>
-                                    <p className="mt-1 break-all text-xs text-muted-foreground">{selectedSubmission.restaurant_address || '주소 없음'}</p>
-                                </div>
+                            <div className="flex items-start justify-between gap-3">
+                                <p className="min-w-0 break-words text-xs leading-5 text-muted-foreground">{selectedSubmission.restaurant_address || '주소 없음'}</p>
                                 {getStatusBadge(selectedSubmission.status)}
                             </div>
+                            <dl data-ui="moderation-record-fields" className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t pt-3 text-xs">
+                                <div className="min-w-0"><dt className="admin-field-label text-muted-foreground">제보자</dt><dd className="mt-0.5 truncate font-medium text-foreground">{selectedSubmission.profiles?.nickname || '익명'}</dd></div>
+                                <div className="min-w-0"><dt className="admin-field-label text-muted-foreground">접수</dt><dd className="mt-0.5 tabular-nums text-foreground">{formatModerationReceivedAt(selectedSubmission.created_at)}</dd></div>
+                            </dl>
                             {renderSubmissionQueueSafetyBadges(selectedSubmissionQueueSafetySummary, 'detail')}
                         </Card>
                         {renderApprovalContractPanel()}
@@ -2154,7 +2182,7 @@ export function SubmissionListView({
                         )}
                     </div>
                     {(selectedSubmission.status === 'pending' || selectedSubmission.status === 'partially_approved') && (
-                        <div className="grid shrink-0 grid-cols-2 gap-2 border-t bg-background p-3 sm:grid-cols-[1fr_1fr_1.4fr] [&_button]:min-h-11 md:[&_button]:min-h-8">
+                        <div data-ui="moderation-inspector-actions" className="grid shrink-0 grid-cols-2 gap-2 border-t bg-background p-3 sm:grid-cols-[1fr_1fr_1.4fr] [&_button]:min-h-11 md:[&_button]:min-h-8">
                             <Button type="button" variant="outline" size="sm" onClick={closeSubmissionDetail} disabled={loading}>
                                 닫기
                             </Button>
@@ -2240,7 +2268,7 @@ export function SubmissionListView({
                                     </div>
                                 )}
                                 {review.receipt_data.confidence !== undefined && (
-                                    <div className="flex justify-between gap-3 border-t pt-2">
+                                    <div className="flex justify-between gap-3 pt-2">
                                         <span className="text-muted-foreground">OCR 신뢰도</span>
                                         <Badge variant={review.receipt_data.confidence >= 0.8 ? 'default' : 'secondary'} className="text-xs">
                                             {(review.receipt_data.confidence * 100).toFixed(0)}%
@@ -2248,7 +2276,7 @@ export function SubmissionListView({
                                     </div>
                                 )}
                                 {review.is_duplicate && review.receipt_data.duplicate_of && (
-                                    <div className="border-t pt-2 text-red-600 dark:text-red-400">
+                                    <div className="pt-2 text-red-600 dark:text-red-400">
                                         <AlertTriangle className="mr-1 inline h-4 w-4" />
                                         중복 영수증 · 원본 {review.receipt_data.duplicate_of.slice(0, 8)}...
                                     </div>
@@ -2272,9 +2300,10 @@ export function SubmissionListView({
             data-admin-moderation-inspector="true"
             className={cn("admin-surface flex h-full min-h-0 min-w-0 flex-col overflow-hidden", inlineInspector && "admin-cms-inspector")}
         >
-            <div className="flex min-h-11 items-center justify-between gap-2 border-b px-3 py-2 md:min-h-10">
+            <div data-ui="moderation-inspector-header" className="flex min-h-11 items-center justify-between gap-2 border-b px-3 py-2 md:min-h-10">
                 <div className="min-w-0">
                     <h3 className="admin-section-title truncate">{selectedReview?.restaurants?.name || '왼쪽 목록에서 리뷰를 선택하세요'}</h3>
+                    {selectedReview && <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={selectedReview.id}>리뷰 · <span aria-hidden="true">{getModerationRecordLabel(selectedReview.id)}</span><span className="sr-only">전체 식별자 {selectedReview.id}</span></p>}
                 </div>
                 {selectedReview && (
                     <Button
@@ -2346,7 +2375,7 @@ export function SubmissionListView({
                                     <Button
                                         variant="secondary"
                                         size="icon"
-                                        className="absolute right-2 top-2 h-8 w-8 rounded-full bg-white/90 shadow-md hover:bg-white"
+                                        data-ui="receipt-image-overlay" className="absolute right-2 top-2 h-8 w-8 rounded-full bg-white/90 shadow-md hover:bg-white"
                                         onClick={() => setPreviewImage(null)}
                                     >
                                         <X className="h-4 w-4 text-gray-700" />
@@ -2459,7 +2488,7 @@ export function SubmissionListView({
                             </Card>
                         )}
                     </div>
-                    <div className="grid shrink-0 grid-cols-3 gap-2 border-t bg-background p-3 [&_button]:min-h-11 md:[&_button]:min-h-8">
+                    <div data-ui="moderation-inspector-actions" className="grid shrink-0 grid-cols-3 gap-2 border-t bg-background p-3 [&_button]:min-h-11 md:[&_button]:min-h-8">
                         <Button
                             variant="outline"
                             size="sm"
@@ -2499,12 +2528,24 @@ export function SubmissionListView({
     const hasSelection = activeTab === 'reviews' ? !!selectedReview : !!selectedSubmission;
     const resultCount = activeTab === 'reviews' ? orderedReviews.length : filteredSubmissions.length;
     const displayedCount = activeTab === 'reviews' ? displayedReviews.length : displayedSubmissions.length;
+    const restoreRowTriggerFocus = useCallback(() => {
+        const activeElement = document.activeElement;
+        const focusStayedInInspector = activeElement instanceof Element
+            && activeElement.closest('[data-admin-moderation-drawer]') !== null;
+        const focusNeedsRestoring = activeElement === null
+            || activeElement === document.body
+            || activeElement === document.documentElement
+            || focusStayedInInspector;
+        if (focusNeedsRestoring && rowTriggerRef.current?.isConnected && !rowTriggerRef.current.disabled) {
+            rowTriggerRef.current?.focus();
+        }
+    }, []);
     const closeInspector = () => {
         if (activeTab === 'reviews') {
             setSelectedReview(null); setReviewAction(null); setReviewAdminNote('');
             setReviewDeleteTarget(null); setReviewDeleteConfirmation(''); setPreviewImage(null);
         } else closeSubmissionDetail();
-        if (inlineInspector) window.requestAnimationFrame(() => rowTriggerRef.current?.focus());
+        if (inlineInspector) window.requestAnimationFrame(restoreRowTriggerFocus);
     };
     const searchValue = activeTab === 'reviews' ? reviewSearchQuery : searchQuery;
     const changeSearch = (value: string) => activeTab === 'reviews' ? setReviewSearchQuery(value) : setSearchQuery(value);
@@ -2518,11 +2559,11 @@ export function SubmissionListView({
     return (
         <TooltipProvider>
             <div data-admin-moderation-workspace={activeTab === 'reviews' ? 'reviews' : 'submissions'} className="flex h-full min-h-0 min-w-0 flex-col gap-2 p-2">
-                <nav className="grid shrink-0 grid-cols-4 gap-1 bg-muted/50 p-1" aria-label="제보·리뷰 종류">
+                {!(isFocusedReviewWorkspace && activeTab === 'reviews') && <nav className="grid shrink-0 grid-cols-4 gap-1 bg-muted/50 p-1" aria-label="제보·리뷰 종류">
                     {tabs.map(tab => <button key={tab.id} type="button" aria-pressed={activeTab === tab.id} onClick={() => setActiveTabWithReset(tab.id)} className={cn('flex min-h-11 min-w-0 flex-wrap items-center justify-center gap-1 rounded-md px-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:min-h-8', activeTab === tab.id ? 'bg-background text-primary' : 'text-muted-foreground hover:bg-muted')}>
                         <span className="hidden sm:inline-flex">{tab.icon}</span><span>{tab.label}</span><span className="tabular-nums text-muted-foreground" aria-label={`대기 ${tab.count}건`}>{tab.count}</span>
                     </button>)}
-                </nav>
+                </nav>}
                 <div data-admin-moderation-toolbar className="admin-toolbar admin-cms-toolbar shrink-0">
                     <div className="relative min-w-[180px] flex-1">
                         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -2539,13 +2580,14 @@ export function SubmissionListView({
                     {onRefresh && activeTab !== 'reviews' && <Button type="button" variant="outline" size="icon" className="h-11 w-11 md:h-8 md:w-8" aria-label="목록 새로고침" onClick={onRefresh} disabled={loading}><RefreshCw className="h-3.5 w-3.5" /></Button>}
                     {activeTab === 'reviews' && <details className="relative text-xs">
                         <summary className="flex h-11 cursor-pointer items-center gap-1 rounded-md border px-2 md:h-8"><ScanSearch className="h-3.5 w-3.5" />OCR 관리</summary>
-                        <div className="absolute right-0 top-10 z-20 w-64 space-y-3 rounded-lg border bg-popover p-3 shadow-md">
+                        <div data-ui="moderation-ocr-popover" className="absolute right-0 top-10 z-20 w-64 space-y-3 rounded-lg border bg-popover p-3 shadow-md">
                             <p className="text-muted-foreground">대기 {ocrStatus?.pending ?? '미확인'} · 중복 {ocrStatus?.duplicate ?? '미확인'}</p>
                             <Button size="sm" variant="outline" onClick={handleRunOcr} disabled={isOcrRunning || (ocrStatus?.pending === 0)} className="h-8 w-full text-xs">{isOcrRunning ? '처리 중' : '대기 OCR 실행'}</Button>
                             <label className="block space-y-1"><span>배치 초기화 확인</span><Input value={ocrResetConfirmation} onChange={event => setOcrResetConfirmation(event.target.value)} placeholder={OCR_RESET_ALL_CONFIRMATION} className="h-8 text-xs" /></label>
                             <Button size="sm" variant="outline" onClick={handleResetAllOcr} disabled={isOcrRunning || ocrResetConfirmation !== OCR_RESET_ALL_CONFIRMATION} className="h-8 w-full text-xs text-destructive">최대 50건 다시 실행</Button>
                         </div>
                     </details>}
+                    {toolbarTrailingAction}
                 </div>
                 <div className="flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-2 px-1 text-xs text-muted-foreground" aria-live="polite">
                     <span><strong className="font-semibold text-foreground">{currentTabSummary.label}</strong> · {resultCount}건</span>
@@ -2568,20 +2610,40 @@ export function SubmissionListView({
                             onTouchMove={isMobile && activeTab === 'reviews' ? handleSubmissionTabTouchMove : undefined}
                             onTouchEnd={isMobile && activeTab === 'reviews' ? handleSubmissionTabSwipeEnd : undefined}
                             onTouchCancel={isMobile && activeTab === 'reviews' ? handleSubmissionTabTouchCancel : undefined}>
-                            {resultCount === 0 ? <div role="status" className="admin-empty-state flex min-h-40 flex-col items-center justify-center gap-2 p-4 text-sm text-muted-foreground"><p>{searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all' ? '조건에 맞는 항목이 없습니다.' : '조회된 항목이 없습니다.'}</p>{(searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all') && <Button variant="outline" size="sm" onClick={() => { changeSearch(''); setStatusFilter('all'); handleQueueReasonFilterChange('all'); }}>필터 초기화</Button>}</div> : <table className="admin-cms-table table-fixed"><thead className="sticky top-0 z-10 bg-card"><tr><th scope="col">{activeTab === 'reviews' ? '맛집 · 리뷰' : '맛집 · 주소'}</th><th scope="col" className="hidden w-28 sm:table-cell">작성자 · 접수일</th><th scope="col" className="w-24">처리 상태</th></tr></thead><tbody>
-                                {activeTab === 'reviews' ? displayedReviews.map(review => <tr key={review.id} data-admin-review-row={review.id} className={cn('cursor-pointer', selectedReview?.id === review.id && 'admin-cms-row-selected')} onClick={event => { rowTriggerRef.current = event.currentTarget.querySelector('button'); handleReviewAction('approve', review); }}>
-                                    <td><button type="button" aria-pressed={selectedReview?.id === review.id} aria-haspopup={inlineInspector ? undefined : 'dialog'} className={rowButtonClassName}>
-                                        <span className="block truncate text-sm font-medium">{review.restaurants?.name || '맛집 미확인'}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">{review.content || review.title || '내용 없음'}</span><span className="mt-1 block text-[11px] text-muted-foreground sm:hidden">{review.profiles?.nickname || '익명'} · {new Date(review.created_at).toLocaleDateString('ko-KR')}</span>
-                                    </button></td>
-                                    <td className="hidden text-muted-foreground sm:table-cell"><span className="block truncate">{review.profiles?.nickname || '익명'}</span><span className="mt-1 block text-[11px] tabular-nums">{new Date(review.created_at).toLocaleDateString('ko-KR')}</span></td>
-                                    <td><span className="flex flex-col items-start gap-1">{renderReviewStatusBadge(review)}{review.is_duplicate && <span className="text-[11px] text-destructive">중복 영수증</span>}</span></td>
-                                </tr>) : displayedSubmissions.map(submission => <tr key={submission.id} data-admin-submission-row={submission.id} className={cn('cursor-pointer', selectedSubmission?.id === submission.id && 'admin-cms-row-selected')} onClick={event => { rowTriggerRef.current = event.currentTarget.querySelector('button'); openSubmissionDetail(submission); }}>
-                                    <td><button type="button" aria-pressed={selectedSubmission?.id === submission.id} aria-haspopup={inlineInspector ? undefined : 'dialog'} className={rowButtonClassName}>
-                                        <span className="block truncate text-sm font-medium">{submission.restaurant_name}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">{submission.restaurant_address || '주소 없음'}</span><span className="mt-1 block text-[11px] text-muted-foreground sm:hidden">{submission.profiles?.nickname || '익명'} · {new Date(submission.created_at).toLocaleDateString('ko-KR')}</span>{renderSubmissionQueueSafetyBadges(submissionQueueSafetyById.get(submission.id), 'card')}
-                                    </button></td>
-                                    <td className="hidden text-muted-foreground sm:table-cell"><span className="block truncate">{submission.profiles?.nickname || '익명'}</span><span className="mt-1 block text-[11px] tabular-nums">{new Date(submission.created_at).toLocaleDateString('ko-KR')}</span></td>
-                                    <td>{getStatusBadge(submission.status)}</td>
-                                </tr>)}
+                            {resultCount === 0 ? <div role="status" className="admin-empty-state flex min-h-40 flex-col items-center justify-center gap-2 p-4 text-sm text-muted-foreground"><p>{searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all' ? '조건에 맞는 항목이 없습니다.' : '조회된 항목이 없습니다.'}</p>{(searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all') && <Button variant="outline" size="sm" onClick={() => { changeSearch(''); setStatusFilter('all'); handleQueueReasonFilterChange('all'); }}>필터 초기화</Button>}</div> : <table className="admin-cms-table admin-records-table table-fixed" data-admin-moderation-table={activeTab === 'reviews' ? 'reviews' : 'submissions'}><thead className="sticky top-0 z-10 bg-card"><tr><th scope="col" className="admin-records-identity">{activeTab === 'reviews' ? '맛집 · 리뷰' : '맛집 · 주소'}</th><th scope="col" className="admin-records-meta hidden w-40 lg:table-cell">검수 신호</th><th scope="col" className="admin-records-meta hidden w-32 sm:table-cell">작성자 · 접수</th><th scope="col" className="admin-records-status w-24">처리 상태</th><th scope="col" className="admin-records-actions w-10"><span className="sr-only">상세</span></th></tr></thead><tbody>
+                                {activeTab === 'reviews' ? displayedReviews.map(review => {
+                                    const photoCount = review.food_photos.length + (review.verification_photo ? 1 : 0);
+                                    return <tr key={review.id} data-admin-review-row={review.id} className={cn('cursor-pointer [&>td]:align-middle', selectedReview?.id === review.id && 'admin-cms-row-selected')} onClick={event => { rowTriggerRef.current = event.currentTarget.querySelector('button'); handleReviewAction('approve', review); }}>
+                                        <td className="admin-records-identity"><button type="button" aria-pressed={selectedReview?.id === review.id} aria-haspopup={inlineInspector ? undefined : 'dialog'} className={rowButtonClassName}>
+                                            <span className="block truncate text-sm font-semibold text-foreground">{review.restaurants?.name || '맛집 미확인'}</span>
+                                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{review.content || review.title || '내용 없음'}</span>
+                                            <span className="mt-1 block truncate text-[11px] text-muted-foreground sm:hidden">{review.profiles?.nickname || '익명'} · {formatModerationReceivedAt(review.created_at)}</span>
+                                            <span className="mt-1 flex flex-wrap gap-1 lg:hidden" aria-label="리뷰 검수 신호">
+                                                <span className="text-[11px] text-muted-foreground">사진 {photoCount}</span>
+                                                <span className="text-[11px] text-muted-foreground">{review.ocr_processed_at ? 'OCR 완료' : 'OCR 미처리'}</span>
+                                                {review.is_duplicate && <span className="text-[11px] font-medium text-destructive">중복 영수증</span>}
+                                            </span>
+                                        </button></td>
+                                        <td className="admin-records-meta hidden lg:table-cell"><div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px]"><span className="text-muted-foreground">사진 <strong className="font-medium tabular-nums text-foreground">{photoCount}</strong></span><span className="text-muted-foreground">{review.ocr_processed_at ? 'OCR 완료' : 'OCR 미처리'}</span>{review.is_duplicate && <span className="font-medium text-destructive">중복 영수증</span>}</div></td>
+                                        <td className="admin-records-meta hidden text-muted-foreground sm:table-cell"><span className="block truncate text-xs text-foreground">{review.profiles?.nickname || '익명'}</span><span className="mt-0.5 block text-[11px] tabular-nums">{formatModerationReceivedAt(review.created_at)}</span></td>
+                                        <td className="admin-records-status"><span className="flex flex-col items-start gap-1">{renderReviewStatusBadge(review)}</span></td>
+                                        <td className="admin-records-actions px-1" aria-hidden="true"><ChevronRight className="mx-auto h-4 w-4 text-muted-foreground" /></td>
+                                    </tr>;
+                                }) : displayedSubmissions.map(submission => {
+                                    const queueSafetySummary = submissionQueueSafetyById.get(submission.id);
+                                    return <tr key={submission.id} data-admin-submission-row={submission.id} className={cn('cursor-pointer [&>td]:align-middle', selectedSubmission?.id === submission.id && 'admin-cms-row-selected')} onClick={event => { rowTriggerRef.current = event.currentTarget.querySelector('button'); openSubmissionDetail(submission); }}>
+                                        <td className="admin-records-identity"><button type="button" aria-pressed={selectedSubmission?.id === submission.id} aria-haspopup={inlineInspector ? undefined : 'dialog'} className={rowButtonClassName}>
+                                            <span className="block truncate text-sm font-semibold text-foreground">{submission.restaurant_name}</span>
+                                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{submission.restaurant_address || '주소 없음'}</span>
+                                            <span className="mt-1 block truncate text-[11px] text-muted-foreground sm:hidden">{submission.profiles?.nickname || '익명'} · {formatModerationReceivedAt(submission.created_at)}</span>
+                                            <div className="mt-1 lg:hidden">{renderSubmissionQueueSafetyBadges(queueSafetySummary, 'card')}</div>
+                                        </button></td>
+                                        <td className="admin-records-meta hidden lg:table-cell"><div className="space-y-1">{submission.items.length > 0 && <span className="block text-[11px] text-muted-foreground">항목 <strong className="font-medium tabular-nums text-foreground">{submission.items.length}</strong></span>}{renderSubmissionQueueSafetyBadges(queueSafetySummary, 'card') || <span className="text-muted-foreground">—</span>}</div></td>
+                                        <td className="admin-records-meta hidden text-muted-foreground sm:table-cell"><span className="block truncate text-xs text-foreground">{submission.profiles?.nickname || '익명'}</span><span className="mt-0.5 block text-[11px] tabular-nums">{formatModerationReceivedAt(submission.created_at)}</span></td>
+                                        <td className="admin-records-status">{getStatusBadge(submission.status)}</td>
+                                        <td className="admin-records-actions px-1" aria-hidden="true"><ChevronRight className="mx-auto h-4 w-4 text-muted-foreground" /></td>
+                                    </tr>;
+                                })}
                             </tbody></table>}
                             <div ref={loadMoreSentinelRef} className="h-1" />
                             {hasMoreCards && <div className="p-2 text-center"><Button type="button" variant="outline" size="sm" disabled={isCurrentListLoading} onClick={handleLoadMoreCards}>더 보기</Button></div>}
@@ -2591,7 +2653,7 @@ export function SubmissionListView({
                     {inlineInspector && hasSelection ? (activeTab === 'reviews' ? renderReviewDetailPanel() : renderSubmissionDetailPanel()) : null}
                 </div>
                 <Sheet open={!inlineInspector && hasSelection} onOpenChange={open => { if (!open) closeInspector(); }}>
-                    <SheetContent data-admin-moderation-drawer className="flex w-full flex-col gap-2 p-2 pt-12 sm:max-w-2xl" onCloseAutoFocus={event => { event.preventDefault(); rowTriggerRef.current?.focus(); }}>
+                    <SheetContent data-admin-moderation-drawer className="flex w-full flex-col gap-2 p-2 pt-12 sm:max-w-2xl" onCloseAutoFocus={event => { event.preventDefault(); restoreRowTriggerFocus(); }}>
                         <SheetHeader className="sr-only"><SheetTitle>{activeTab === 'reviews' ? '리뷰 상세' : '제보 상세'}</SheetTitle><SheetDescription>선택한 항목의 검수와 처리</SheetDescription></SheetHeader>
                         {!inlineInspector && hasSelection ? (activeTab === 'reviews' ? renderReviewDetailPanel() : renderSubmissionDetailPanel()) : null}
                     </SheetContent>

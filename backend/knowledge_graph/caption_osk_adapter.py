@@ -18,6 +18,7 @@ import secrets
 import stat
 
 from backend.knowledge_graph import osk_projection as projection
+from backend.knowledge_graph import longform_inventory as inventory_materializer
 from backend.knowledge_graph.longform_analysis import (
     AnalysisError,
     decode as strict_decode,
@@ -272,25 +273,62 @@ def source_bindings(root, vid):
 
 def _membership_data(data, tab):
     value = _decode_json(data, "CAPTION_COVERAGE_INVALID")
-    if not isinstance(value, dict):
+    expected_url = f"{inventory_materializer.CHANNEL_URL}/{tab}"
+    if (not isinstance(value, dict)
+            or set(value) != inventory_materializer._SHARD_KEYS):
         fail("CAPTION_COVERAGE_INVALID")
     rows = value.get("rows")
-    if (value.get("tab") != tab or value.get("channelId") != CHANNEL_ID
-            or not isinstance(rows, list) or len(rows) > 100_000
-            or ("entryCount" in value and value["entryCount"] != len(rows))):
+    if (value.get("schema") != inventory_materializer.SHARD_SCHEMA
+            or value.get("tab") != tab
+            or value.get("sourceUrl") != expected_url
+            or value.get("channelId") != CHANNEL_ID
+            or type(value.get("exitCode")) is not int
+            or value["exitCode"] != 0
+            or value.get("noPlaylistLimit") is not True
+            or value.get("canonicalSourceOrQueueChanged") is not False
+            or value.get("noMediaOrCaptionsDownloaded") is not True
+            or value.get("rawPersonalContactFieldsPersisted") is not False
+            or not isinstance(rows, list)
+            or len(rows) > inventory_materializer.MAX_SHARD_ROWS
+            or type(value.get("entryCount")) is not int
+            or type(value.get("reportedPlaylistCount")) is not int
+            or value["entryCount"] != len(rows)
+            or value["reportedPlaylistCount"] != len(rows)
+            or type(value.get("rawResponseBytes")) is not int
+            or value["rawResponseBytes"] < 0
+            or not isinstance(value.get("rawResponseSha256"), str)
+            or not inventory_materializer.SHA256.fullmatch(value["rawResponseSha256"])):
+        fail("CAPTION_COVERAGE_INVALID")
+    try:
+        inventory_materializer._timestamp(value.get("observedAtUtc"))
+    except inventory_materializer.MaterializationError:
         fail("CAPTION_COVERAGE_INVALID")
     ids, admitted, blocked = [], [], []
-    allowed_statuses = {None, "not_live", "was_live", "is_live", "is_upcoming", "post_live"}
     for row in rows:
-        if (not isinstance(row, dict) or not projection.VIDEO_ID.fullmatch(str(row.get("id", "")))
-                or row.get("channelId") not in (None, CHANNEL_ID)
-                or row.get("liveStatus") not in allowed_statuses):
+        if (not isinstance(row, dict)
+                or set(row) != inventory_materializer._ROW_KEYS
+                or not isinstance(row.get("id"), str)
+                or not inventory_materializer.VIDEO_ID.fullmatch(row["id"])
+                or row.get("channelId") not in (None, CHANNEL_ID)):
             fail("CAPTION_COVERAGE_INVALID")
         video_id = row["id"]
         ids.append(video_id)
-        live_status = row.get("liveStatus")
-        if ((tab == "videos" and live_status in (None, "not_live", "was_live"))
-                or (tab == "streams" and live_status == "was_live")):
+        duration, live_status = row.get("duration"), row.get("liveStatus")
+        if (tab == "videos"
+                and (not inventory_materializer._positive_integer(duration)
+                     or live_status is not None)):
+            fail("CAPTION_COVERAGE_INVALID")
+        if tab == "shorts" and (duration is not None or live_status is not None):
+            fail("CAPTION_COVERAGE_INVALID")
+        if tab == "streams":
+            if live_status not in ("was_live", "is_live", "is_upcoming", "post_live"):
+                fail("CAPTION_COVERAGE_INVALID")
+            if (live_status == "was_live" and not inventory_materializer._positive_integer(duration)):
+                fail("CAPTION_COVERAGE_INVALID")
+            if (live_status != "was_live" and duration is not None
+                    and not inventory_materializer._positive_integer(duration)):
+                fail("CAPTION_COVERAGE_INVALID")
+        if tab == "videos" or (tab == "streams" and live_status == "was_live"):
             admitted.append(video_id)
         elif tab in ("videos", "streams"):
             blocked.append(video_id)

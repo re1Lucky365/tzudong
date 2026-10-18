@@ -10,10 +10,12 @@ function budgetCommand(args, env = process.env, { signal } = {}) {
     return new Promise((resolve, reject) => {
         const child = spawn(env.RUN_DAILY_PYTHON || 'python3',
             ['-m', 'backend.utils.provider_budget', ...args],
-            { cwd: repoRoot, env, stdio: ['ignore', 'pipe', 'ignore'] });
+            { cwd: repoRoot, env, stdio: ['ignore', 'pipe', 'pipe'] });
         let result = '';
+        let failure = '';
         let settled = false;
         let aborted = false;
+        let childStarted = false;
         let forceKill;
         const abortError = () => signal?.reason ?? new DOMException('Provider budget acquisition cancelled', 'AbortError');
         const finish = (error, value) => {
@@ -30,18 +32,33 @@ function budgetCommand(args, env = process.env, { signal } = {}) {
             forceKill = setTimeout(() => child.kill('SIGKILL'), 250);
             forceKill.unref?.();
         };
+        child.once('spawn', () => { childStarted = true; });
         child.stdout.on('data', chunk => { if (result.length < 128) result += chunk; });
+        // The canonical helper emits one fixed non-sensitive sentinel for
+        // rejections reached before it can return a lease. Keep stderr bounded
+        // and private; arbitrary provider/runtime diagnostics are never echoed.
+        child.stderr.on('data', chunk => { if (failure.length < 128) failure += chunk; });
         child.once('error', (cause) => {
             if (aborted) finish(abortError());
             else {
                 const error = new Error('PROVIDER_BUDGET_UNAVAILABLE', { cause });
-                error.budgetChildStarted = false;
+                error.budgetChildStarted = childStarted;
                 finish(error);
             }
         });
-        child.once('close', code => aborted
-            ? finish(abortError())
-            : code === 0 ? finish(undefined, result.trim()) : finish(new Error('PROVIDER_BUDGET_UNAVAILABLE')));
+        child.once('close', code => {
+            if (aborted) return finish(abortError());
+            if (code === 0) return finish(undefined, result.trim());
+            const error = new Error('PROVIDER_BUDGET_UNAVAILABLE');
+            // Only the canonical helper's explicit fixed rejection sentinel is
+            // definite. An arbitrary non-zero exit can happen after a custom
+            // helper committed the parent-selected lease and is ambiguous.
+            if (args[0] === 'acquire' && code === 1 && result.length === 0
+                && failure.trim() === 'PROVIDER_BUDGET_UNAVAILABLE') {
+                error.budgetAcquireRejected = true;
+            }
+            finish(error);
+        });
         signal?.addEventListener('abort', abort, { once: true });
         if (signal?.aborted) abort();
     });
@@ -100,7 +117,8 @@ export async function withProjectBudget(work, { acquireTimeoutMs = 600000, env: 
         if (acquired !== lease) throw new Error('PROVIDER_BUDGET_UNAVAILABLE');
         signal?.throwIfAborted();
     } catch (error) {
-        if (error?.budgetChildStarted !== false && !await releasePermit(debt)) {
+        if (error?.budgetChildStarted !== false && error?.budgetAcquireRejected !== true
+            && !await releasePermit(debt)) {
             process.stderr.write('warning=PROVIDER_BUDGET_RELEASE_UNAVAILABLE\n');
         }
         throw error;

@@ -912,6 +912,33 @@ class SegmentExecutionTests(unittest.TestCase):
         self.assertEqual(len(self.calls), calls)
         self.assertEqual({path: path.read_bytes() for path in self.state.rglob("*.json")}, before)
 
+    def test_hash_bound_uncertain_response_id_is_get_eligible_only_for_provider_operations(self):
+        self.scenario = "pending"
+        self.execute(batch_id="pending-provider-result")
+        span = m.segment_rows(self.row, self.config)[0]
+        _, receipt_path, _ = m.paths(self.state, span, self.config)
+        observation_path = receipt_path.with_name(
+            receipt_path.name.replace(".receipt.json", ".observation.json")
+        )
+        receipt = m.checked_document(receipt_path)
+        observation = m.checked_document(observation_path)
+        self.assertEqual((receipt["state"], observation["operation"]), ("uncertain", "generate"))
+        self.assertIsNotNone(observation["responseId"])
+
+        for operation, eligible in (("generate", 1), ("readback", 1), ("count", 0)):
+            with self.subTest(operation=operation):
+                observation["operation"] = operation
+                m.atomic_document(observation_path, observation)
+                receipt["observationSha256"] = m.digest(observation)
+                m.atomic_document(receipt_path, receipt)
+                before = {path: path.read_bytes() for path in self.state.rglob("*.json")}
+                with patch.object(m.adapter, "invoke", side_effect=AssertionError("plan cannot call provider")):
+                    plan = m.make_plan([self.row], self.info, self.state, self.config)
+                self.assertEqual(plan["cache"]["readback_required"], 1)
+                self.assertEqual(plan["classificationDenominator"]["providerGetEligible"], eligible)
+                self.assertEqual(plan["classificationDenominator"]["automaticProviderCalls"], 0)
+                self.assertEqual({path: path.read_bytes() for path in self.state.rglob("*.json")}, before)
+
     def test_config_hash_binds_schema_segment_and_adapter_changes(self):
         original = m.digest(self.config.identity)
         self.assertNotEqual(m.digest(m.replace(self.config, segment_seconds=20).identity), original)
