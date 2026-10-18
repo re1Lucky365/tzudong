@@ -484,15 +484,15 @@ class LocalSeedReceiptContractTests(unittest.TestCase):
 
     def test_manifest_contains_exactly_current_immutable_units(self) -> None:
         manifest = local_migrate.build_manifest()
-        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 140)
-        self.assertEqual(len(manifest["source"]["files"]), 140)
+        self.assertEqual(local_migrate.EXPECTED_LEDGER_UNITS, 143)
+        self.assertEqual(len(manifest["source"]["files"]), 143)
         self.assertEqual(
             manifest["source"]["files"][-1]["path"],
-            "backend/supabase/migrations/20261011175912_review_owner_cleanup_completion.sql",
+            "backend/supabase/migrations/20261017160000_restaurant_popularity_shadow_tier.sql",
         )
         self.assertEqual(
             manifest["source"]["files"][-1]["transaction"]["class"],
-            "self_committing",
+            "transactional",
         )
 
     def test_receipt_ledger_rejects_missing_extra_or_changed_current_units(self) -> None:
