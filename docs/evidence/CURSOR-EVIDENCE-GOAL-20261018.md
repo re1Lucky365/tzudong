@@ -43,3 +43,17 @@ W001–W018의 기존 계약과 수용/기각 내역은 `TASKS.md`와 `docs/evid
 수정 전 두 회귀 테스트 실패를 확인했다. 수정은 공개 등급 정규화를 입력 타입, 객체 스탬프 및 공유 시각 캐시 키에 반영한다. 캐시 용량과 정상 결과 재사용은 유지한다. 시간·공간 증가는 항목당 고정 크기의 정규화된 등급이며 성능 개선율은 측정하지 않았다.
 
 로컬 Node 24.22.0 / npm 11.6.2 / Bun 1.4.0에서 관련 4개 파일 37 tests / 392 assertions 통과, native 7.0.2·compat 6.0.2 parity diagnostics 0 (3172 logical inputs), 변경 TS의 ESLint 및 `git diff --check` 통과를 확인했다. 이는 운영 배포 증거가 아니다.
+
+## 두 번째 CI에서 확인한 릴리스 경계 불일치
+
+47c39178의 마커 수정 후 기존 타입 실패는 해소됐다. 최신 CI의 27개 검사가 통과했지만 Ubuntu npm 전체 unit은 3440 pass / 21 skip / 4 fail / 1 error였다. 운영 승격은 하지 않았다.
+
+Cursor의 앞선 근거·섀도 작업이 legacy release manifest를 3개에서 6개로 확장하고 쓰기 동결 예외를 추가했다. 이 파일은 review-media의 11단계 successor가 정확한 3개 항목과 SHA-256 `515743d094b4b431a29df772a363837bdad8f7541aa3acf4a923efb79f460c0d`로 고정한 입력이다. 실패는 해시 검증과 실제 허용 목록의 불일치이며 테스트 기대값만 바꾸어 해결할 수 없다.
+
+확장된 파일의 원래 바이트(SHA-256 `29abd5a378c25ba83f2c579de1f849c4fd9b89a4d16f4664e7c153a88cc70561`)는 새 증거 폴더에 보존했다. legacy manifest와 workflow pin/동결 예외를 기존 범위로 복구하고 새 근거·섀도 ID가 SQL 전송 전에 거부되는 회귀 검증을 추가한다. 적용된 SQL 원문과 11단계 controller/manifest는 수정하지 않는다. 추가 SQL을 삭제하거나 이미 적용됐다는 운영 사실을 추정하지 않는다. 새 SQL의 향후 실행에는 별도의 검토된 경로가 필요하다.
+
+복구 후 관련 웹 테스트 112개 / 976 assertions, 전체 `npm run test:unit`의 모든 lane 종료 코드 0, Python 3.11.17 + PyYAML 6.0.3의 G037 경계 테스트 4개, TS parity diagnostics 0 (production build 이후 생성 타입을 포함한 3177 logical inputs)을 확인했다. 검증 도구의 누락 dependency와 첫 브라우저 시작 실패도 실패 이력으로 보존하며 제품 기능 통과로 계산하지 않는다.
+
+독립 읽기 전용 보안 검토에서 legacy manifest/workflow의 복구 전 바이트 일치, 11개 SQL 및 7개 toolchain 해시 일치, Python 경계 테스트 누락을 확인했고 그 누락도 수정했다. 추가 이력은 `d006986d → 7e2fc534 → d11e57aa → 1c213fc0`의 실제 파일 바이트로 보존했다.
+
+운영 프로젝트 `aqlcofblfxdrjhhdmarw`의 읽기 전용 migration 목록은 현재 89개이며 위 세 근거·섀도 version이 포함된다. 세 apply job 성공과 한 dry-run의 apply 생략도 별도 확인했다. 이는 과거 DB 변경을 소스 복구가 되돌린다는 뜻이 아니며, 현재 ledger의 statements·권한·데이터 전체를 재검증한 증거도 아니다. 기존 86→97 successor의 신규 운영 admission은 여전히 별도 현황 검증이 필요하다. 이번 작업에서 DB/Storage 변경은 없다.

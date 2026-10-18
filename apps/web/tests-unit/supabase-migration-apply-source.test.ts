@@ -15,7 +15,7 @@ import {
   validateReleaseMigrationManifest,
 } from "../scripts/apply-supabase-migration.mjs";
 
-const MANIFEST_SHA256 = "29abd5a378c25ba83f2c579de1f849c4fd9b89a4d16f4664e7c153a88cc70561";
+const MANIFEST_SHA256 = "515743d094b4b431a29df772a363837bdad8f7541aa3acf4a923efb79f460c0d";
 const manifestBytes = readFileSync(RELEASE_MIGRATION_MANIFEST_PATH);
 const manifestDocument = JSON.parse(manifestBytes.toString("utf8"));
 const migration = manifestDocument.migrations[0];
@@ -125,21 +125,6 @@ describe("reviewed Supabase migration apply contract", () => {
           path: "backend/supabase/migrations/20260801000200_g016_onboarding_confirmation_freshness.sql",
           sha256: "a116b2d0a71304b0c6cd6ceca05344e198709384381451b250d7145d4fe12d3e",
         }),
-        expect.objectContaining({
-          id: "evidence_frames_and_popularity",
-          path: "backend/supabase/migrations/20261017043000_evidence_frames_and_popularity.sql",
-          sha256: "d254fe76eb8c74587183bc89372891cd08a6a1cf92a99b8aa041497fa6ca7733",
-        }),
-        expect.objectContaining({
-          id: "restaurant_popularity_shadow",
-          path: "backend/supabase/migrations/20261017140000_restaurant_popularity_shadow.sql",
-          sha256: "fe0621f3a6f663beec2c14a60729ddbb17ba715205a114f24879af9b4dba11c6",
-        }),
-        expect.objectContaining({
-          id: "restaurant_popularity_shadow_tier",
-          path: "backend/supabase/migrations/20261017160000_restaurant_popularity_shadow_tier.sql",
-          sha256: "4ba19ee5b7ae3fbbfc4ffa00a93ed30e1197cd2ad1763e063a75f75158a48426",
-        }),
       ],
     });
 
@@ -174,6 +159,23 @@ describe("reviewed Supabase migration apply contract", () => {
     expect(() => validateReleaseMigrationManifest(duplicateMigrationDocument)).toThrow(
       "MIGRATION_MANIFEST_DUPLICATE",
     );
+  });
+
+  test("rejects evidence and shadow migrations before transport in the frozen legacy release path", async () => {
+    let transportCalls = 0;
+    let vectorCalls = 0;
+    for (const id of ["evidence_frames_and_popularity", "restaurant_popularity_shadow", "restaurant_popularity_shadow_tier"]) {
+      await expect(main(["--migration-id", id, "--dry-run", "--json"], {
+        environment: { RELEASE_MIGRATION_MANIFEST_SHA256: MANIFEST_SHA256 },
+        runPsqlImpl: () => { transportCalls++; throw new Error("unexpected_transport"); },
+        readVectorImpl: () => { vectorCalls++; throw new Error("unexpected_source_read"); },
+      })).rejects.toThrow("MIGRATION_ID_NOT_ALLOWLISTED");
+    }
+    expect(transportCalls).toBe(0);
+    expect(vectorCalls).toBe(0);
+    const workflow = readFileSync(new URL("../../../.github/workflows/supabase-migration-apply.yml", import.meta.url), "utf8");
+    expect(workflow).toContain('contains(fromJSON(\'["g016_privacy_audit_owner_policy","g016_onboarding_confirmation_freshness"]\'), needs.validate.outputs.migration_id)');
+    expect(workflow).toContain("github.event.inputs.verify_terminal_state == 'true'");
   });
 
   test("accepts only a manifest identity, never caller path or migration digest", async () => {
