@@ -15,7 +15,7 @@ import {
 } from "@/lib/home-map-theme-filters";
 import { enrichRestaurantsWithHomeMapYoutubeKpiMetrics } from "@/lib/home-map-youtube-kpi";
 import { describeErrorCodeForLog } from "@/lib/debug-log";
-import { lookupPublishedPopularityTier, type PublishedPopularityLookup } from "@/lib/evidence-engineering/published-popularity";
+import { lookupPublishedPopularityTier, resolvePublishedPopularityTier, type PublishedPopularityLookup } from "@/lib/evidence-engineering/published-popularity";
 
 
 type DBRestaurant = Tables<"restaurants">;
@@ -624,7 +624,7 @@ export function mergeRestaurants(
 
         return {
             ...mainRestaurant,
-            popularity_tier: publishedTier(mainRestaurant.id),
+            popularity_tier: resolvePublishedPopularityTier(mainRestaurant, publishedTier, groupRestaurants),
             name: getRestaurantName(mainRestaurant as RestaurantWithOptionalName),
             lat,
             lng,

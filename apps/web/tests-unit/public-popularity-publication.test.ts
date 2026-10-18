@@ -1,19 +1,24 @@
 import { describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import vm from 'node:vm';
+import ts from 'typescript';
+import * as jsxRuntime from 'react/jsx-runtime';
 import { GET } from '../app/api/public-popularity/route';
 import { mergeRestaurants } from '../hooks/use-restaurants';
 import { buildRestaurantDetailFromMergeRows } from '../hooks/use-restaurant-detail';
 import {
     createPublishedPopularityLookup, parsePublicPopularityPublication,
-    projectPublishedPopularityTier, publicPopularityPublication,
+    projectPublishedPopularityTier, publicPopularityPublication, resolvePublishedPopularityTier,
 } from '../lib/evidence-engineering/published-popularity';
 import { buildRestaurantMarkerKindSignature } from '../lib/restaurant-marker-kind';
 import { buildMarkerRenderSignature, shouldSkipMarkerUpdate } from '../lib/map-render-guard';
 import type { Tables } from '../integrations/supabase/types';
 import type { Restaurant } from '../types/restaurant';
 
-const snapshot = () => ({ schemaVersion: 1, publicationVersion: 'test-cohort-1',
-    sourceRevision: 'a'.repeat(40), entries: [{ restaurantId: 'public-a', tier: 'fire' }] });
+const snapshot = () => ({ schemaVersion: 2, publicationVersion: 'test-cohort-1',
+    sourceRevision: 'a'.repeat(40), entries: [{ restaurantId: 'public-a', memberRestaurantIds: ['public-a'], tier: 'fire' }] });
 const dbRow = (id: string, extra = {}) => ({ id, approved_name: '검증 식당', status: 'approved',
     road_address: '공개 주소', lat: 37.5, lng: 127, categories: ['한식'],
     created_at: '2026-10-17T00:00:00Z', ...extra } as unknown as Tables<'restaurants'>);
@@ -25,9 +30,10 @@ describe('operator-published public popularity', () => {
             { ...valid, metrics: { score: 100 } },
             { ...valid, entries: [{ ...valid.entries[0], raw_score: 100 }] },
             { ...valid, entries: [...valid.entries, ...valid.entries] },
-            { ...valid, entries: [{ restaurantId: 'public-a', tier: 'private-shadow' }] },
-            { ...valid, entries: [{ restaurantId: 'public-a', tier: { toString() { throw new Error('coerced'); } } }] },
+            { ...valid, entries: [{ ...valid.entries[0], tier: 'private-shadow' }] },
+            { ...valid, entries: [{ ...valid.entries[0], tier: { toString() { throw new Error('coerced'); } } }] },
             { ...valid, publicationVersion: 'unpublished' },
+            { ...valid, schemaVersion: 1 },
             { ...valid, sourceRevision: null },
         ];
         for (const value of invalid) expect(() => parsePublicPopularityPublication(value)).toThrow('PUBLIC_POPULARITY_PUBLICATION_INVALID');
@@ -37,15 +43,19 @@ describe('operator-published public popularity', () => {
         const valid = snapshot();
         const parsed = parsePublicPopularityPublication(valid);
         valid.entries[0].tier = 'rainbow';
+        valid.entries[0].memberRestaurantIds.push('public-z');
         expect(parsed.entries[0].tier).toBe('fire');
+        expect(parsed.entries[0].memberRestaurantIds).toEqual(['public-a']);
         expect(Object.isFrozen(parsed.entries[0])).toBe(true);
         expect(Object.isFrozen(parsed.entries)).toBe(true);
         expect(() => parsePublicPopularityPublication({ ...valid,
             entries: Array.from({ length: 5001 }, (_, i) => ({ restaurantId: `r-${i}`, tier: 'fire' })),
         })).toThrow('PUBLIC_POPULARITY_PUBLICATION_INVALID');
         expect(() => parsePublicPopularityPublication({ ...valid,
-            entries: Array.from({ length: 4000 }, (_, i) => ({ restaurantId: `${i}-`.padEnd(128, 'a'), tier: 'fire' })),
+            entries: Array.from({ length: 4000 }, (_, i) => { const id = `${i}-`.padEnd(128, 'a');
+                return { restaurantId: id, memberRestaurantIds: [id], tier: 'fire' }; }),
         })).toThrow('PUBLIC_POPULARITY_PUBLICATION_INVALID');
+        expect(Object.isFrozen(parsed.entries[0].memberRestaurantIds)).toBe(true);
     });
 
     test('list and detail derive the same tier without a database tier column; stale/raw tiers cannot promote it', () => {
@@ -70,8 +80,92 @@ describe('operator-published public popularity', () => {
         const rows = [dbRow('public-a', { created_at: '2026-10-16T00:00:00Z' }), dbRow('new-primary')];
         const [merged] = mergeRestaurants(rows, lookup);
         expect(merged.mergedRestaurants).toHaveLength(2);
-        expect(merged.popularity_tier).toBe(lookup(merged.id));
-        expect(buildRestaurantDetailFromMergeRows(merged, rows, lookup)?.popularity_tier).toBe(lookup(merged.id));
+        expect(merged.popularity_tier).toBe('standard');
+        expect(buildRestaurantDetailFromMergeRows(merged, rows, lookup)?.popularity_tier).toBe('standard');
+    });
+
+    test('explicit canonical membership keeps compact, full, partial, and direct-detail grades identical', () => {
+        const data = snapshot();
+        data.entries[0].memberRestaurantIds.push('public-z');
+        const lookup = createPublishedPopularityLookup(data);
+        const rows = [dbRow('public-a', { youtube_meta: { publishedAt: '2026-01-01' } }),
+            dbRow('public-z', { youtube_meta: { publishedAt: '2026-10-01' } })];
+        const compact = rows.map(({ youtube_meta: _, ...row }) => row) as Tables<'restaurants'>[];
+        const [mapRow] = mergeRestaurants(compact, lookup);
+        const [fullRow] = mergeRestaurants(rows, lookup);
+        expect(mapRow.id).toBe('public-a');
+        expect(fullRow.id).toBe('public-z'); // Preserve the existing representative selection.
+        expect(mapRow.popularity_tier).toBe('fire');
+        expect(fullRow.popularity_tier).toBe('fire');
+        expect(mergeRestaurants([rows[1]], lookup)[0].popularity_tier).toBe('fire');
+        expect(buildRestaurantDetailFromMergeRows(mapRow, rows, lookup)?.popularity_tier).toBe('fire');
+        expect(projectPublishedPopularityTier(rows[1] as unknown as Restaurant, lookup).popularity_tier).toBe('fire');
+        expect(lookup('unpublished-new-member')).toBe('standard');
+    });
+
+    test('new members or conflicting cohorts fail closed for either display representative', () => {
+        const data = snapshot();
+        data.entries.push({ restaurantId: 'public-z', memberRestaurantIds: ['public-z'], tier: 'rainbow' });
+        const lookup = createPublishedPopularityLookup(data);
+        for (const other of ['public-z', 'unpublished-new-member']) {
+            const rows = [dbRow('public-a', { youtube_meta: { publishedAt: '2026-01-01' } }),
+                dbRow(other, { youtube_meta: { publishedAt: '2026-10-01' } })];
+            const compact = rows.map(({ youtube_meta: _, ...row }) => row) as Tables<'restaurants'>[];
+            const [mapRow] = mergeRestaurants(compact, lookup);
+            const [fullRow] = mergeRestaurants(rows, lookup);
+            expect(mapRow.popularity_tier).toBe('standard');
+            expect(fullRow.popularity_tier).toBe('standard');
+            expect(buildRestaurantDetailFromMergeRows(mapRow, rows, lookup)?.popularity_tier).toBe('standard');
+            expect(resolvePublishedPopularityTier(fullRow, lookup)).toBe('standard');
+        }
+    });
+
+    test('rejects ambiguous/incomplete canonical membership and bounds the whole member index', () => {
+        const data = snapshot();
+        for (const members of [[], ['public-z'], ['public-z', 'public-a'], ['public-a', 'public-a']]) {
+            expect(() => parsePublicPopularityPublication({ ...data,
+                entries: [{ ...data.entries[0], memberRestaurantIds: members }] })).toThrow('PUBLIC_POPULARITY_PUBLICATION_INVALID');
+        }
+        expect(() => parsePublicPopularityPublication({ ...data, entries: [data.entries[0],
+            { restaurantId: 'a', memberRestaurantIds: ['a', 'public-a'], tier: 'rainbow' }] })).toThrow('PUBLIC_POPULARITY_PUBLICATION_INVALID');
+        const first = Array.from({ length: 2501 }, (_, i) => `a-${String(i).padStart(4, '0')}`);
+        const second = first.map((id) => id.replace('a-', 'b-'));
+        const atCapacity = Array.from({ length: 5000 }, (_, i) => `r-${String(i).padStart(4, '0')}`);
+        expect(createPublishedPopularityLookup({ ...data, entries: [
+            { restaurantId: atCapacity[0], memberRestaurantIds: atCapacity, tier: 'fire' },
+        ] })(atCapacity[4999])).toBe('fire');
+        expect(() => parsePublicPopularityPublication({ ...data, entries: [
+            { restaurantId: first[0], memberRestaurantIds: first, tier: 'fire' },
+            { restaurantId: second[0], memberRestaurantIds: second, tier: 'rainbow' },
+        ] })).toThrow('PUBLIC_POPULARITY_PUBLICATION_INVALID');
+    });
+
+    test('the shared panel badge binding resolves raw feed/direct rows through the publication boundary', () => {
+        // Execute the real shared panel's JSX prop binding without mounting its
+        // unrelated auth/map providers. No caller-provided tier is trusted.
+        const source = readFileSync(resolve(import.meta.dir, '../components/restaurant/RestaurantDetailPanel.tsx'), 'utf8');
+        const file = ts.createSourceFile('panel.tsx', source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
+        let node: ts.JsxSelfClosingElement | undefined;
+        const visit = (part: ts.Node) => {
+            if (ts.isJsxSelfClosingElement(part) && part.tagName.getText(file) === 'PopularityBadge') node = part;
+            ts.forEachChild(part, visit);
+        };
+        visit(file);
+        if (!node) throw new Error('SHARED_PANEL_BADGE_BINDING_MISSING');
+        const expression = ts.createPrinter().printNode(ts.EmitHint.Unspecified, node, file);
+        const compiled = ts.transpileModule(`exports.render = (restaurant) => (${expression});`, {
+            compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+        }).outputText;
+        const data = snapshot(); data.entries[0].memberRestaurantIds.push('public-z');
+        const lookup = createPublishedPopularityLookup(data);
+        const exports = {} as { render: (r: { id: string; popularity_tier?: string }) => { key: string; props: { tier: string } } };
+        vm.runInNewContext(compiled, { exports, PopularityBadge: () => null,
+            resolvePublishedPopularityTier: (restaurant: Restaurant) => resolvePublishedPopularityTier(restaurant, lookup),
+            require: (name: string) => { if (name === 'react/jsx-runtime') return jsxRuntime; throw new Error('UNEXPECTED_BINDING_IMPORT'); } });
+        expect(exports.render({ id: 'public-a' }).props.tier).toBe('fire');
+        expect(exports.render({ id: 'public-z', popularity_tier: 'rainbow' }).props.tier).toBe('fire');
+        expect(exports.render({ id: 'private', popularity_tier: 'rainbow' }).props.tier).toBe('standard');
+        expect(exports.render({ id: 'public-a' }).key).toBe('public-a:fire');
     });
 
     test('published endpoint returns only the bundled reviewed shape, stable ETag and no active cohort by default', async () => {
