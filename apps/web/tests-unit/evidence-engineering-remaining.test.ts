@@ -330,6 +330,18 @@ describe("evidence engineering remaining tasks", () => {
     const marker = readFileSync(resolve(import.meta.dir, "../lib/naver-map-marker-visuals.ts"), "utf8");
     const route = readFileSync(resolve(import.meta.dir, "../app/api/admin/evidence-frames/route.ts"), "utf8");
     expect(badge).toContain("ssr: false");
+    expect(badge).toContain("scale(1.15)");
+    expect(badge).toContain("prefers-reduced-motion");
+    expect(badge).not.toContain("from \"three\"");
+    const viewer = readFileSync(resolve(import.meta.dir, "../components/restaurant/Badge3DViewer.tsx"), "utf8");
+    expect(viewer).toContain("from \"three\"");
+    expect(viewer).toContain(".dispose(");
+    expect(viewer).toContain("webglcontextlost");
+    expect(viewer).toContain("정적 배지로 표시합니다.");
+    expect(viewer).toContain("setStaticFallback(true)");
+    expect(viewer).toContain("webgl_unavailable");
+    expect(viewer).not.toContain("lowPower ? <p>정적 배지로 표시합니다.</p>");
+    expect(marker).not.toContain("from \"three\"");
     expect(marker).not.toContain("Badge3DViewer");
     expect(POPULARITY_BADGE_KINDS).toEqual(["fire", "rainbow"]);
     expect(BADGE_BYTE_COUNT_IS_PASS_THRESHOLD).toBe(false);

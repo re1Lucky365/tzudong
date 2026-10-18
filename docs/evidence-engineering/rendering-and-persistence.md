@@ -14,7 +14,7 @@
 
 Thesis의 에셋 이름은 `badge_popular_fire_3d`와 `badge_popular_rainbow_3d`다. 목표 형식은 알파가 있는 WebP다. 15KB 이하와 256, 512 정사각은 Thesis의 목표이지 측정된 사실이 아니다. GPT 이미지 생성은 이 계약의 순수 함수가 아니다.
 
-호버 확대 `scale(1.15)`는 Thesis의 상호작용 목표다. 마커 WebGL을 허용하는 근거가 아니다.
+상세 배지 호버는 `transform: scale(1.15)`만 적용한다. `prefers-reduced-motion: reduce`이면 확대하지 않는다. 이 확대는 마커 WebGL을 허용하지 않는다.
 
 ## 저장
 

@@ -34,7 +34,13 @@ export function PopularityBadge({
   if (tier === "standard" || assetFailed) return null;
   const phase = badgeViewerPhase(experimental3D, open);
   return (
-    <section aria-label="인기 맛집 배지">
+    <section aria-label="인기 맛집 배지" className="tz-popularity-badge">
+      <style>{`
+        .tz-popularity-badge img { transform: scale(1); }
+        @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+          .tz-popularity-badge:hover img { transform: scale(1.15); }
+        }
+      `}</style>
       <img
         src={BADGE_SRC[tier]}
         alt={`${tier} popularity badge`}
