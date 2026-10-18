@@ -15,7 +15,7 @@ import {
   previewEvidenceModeration,
   type EvidenceFrameModerationClient,
 } from "../lib/evidence-engineering/evidence-moderation";
-import { POPULARITY_MARKER_CSS, syncPopularityMarkerInteraction, wrapMarkerWithPopularityTier } from "../lib/evidence-engineering/popularity-marker";
+import { POPULARITY_MARKER_CSS, publicPopularityTier, syncPopularityMarkerInteraction, wrapMarkerWithPopularityTier } from "../lib/evidence-engineering/popularity-marker";
 import { summarizeRenderSamples } from "../lib/evidence-engineering/render-measurement";
 import { buildEvidenceFrame, parseEvidenceFrame, unionApprovedEvidenceFrames } from "../lib/evidence-engineering/frames";
 import { MARKER_EFFECT_CONTRACT } from "../lib/evidence-engineering/constants";
@@ -215,6 +215,13 @@ describe("evidence engineering remaining tasks", () => {
     expect(wrapped).toContain("<style>");
     expect(wrapped).toContain('data-popularity-tier="fire"');
     expect(wrapped).toContain("<span>pin</span>");
+    expect(publicPopularityTier("fire")).toBe("fire");
+    expect(publicPopularityTier("rainbow")).toBe("rainbow");
+    expect(publicPopularityTier(null)).toBe("standard");
+    expect(publicPopularityTier("shadow")).toBe("standard");
+    const panel = readFileSync(resolve(import.meta.dir, "../components/restaurant/RestaurantDetailPanel.tsx"), "utf8");
+    expect(panel).toContain("publicPopularityTier(restaurant.popularity_tier)");
+    expect(panel).not.toContain('<PopularityBadge tier="standard" />');
     const attributes = new Map<string, string>();
     const element = {
       setAttribute: (name: string, value: string) => attributes.set(name, value),

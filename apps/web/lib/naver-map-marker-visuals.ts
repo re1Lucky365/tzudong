@@ -1,5 +1,5 @@
 import type { Restaurant } from '@/types/restaurant';
-import { wrapMarkerWithPopularityTier } from '@/lib/evidence-engineering/popularity-marker';
+import { publicPopularityTier, wrapMarkerWithPopularityTier } from '@/lib/evidence-engineering/popularity-marker';
 import { createIndividualMarkerHTML } from '@/lib/cluster-marker';
 import { getPrimaryCategory } from '@/lib/naver-map-view-helpers';
 import { getTzuyangVisitCount } from '@/lib/restaurant-visit-count';
@@ -233,7 +233,7 @@ export function getNaverIndividualMarkerVisual(
     const markerHtml = markerKind !== 'category'
         ? wrapSpecialMarkerContent(content, isSelected, markerKind)
         : `<div data-restaurant-marker-kind="category" data-restaurant-marker-asset-version="${RESTAURANT_MARKER_ASSET_VERSION}">${content}</div>`;
-    const popularityTier = (restaurant as { popularity_tier?: "fire" | "rainbow" | "standard" | null }).popularity_tier;
+    const popularityTier = publicPopularityTier(restaurant.popularity_tier);
 
     const visual = writeMarkerVisualCache(cacheKey, {
         content: wrapMarkerWithPopularityTier(markerHtml, popularityTier),
