@@ -220,7 +220,7 @@ describe("evidence engineering remaining tasks", () => {
     expect(publicPopularityTier(null)).toBe("standard");
     expect(publicPopularityTier("shadow")).toBe("standard");
     const panel = readFileSync(resolve(import.meta.dir, "../components/restaurant/RestaurantDetailPanel.tsx"), "utf8");
-    expect(panel).toContain("publicPopularityTier(restaurant.popularity_tier)");
+    expect(panel).toContain("resolvePublishedPopularityTier(restaurant)");
     expect(panel).not.toContain('<PopularityBadge tier="standard" />');
     const attributes = new Map<string, string>();
     const element = {

@@ -67,3 +67,11 @@ Cursor의 앞선 근거·섀도 작업이 legacy release manifest를 3개에서 
 정적 fire/rainbow 배지 2종을 생성하고 투명 알파를 확인했다. 256/512px 무손실 원본 변환본은 55,470–178,678B로 15KB 목표를 충족하지 못했다. 실제 40px 화면에는 40/80px 무손실 파생본(2,410–8,766B)을 사용하고 원본 변환본을 초기 로드하지 않는다. 생성·변환 해시와 알파 결과는 별도 증거다.
 
 Chrome Headless Shell 153.0.8010.12의 production-mode 컴포넌트 harness에서 DPR2의 120 CSS px/240px buffer, 모션 감소시 추가 RAF 0회, 동작시 픽셀 변경, 닫기/Escape 포커스 복원, 상위 Escape 차단, 반복 열기·닫기 및 컨텍스트 손실 1회 복구 후 폴백을 확인했다. 실제 컴포넌트·Three를 사용했지만 소프트웨어 WebGL 및 합성 tier 자료다. 운영 앱·실기기·field 증거로 대체하지 않는다. 전체 앱 production build·최신 HEAD CI·배포 결과는 해당 단계의 별도 영수증으로 확정한다.
+
+## data 승격에서 발견한 조회 경로 일관성 보완
+
+PR3306은 3ea44487의 29개 검사·Vercel 성공 및 리뷰 해결 후 develop의 db694a67로 병합했다. PR3307의 42개 검사는 통과했으나 새 리뷰가 compact/full의 대표 행 차이와 모바일 리뷰의 raw 상세 진입 누락을 재현했다. 이 대화를 해결 처리하여 우회하지 않고 별도 feature 수정으로 진행했다.
+
+기존 대표 행 선택은 보존한다. 발행 v2는 정렬된 전체 memberRestaurantIds와 첫 ID인 canonical restaurantId를 요구하고 모든 구성원이 하나의 검토된 등급을 조회한다. 전체 구성원 수는 5,000개로 제한하고 중복·그룹 충돌을 거부한다. 미발행 새 구성원은 standard이며 높은 등급을 임의로 상속하지 않는다. 공유 상세 패널도 같은 발행 조회를 직접 사용하므로 모바일 피드와 다른 raw 진입 경로에서 등급이 빠지지 않는다. 초기 v2 자료는 여전히 unpublished/빈 entries다. 운영에서 v1 endpoint는 아직404이며 이번 보완이 활성 cohort를 발행한 것은 아니다.
+
+수정 전 합성 같은 그룹이 compact에서는 public-a/fire, full에서는 public-z/standard였음을 보존했다. 회귀 검증은 대표 ID가 실제로 다름을 확인하면서 compact/full/부분 조회/직접 상세의 등급이 같음을 확인한다. 실제 공유 패널의 배지 JSX prop binding도 raw 행·충돌 tier·미발행 ID로 실행해 검증한다. 이는 전체 패널 mount나 운영 활성 등급 검증과 구분한다.

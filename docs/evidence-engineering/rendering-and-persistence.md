@@ -12,9 +12,9 @@
 
 ### 2026-10-18 공개 발행 경로
 
-현재 운영 `restaurants`에는 `popularity_tier` 컬럼이 없다. 공개 등급은 별도 소스인 `apps/web/lib/evidence-engineering/public-popularity-publication.json`을 보호된 Git 검토·승격으로 발행한다. 목록 병합과 상세 hydration은 같은 읽기 전용 인덱스를 사용하며, 대표 식당 ID로 조회한다. private metrics/shadow의 등급이나 원시 응답의 동명 필드를 복사하지 않는다. 승인된 발행 자료가 없는 기본 스냅샷은 `unpublished`와 빈 entries이므로 모든 식당은 standard다. 형식 검증은 승인 영수증이 아니며 임의 점수·계수로 빈 자료를 채우지 않는다.
+현재 운영 `restaurants`에는 `popularity_tier` 컬럼이 없다. 공개 등급은 별도 소스인 `apps/web/lib/evidence-engineering/public-popularity-publication.json`을 보호된 Git 검토·승격으로 발행한다. 목록 병합과 상세 hydration은 같은 읽기 전용 인덱스를 사용한다. 공개 발행 v2의 각 항목은 정렬된 memberRestaurantIds 전체와 그 첫 ID인 canonical restaurantId를 포함한다. 검토된 모든 구성원 ID가 같은 항목의 등급을 조회하므로 youtube_meta 포함 여부에 따른 표시 대표 행 변경이나 부분 조회가 등급을 바꾸지 않는다. 새 구성원은 발행 자료를 갱신하기 전까지 standard다. 현재 병합 그룹에 미발행 구성원이나 서로 다른 등급이 섞이면 그룹 전체도 standard로 내린다. 다른 등급 중 높은 것을 고르지 않는다. private metrics/shadow의 등급이나 원시 응답의 동명 필드를 복사하지 않는다. 승인된 발행 자료가 없는 기본 스냅샷은 `unpublished`와 빈 entries이므로 모든 식당은 standard다. 형식 검증은 승인 영수증이 아니며 임의 점수·계수로 빈 자료를 채우지 않는다.
 
-스냅샷은 최대 5,000개·512KiB다. 배포당 한 번 O(P) 인덱스를 만들고 행마다 O(1)로 조회한다. 추가 요청·검색별 캐시는 없다. `/api/public-popularity`는 동일 스냅샷과 SHA256 ETag만 제공한다. 새 발행 자료는 새 배포·페이지 로드로 반영된다. 원격 실시간 점수 갱신을 구현한 것은 아니다. 같은 ID의 등급이 달라지면 마커의 외부 렌더 가드와 HTML 캐시가 모두 무효화되며, 현재 결과 밖의 선택·검색 마커도 포함한다.
+스냅샷은 항목과 전체 구성원 ID 각각 최대 5,000개·512KiB다. 중복·다른 그룹의 ID 충돌·정렬/대표 ID 불일치를 거부한다. 배포당 한 번 O(Q) 구성원 인덱스를 만들고 행마다 O(1)로 조회한다. 공유 상세 패널도 호출자의 popularity_tier를 신뢰하지 않고 같은 발행 인덱스로 조회하므로 모바일 리뷰 등 raw 행 진입도 동일하다. 추가 요청·검색별 캐시는 없다. `/api/public-popularity`는 동일 스냅샷과 SHA256 ETag만 제공한다. 새 발행 자료는 새 배포·페이지 로드로 반영된다. 원격 실시간 점수 갱신을 구현한 것은 아니다. 같은 ID의 등급이 달라지면 마커의 외부 렌더 가드와 HTML 캐시가 모두 무효화되며, 현재 결과 밖의 선택·검색 마커도 포함한다.
 
 정적 배지는 40/80px 무손실 WebP를 40 CSS px의 1x/2x 소스로 사용한다. 256/512px 원본 변환본은 초기 화면에서 요청하지 않는다. 생성 원본의 해시·변환본 크기·알파 검증은 작업 증거에 보존한다. 15KB는 원본 변환본이 충족하지 못한 목표이며, 표시용 소형 파일은 실제 바이트를 별도 기록한다. 3D는 버튼을 누른 뒤 로드되고, DPR2에서도 120 CSS px를 유지한다. reduced-motion에서는 1회만 그리며 RAF를 예약하지 않는다. 닫기·Escape는 포커스를 원래 버튼으로 돌리고 상위 상세 패널 Escape에 전파하지 않는다. 실제 컨텍스트 손실은 1회 재생성 후 정적으로 대체하고, 종료 시 리스너를 먼저 제거한 뒤 dispose와 명시적 context loss를 실행한다.
 
