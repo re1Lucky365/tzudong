@@ -8,6 +8,7 @@ import {
   buildDurableReceiptOcrPayload,
   buildOcrInputContextHash,
   createSupabaseDurableReceiptOcrStore,
+  createSupabaseRecoveryBoundReceiptOcrStore,
   executeDurableReceiptOcr,
   hasDurableOcrReviewResult,
   pollDurableReceiptOcrResult,
@@ -293,6 +294,11 @@ describe('durable receipt OCR execution', () => {
       { data: null, error: { code: 'missing' }, accepted: false },
       { data: { ...valid, status: 'held' }, error: null, accepted: false },
       { data: { ...valid, schema_version: 2 }, error: null, accepted: false },
+      {
+        data: { ...valid, capability_version: 'receipt-ocr-definitive-credential-release-v1' },
+        error: null,
+        accepted: false,
+      },
       { data: { ...valid, capability_version: 'other' }, error: null, accepted: false },
       { data: { ...valid, extra: true }, error: null, accepted: false },
     ];
@@ -329,6 +335,26 @@ describe('durable receipt OCR execution', () => {
     expect(rpcCalls).toEqual(['get_receipt_ocr_credential_release_capability']);
     expect(quotaReservations).toBe(0);
     expect(providerCalls).toBe(0);
+  });
+
+  test('routes a recovery claim only through the operation-bound RPC', async () => {
+    const recoveryOperationId = '30000000-0000-4000-8000-000000000001';
+    const claimToken = '30000000-0000-4000-8000-000000000002';
+    const resultRef = '30000000-0000-4000-8000-000000000003';
+    const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+    const store = createSupabaseRecoveryBoundReceiptOcrStore({
+      async rpc(name, args) {
+        calls.push({ name, args: args as Record<string, unknown> });
+        return { data: { status: 'claimed', result_ref: resultRef, claim_token: claimToken }, error: null };
+      },
+    }, recoveryOperationId);
+
+    await expect(store.claim({
+      ...binding(), operationId: claimToken, forceRefresh: false,
+    })).resolves.toMatchObject({ status: 'claimed', resultRef, claimToken });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.name).toBe('claim_receipt_ocr_recovery_result');
+    expect(calls[0]!.args.p_recovery_operation_id).toBe(recoveryOperationId);
   });
 
   test('requires an exact bounded definitive release reply', async () => {

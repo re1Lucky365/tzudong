@@ -25,12 +25,20 @@ function parseReviewIds(raw: string | undefined): string[] | null {
   return value as string[];
 }
 
+function parseRecoveryOperationId(raw: string | undefined): string | null {
+  if (!raw?.trim()) return null;
+  if (!UUID.test(raw)) throw new Error('OCR_BATCH_INPUT_INVALID');
+  return raw;
+}
+
 export async function runReceiptOcrWorkflow() {
   const policy = parseReceiptOcrWorkflowPolicy(required('OCR_MODEL_POLICY'), required('OCR_THINKING_LEVEL'));
   const reviewIds = parseReviewIds(process.env.OCR_REVIEW_IDS);
+  const recoveryOperationId = parseRecoveryOperationId(process.env.OCR_RECOVERY_OPERATION_ID);
   const rawLimit = process.env.OCR_BATCH_LIMIT?.trim() || '50';
   if (!/^[1-9]\d*$/.test(rawLimit) || Number(rawLimit) > 50
-    || (reviewIds !== null && reviewIds.length > Number(rawLimit))) {
+    || (reviewIds !== null && reviewIds.length > Number(rawLimit))
+    || (recoveryOperationId !== null && reviewIds?.length !== 1)) {
     throw new Error('OCR_BATCH_INPUT_INVALID');
   }
   // The funded-project key is mandatory here; no fallback to another project's key.
@@ -38,7 +46,9 @@ export async function runReceiptOcrWorkflow() {
   required('NEXT_PUBLIC_SUPABASE_URL');
   required('SUPABASE_SERVICE_ROLE_KEY');
   const client = createSupabaseServiceRoleClient();
-  const summary = await runAdminReceiptOcrBatch({ batchLimit: Number(rawLimit), reviewIds, policy }, {
+  const summary = await runAdminReceiptOcrBatch({
+    batchLimit: Number(rawLimit), reviewIds, policy, recoveryOperationId,
+  }, {
     select: async (input) => {
       let query = client.from('reviews').select(PROJECTION)
         .not('verification_photo', 'is', null)

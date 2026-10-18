@@ -11,12 +11,18 @@ export type ReceiptOcrBatchInput = {
   batchLimit: number;
   reviewIds: string[] | null;
   policy: ReceiptOcrWorkflowPolicy;
+  recoveryOperationId?: string | null;
 };
 export type ReceiptOcrBatchDependencies = {
   select: (input: ReceiptOcrBatchInput) => Promise<ReceiptOcrReviewState[]>;
   read: (reviewId: string) => Promise<ReceiptOcrReviewState | null>;
   isReady: (ownerId: string) => Promise<boolean>;
-  process: (input: { reviewId: string; policy: ReceiptOcrWorkflowPolicy; signal: AbortSignal }) => Promise<Response>;
+  process: (input: {
+    reviewId: string;
+    policy: ReceiptOcrWorkflowPolicy;
+    recoveryOperationId: string | null;
+    signal: AbortSignal;
+  }) => Promise<Response>;
 };
 
 function isTerminal(row: ReceiptOcrReviewState | null): row is ReceiptOcrReviewState {
@@ -26,6 +32,8 @@ function isTerminal(row: ReceiptOcrReviewState | null): row is ReceiptOcrReviewS
 /** Serial and bounded; an uncertain response is reconciled by reads, never resent. */
 export async function runAdminReceiptOcrBatch(input: ReceiptOcrBatchInput, deps: ReceiptOcrBatchDependencies) {
   if (!Number.isInteger(input.batchLimit) || input.batchLimit < 1 || input.batchLimit > 50
+    || (input.recoveryOperationId != null && (!UUID.test(input.recoveryOperationId)
+      || input.reviewIds?.length !== 1))
     || (input.reviewIds !== null && (input.reviewIds.length < 1
       || input.reviewIds.length > input.batchLimit
       || new Set(input.reviewIds).size !== input.reviewIds.length
@@ -61,7 +69,12 @@ export async function runAdminReceiptOcrBatch(input: ReceiptOcrBatchInput, deps:
     }
     let response: Response | undefined;
     try {
-      response = await deps.process({ reviewId: row.id, policy: input.policy, signal: AbortSignal.timeout(240_000) });
+      response = await deps.process({
+        reviewId: row.id,
+        policy: input.policy,
+        recoveryOperationId: input.recoveryOperationId ?? null,
+        signal: AbortSignal.timeout(240_000),
+      });
     } catch { /* Reconcile the single invocation below. */ }
     let after: ReceiptOcrReviewState | null;
     try { after = await deps.read(row.id); } catch {

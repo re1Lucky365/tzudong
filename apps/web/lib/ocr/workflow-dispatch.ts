@@ -36,6 +36,27 @@ export async function buildReceiptOcrWorkflowInputs(
   };
 }
 
+export function buildBoundReceiptOcrRecoveryWorkflowInputs(input: {
+  reviewId: string;
+  recoveryOperationId: string;
+  modelPolicy: readonly string[];
+  thinkingLevel: string;
+}): Record<string, string> {
+  if (!UUID.test(input.reviewId) || !UUID.test(input.recoveryOperationId)) {
+    throw new Error('OCR_WORKFLOW_RECOVERY_BINDING_INVALID');
+  }
+  const validated = parseReceiptOcrWorkflowPolicy(
+    JSON.stringify(input.modelPolicy),
+    input.thinkingLevel,
+  );
+  return {
+    modelPolicy: JSON.stringify(validated.modelPolicy),
+    thinkingLevel: validated.inferenceConfig.thinkingLevel,
+    reviewIds: JSON.stringify([input.reviewId]),
+    recoveryOperationId: input.recoveryOperationId,
+  };
+}
+
 /** A non-204 or transport loss is indeterminate: callers must preserve reset state. */
 export async function dispatchReceiptOcrWorkflow(input: {
   url: string;

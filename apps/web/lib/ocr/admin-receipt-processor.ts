@@ -36,6 +36,7 @@ import {
     buildDurableReceiptOcrPayload,
     buildOcrInputContextHash,
     createSupabaseDurableReceiptOcrStore,
+    createSupabaseRecoveryBoundReceiptOcrStore,
     executeDurableReceiptOcr,
     getReviewReceiptOcrGeneration,
     hasDurableOcrReviewResult,
@@ -53,6 +54,11 @@ import {
     type AdminReceiptRowFailureCode,
     type AdminReceiptRowFailureSnapshot,
 } from '@/lib/ocr/admin-receipt-row-failure';
+import {
+    ADMIN_RECEIPT_OCR_PREPROCESS_VERSION,
+    ADMIN_RECEIPT_OCR_PROMPT_VERSION,
+    authorizeReceiptOcrExecution,
+} from '@/lib/ocr/admin-receipt-recovery';
 
 
 const MAX_RECEIPT_TEXT_LENGTH = 120;
@@ -63,8 +69,6 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^\d{2}:\d{2}$/;
 const PHONE_LIKE_PATTERN = /(?:\+?82[-.\s]?)?0?1[0-9][-.\s]?\d{3,4}[-.\s]?\d{4}|0[2-6][-.\s]?\d{3,4}[-.\s]?\d{4}/;
 const RECEIPT_SCHEMA_VERSION = 'receipt_summary_v1';
-const ADMIN_OCR_PROMPT_VERSION = 'admin-receipt-summary-v1';
-const ADMIN_OCR_PREPROCESS_VERSION = 'admin-canonical-jpeg-v2';
 const SAFE_OCR_FAILURE_CODES = new Set([
     'not_receipt',
     'unreadable',
@@ -505,6 +509,7 @@ export async function processAdminReceiptOcr(input: {
     reviewId: string;
     signal?: AbortSignal;
     policy?: ReceiptOcrWorkflowPolicy;
+    recoveryOperationId?: string | null;
 }): Promise<Response> {
     if (!UUID_PATTERN.test(input.reviewId)) return errorResponse('INVALID_REQUEST', 400);
     const explicitPolicy = input.policy
@@ -606,19 +611,6 @@ export async function processAdminReceiptOcr(input: {
                 correlationId,
             );
         }
-        if (receiptDownload.bucket === LEGACY_REVIEW_VERIFICATION_BUCKET
-            || canonicalStorageImage.bytes.byteLength < downloadedImage.bytes.byteLength) {
-            await replaceReceiptWithCompressedObject(
-                supabase,
-                storageAdmin,
-                body.reviewId,
-                review.verification_photo,
-                receiptObjectPath,
-                canonicalStorageImage.bytes,
-            );
-            if (!await drainAdminVerificationCleanup(cleanup, body.reviewId, review.user_id)) throw new OcrPersistenceError();
-        }
-
         const imageHash = crypto.createHash('sha256').update(canonicalStorageImage.bytes).digest('hex');
         const aiRuntime = await resolveOcrAiRuntimeConfig();
         const modelPolicy = explicitPolicy?.modelPolicy ?? getOcrModelPolicy(aiRuntime);
@@ -628,24 +620,56 @@ export async function processAdminReceiptOcr(input: {
             review.user_id,
             body.reviewId,
         );
+        const inputContextHash = buildOcrInputContextHash(imageHash, null, inferenceConfig);
+        await authorizeReceiptOcrExecution(supabase as never, {
+            userId: review.user_id,
+            reviewId: body.reviewId,
+            generation,
+            recoveryOperationId: input.recoveryOperationId ?? null,
+            verificationPhotoHash: crypto.createHash('sha256').update(review.verification_photo).digest('hex'),
+            imageHash,
+            inputContextHash,
+            modelPolicy,
+            thinkingLevel: inferenceConfig.thinkingLevel,
+            promptVersion: ADMIN_RECEIPT_OCR_PROMPT_VERSION,
+            preprocessVersion: ADMIN_RECEIPT_OCR_PREPROCESS_VERSION,
+            normalizationVersion: RECEIPT_OCR_NORMALIZATION_VERSION,
+        });
         const credentials = getRunnableCredentials({ candidate: aiRuntime, routingMode: aiRuntime.routingMode });
+        const durableStore = input.recoveryOperationId
+            ? createSupabaseRecoveryBoundReceiptOcrStore(supabase as never, input.recoveryOperationId)
+            : createSupabaseDurableReceiptOcrStore(supabase as never);
         const durable = await executeDurableReceiptOcr({
-            store: createSupabaseDurableReceiptOcrStore(supabase as never),
+            store: durableStore,
             binding: {
                 userId: review.user_id,
                 imageHash,
-                inputContextHash: buildOcrInputContextHash(imageHash, null, inferenceConfig),
+                inputContextHash,
                 provider: 'gemini',
                 modelPolicy,
                 generation,
-                promptVersion: ADMIN_OCR_PROMPT_VERSION,
-                preprocessVersion: ADMIN_OCR_PREPROCESS_VERSION,
+                promptVersion: ADMIN_RECEIPT_OCR_PROMPT_VERSION,
+                preprocessVersion: ADMIN_RECEIPT_OCR_PREPROCESS_VERSION,
                 normalizationVersion: RECEIPT_OCR_NORMALIZATION_VERSION,
             },
             operationId: crypto.randomUUID(),
             forceRefresh: false,
             beforeProvider: async () => {
                 if (!credentials[0]) throw new OcrProviderUnavailableError();
+                if (!input.recoveryOperationId && (receiptDownload.bucket === LEGACY_REVIEW_VERIFICATION_BUCKET
+                    || canonicalStorageImage.bytes.byteLength < downloadedImage.bytes.byteLength)) {
+                    await replaceReceiptWithCompressedObject(
+                        supabase,
+                        storageAdmin,
+                        body.reviewId,
+                        review.verification_photo,
+                        receiptObjectPath,
+                        canonicalStorageImage.bytes,
+                    );
+                    if (!await drainAdminVerificationCleanup(cleanup, body.reviewId, review.user_id)) {
+                        throw new OcrPersistenceError();
+                    }
+                }
             },
             runProvider: async () => {
                 const ocrResult = await callGeminiReceiptOcrWithCredentialFallback({

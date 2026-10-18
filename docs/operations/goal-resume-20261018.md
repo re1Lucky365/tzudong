@@ -4,10 +4,11 @@
 
 ## 현재 실행
 
+- 최신 재개에서는 로컬 `cfba8fbb`와 원격 `65c98679`를 구분했다. 해당 원격 head의 완료 재조회는 성공30·skipped2·cancelled1, 실패·대기0이다. cancelled Promotion Path와 별개로 같은 head의 성공 실행이 있다. 새107 권한 admission은 실제 PG17 초기 권한 반례와 PG15 clean replay2회를 통과했다. 108 명시 복구는 최종 앱140 tests/1,070 assertions·parity3,356입력/진단0·build54/54, Node24 OCR UI39/39와 독립 소스 재감사를 통과했다. PG17 함수·트리거·FK drift 거부와 실제 두 세션의 삭제 장벽 및 최종 main fixture12/12를 통과했다. 실제 public RPC25개는 service_role, private readback11개는 postgres로 분리됐으며 권한을 넓히지 않았다. 최신 fixture/manifest의 compiler3/59와 불변 앱137/1,011의 구성 검증임을 구분한다. 두 PG15 source-only clean replay는 각1,960행·비교 hash58개가 일치했다. 이 변경은 위 원격 CI에 포함되지 않았고 `/목표`는 계속 active다. [상세 경계](review-recovery-20261019.md).
 - 실제 `/목표`는 전체 요청·보존 조건·정량 보고 범위를 유지한 `active`다. 완료 상태로 변경하지 않았다.
 - 후속 수정의 기준 PR #3215 HEAD는 `b1c505cd4f065fac8a4ebefe235a85a5513acbd7`이다. 앱 복구 수정 `dfa77ca0b509c508ac29ec5f93fe7eb3f45cc16f`를 PR에 push했고 관련 리뷰4건을 resolve한 뒤 재조회했다. 10월19일 재조회한 기존 `b1c505cd`의 33개 check 상태는 success31·skipped2이며 대기·실패0, Swift도 성공했다. 이 결과는 후속 수정의 CI 증거가 아니다. Freshness·hosted ledger의 skipped 2개와 Vercel status는 운영 SQL·배포 증거로 사용하지 않는다.
 - 리뷰 음식 사진은 20장으로 경계를 맞췄다. 신규 21장은 압축·업로드·insert 전에 차단하고 기존 입력을 유지한다. 불확실한 저장 뒤 현재 사진이 0장·21장이어도 별도 결과 확인과 임시 저장 정리를 실행할 수 있다. 닫힌 composer에 늦은 실패 알림이 나오는 반례도 실제 실패를 재현한 뒤 보완했다. 최종 영향 검사174개/2,642 assertions·ESLint·parity3,350입력/진단0·build54페이지가 통과했다. 독립 표적13건은 기존 검사와 겹치므로 합산하지 않는다. [최종 source-bound 검증](../../apps/web/performance/cross-audit-20261018/review-food-photo-final-verification/index.json)과 최초 반례·중간 영수증을 구분해 보존했다.
-- Gemini 반대 감사는 기존 FIFO/job/hash 그대로 대기 중이다. 10월19일 최신 coordinator 조회에서 다른 owner의 예약2건은 `uncertain`이고 사용 가능한 슬롯은0이다. 한 계정의5시간 cap도 공유 장부에 기록돼 있으며, 상태 파일만으로 실제 연구 진행이나 현재 계정 허용량을 확정하지 않는다. 내 작업의 업로드·dispatch는0건이다. 준비된 post-CMS 패키지는 `17eec51a` 범위이고 별도 runtime snapshot은 `b1c505cd` 범위이므로, 아래 추가 수정을 포함한 최종 전체 소스 묶음이 필요하다. 실제 반대 감사·최종 역검증·운영 SQL·승격·배포·모든 메뉴 실검증은 미완료다.
+- Gemini 반대 감사는 기존 FIFO/job/hash 그대로 대기 중이다. 저장된 coordinator 관측은 다른 owner의 uncertain 예약과 사용 가능 슬롯0을 기록했으며 현재 실시간 진행·허용량 증거가 아니다. 한 계정의5시간 cap도 공유 장부에 기록돼 있다. 내 작업의 업로드·dispatch는0건이다. 준비된 post-CMS 패키지는 `17eec51a` 범위이고 별도 runtime snapshot은 `b1c505cd` 범위이므로, 아래 추가 수정을 포함한 최종 전체 소스 묶음이 필요하다. 실제 반대 감사·최종 역검증·운영 SQL·승격·배포·모든 메뉴 실검증은 미완료다.
 
 ### 10월19일 후속 리뷰
 
@@ -122,4 +123,4 @@ CMS-FINAL-001~004는 관측 revision CAS, 실제 삭제된 행의 미디어 정�
 
 실제 GPT-6 Pro + Deep Research 보충 보고서38,673bytes를 원문 그대로 저장했고 SHA는117b7a0f220af81c5283b385a1b5f46b440c628521fc5ca3522f3a5e7517a215다. [원본 대화](https://chatgpt.com/c/6ad50f71-6e94-83ee-bdf1-851a80101df8)와 frozen14a8f5da/bundle90c4e3f0…를 결속했다. 13개 consequential finding을 [판정표](../../apps/web/performance/cross-audit-20261019/ocr-credential-admission-supplemental-review/decision-matrix.json)와 [후속 판정](../../apps/web/performance/cross-audit-20261019/ocr-credential-admission-supplemental-review/decision-matrix-followup.json)에 매핑했다. 연구 슬롯은 전문 저장 직후 반환했다. 이 보충 연구는 Gemini 반대 감사나 최종 역검증이 아니다.
 
-Initial canonical ACL admission은 미해결이다. 기존106은 운영 applied가 아닌 held_unapplied이며 실제 적용 lineage는89→100→105다. Frozen/published106 pins를 보존하는 별도107과 versioned fail-closed admission을 준비한다. 새 P1 리뷰의 stale-pending admin rerun은 단순 generation 회전으로 해결하지 않는다. 일반 dispatch retry와 명시 recovery operation을 분리하고 ACK 손실·processing·stale generation의 중복 호출을 막는108 계약을 준비한다. 실제 구현·DB 검증·후속 CI·운영 단계는 별도 gate다.
+이 보충 연구 당시 initial canonical ACL admission은 미해결이었고, 기존106은 운영 applied가 아닌 held_unapplied이며 실제 적용 lineage는89→100→105였다. 이후 frozen/published106 pins를 보존하는 별도107과 versioned fail-closed admission, 일반 dispatch retry와 명시 recovery operation을 분리하는108을 구현했다. 현재 로컬 구현·DB·UI 검증 범위는 상단 실행 상태와 상세 보고서를 따르며, 후속 CI·외부 감사·운영 단계는 별도 gate다.

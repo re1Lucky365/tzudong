@@ -50,6 +50,10 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { GUARDED_MUTATION_CONFIRMATION } from '@/lib/admin/guarded-mutation-contract';
+import {
+    retainConfirmedOcrRecoveryOperation,
+    type PendingOcrRecoveryOperation,
+} from '@/lib/admin/ocr-recovery-confirmation';
 import { getSubmissionApprovalState } from '@/lib/admin/submission-approval-state';
 import {
     ADMIN_SUBMISSION_QUEUE_REASON_FILTERS,
@@ -76,8 +80,49 @@ const RECOMMEND_REJECT_CONFIRMATION = '추천거부';
 const REVIEW_DELETE_CONFIRMATION = '리뷰삭제';
 const OCR_RESET_ALL_CONFIRMATION = 'OCR초기화';
 const OVERRIDE_APPROVAL_CONFIRMATION = '무시승인';
-const GUARDED_OCR_CONFIRMATION_MESSAGE =
-    `이 OCR 작업은 ${GUARDED_MUTATION_CONFIRMATION} 보호 절차로 실행됩니다. 계속하시겠습니까?`;
+const GUARDED_OCR_CONFIRMATION_MESSAGE = '계속하시겠습니까?';
+const OCR_RECOVERY_COST_NOTICE = '이전 분석 결과는 확정되지 않았으며 추가 API 사용이 발생할 수 있습니다.';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+
+type OcrRecoveryPreview = {
+    status: 'eligible' | 'processing' | 'not_indeterminate' | 'recovery_in_progress' | 'conflict';
+    expectedGeneration: string | null;
+    inputSnapshotHash: string | null;
+    recoveryOperationId: string | null;
+};
+
+function parseOcrRecoveryPreview(value: unknown, reviewId: string): OcrRecoveryPreview | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    const expectedKeys = [
+        'expectedGeneration', 'inputSnapshotHash', 'recoveryOperationId',
+        'reviewId', 'schemaVersion', 'status',
+    ].sort();
+    if (keys.length !== expectedKeys.length
+        || keys.some((key, index) => key !== expectedKeys[index])
+        || record.schemaVersion !== 1
+        || record.reviewId !== reviewId) return null;
+    if (!['eligible', 'processing', 'not_indeterminate', 'recovery_in_progress', 'conflict'].includes(String(record.status))) {
+        return null;
+    }
+    const expectedGeneration = typeof record.expectedGeneration === 'string' && UUID_PATTERN.test(record.expectedGeneration)
+        ? record.expectedGeneration : null;
+    const inputSnapshotHash = typeof record.inputSnapshotHash === 'string' && SHA256_PATTERN.test(record.inputSnapshotHash)
+        ? record.inputSnapshotHash : null;
+    const recoveryOperationId = typeof record.recoveryOperationId === 'string' && UUID_PATTERN.test(record.recoveryOperationId)
+        ? record.recoveryOperationId : null;
+    if ((record.status === 'eligible' || record.status === 'recovery_in_progress')
+        && (!expectedGeneration || !inputSnapshotHash)) return null;
+    if (record.status === 'recovery_in_progress' && !recoveryOperationId) return null;
+    return {
+        status: record.status as OcrRecoveryPreview['status'],
+        expectedGeneration,
+        inputSnapshotHash,
+        recoveryOperationId,
+    };
+}
 
 const SUBMISSION_TYPE_LABELS: Record<SubmissionRecord['submission_type'], string> = {
     new: '신규 제보',
@@ -403,10 +448,9 @@ export function SubmissionListView({
     const [ocrStatus, setOcrStatus] = useState<{ pending: number; duplicate: number; processed: number } | null>(null);
     const [isOcrRunning, setIsOcrRunning] = useState(false);
     const [ocrRerunningIds, setOcrRerunningIds] = useState<Set<string>>(new Set());
-    const [ocrCountdowns, setOcrCountdowns] = useState<Record<string, number>>({});  // 리뷰 ID별 카운트다운 (초)
     const ocrPollingRef = useRef<NodeJS.Timeout | null>(null);
     const ocrRealtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-    const ocrCountdownRef = useRef<NodeJS.Timeout | null>(null);
+    const ocrRecoveryOperationsRef = useRef<Map<string, PendingOcrRecoveryOperation>>(new Map());
     const submissionTabSwipeStartXRef = useRef<number | null>(null);
     const submissionTabSwipeEndXRef = useRef<number | null>(null);
     const submissionTabSwipeStartYRef = useRef<number | null>(null);
@@ -736,52 +780,78 @@ export function SubmissionListView({
         }
     }, [activeTab, fetchOcrStatus]);
 
-    // OCR 카운트다운 타이머 관리
-    const hasOcrCountdowns = useMemo(() => Object.keys(ocrCountdowns).length > 0, [ocrCountdowns]);
-
-    useEffect(() => {
-        // 카운트다운이 있는 리뷰가 있으면 1초마다 감소
-        if (!hasOcrCountdowns) {
-            if (ocrCountdownRef.current) {
-                clearInterval(ocrCountdownRef.current);
-                ocrCountdownRef.current = null;
-            }
-            return;
-        }
-
-        ocrCountdownRef.current = setInterval(() => {
-            setOcrCountdowns(prev => {
-                const next: Record<string, number> = {};
-                for (const [id, seconds] of Object.entries(prev)) {
-                    if (seconds > 1) {
-                        next[id] = seconds - 1;
-                    }
-                    // 0이 되면 제거
-                }
-                return next;
-            });
-        }, 1000);
-
-        return () => {
-            if (ocrCountdownRef.current) {
-                clearInterval(ocrCountdownRef.current);
-                ocrCountdownRef.current = null;
-            }
-        };
-    }, [hasOcrCountdowns]);
-
-    // 단일 리뷰 OCR 재실행 (GitHub Actions 트리거)
-    const handleRerunOcr = useCallback(async (reviewId: string) => {
+    // 단일 리뷰 OCR 재실행. 이미 대기 중인 행은 DB preview 뒤에만 명시 recovery를 허용한다.
+    const handleRerunOcr = useCallback(async (review: Review) => {
+        const reviewId = review.id;
         if (ocrFeatureHeld) {
             toast.error(FEATURE_DATABASE_HELD_MESSAGE);
             return;
         }
-        if (!confirmGuardedOcrMutation('선택한 리뷰 OCR 데이터를 초기화하고 재실행합니다.')) return;
+
+        let recoveryOperation: PendingOcrRecoveryOperation | null = null;
+        const isPending = !review.ocr_processed_at && review.receipt_data == null && review.is_duplicate !== true;
+        if (isPending) {
+            let previewPayload: unknown;
+            try {
+                const previewResponse = await fetch('/api/admin/ocr-receipts/rerun', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'preview_provider_indeterminate', reviewId }),
+                });
+                previewPayload = await previewResponse.json();
+                if (!previewResponse.ok) {
+                    const error = previewPayload && typeof previewPayload === 'object' && !Array.isArray(previewPayload)
+                        ? (previewPayload as Record<string, unknown>).error : null;
+                    toast.error(typeof error === 'string' ? error : 'OCR 복구 상태를 확인하지 못했습니다.');
+                    return;
+                }
+            } catch {
+                toast.error('OCR 복구 상태를 확인하지 못했습니다.');
+                return;
+            }
+
+            const recoveryRecord = previewPayload && typeof previewPayload === 'object' && !Array.isArray(previewPayload)
+                ? (previewPayload as Record<string, unknown>).recovery : null;
+            const preview = parseOcrRecoveryPreview(recoveryRecord, reviewId);
+            if (!preview) {
+                toast.error('OCR 복구 상태를 확인하지 못했습니다.');
+                return;
+            }
+            if (preview.status === 'processing') {
+                toast.error('기존 OCR 처리가 진행 중입니다. 처리 상태를 확인해 주세요.');
+                return;
+            }
+            if (preview.status === 'conflict') {
+                toast.error('OCR 복구 상태가 변경되었습니다. 최신 상태를 다시 확인해 주세요.');
+                return;
+            }
+            if (preview.status === 'eligible' || preview.status === 'recovery_in_progress') {
+                const retained = ocrRecoveryOperationsRef.current.get(reviewId);
+                const canReuseRetained = retained
+                    && retained.expectedGeneration === preview.expectedGeneration
+                    && retained.inputSnapshotHash === preview.inputSnapshotHash;
+                const operationId = preview.recoveryOperationId
+                    ?? (canReuseRetained ? retained.operationId : crypto.randomUUID());
+                recoveryOperation = {
+                    operationId,
+                    expectedGeneration: preview.expectedGeneration!,
+                    inputSnapshotHash: preview.inputSnapshotHash!,
+                };
+                if (!retainConfirmedOcrRecoveryOperation(
+                    ocrRecoveryOperationsRef.current,
+                    reviewId,
+                    recoveryOperation,
+                    preview.status === 'eligible' && !canReuseRetained,
+                    () => confirmGuardedOcrMutation(OCR_RECOVERY_COST_NOTICE),
+                )) return;
+            }
+        }
+
+        if (!recoveryOperation
+            && !confirmGuardedOcrMutation('선택한 리뷰 OCR 데이터를 초기화하고 재실행합니다.')) return;
 
         // 해당 리뷰 ID를 재실행 중 상태로 추가
         setOcrRerunningIds(prev => new Set(prev).add(reviewId));
-        // 40초 카운트다운 시작
-        setOcrCountdowns(prev => ({ ...prev, [reviewId]: 40 }));
 
         try {
             // GitHub Actions 워크플로우 트리거
@@ -789,12 +859,19 @@ export function SubmissionListView({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    ...(recoveryOperation ? {
+                        action: 'recover_provider_indeterminate',
+                        recoveryOperationId: recoveryOperation.operationId,
+                        expectedGeneration: recoveryOperation.expectedGeneration,
+                        inputSnapshotHash: recoveryOperation.inputSnapshotHash,
+                    } : {}),
                     reviewId,
                     guardedMutationConfirmation: GUARDED_MUTATION_CONFIRMATION,
                 }),
             });
             const data = await response.json();
             if (response.ok && data.success) {
+                ocrRecoveryOperationsRef.current.delete(reviewId);
                 toast.success(buildGuardedOcrSuccessMessage(data, data.message || 'OCR 처리 요청이 접수되었습니다.'));
 
                 // 선택된 리뷰 OCR 상태 초기화 (UI 즉시 반영)
@@ -807,29 +884,28 @@ export function SubmissionListView({
                     } : null);
                 }
             } else {
+                const dispatchIndeterminate = Boolean(
+                    data && typeof data === 'object' && !Array.isArray(data)
+                    && (data as Record<string, unknown>).dispatchIndeterminate === true,
+                );
+                if (!dispatchIndeterminate && recoveryOperation) {
+                    ocrRecoveryOperationsRef.current.delete(reviewId);
+                }
                 toast.error(`OCR 재실행 실패: ${data.error || '알 수 없는 오류'}`);
-                // 실패 시 해당 ID 제거 및 카운트다운 중지
+                // 실패 시 해당 ID 제거
                 setOcrRerunningIds(prev => {
                     const next = new Set(prev);
                     next.delete(reviewId);
                     return next;
                 });
-                setOcrCountdowns(prev => {
-                    const next = { ...prev };
-                    delete next[reviewId];
-                    return next;
-                });
             }
         } catch {
+            // A lost response may follow a committed recovery rotation. Keep the
+            // operation id so the next preview/retry cannot rotate again.
             toast.error('OCR 재실행 중 오류가 발생했습니다.');
             setOcrRerunningIds(prev => {
                 const next = new Set(prev);
                 next.delete(reviewId);
-                return next;
-            });
-            setOcrCountdowns(prev => {
-                const next = { ...prev };
-                delete next[reviewId];
                 return next;
             });
         }
@@ -880,12 +956,6 @@ export function SubmissionListView({
                             next.delete(reviewId);
                             return next;
                         });
-                        // 카운트다운 제거
-                        setOcrCountdowns(prev => {
-                            const next = { ...prev };
-                            delete next[reviewId];
-                            return next;
-                        });
                         toast.success('OCR 처리가 완료되었습니다.');
 
                         // 폴링 중단
@@ -931,6 +1001,7 @@ export function SubmissionListView({
                 const ocrData = data as { ocr_processed_at: string | null; receipt_data: Review['receipt_data']; is_duplicate: boolean | null } | null;
 
                 if (!error && ocrData?.ocr_processed_at && ocrData.ocr_processed_at !== originalOcrProcessedAt) {
+                    ocrRecoveryOperationsRef.current.delete(reviewId);
                     setSelectedReview(prev => prev ? {
                         ...prev,
                         ocr_processed_at: ocrData.ocr_processed_at,
@@ -940,12 +1011,6 @@ export function SubmissionListView({
                     setOcrRerunningIds(prev => {
                         const next = new Set(prev);
                         next.delete(reviewId);
-                        return next;
-                    });
-                    // 카운트다운 제거
-                    setOcrCountdowns(prev => {
-                        const next = { ...prev };
-                        delete next[reviewId];
                         return next;
                     });
                     toast.success('OCR 처리가 완료되었습니다.');
@@ -2241,7 +2306,7 @@ export function SubmissionListView({
                 <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleRerunOcr(review.id)}
+                    onClick={() => handleRerunOcr(review)}
                     disabled={ocrRerunningIds.has(review.id)}
                     className="ml-auto h-7 gap-1 px-2 text-xs"
                 >
@@ -2250,13 +2315,17 @@ export function SubmissionListView({
                     ) : (
                         <RefreshCw className="h-3 w-3" />
                     )}
-                    {ocrRerunningIds.has(review.id) ? `${ocrCountdowns[review.id] || 0}초` : 'OCR 다시 실행'}
+                    {ocrRerunningIds.has(review.id)
+                        ? '결과 확인 중'
+                        : !review.ocr_processed_at && review.receipt_data == null
+                            ? 'OCR 복구'
+                            : 'OCR 다시 실행'}
                 </Button>
             </Label>
             {ocrRerunningIds.has(review.id) && !review.ocr_processed_at && (
                 <Card className="border-border bg-secondary p-3 text-sm text-foreground shadow-none">
                     <Loader2 className="mr-2 inline h-4 w-4 animate-spin motion-reduce:animate-none" />
-                    OCR 처리 중... {ocrCountdowns[review.id] || 0}초 후 완료 예정
+                    OCR 결과를 확인하고 있습니다.
                 </Card>
             )}
             {!ocrRerunningIds.has(review.id) && !review.ocr_processed_at && (

@@ -20,7 +20,10 @@ import { getOcrModelPolicy } from '@/lib/ocr/runtime-config';
 import { createClient } from '@supabase/supabase-js';
 
 mock.module('server-only', () => ({}));
-const { dispatchReceiptOcrWorkflow } = await import('@/lib/ocr/workflow-dispatch');
+const {
+  buildBoundReceiptOcrRecoveryWorkflowInputs,
+  dispatchReceiptOcrWorkflow,
+} = await import('@/lib/ocr/workflow-dispatch');
 const {
   RECEIPT_OCR_RESET_STATE,
   hasExactReceiptOcrState,
@@ -482,6 +485,22 @@ describe('trusted administrator receipt OCR workflow', () => {
     expect(processor).toContain('inferenceConfig,\n                    signal: input.signal');
   });
 
+  test('dispatches recovery with only the opaque operation and exact public execution policy', () => {
+    const operationId = uuid(90, '30000000');
+    const reviewId = uuid(91, '30000000');
+    expect(buildBoundReceiptOcrRecoveryWorkflowInputs({
+      reviewId,
+      recoveryOperationId: operationId,
+      modelPolicy: policy.modelPolicy,
+      thinkingLevel: policy.inferenceConfig.thinkingLevel,
+    })).toEqual({
+      modelPolicy: JSON.stringify(policy.modelPolicy),
+      thinkingLevel: 'HIGH',
+      reviewIds: JSON.stringify([reviewId]),
+      recoveryOperationId: operationId,
+    });
+  });
+
   test('admits funded workflow execution only for the repository owner at protected main', () => {
     const root = join(import.meta.dir, '..');
     const workflow = readFileSync(join(root, '../../.github/workflows/ocr-review-receipts.yml'), 'utf8');
@@ -588,12 +607,14 @@ describe('trusted administrator receipt OCR workflow', () => {
       expect(route).toContain('workflowDeliveryVerified: false');
     }
     expect(routes[1]).toContain('buildReceiptOcrWorkflowInputs([reviewId])');
-    expect(routes[1]!.indexOf('buildReceiptOcrWorkflowInputs([reviewId])')).toBeLessThan(
-      routes[1]!.indexOf('const previousOcrState'),
+    expect(routes[1]!.indexOf('workflowPreflightResponse')).toBeLessThan(
+      routes[1]!.indexOf('applyReceiptOcrIndeterminateRecovery(supabase'),
     );
     expect(routes[1]).toContain('resetAlreadyPending = isResetReceiptOcrState({ id: reviewId, ...previousOcrState })');
     expect(routes[1]).toContain('resetPreserved: true');
     expect(routes[1]).not.toContain('rollbackReadback');
+    expect(routes[1]).toContain("body.action === RECOVERY_ACTION && !resetAlreadyPending");
+    expect(routes[1]).toContain("else if (!resetAlreadyPending)");
     expect(routes[2]).toContain('.limit(MAX_OCR_RESET_BATCH)');
     expect(routes[2]).toContain('buildReceiptOcrWorkflowInputs(targetReviewIds)');
     expect(routes[2]!.indexOf('buildReceiptOcrWorkflowInputs(targetReviewIds)')).toBeLessThan(

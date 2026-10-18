@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const upstream = 'http://127.0.0.1:18792';
 const origin = 'http://127.0.0.1:18794';
 const stamp = '2026-10-03T00:00:00.000Z';
+const receiptOcrRecoveryFixture = process.env.TZUDONG_RECEIPT_OCR_RECOVERY_FIXTURE === '1';
 const storyboardProjects = ['gemini-api','manual'].map((provider,index) => {
   const id=`00000000-0000-4000-b100-${String(index+1).padStart(12,'0')}`;
   const textModel=provider==='gemini-api'?'gemini-3.8-flash':'manual';
@@ -57,7 +58,12 @@ const fixtureReviews = restaurants.flatMap((restaurant, i) => fixtureProfiles.ma
   title:`검증 리뷰 ${j+1}`,content:`검증용 리뷰 ${j+1}. 음식과 공간의 분위기를 확인하는 합성 데이터입니다.`,visited_at:stamp,created_at:stamp,
   verification_photo:'',updated_at:stamp,is_duplicate:false,receipt_data:null,ocr_processed_at:null,food_photos:[],categories:['한식'],is_verified:true,is_pinned:false,is_edited_by_admin:false,admin_note:null,like_count:j+1,
 })));
-const pendingReviews = fixtureReviews.slice(0,3).map((row,i)=>({...row,id:`00000000-0000-4000-a400-${String(i+1).padStart(12,'0')}`,is_verified:false}));
+const pendingReviews = fixtureReviews.slice(0,3).map((row,i)=>{
+  const id=`00000000-0000-4000-a400-${String(i+1).padStart(12,'0')}`;
+  return {...row,id,is_verified:false,verification_photo:receiptOcrRecoveryFixture
+    ? `${row.user_id}/reviews/${id}/verification/fixture-receipt.webp`
+    : row.verification_photo};
+});
 function filteredRows(req,rows) {
   const query=new URL(req.url,origin).searchParams;
   let selected=rows;

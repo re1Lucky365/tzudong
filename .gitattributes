@@ -32,3 +32,10 @@ backend/supabase/migrations/20261016090000_review_verification_delete_guard_read
 # Preserve literal bytes of the final-source package and its failed build receipt.
 apps/web/performance/cross-audit-20261018/final-source-antithesis-post-cms/final-source-antithesis-source_bundle.txt whitespace=-blank-at-eof
 apps/web/performance/cross-audit-20261018/followup-verification/web-build.txt whitespace=-blank-at-eol
+
+# Preserve hash-bound original audit Markdown hard breaks and the raw test receipt.
+# These exact evidence paths retain their bytes; source whitespace checks stay enabled.
+apps/web/performance/cross-audit-20261019/ocr-indeterminate-recovery-independent-audit/audit.md whitespace=-blank-at-eol
+apps/web/performance/cross-audit-20261019/ocr-indeterminate-recovery-independent-audit/final-candidate-audit-20261018T195954Z.md whitespace=-blank-at-eol
+apps/web/performance/cross-audit-20261019/ocr-indeterminate-recovery-independent-audit/syntax-delta-followup-20261018T201149Z.md whitespace=-blank-at-eol
+apps/web/performance/cross-audit-20261019/ocr-admission-recovery-app-integrated-verification/recovery108-source-ready-scoped-20261019.txt whitespace=-blank-at-eof

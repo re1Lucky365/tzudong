@@ -441,7 +441,7 @@ describe('OCR extract route privacy and normalization contract', () => {
     expect(checkOcrDailyQuota({ quotaClient: failedClient, operationId })).rejects.toThrow('OCR_QUOTA_UNAVAILABLE');
   });
 
-  test('admin OCR preflights bounded resets and preserves generations when dispatch is indeterminate', () => {
+  test('admin OCR preflights resets, preserves dispatch retries, and isolates explicit indeterminate recovery', () => {
     const rerunRouteSource = source('app/api/admin/ocr-receipts/rerun/route.ts');
     const dispatchRouteSource = source('app/api/admin/ocr-receipts/route.ts');
     const resetAllRouteSource = source('app/api/admin/ocr-receipts/reset-all/route.ts');
@@ -456,15 +456,18 @@ describe('OCR extract route privacy and normalization contract', () => {
     expect(rerunRouteSource).toContain("ocr_processed_at: review.ocr_processed_at");
     expect(rerunRouteSource).toContain("receipt_data: review.receipt_data");
     expect(rerunRouteSource.indexOf('workflowPreflightResponse')).toBeLessThan(
-      rerunRouteSource.indexOf("const previousOcrState"),
+      rerunRouteSource.indexOf('applyReceiptOcrIndeterminateRecovery(supabase'),
     );
-    expect(rerunRouteSource.indexOf("const previousOcrState")).toBeLessThan(
-      rerunRouteSource.indexOf('resetReceiptOcrRowWithCas('),
+    expect(rerunRouteSource.indexOf('workflowPreflightResponse')).toBeLessThan(
+      rerunRouteSource.indexOf('resetReceiptOcrRowWithCas(supabase'),
     );
     expect(rerunRouteSource).toContain('resetAlreadyPending = isResetReceiptOcrState({ id: reviewId, ...previousOcrState })');
     expect(rerunRouteSource).toContain('resetPreserved: true');
     expect(rerunRouteSource).not.toContain('rollbackReadback');
     expect(rerunRouteSource).toContain('resetReceiptOcrRowWithCas(');
+    expect(rerunRouteSource).toContain("body.action === RECOVERY_ACTION && !resetAlreadyPending");
+    expect(rerunRouteSource).toContain("else if (!resetAlreadyPending)");
+    expect(rerunRouteSource).toContain('applyReceiptOcrIndeterminateRecovery(supabase');
     expect(resetCoreSource).toContain("query.eq('receipt_data', JSON.stringify(snapshot.receipt_data))");
     expect(resetCoreSource).toContain('resetReceiptOcrRowsWithCas(');
     expect(rerunRouteSource).toContain("step: 'workflow-dispatch'");
@@ -479,10 +482,18 @@ describe('OCR extract route privacy and normalization contract', () => {
       dispatchRouteSource.indexOf('dispatchReceiptOcrWorkflow({'),
     );
 
-    expect(rerunRouteSource).toContain("buildGuardedMutationRequiredResponse('ocr_receipt', 'rerun')");
+    expect(rerunRouteSource).toContain("buildGuardedMutationRequiredResponse(");
+    expect(rerunRouteSource).toContain(
+      "body.action === RECOVERY_ACTION ? 'recover_provider_indeterminate' : 'rerun'",
+    );
     expect(rerunRouteSource).toContain("guardedMutation");
-    expect(rerunRouteSource.indexOf('if (!hasGuardedMutationConfirmation')).toBeLessThan(
-      rerunRouteSource.indexOf("const supabase = createSupabaseServiceRoleClient()"),
+    const rerunConfirmationIndex = rerunRouteSource.indexOf('if (!hasGuardedMutationConfirmation');
+    expect(rerunConfirmationIndex).toBeGreaterThanOrEqual(0);
+    expect(rerunConfirmationIndex).toBeLessThan(
+      rerunRouteSource.indexOf('applyReceiptOcrIndeterminateRecovery(supabase'),
+    );
+    expect(rerunConfirmationIndex).toBeLessThan(
+      rerunRouteSource.indexOf('resetReceiptOcrRowWithCas(supabase'),
     );
 
     expect(resetAllRouteSource).toContain("buildGuardedMutationRequiredResponse('ocr_receipt', 'reset_all')");

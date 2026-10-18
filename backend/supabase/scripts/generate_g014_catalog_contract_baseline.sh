@@ -45,6 +45,8 @@ relevant_sources=(
   'backend/supabase/scripts/transform_review_storage_pg15_replay.py'
   'backend/supabase/scripts/transform_feature_rpc_catalog_pg15_replay.py'
   'backend/supabase/scripts/transform_receipt_ocr_credential_release_pg15_replay.py'
+  'backend/supabase/scripts/transform_receipt_ocr_acl_admission_pg15_replay.py'
+  'backend/supabase/scripts/transform_receipt_ocr_indeterminate_recovery_pg15_replay.py'
   'backend/supabase/scripts/transform_review_verification_readiness_pg15_replay.py'
   'backend/supabase/scripts/transform_registration_replay.py'
   'backend/supabase/scripts/transform_advisor_replay.py'
@@ -1628,6 +1630,28 @@ for migration in "${effective_migrations[@]}"; do
       g026_chain_apply 'receipt-ocr-credential-release-pg15-replay-transformer' \
         "$script_dir/transform_receipt_ocr_credential_release_pg15_replay.py"
       g026_chain_apply "receipt-ocr-credential-release-pg15-replay:${migration##*/}" \
+        "$transformed_migration"
+      compose exec -T db psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres <"$transformed_migration"
+      ;;
+    20261019120000_receipt_ocr_credential_release_acl_admission_v2.sql)
+      # Catalog replay only: no operating ledger or v2 readiness is modeled here.
+      transformed_migration="$work_dir/receipt-ocr-acl-v2-pg15-${migration##*/}"
+      python3 "$script_dir/transform_receipt_ocr_acl_admission_pg15_replay.py" \
+        --source "$migration" --output "$transformed_migration"
+      g026_chain_apply 'receipt-ocr-acl-v2-pg15-replay-transformer' \
+        "$script_dir/transform_receipt_ocr_acl_admission_pg15_replay.py"
+      g026_chain_apply "receipt-ocr-acl-v2-pg15-replay:${migration##*/}" \
+        "$transformed_migration"
+      compose exec -T db psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres <"$transformed_migration"
+      ;;
+    20261019130000_receipt_ocr_indeterminate_recovery.sql)
+      # Catalog replay only: the empty ledger keeps both predecessor and recovery capabilities held.
+      transformed_migration="$work_dir/receipt-ocr-recovery108-pg15-${migration##*/}"
+      python3 "$script_dir/transform_receipt_ocr_indeterminate_recovery_pg15_replay.py" \
+        --source "$migration" --output "$transformed_migration"
+      g026_chain_apply 'receipt-ocr-recovery108-pg15-replay-transformer' \
+        "$script_dir/transform_receipt_ocr_indeterminate_recovery_pg15_replay.py"
+      g026_chain_apply "receipt-ocr-recovery108-pg15-replay:${migration##*/}" \
         "$transformed_migration"
       compose exec -T db psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres <"$transformed_migration"
       ;;

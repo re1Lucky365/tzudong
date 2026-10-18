@@ -8,7 +8,7 @@ import type { ReceiptOcrData } from '@/lib/ocr/types';
 export const DURABLE_RECEIPT_OCR_SCHEMA_VERSION = 'receipt-public-ocr-v1';
 export const RECEIPT_OCR_DEFAULT_GENERATION = '00000000-0000-0000-0000-000000000000';
 export const RECEIPT_OCR_INPUT_CONTEXT_VERSION = 'receipt-ocr-input-context-v2';
-export const RECEIPT_OCR_CREDENTIAL_RELEASE_CAPABILITY_VERSION = 'receipt-ocr-definitive-credential-release-v1';
+export const RECEIPT_OCR_CREDENTIAL_RELEASE_CAPABILITY_VERSION = 'receipt-ocr-definitive-credential-release-v2';
 
 type DurableReceiptOcrNormalized = Pick<
   ReceiptOcrData,
@@ -378,7 +378,10 @@ function bindingArgs(binding: DurableReceiptOcrBinding) {
   };
 }
 
-export function createSupabaseDurableReceiptOcrStore(client: RpcClient): DurableReceiptOcrStore {
+function createSupabaseDurableReceiptOcrStoreWithClaim(
+  client: RpcClient,
+  recoveryOperationId: string | null,
+): DurableReceiptOcrStore {
   return {
     async assertDefinitiveCredentialReleaseReady() {
       let result: RpcResult;
@@ -397,11 +400,15 @@ export function createSupabaseDurableReceiptOcrStore(client: RpcClient): Durable
       }
     },
     async claim(input) {
-      const { data, error } = await client.rpc('claim_receipt_ocr_result', {
+      const { data, error } = await client.rpc(
+        recoveryOperationId ? 'claim_receipt_ocr_recovery_result' : 'claim_receipt_ocr_result',
+        {
+        ...(recoveryOperationId ? { p_recovery_operation_id: recoveryOperationId } : {}),
         ...bindingArgs(input),
         p_operation_id: input.operationId,
         p_force_refresh: input.forceRefresh,
-      });
+        },
+      );
       if (error) throw new DurableReceiptOcrPersistenceError();
       const claim = parseClaim(data);
       if (claim.status === 'cached'
@@ -480,6 +487,18 @@ export function createSupabaseDurableReceiptOcrStore(client: RpcClient): Durable
       return result;
     },
   };
+}
+
+export function createSupabaseDurableReceiptOcrStore(client: RpcClient): DurableReceiptOcrStore {
+  return createSupabaseDurableReceiptOcrStoreWithClaim(client, null);
+}
+
+export function createSupabaseRecoveryBoundReceiptOcrStore(
+  client: RpcClient,
+  recoveryOperationId: string,
+): DurableReceiptOcrStore {
+  if (!isUuid(recoveryOperationId)) throw new DurableReceiptOcrPersistenceError();
+  return createSupabaseDurableReceiptOcrStoreWithClaim(client, recoveryOperationId);
 }
 
 export function buildOcrInputContextHash(
