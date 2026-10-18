@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { OperationalCautionNotice, cautionForDetailPanel } from "@/components/restaurant/OperationalCautionNotice";
 import { PopularityBadge } from "@/components/restaurant/PopularityBadge";
+import { publicPopularityTier } from "@/lib/evidence-engineering/popularity-marker";
 import { RestaurantEvidenceCarousel } from "@/components/restaurant/RestaurantEvidenceCarousel";
 import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1104,7 +1105,11 @@ export function RestaurantDetailPanel({
                 />
                 {viewMode === 'detail' && (
                     <div className="shrink-0 border-b border-border px-3 py-2">
-                                        <PopularityBadge tier="standard" />
+                                        <PopularityBadge
+                                            key={`${restaurant.id}:${publicPopularityTier(restaurant.popularity_tier)}`}
+                                            tier={publicPopularityTier(restaurant.popularity_tier)}
+                                            experimental3D
+                                        />
                                         <OperationalCautionNotice
                                             caution={cautionForDetailPanel(restaurant)}
                                             shopName={restaurant.name}

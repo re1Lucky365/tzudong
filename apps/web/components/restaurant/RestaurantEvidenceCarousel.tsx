@@ -70,6 +70,7 @@ export function RestaurantEvidenceCarousel({ frames }: { frames: readonly Restau
             className="block w-40 shrink-0"
           >
             {frame.image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element -- Approved evidence frames stay native lazy images so unknown storage hosts are not sent through the optimizer.
               <img
                 src={frame.image_url}
                 alt={frame.detected_shop_name ?? "방문 근거 프레임"}

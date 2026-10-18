@@ -15,7 +15,7 @@ import {
   previewEvidenceModeration,
   type EvidenceFrameModerationClient,
 } from "../lib/evidence-engineering/evidence-moderation";
-import { POPULARITY_MARKER_CSS, syncPopularityMarkerInteraction, wrapMarkerWithPopularityTier } from "../lib/evidence-engineering/popularity-marker";
+import { POPULARITY_MARKER_CSS, publicPopularityTier, syncPopularityMarkerInteraction, wrapMarkerWithPopularityTier } from "../lib/evidence-engineering/popularity-marker";
 import { summarizeRenderSamples } from "../lib/evidence-engineering/render-measurement";
 import { buildEvidenceFrame, parseEvidenceFrame, unionApprovedEvidenceFrames } from "../lib/evidence-engineering/frames";
 import { MARKER_EFFECT_CONTRACT } from "../lib/evidence-engineering/constants";
@@ -215,6 +215,13 @@ describe("evidence engineering remaining tasks", () => {
     expect(wrapped).toContain("<style>");
     expect(wrapped).toContain('data-popularity-tier="fire"');
     expect(wrapped).toContain("<span>pin</span>");
+    expect(publicPopularityTier("fire")).toBe("fire");
+    expect(publicPopularityTier("rainbow")).toBe("rainbow");
+    expect(publicPopularityTier(null)).toBe("standard");
+    expect(publicPopularityTier("shadow")).toBe("standard");
+    const panel = readFileSync(resolve(import.meta.dir, "../components/restaurant/RestaurantDetailPanel.tsx"), "utf8");
+    expect(panel).toContain("publicPopularityTier(restaurant.popularity_tier)");
+    expect(panel).not.toContain('<PopularityBadge tier="standard" />');
     const attributes = new Map<string, string>();
     const element = {
       setAttribute: (name: string, value: string) => attributes.set(name, value),
@@ -287,8 +294,8 @@ describe("evidence engineering remaining tasks", () => {
     const badge = readFileSync(resolve(import.meta.dir, "../components/restaurant/PopularityBadge.tsx"), "utf8");
     expect(panel).not.toContain("assetAvailable={false}");
     expect(badge).toContain("onError");
-    expect(badge).toContain("/assets/badges/badge_popular_fire_3d.webp");
-    expect(badge).toContain("/assets/badges/badge_popular_rainbow_3d.webp");
+    expect(badge).toContain("/assets/badges/badge_popular_fire_40.webp");
+    expect(badge).toContain("/assets/badges/badge_popular_rainbow_40.webp");
   });
 
   test("open cross-check clauses stay locked without new formulas", () => {
@@ -330,6 +337,18 @@ describe("evidence engineering remaining tasks", () => {
     const marker = readFileSync(resolve(import.meta.dir, "../lib/naver-map-marker-visuals.ts"), "utf8");
     const route = readFileSync(resolve(import.meta.dir, "../app/api/admin/evidence-frames/route.ts"), "utf8");
     expect(badge).toContain("ssr: false");
+    expect(badge).toContain("scale(1.15)");
+    expect(badge).toContain("prefers-reduced-motion");
+    expect(badge).not.toContain("from \"three\"");
+    const viewer = readFileSync(resolve(import.meta.dir, "../components/restaurant/Badge3DViewer.tsx"), "utf8");
+    expect(viewer).toContain("from \"three\"");
+    expect(viewer).toContain(".dispose(");
+    expect(viewer).toContain("webglcontextlost");
+    expect(viewer).toContain("정적 배지로 표시합니다.");
+    expect(viewer).toContain("setStaticFallback(true)");
+    expect(viewer).toContain("webgl_unavailable");
+    expect(viewer).not.toContain("lowPower ? <p>정적 배지로 표시합니다.</p>");
+    expect(marker).not.toContain("from \"three\"");
     expect(marker).not.toContain("Badge3DViewer");
     expect(POPULARITY_BADGE_KINDS).toEqual(["fire", "rainbow"]);
     expect(BADGE_BYTE_COUNT_IS_PASS_THRESHOLD).toBe(false);
