@@ -1,9 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { restoreBadgeViewerFocus } from "@/lib/evidence-engineering/badge-viewer-lifecycle";
+import { useDevicePerformance } from "@/hooks/useDevicePerformance";
+import { shouldUseStaticBadgeViewer } from "@/lib/evidence-engineering/badge-device-capability";
+import { handleBadgeViewerCloseKey, restoreBadgeViewerFocus } from "@/lib/evidence-engineering/badge-viewer-lifecycle";
 
 const Badge3DViewer = dynamic(
   () => import("./Badge3DViewer"),
@@ -24,6 +26,25 @@ export function badgeViewerPhase(experimental3D: boolean, open: boolean): BadgeV
   return open ? "open" : "offer";
 }
 
+function StaticBadgeViewer({ tier, onClose }: { tier: "fire" | "rainbow"; onClose: () => void }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { rootRef.current?.focus(); }, []);
+  return (
+    <div
+      ref={rootRef}
+      role="dialog"
+      aria-label="3D 배지"
+      tabIndex={0}
+      data-badge-3d={tier}
+      data-badge-viewer="fallback"
+      onKeyDown={(event) => handleBadgeViewerCloseKey(event, onClose)}
+    >
+      <p>정적 배지로 표시합니다.</p>
+      <button type="button" onClick={onClose}>닫기</button>
+    </div>
+  );
+}
+
 export function PopularityBadge({
   tier,
   experimental3D = false,
@@ -31,6 +52,11 @@ export function PopularityBadge({
   tier: "fire" | "rainbow" | "standard";
   experimental3D?: boolean;
 }) {
+  const performance = useDevicePerformance();
+  const useStaticViewer = shouldUseStaticBadgeViewer(
+    performance,
+    typeof navigator === "undefined" ? null : navigator,
+  );
   const [open, setOpen] = useState(false);
   const [assetFailed, setAssetFailed] = useState(false);
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -81,7 +107,11 @@ export function PopularityBadge({
           3D 보기
         </button>
       ) : null}
-      {phase === "open" ? <Badge3DViewer tier={tier} onClose={closeViewer} /> : null}
+      {phase === "open" ? (
+        useStaticViewer
+          ? <StaticBadgeViewer tier={tier} onClose={closeViewer} />
+          : <Badge3DViewer tier={tier} onClose={closeViewer} lowPower={useStaticViewer} />
+      ) : null}
     </section>
   );
 }
