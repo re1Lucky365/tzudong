@@ -9,6 +9,8 @@ import { useFilledSkeletonCount } from "@/lib/use-filled-skeleton-count";
 import {
   Ban,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Crown,
   RefreshCw,
   RotateCcw,
@@ -61,6 +63,10 @@ type AdminUsersResponse = {
   page: number;
   perPage: number;
   total: number;
+  sourceTotal: number;
+  isPartial: boolean;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 };
 type AdminUserMutationResponse = {
   error?: string;
@@ -68,6 +74,12 @@ type AdminUserMutationResponse = {
   auditId?: string | null;
   preflightAuditId?: string | null;
   step?: string | null;
+  audit?: {
+    readbackId?: string | null;
+    correlationId?: string | null;
+    auditIds?: string[];
+  } | null;
+  auditIds?: string[];
 };
 
 type AdminUserMutationAction = "profile" | "role" | "accountStatus";
@@ -99,6 +111,35 @@ type PendingAdminUserReadback = {
   auditText: string;
 };
 
+type AdminUserReadbackConflict = {
+  pending: PendingAdminUserReadback;
+  latest: ManagedUser;
+};
+
+type PendingAdminUserIntent =
+  | { type: "select"; id: string | null }
+  | { type: "search"; query: string }
+  | { type: "filter"; filter: AdminUsersFilter }
+  | { type: "sort"; sort: AdminUsersSort }
+  | { type: "page"; page: number }
+  | { type: "reset" }
+  | { type: "refresh" };
+
+type AdminUsersPagination = Pick<AdminUsersResponse, 'page' | 'perPage' | 'total' | 'sourceTotal' | 'isPartial' | 'hasPreviousPage' | 'hasNextPage'>;
+type AdminUsersFilter = 'all' | 'admin' | 'disabled' | 'unconfirmed';
+type AdminUsersSort = 'newest' | 'lastSignIn' | 'name';
+
+const ADMIN_USERS_PER_PAGE = 120;
+const DEFAULT_PAGINATION: AdminUsersPagination = {
+  page: 1,
+  perPage: ADMIN_USERS_PER_PAGE,
+  total: 0,
+  sourceTotal: 0,
+  isPartial: false,
+  hasPreviousPage: false,
+  hasNextPage: false,
+};
+
 function createPendingUserReadback(targetUserId: string, body: AdminUserMutationInput, action: AdminUserMutationAction, message: string): PendingAdminUserReadback {
   return {
     action,
@@ -117,6 +158,14 @@ function matchesPendingUserReadback(users: ManagedUser[] | null, pending: Pendin
   const actual = users?.find((candidate) => candidate.id === pending.targetUserId);
   if (!actual) return false;
   return Object.entries(pending.expected).every(([key, value]) => actual[key as keyof typeof pending.expected] === value);
+}
+
+function mergeExactUserReadback(users: ManagedUser[], exactUser: ManagedUser) {
+  return users.map((candidate) => candidate.id === exactUser.id ? exactUser : candidate);
+}
+
+function isExactAdminUserId(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 const DEFAULT_SUMMARY: AdminUsersSummary = {
@@ -145,9 +194,11 @@ function getProfileForm(user: ManagedUser): EditableProfile {
   };
 }
 function getMutationAuditText(payload: AdminUserMutationResponse | null) {
+  const readbackId = payload?.audit?.readbackId ?? payload?.auditId;
+  const correlationId = payload?.audit?.correlationId ?? payload?.preflightAuditId;
   const auditEntries = [
-    payload?.auditId ? `감사 ID: ${payload.auditId}` : "",
-    payload?.preflightAuditId ? `사전 감사 ID: ${payload.preflightAuditId}` : "",
+    readbackId ? `감사 ID: ${readbackId}` : "",
+    correlationId ? `사전 감사 ID: ${correlationId}` : "",
     payload?.step ? `단계: ${payload.step}` : "",
   ].filter(Boolean);
 
@@ -278,8 +329,10 @@ export default function AdminUsersPanel({
   const [profileForm, setProfileForm] = useState<EditableProfile>({ nickname: "", username: "", avatarUrl: "" });
   const [riskConfirmation, setRiskConfirmation] = useState("");
   const [accountConfirmation, setAccountConfirmation] = useState("");
-  const [userFilter, setUserFilter] = useState("all");
-  const [sortOrder, setSortOrder] = useState("newest");
+  const [userFilter, setUserFilter] = useState<AdminUsersFilter>("all");
+  const [sortOrder, setSortOrder] = useState<AdminUsersSort>("newest");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<AdminUsersPagination>(DEFAULT_PAGINATION);
   const [detailTab, setDetailTab] = useState("profile");
   const [isNarrow, setIsNarrow] = useState(false);
   useEffect(() => {
@@ -289,10 +342,11 @@ export default function AdminUsersPanel({
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
-  const [pendingIntent, setPendingIntent] = useState<{ type: "select"; id: string | null } | { type: "search"; query: string } | { type: "refresh" } | null>(null);
+  const [pendingIntent, setPendingIntent] = useState<PendingAdminUserIntent | null>(null);
   const detailRef = useRef<HTMLDivElement>(null);
   const [mutationResult, setMutationResult] = useState<AdminUserMutationResult | null>(null);
   const [pendingReadback, setPendingReadback] = useState<PendingAdminUserReadback | null>(null);
+  const [readbackConflict, setReadbackConflict] = useState<AdminUserReadbackConflict | null>(null);
   const pendingReadbackRef = useRef<PendingAdminUserReadback | null>(null);
   const usersReadGeneration = useRef(0);
   const updatePendingReadback = useCallback((pending: PendingAdminUserReadback | null) => {
@@ -318,13 +372,7 @@ export default function AdminUsersPanel({
   const canDisableAction = accountConfirmation === "비활성화";
   const canReactivateAction = accountConfirmation === "재활성화";
   const isProfileDirty = Boolean(selectedUser && JSON.stringify(profileForm) !== JSON.stringify(getProfileForm(selectedUser)));
-  const visibleUsers = useMemo(() => users
-    .filter((managedUser) => userFilter === "admin" ? managedUser.isAdmin : userFilter === "disabled" ? managedUser.isDisabled : userFilter === "unconfirmed" ? !managedUser.emailConfirmedAt : true)
-    .sort((a, b) => {
-      if (sortOrder === "name") return a.nickname.localeCompare(b.nickname, "ko");
-      const field = sortOrder === "lastSignIn" ? "lastSignInAt" : "createdAt";
-      return (Date.parse(b[field] ?? "") || 0) - (Date.parse(a[field] ?? "") || 0);
-    }), [users, userFilter, sortOrder]);
+  const visibleUsers = users;
 
   const loadUsers = useCallback(async (signal?: AbortSignal) => {
     const generation = ++usersReadGeneration.current;
@@ -340,14 +388,28 @@ export default function AdminUsersPanel({
         if (!exact.ok || !payload || !Array.isArray(payload.users) || payload.users.length !== 1 || payload.users[0].id !== pendingAtReadStart.targetUserId) throw new Error("user_readback_unavailable");
         if (generation !== usersReadGeneration.current || signal?.aborted) return null;
         readbackUsers = payload.users;
-        if (pendingReadbackRef.current === pendingAtReadStart && matchesPendingUserReadback(readbackUsers, pendingAtReadStart)) {
-          updatePendingReadback(null);
-          setMutationResult({ action: pendingAtReadStart.action, targetUserId: pendingAtReadStart.targetUserId, status: "success", message: `적용 완료: ${pendingAtReadStart.message}${pendingAtReadStart.auditText} 상태를 다시 확인했습니다.` });
-          toast({ title: "상태 재확인 완료", description: "요청한 사용자 상태를 확인했습니다." });
+        if (pendingReadbackRef.current === pendingAtReadStart) {
+          const latest = readbackUsers[0];
+          setUsers((current) => mergeExactUserReadback(current, latest));
+          if (matchesPendingUserReadback(readbackUsers, pendingAtReadStart)) {
+            setReadbackConflict(null);
+            updatePendingReadback(null);
+            setMutationResult({ action: pendingAtReadStart.action, targetUserId: pendingAtReadStart.targetUserId, status: "success", message: `적용 완료: ${pendingAtReadStart.message}${pendingAtReadStart.auditText} 상태를 다시 확인했습니다.` });
+            toast({ title: "상태 재확인 완료", description: "요청한 사용자 상태를 확인했습니다." });
+          } else {
+            setReadbackConflict({ pending: pendingAtReadStart, latest });
+            setMutationResult({ action: pendingAtReadStart.action, targetUserId: pendingAtReadStart.targetUserId, status: "warning", message: `요청한 상태와 다른 최신 사용자 상태를 확인했습니다.${pendingAtReadStart.auditText} 최신 상태를 수용하면 추가 변경 없이 잠금을 해제합니다.` });
+          }
         }
       }
-      const params = new URLSearchParams({ perPage: "120" });
-      if (searchQuery.trim()) params.set("search", searchQuery.trim());
+      const params = new URLSearchParams({
+        page: String(page),
+        perPage: String(ADMIN_USERS_PER_PAGE),
+        filter: userFilter,
+        sort: sortOrder,
+      });
+      const normalizedSearch = searchQuery.trim();
+      if (normalizedSearch) params.set(isExactAdminUserId(normalizedSearch) ? "user_id" : "search", normalizedSearch);
 
       const response = await fetch(`/api/admin/users?${params.toString()}`, {
         signal,
@@ -363,11 +425,23 @@ export default function AdminUsersPanel({
       if (!payload || !("users" in payload) || !Array.isArray(payload.users)) {
         throw new Error("사용자 목록 응답을 확인하지 못했습니다.");
       }
+      if (!Number.isFinite(payload.page) || !Number.isFinite(payload.perPage) || !Number.isFinite(payload.total)) {
+        throw new Error("사용자 목록 페이지 응답을 확인하지 못했습니다.");
+      }
       if (generation !== usersReadGeneration.current || signal?.aborted) return null;
       const nextUsers = payload.users;
       const nextSummary = "summary" in (payload ?? {}) ? (payload as AdminUsersResponse).summary : DEFAULT_SUMMARY;
       setUsers(nextUsers);
       setSummary(nextSummary);
+      setPagination({
+        page: payload.page,
+        perPage: payload.perPage,
+        total: payload.total,
+        sourceTotal: Number.isFinite(payload.sourceTotal) ? payload.sourceTotal : payload.total,
+        isPartial: payload.isPartial === true,
+        hasPreviousPage: payload.hasPreviousPage === true,
+        hasNextPage: payload.hasNextPage === true,
+      });
       setSelectedUserId((current) => {
         if (current && nextUsers.some((candidate) => candidate.id === current)) return current;
         return null;
@@ -384,7 +458,7 @@ export default function AdminUsersPanel({
         setIsLoading(false);
       }
     }
-  }, [searchQuery, updatePendingReadback, toast]);
+  }, [page, searchQuery, sortOrder, toast, updatePendingReadback, userFilter]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -413,8 +487,12 @@ export default function AdminUsersPanel({
     });
   }, [selectedUser?.id]);
 
-  const applyIntent = (intent: NonNullable<typeof pendingIntent>) => {
-    if (pendingReadback && intent.type === "select") return;
+  const cancelPendingIntent = () => {
+    setPendingIntent(null);
+    setSearchInput(searchQuery);
+  };
+
+  const applyIntent = (intent: PendingAdminUserIntent) => {
     setPendingIntent(null);
     if (intent.type === "select") {
       setSelectedUserId(intent.id);
@@ -423,18 +501,32 @@ export default function AdminUsersPanel({
     } else if (intent.type === "search") {
       setSearchInput(intent.query);
       setSearchQuery(intent.query);
+      setPage(1);
+    } else if (intent.type === "filter") {
+      setUserFilter(intent.filter);
+      setPage(1);
+    } else if (intent.type === "sort") {
+      setSortOrder(intent.sort);
+      setPage(1);
+    } else if (intent.type === "page") {
+      setPage(intent.page);
+    } else if (intent.type === "reset") {
+      setSearchInput("");
+      setSearchQuery("");
+      setUserFilter("all");
+      setPage(1);
     } else {
       void loadUsers();
     }
   };
-  const requestIntent = (intent: NonNullable<typeof pendingIntent>) => {
-    if (isMutating || (pendingReadback && intent.type === "select")) return;
-    if (intent.type === "select" && intent.id === selectedUserId) {
-      detailRef.current?.focus();
+  const requestIntent = (intent: PendingAdminUserIntent) => {
+    if (isMutating || (pendingReadback && intent.type !== "refresh")) return;
+    if (pendingReadback && intent.type === "refresh") {
+      applyIntent(intent);
       return;
     }
-    if (pendingReadback) {
-      applyIntent(intent);
+    if (intent.type === "select" && intent.id === selectedUserId) {
+      detailRef.current?.focus();
       return;
     }
     if (isProfileDirty) setPendingIntent(intent);
@@ -449,6 +541,7 @@ export default function AdminUsersPanel({
     if (!selectedUser || isMutating || isLoading || errorMessage || pendingReadbackRef.current) return;
     setIsMutating(true);
     setPendingIntent(null);
+    setReadbackConflict(null);
     setMutationResult(null);
     const expectedReadback = createPendingUserReadback(selectedUser.id, body, action, successMessage);
     updatePendingReadback(expectedReadback);
@@ -462,7 +555,10 @@ export default function AdminUsersPanel({
       const payload = await response.json().catch(() => null) as AdminUserMutationResponse | null;
       const auditText = getMutationAuditText(payload);
       if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) updatePendingReadback(null);
+        if (response.status >= 400 && response.status < 500) {
+          setReadbackConflict(null);
+          updatePendingReadback(null);
+        }
         throw new Error(`${payload?.error ?? "사용자 변경을 적용하지 못했습니다."}${auditText}`);
       }
 
@@ -497,6 +593,21 @@ export default function AdminUsersPanel({
     }
   };
 
+  const acceptLatestUserReadback = () => {
+    const conflict = readbackConflict;
+    if (!conflict || pendingReadbackRef.current !== conflict.pending || isMutating) return;
+    setUsers((current) => mergeExactUserReadback(current, conflict.latest));
+    updatePendingReadback(null);
+    setReadbackConflict(null);
+    setMutationResult({
+      action: conflict.pending.action,
+      targetUserId: conflict.pending.targetUserId,
+      status: "warning",
+      message: `요청한 상태와 달랐던 최신 사용자 상태를 수용했습니다.${conflict.pending.auditText} 추가 변경은 적용하지 않았습니다.`,
+    });
+    toast({ title: "최신 상태 수용", description: "추가 변경 없이 사용자 상태 잠금을 해제했습니다." });
+  };
+
   const visibleMutationResult = pendingReadback ? mutationResult :
     !mutationResult?.targetUserId || mutationResult.targetUserId === selectedUser?.id
       ? mutationResult
@@ -509,7 +620,7 @@ export default function AdminUsersPanel({
       {pendingIntent && (
         <div role="alert" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-amber-200 bg-amber-50 p-2 text-sm text-amber-950">
           <span className="flex-1">저장하지 않은 프로필 변경이 있습니다.</span>
-          <Button type="button" variant="outline" size="sm" onClick={() => setPendingIntent(null)}>계속 편집</Button>
+          <Button type="button" variant="outline" size="sm" onClick={cancelPendingIntent}>계속 편집</Button>
           <Button type="button" variant="outline" size="sm" onClick={() => { if (selectedUser) setProfileForm(getProfileForm(selectedUser)); applyIntent(pendingIntent); }}>변경 버리고 이동</Button>
         </div>
       )}
@@ -518,7 +629,7 @@ export default function AdminUsersPanel({
               {selectedUser && detailTab === "profile" && <Button type="button" size="sm" disabled={isMutating || isLoading || Boolean(errorMessage) || Boolean(pendingReadback) || !isProfileDirty} onClick={() => void patchSelectedUser({ profile: profileForm }, "프로필 정보를 저장했습니다.", "profile")}><Save className="h-4 w-4" aria-hidden="true" />{isMutating ? "적용 중…" : "프로필 저장"}</Button>}
               {selectedUser && <Button type="button" variant="ghost" size="sm" disabled={isMutating || Boolean(pendingReadback)} onClick={() => requestIntent({ type: "select", id: null })}><X className="h-4 w-4" aria-hidden="true" />{isNarrow ? "목록으로" : "선택 해제"}</Button>}
             </CardHeader>
-            {pendingReadback && <div role="alert" className="flex shrink-0 items-center gap-2 border-b bg-amber-50 px-3 py-2 text-xs text-amber-900"><span className="min-w-0 flex-1">이전 변경을 재확인한 후 다음 작업을 진행할 수 있습니다.</span><Button type="button" size="sm" variant="outline" disabled={isLoading || isMutating} onClick={() => requestIntent({ type: "refresh" })}>상태 재확인</Button></div>}
+            {pendingReadback && <div role="alert" className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-amber-50 px-3 py-2 text-xs text-amber-900"><span className="min-w-0 flex-1">{readbackConflict ? "요청과 다른 최신 상태를 확인했습니다. 최신 상태를 수용하거나 다시 확인해 주세요." : "이전 변경을 재확인한 후 다음 작업을 진행할 수 있습니다."}</span>{readbackConflict && <Button type="button" size="sm" variant="outline" disabled={isLoading || isMutating} onClick={acceptLatestUserReadback}>최신 상태 수용</Button>}<Button type="button" size="sm" variant="outline" disabled={isLoading || isMutating} onClick={() => requestIntent({ type: "refresh" })}>상태 재확인</Button></div>}
             {selectedUser && <div className="flex shrink-0 gap-1 border-b px-3 py-1" role="tablist" aria-label="사용자 상세 작업" onKeyDown={(event) => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return; event.preventDefault(); const next = event.key === "Home" ? "profile" : event.key === "End" ? "access" : detailTab === "profile" ? "access" : "profile"; setDetailTab(next); document.getElementById(`user-${next}-tab`)?.focus(); }}>
               <button type="button" role="tab" tabIndex={detailTab === "profile" ? 0 : -1} id="user-profile-tab" aria-selected={detailTab === "profile"} aria-controls="user-profile-panel" className={cn("rounded-md px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", detailTab === "profile" ? "bg-primary/10 text-primary" : "text-muted-foreground")} onClick={() => setDetailTab("profile")}>프로필</button>
               <button type="button" role="tab" tabIndex={detailTab === "access" ? 0 : -1} id="user-access-tab" aria-selected={detailTab === "access"} aria-controls="user-access-panel" className={cn("rounded-md px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", detailTab === "access" ? "bg-primary/10 text-primary" : "text-muted-foreground")} onClick={() => setDetailTab("access")}>권한·계정</button>
@@ -647,15 +758,14 @@ export default function AdminUsersPanel({
       data-admin-embedded-module-shell="true"
       data-admin-embedded-module-id="users"
     >
-      <AdminPageHeader title={getAdminModuleTitle("users")} titleId="admin-users-title" icon={UsersRound}
+      <AdminPageHeader title={getAdminModuleTitle("users")} titleId="admin-users-title" icon={UsersRound} className="admin-cms-page-header"
         data-admin-module-header="compact" data-admin-module-header-module="users"
         summary={<div className="flex flex-wrap gap-1" data-admin-users-summary data-admin-module-summary="true">
-            <SummaryMetric label="불러온 사용자" value={summary.loadedUsers} isLoading={isLoading && users.length === 0} />
-            <SummaryMetric label="관리자" value={summary.adminUsers} isLoading={isLoading && users.length === 0} />
-            <SummaryMetric label="비활성" value={summary.disabledUsers} isLoading={isLoading && users.length === 0} />
-            <SummaryMetric label="이메일 미확인" value={summary.unconfirmedUsers} isLoading={isLoading && users.length === 0} />
+            <SummaryMetric label="전체 사용자" value={pagination.sourceTotal} isLoading={isLoading && users.length === 0} />
+            <SummaryMetric label="조건 일치" value={pagination.total} isLoading={isLoading && users.length === 0} />
+            <SummaryMetric label="현재 페이지" value={summary.loadedUsers} isLoading={isLoading && users.length === 0} />
           </div>}
-        actions={<Button type="button" variant="ghost" size="sm" aria-label="사용자 목록 새로고침" onClick={() => requestIntent({ type: "refresh" })} disabled={isLoading || isMutating} data-admin-users-refresh>
+        actions={<Button type="button" variant="ghost" size="sm" aria-label="사용자 목록 새로고침" onClick={() => requestIntent({ type: "refresh" })} disabled={isLoading || isMutating || Boolean(pendingReadback)} data-admin-users-refresh>
           <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />새로고침
         </Button>}
       />
@@ -679,23 +789,29 @@ export default function AdminUsersPanel({
                   id="admin-user-search"
                   value={searchInput}
                   onChange={(event) => setSearchInput(event.target.value)}
+                  disabled={isMutating || Boolean(pendingReadback)}
                   placeholder="닉네임, 이메일, 사용자 ID로 검색"
                   className="h-11 rounded-md pl-9 md:h-8"
                 />
               </div>
-              <Button type="submit" className="h-11 shrink-0 rounded-md px-4 md:h-8" disabled={isLoading || isMutating} data-admin-users-search-submit>검색</Button>
+              <Button type="submit" className="h-11 shrink-0 rounded-md px-4 md:h-8" disabled={isLoading || isMutating || Boolean(pendingReadback)} data-admin-users-search-submit>검색</Button>
             </form>
             <div className="flex w-full flex-wrap items-center gap-2">
-              <select aria-label="사용자 상태 필터" value={userFilter} onChange={(event) => setUserFilter(event.target.value)} className="h-11 min-w-0 rounded-md border border-input bg-background px-2 text-xs md:h-8">
+              <select aria-label="사용자 상태 필터" value={userFilter} disabled={isMutating || Boolean(pendingReadback)} onChange={(event) => requestIntent({ type: "filter", filter: event.target.value as AdminUsersFilter })} className="h-11 min-w-0 rounded-md border border-input bg-background px-2 text-xs md:h-8">
                 <option value="all">모든 사용자</option><option value="admin">관리자</option><option value="disabled">비활성</option><option value="unconfirmed">이메일 미확인</option>
               </select>
-              <select aria-label="사용자 정렬" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} className="h-11 min-w-0 rounded-md border border-input bg-background px-2 text-xs md:h-8"><option value="newest">가입 최신순</option><option value="lastSignIn">최근 로그인순</option><option value="name">닉네임순</option></select>
-              {(searchQuery || userFilter !== "all") && <Button type="button" variant="ghost" size="sm" onClick={() => { setUserFilter("all"); requestIntent({ type: "search", query: "" }); }}>검색·필터 초기화</Button>}
+              <select aria-label="사용자 정렬" value={sortOrder} disabled={isMutating || Boolean(pendingReadback)} onChange={(event) => requestIntent({ type: "sort", sort: event.target.value as AdminUsersSort })} className="h-11 min-w-0 rounded-md border border-input bg-background px-2 text-xs md:h-8"><option value="newest">가입 최신순</option><option value="lastSignIn">최근 로그인순</option><option value="name">닉네임순</option></select>
+              {(searchQuery || userFilter !== "all") && <Button type="button" variant="ghost" size="sm" disabled={isMutating || Boolean(pendingReadback)} onClick={() => requestIntent({ type: "reset" })}>검색·필터 초기화</Button>}
             </div>
             {errorMessage && (
               <div className="flex w-full flex-wrap items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
                 <span className="flex-1">{errorMessage}{users.length > 0 && " 이전 목록을 표시합니다."}</span>
                 <Button type="button" variant="outline" size="sm" disabled={isLoading || isMutating} onClick={() => requestIntent({ type: "refresh" })}>다시 시도</Button>
+              </div>
+            )}
+            {pagination.isPartial && !errorMessage && (
+              <div role="status" className="w-full rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                검색·필터·정렬은 최대 1,000명 범위의 결과입니다. 전체 {pagination.sourceTotal.toLocaleString()}명 중 이후 사용자는 사용자 ID 검색으로 확인해 주세요.
               </div>
             )}
           </CardHeader>
@@ -729,7 +845,7 @@ export default function AdminUsersPanel({
                             <p className="truncate text-sm font-semibold text-foreground">{managedUser.nickname}</p>
                             <p className="mt-0.5 truncate text-xs text-muted-foreground">{managedUser.email || managedUser.id}</p>
                           </div>
-                          <Button type="button" variant={isSelected ? "default" : "outline"} size="sm" className="h-8 shrink-0 rounded-md" onClick={() => requestIntent({ type: "select", id: managedUser.id })} aria-pressed={isSelected} disabled={isMutating || Boolean(pendingReadback)} aria-label={`${managedUser.nickname} 상세 보기`} data-admin-users-detail-button>
+                          <Button type="button" variant={isSelected ? "default" : "outline"} size="sm" className="h-11 shrink-0 rounded-md md:h-8" onClick={() => requestIntent({ type: "select", id: managedUser.id })} aria-pressed={isSelected} disabled={isMutating || Boolean(pendingReadback)} aria-label={`${managedUser.nickname} 상세 보기`} data-admin-users-detail-button>
                             {isSelected ? "선택됨" : "상세"}
                           </Button>
                         </div>
@@ -773,7 +889,7 @@ export default function AdminUsersPanel({
                             <td className="px-3 py-2 align-middle"><RoleBadge isAdmin={managedUser.isAdmin} /></td>
                             <td className="hidden px-3 py-2 align-middle md:table-cell"><StatusBadge user={managedUser} /></td>
                             <td className="px-3 py-2 align-middle">
-                              <Button type="button" variant={isSelected ? "default" : "outline"} size="sm" className="h-8 rounded-md" disabled={isMutating || Boolean(pendingReadback)} aria-pressed={isSelected} onClick={() => requestIntent({ type: "select", id: managedUser.id })} data-admin-users-detail-button>
+                              <Button type="button" variant={isSelected ? "default" : "outline"} size="sm" className="h-11 rounded-md md:h-8" disabled={isMutating || Boolean(pendingReadback)} aria-pressed={isSelected} onClick={() => requestIntent({ type: "select", id: managedUser.id })} data-admin-users-detail-button>
                                 상세
                               </Button>
                             </td>
@@ -786,7 +902,14 @@ export default function AdminUsersPanel({
               </div>
             )}
           </CardContent>
-          <div className="admin-cms-footer shrink-0 justify-between" aria-live="polite"><span className="tabular-nums">{visibleUsers.length} / {users.length}명</span><span>불러온 최대 120명 기준</span></div>
+          <div className="admin-cms-footer shrink-0 justify-between gap-2" aria-live="polite">
+            <span className="tabular-nums">{visibleUsers.length}명 · 조건 일치 {pagination.total.toLocaleString()}명 · 전체 {pagination.sourceTotal.toLocaleString()}명</span>
+            <div className="flex items-center gap-1">
+              <Button type="button" variant="outline" size="sm" className="h-11 px-2 md:h-8" aria-label="이전 사용자 페이지" disabled={!pagination.hasPreviousPage || isLoading || isMutating || Boolean(pendingReadback)} onClick={() => requestIntent({ type: "page", page: Math.max(1, page - 1) })}><ChevronLeft className="h-4 w-4" aria-hidden="true" />이전</Button>
+              <span className="min-w-14 text-center tabular-nums">{pagination.page} / {Math.max(1, Math.ceil(pagination.total / pagination.perPage))}</span>
+              <Button type="button" variant="outline" size="sm" className="h-11 px-2 md:h-8" aria-label="다음 사용자 페이지" disabled={!pagination.hasNextPage || isLoading || isMutating || Boolean(pendingReadback)} onClick={() => requestIntent({ type: "page", page: page + 1 })}>다음<ChevronRight className="h-4 w-4" aria-hidden="true" /></Button>
+            </div>
+          </div>
         </Card>
 
         {!isNarrow && inspectorContent}

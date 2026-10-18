@@ -24,7 +24,7 @@ import {
     canonicalizeReceiptImage,
     downloadPrivateReceiptObject,
 } from '@/lib/ocr/admin-receipt-image-security';
-import { callGeminiReceiptOcr, getGeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini';
+import { callGeminiReceiptOcrWithCredentialFallback, getGeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini';
 import { parseReceiptOcrWorkflowPolicy, type ReceiptOcrWorkflowPolicy } from '@/lib/ocr/workflow-policy';
 import { getOcrModelPolicy, resolveOcrAiRuntimeConfig } from '@/lib/ocr/runtime-config';
 import { getRunnableCredentials } from '@/lib/ocr/route-helpers';
@@ -568,8 +568,8 @@ export async function processAdminReceiptOcr(input: {
                 if (!credentials[0]) throw new OcrProviderUnavailableError();
             },
             runProvider: async () => {
-                const ocrResult = await callGeminiReceiptOcr({
-                    apiKey: credentials[0]!.apiKey,
+                const ocrResult = await callGeminiReceiptOcrWithCredentialFallback({
+                    credentials,
                     imageBase64: canonicalStorageImage.bytes.toString('base64'),
                     mimeType: 'image/jpeg',
                     prompt: OCR_PROMPT,

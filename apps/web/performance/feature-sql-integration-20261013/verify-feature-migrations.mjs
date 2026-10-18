@@ -18,6 +18,11 @@ import {
   buildFeatureSuccessorStateQuery,
   loadFeatureSuccessorManifest,
 } from '../../scripts/review-media-feature-sql-successor.mjs';
+import {
+  buildEvidencePrefixedSuccessorStateQuery,
+  loadEvidencePrefixedSuccessorManifest,
+  validateEvidencePrefixedStageStates,
+} from '../../scripts/review-media-evidence-prefixed-sql-successors.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../../../..');
@@ -29,13 +34,16 @@ const OWNER_TOKEN = randomBytes(16).toString('hex');
 const CONTAINER = `tzudong-feature-sql-replay-${process.pid}-${OWNER_TOKEN.slice(0, 12)}`;
 const PASSWORD = randomBytes(24).toString('hex');
 const HARNESS_PATH = 'apps/web/performance/feature-sql-integration-20261013/verify-feature-migrations.mjs';
+const ARGUMENTS = process.argv.slice(2);
+const EVIDENCE_PREFIXED = ARGUMENTS[0] === '--evidence-prefixed';
 const OUTPUT_NAME = (() => {
-  if (process.argv.length === 2) return null;
-  if (process.argv.length !== 4 || process.argv[2] !== '--output'
-    || !/^pg17-existing-catalog-replay-[a-z0-9-]+\.json$/.test(process.argv[3])) {
+  const outputArguments = EVIDENCE_PREFIXED ? ARGUMENTS.slice(1) : ARGUMENTS;
+  if (outputArguments.length === 0) return null;
+  if (outputArguments.length !== 2 || outputArguments[0] !== '--output'
+    || !/^pg17-existing-catalog-replay-[a-z0-9-]+\.json$/.test(outputArguments[1])) {
     throw new Error('FEATURE_SQL_OUTPUT_ARGUMENT_INVALID');
   }
-  return process.argv[3];
+  return outputArguments[1];
 })();
 const FEATURE_PATHS = Object.freeze([
   'backend/supabase/migrations/20261013093518_storyboard_gemini_execution_v1.sql',
@@ -52,6 +60,11 @@ const PREDECESSOR_PATHS = Object.freeze([
   'backend/supabase/migrations/20261009091342_admin_record_private_verification_cleanup.sql',
   'backend/supabase/migrations/20261009101645_admin_user_management_rpc_forward.sql',
 ]);
+const EVIDENCE_PATHS = Object.freeze([
+  'backend/supabase/migrations/20261017043000_evidence_frames_and_popularity.sql',
+  'backend/supabase/migrations/20261017140000_restaurant_popularity_shadow.sql',
+  'backend/supabase/migrations/20261017160000_restaurant_popularity_shadow_tier.sql',
+]);
 const REQUIRED_ROLES = Object.freeze([
   'cli_login_postgres',
   'privacy_auth_bridge',
@@ -65,6 +78,12 @@ const REQUIRED_ROLES = Object.freeze([
 ]);
 const SUCCESSOR_MANIFEST_PATH = '.github/review-media-sql-successor.v1.json';
 const FEATURE_SUCCESSOR_MANIFEST_PATH = '.github/review-media-feature-sql-successor.v1.json';
+const EVIDENCE_PREFIXED_PREDECESSOR_MANIFEST_PATH = '.github/review-media-evidence-prefixed-predecessor-successor.v1.json';
+const EVIDENCE_PREFIXED_FEATURE_MANIFEST_PATH = '.github/review-media-evidence-prefixed-feature-successor.v1.json';
+const EVIDENCE_PREFIXED_CONTROLLER_PATH = 'apps/web/scripts/review-media-evidence-prefixed-sql-successors.mjs';
+const EVIDENCE_PREFIXED_PREDECESSOR_CLI_PATH = 'apps/web/scripts/review-media-evidence-prefixed-predecessor-sql-successor.mjs';
+const EVIDENCE_PREFIXED_FEATURE_CLI_PATH = 'apps/web/scripts/review-media-evidence-prefixed-feature-sql-successor.mjs';
+const HOSTED_LEDGER_MAPPING_PATH = 'apps/web/performance/cross-audit-20261018/hosted-ledger-mapping-20261018.json';
 const EXPECTED_FEATURE_RPC_ALLOWLIST = Object.freeze([
   'public.claim_receipt_ocr_result(uuid,text,text,text,jsonb,uuid,text,text,text,uuid,boolean)',
   'public.complete_receipt_ocr_result(uuid,uuid,jsonb)',
@@ -1145,7 +1164,7 @@ $drift$;`);
   });
 }
 
-async function checkFeatureRollbacks(featureBytes, migrations) {
+async function checkFeatureRollbacks(featureBytes, migrations, stageObserver = () => {}) {
   const verified = {};
   let storyboardCutoverRace = null;
   const runtimeCapabilityStages = [featureRuntimeCapabilityState('base97')];
@@ -1168,6 +1187,7 @@ async function checkFeatureRollbacks(featureBytes, migrations) {
     const migration = migrations.find(entry => entry.path === path);
     if (!migration) fail('FEATURE_SQL_LEDGER_MIGRATION_MISSING', path);
     insertLedger(path, migration.originalStatementVector);
+    stageObserver(index + 1);
     const capability = featureRuntimeCapabilityState(`feature${98 + index}`);
     // The already-applied 101 contract historically reported ready after the
     // immutable-key fence. The 102 successor cannot rewrite that ledger row;
@@ -1986,6 +2006,12 @@ try {
       || migration.path.split('/').includes('..'))) {
     fail('FEATURE_SQL_SUCCESSOR_MANIFEST_SHAPE_INVALID');
   }
+  const evidencePrefixedPredecessorRecord = EVIDENCE_PREFIXED
+    ? loadEvidencePrefixedSuccessorManifest('predecessor')
+    : null;
+  const evidencePrefixedFeatureRecord = EVIDENCE_PREFIXED
+    ? loadEvidencePrefixedSuccessorManifest('feature')
+    : null;
   const frozenSourcePaths = [
     HARNESS_PATH,
     SUCCESSOR_MANIFEST_PATH,
@@ -1993,6 +2019,15 @@ try {
     ...PREDECESSOR_PATHS,
     ...successorManifest.migrations.map(({ path }) => path),
     ...FEATURE_PATHS,
+    ...(EVIDENCE_PREFIXED ? [
+      EVIDENCE_PREFIXED_PREDECESSOR_MANIFEST_PATH,
+      EVIDENCE_PREFIXED_FEATURE_MANIFEST_PATH,
+      EVIDENCE_PREFIXED_CONTROLLER_PATH,
+      EVIDENCE_PREFIXED_PREDECESSOR_CLI_PATH,
+      EVIDENCE_PREFIXED_FEATURE_CLI_PATH,
+      HOSTED_LEDGER_MAPPING_PATH,
+      ...EVIDENCE_PATHS,
+    ] : []),
   ];
   if (new Set(frozenSourcePaths).size !== frozenSourcePaths.length) {
     fail('FEATURE_SQL_FROZEN_SOURCE_PATH_DUPLICATE');
@@ -2041,12 +2076,39 @@ try {
   for (const path of PREDECESSOR_PATHS) applyFile(path, frozenSourceBytes.get(path));
   seedPredecessorLedger();
 
+  if (EVIDENCE_PREFIXED) {
+    for (const evidence of evidencePrefixedPredecessorRecord.evidenceRows) {
+      applyFile(evidence.path, frozenSourceBytes.get(evidence.path));
+      insertLedger(evidence.path, evidence.originalStatementVector);
+    }
+    if (Number(scalar('SELECT count(*) FROM supabase_migrations.schema_migrations;')) !== 89) {
+      fail('FEATURE_SQL_EVIDENCE_PREFIX_LEDGER_INVALID');
+    }
+  }
+
+  const evidencePrefixedPredecessorStages = EVIDENCE_PREFIXED
+    ? [json(buildEvidencePrefixedSuccessorStateQuery(evidencePrefixedPredecessorRecord))]
+    : [];
+
   for (const migration of successorManifest.migrations) {
     applyFile(migration.path, frozenSourceBytes.get(migration.path));
     insertLedger(migration.path, migration.originalStatementVector);
+    if (EVIDENCE_PREFIXED) {
+      evidencePrefixedPredecessorStages.push(json(
+        buildEvidencePrefixedSuccessorStateQuery(evidencePrefixedPredecessorRecord),
+      ));
+    }
   }
-  if (Number(scalar('SELECT count(*) FROM supabase_migrations.schema_migrations;')) !== 97) {
+  const expectedPreFeatureLedger = EVIDENCE_PREFIXED ? 100 : 97;
+  if (Number(scalar('SELECT count(*) FROM supabase_migrations.schema_migrations;')) !== expectedPreFeatureLedger) {
     fail('FEATURE_SQL_SUCCESSOR_LEDGER_INVALID');
+  }
+  if (EVIDENCE_PREFIXED) {
+    validateEvidencePrefixedStageStates(
+      evidencePrefixedPredecessorStages,
+      evidencePrefixedPredecessorRecord,
+      { mode: 'rehearsal' },
+    );
   }
 
   seedFeatureRows();
@@ -2068,19 +2130,36 @@ try {
     frozenSourceBytes.get(path).toString('utf8'),
   ]));
   const featureSuccessorRecord = loadFeatureSuccessorManifest();
+  const evidencePrefixedFeatureStages = EVIDENCE_PREFIXED
+    ? [json(buildEvidencePrefixedSuccessorStateQuery(evidencePrefixedFeatureRecord))]
+    : [];
   const rollback = await checkFeatureRollbacks(
     featureBytes,
     featureSuccessorRecord.manifest.migrations,
+    () => {
+      if (EVIDENCE_PREFIXED) {
+        evidencePrefixedFeatureStages.push(json(
+          buildEvidencePrefixedSuccessorStateQuery(evidencePrefixedFeatureRecord),
+        ));
+      }
+    },
   );
+  if (EVIDENCE_PREFIXED) {
+    validateEvidencePrefixedStageStates(
+      evidencePrefixedFeatureStages,
+      evidencePrefixedFeatureRecord,
+      { mode: 'rehearsal' },
+    );
+  }
   const runtimeReadinessSuccessorIdempotency = verifyRuntimeReadinessSuccessorIdempotency(
     featureBytes.get(FEATURE_PATHS.at(-1)),
   );
   const featureSuccessorControllerState = json(
     buildFeatureSuccessorStateQuery(featureSuccessorRecord),
   );
-  if (featureSuccessorControllerState.bundle?.priorCount !== 97
+  if (featureSuccessorControllerState.bundle?.priorCount !== expectedPreFeatureLedger
     || featureSuccessorControllerState.bundle?.targetCount !== 5
-    || featureSuccessorControllerState.bundle?.ledgerCount !== 102
+    || featureSuccessorControllerState.bundle?.ledgerCount !== expectedPreFeatureLedger + 5
     || !/^[0-9a-f]{64}$/.test(featureSuccessorControllerState.bundle?.suffixRoot ?? '')
     || featureSuccessorControllerState.state?.predecessorReady !== true
     || featureSuccessorControllerState.state?.immutableReady !== true
@@ -2217,7 +2296,8 @@ try {
     }));
   }
   if (rolesAfter !== rolesBefore) fail('FEATURE_SQL_ROLE_CATALOG_DRIFT');
-  if (Number(scalar('SELECT count(*) FROM supabase_migrations.schema_migrations;')) !== 102) {
+  const expectedTerminalLedger = EVIDENCE_PREFIXED ? 105 : 102;
+  if (Number(scalar('SELECT count(*) FROM supabase_migrations.schema_migrations;')) !== expectedTerminalLedger) {
     fail('FEATURE_SQL_TERMINAL_LEDGER_INVALID');
   }
   const featureHashesAfter = FEATURE_PATHS.map(path => ({
@@ -2236,9 +2316,31 @@ try {
   const sourceAfterSha256 = sha256(normalizedAfterDump);
   if (sourceAfterSha256 !== sourceBeforeSha256) fail('FEATURE_SQL_SOURCE_CLONE_DRIFT');
 
+  const evidencePrefixedReplay = EVIDENCE_PREFIXED ? Object.freeze({
+    baseFixtureSeparatedFromHostedIdentity: true,
+    evidenceAppliedBeforePredecessor: true,
+    evidenceVersions: evidencePrefixedPredecessorRecord.evidenceRows.map(row => row.version),
+    hostedBaseMappingSha256: evidencePrefixedPredecessorRecord.manifest.baseMapping.sha256,
+    predecessor: {
+      manifestSha256: evidencePrefixedPredecessorRecord.manifestSha256,
+      stageCount: evidencePrefixedPredecessorStages.length,
+      stageStatesSha256: sha256(JSON.stringify(canonical(evidencePrefixedPredecessorStages))),
+      baseline: evidencePrefixedPredecessorStages[0].bundle,
+      terminal: evidencePrefixedPredecessorStages.at(-1).bundle,
+    },
+    feature: {
+      manifestSha256: evidencePrefixedFeatureRecord.manifestSha256,
+      stageCount: evidencePrefixedFeatureStages.length,
+      stageStatesSha256: sha256(JSON.stringify(canonical(evidencePrefixedFeatureStages))),
+      baseline: evidencePrefixedFeatureStages[0].bundle,
+      terminal: evidencePrefixedFeatureStages.at(-1).bundle,
+    },
+  }) : null;
   proof = {
     schemaVersion: 1,
-    kind: 'feature-migration-existing-catalog-replay',
+    kind: EVIDENCE_PREFIXED
+      ? 'evidence-prefixed-successors-existing-catalog-replay'
+      : 'feature-migration-existing-catalog-replay',
     status: findings.length === 0 ? 'passed' : 'failed',
     environment: {
       engine: scalar('SHOW server_version;'),
@@ -2258,15 +2360,28 @@ try {
       featureSuccessorManifest: frozenSourceEntries.find(
         entry => entry.path === FEATURE_SUCCESSOR_MANIFEST_PATH,
       ),
+      evidencePrefixedPredecessorManifest: EVIDENCE_PREFIXED
+        ? frozenSourceEntries.find(entry => entry.path === EVIDENCE_PREFIXED_PREDECESSOR_MANIFEST_PATH)
+        : null,
+      evidencePrefixedFeatureManifest: EVIDENCE_PREFIXED
+        ? frozenSourceEntries.find(entry => entry.path === EVIDENCE_PREFIXED_FEATURE_MANIFEST_PATH)
+        : null,
+      evidencePrefixedController: EVIDENCE_PREFIXED
+        ? frozenSourceEntries.find(entry => entry.path === EVIDENCE_PREFIXED_CONTROLLER_PATH)
+        : null,
       predecessorMigrations: PREDECESSOR_PATHS.map(path => frozenSourceEntries.find(entry => entry.path === path)),
       successorMigrations: successorManifest.migrations.map(({ path }) => frozenSourceEntries.find(entry => entry.path === path)),
       featureMigrations: FEATURE_PATHS.map(path => frozenSourceEntries.find(entry => entry.path === path)),
+      evidenceMigrations: EVIDENCE_PREFIXED
+        ? EVIDENCE_PATHS.map(path => frozenSourceEntries.find(entry => entry.path === path))
+        : [],
     },
     replay: {
       predecessorLedgerRows: 86,
+      evidencePrefixRows: EVIDENCE_PREFIXED ? 3 : 0,
       successorMigrationCount: successorManifest.migrations.length,
       featureMigrationCount: FEATURE_PATHS.length,
-      terminalLedgerRows: 102,
+      terminalLedgerRows: expectedTerminalLedger,
       sourceCatalogSha256Before: sourceBeforeSha256,
       sourceCatalogSha256After: sourceAfterSha256,
       sourceCatalogBytesBefore: Buffer.byteLength(normalizedBeforeDump),
@@ -2285,6 +2400,7 @@ try {
       featureSuccessorCapabilityIdentity,
       runtimeCapabilityCatalogDrift,
       featureSuccessorControllerState,
+      evidencePrefixedReplay,
       storyboard,
       ocr,
       preexistingReviewAndAdminCorrectionExact: true,

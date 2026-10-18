@@ -6195,13 +6195,15 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     );
     expect(bannersSource).toContain("if (!bannerToDelete) return;");
     expect(bannersSource).toContain(
-      "await deleteBanner.mutateAsync(bannerToDelete.id)",
+      "const deletedBanner = await deleteBanner.mutateAsync({ id: target.id, expectedUpdatedAt: target.updated_at });",
     );
     expect(bannersSource).toContain("const mediaPaths = [");
+    expect(bannersSource).toContain("deletedBanner.image_url");
+    expect(bannersSource).toContain("deletedBanner.video_url");
     expect(bannersSource).toContain("await deleteImage.mutateAsync(path)");
     expect(bannersSource).toContain("console.error('배너 삭제 실패:');");
     expect(
-      bannersSource.indexOf("await deleteBanner.mutateAsync(bannerToDelete.id)"),
+      bannersSource.indexOf("const deletedBanner = await deleteBanner.mutateAsync({ id: target.id, expectedUpdatedAt: target.updated_at });"),
     ).toBeLessThan(bannersSource.indexOf("const mediaPaths = ["));
     expect(bannersSource.indexOf("const mediaPaths = [")).toBeLessThan(
       bannersSource.indexOf("await deleteImage.mutateAsync(path)"),

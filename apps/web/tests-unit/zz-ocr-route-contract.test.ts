@@ -62,6 +62,8 @@ describe('OCR extract route privacy and normalization contract', () => {
     expect(adminProcessor).toContain('buildOcrInputContextHash(imageHash, null, inferenceConfig)');
     for (const providerRoute of [publicRoute, streamRoute, adminProcessor]) {
       expect(providerRoute).toContain('inferenceConfig,');
+      expect(providerRoute).toContain('callGeminiReceiptOcrWithCredentialFallback');
+      expect(providerRoute).not.toContain('await callGeminiReceiptOcr({');
     }
     expect(statusRoute).not.toContain('callGeminiReceiptOcr');
   });
@@ -243,7 +245,7 @@ describe('OCR extract route privacy and normalization contract', () => {
         'await checkOcrDailyQuota({',
         ocrRouteSource === streamRouteSource
           ? 'await runStreamingOcrCandidate({'
-          : 'await callGeminiReceiptOcr({',
+          : 'await callGeminiReceiptOcrWithCredentialFallback({',
       ]) {
         expect(trustBoundaryIndex).toBeLessThan(postSource.indexOf(paidWorkBoundary));
       }
@@ -514,7 +516,7 @@ describe('OCR extract route privacy and normalization contract', () => {
     expect(processRouteSource).toContain('function noStoreJson');
     expect(processRouteSource).toContain("response.headers.set('Cache-Control', 'no-store')");
     expect(processCoreSource).toContain(
-      "import { callGeminiReceiptOcr, getGeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini'",
+      "import { callGeminiReceiptOcrWithCredentialFallback, getGeminiOcrInferenceConfigSnapshot } from '@/lib/ocr/gemini'",
     );
     expect(processCoreSource).toContain("import {\n    PRIVACY_UNSAFE_VALUE_REASON,\n    PrivacyUnsafeValueError,\n    assertPrivacySafe,\n} from '@/lib/privacy/sanitize';");
     expect(processCoreSource).toContain('assertOcrInputSafe(ocrData);');
@@ -555,7 +557,7 @@ describe('OCR extract route privacy and normalization contract', () => {
     const coreStorageReadIndex = coreFunctionSource.indexOf('downloadReviewVerification(storageAdmin, receiptObjectPath)');
     const coreDurableClaimIndex = coreFunctionSource.indexOf('await executeDurableReceiptOcr({');
     const coreProviderPreflightIndex = coreFunctionSource.indexOf('if (!credentials[0])', coreDurableClaimIndex);
-    const coreOcrCallIndex = coreFunctionSource.indexOf('await callGeminiReceiptOcr({', coreProviderPreflightIndex);
+    const coreOcrCallIndex = coreFunctionSource.indexOf('await callGeminiReceiptOcrWithCredentialFallback({', coreProviderPreflightIndex);
     const coreOcrResultIndex = coreFunctionSource.indexOf('const ocrData: ReceiptOcrData = {', coreOcrCallIndex);
     const corePrivacyBoundaryIndex = coreFunctionSource.indexOf('assertOcrInputSafe(ocrData);', coreOcrResultIndex);
     const corePersistenceIndex = coreFunctionSource.indexOf(

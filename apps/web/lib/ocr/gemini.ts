@@ -26,12 +26,53 @@ export function normalizeGeminiOcrModel(model: string): string {
 
 export class GeminiOcrError extends Error {
   attempts: ReceiptOcrAttempt[];
+  definitiveCredentialRejection: boolean;
 
-  constructor(attempts: ReceiptOcrAttempt[]) {
+  constructor(attempts: ReceiptOcrAttempt[], definitiveCredentialRejection = false) {
     super('Gemini OCR 호출 실패');
     this.name = 'GeminiOcrError';
     this.attempts = attempts;
+    this.definitiveCredentialRejection = definitiveCredentialRejection;
   }
+}
+
+function parseGeminiProviderError(error: unknown): Record<string, unknown> | null {
+  if (!error || typeof error !== 'object' || !('message' in error) || typeof error.message !== 'string') return null;
+  try {
+    const parsed = JSON.parse(error.message);
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isDefinitiveGeminiCredentialRejection(error: unknown): boolean {
+  const rawStatus = error && typeof error === 'object' && 'status' in error ? error.status : null;
+  const httpStatus = typeof rawStatus === 'number' && Number.isInteger(rawStatus) ? rawStatus : null;
+  if (httpStatus !== 400 && httpStatus !== 401 && httpStatus !== 403) return false;
+
+  const parsed = parseGeminiProviderError(error);
+  const body = parsed?.error && typeof parsed.error === 'object'
+    ? parsed.error as Record<string, unknown>
+    : parsed;
+  if (!body) return false;
+
+  const providerCode = typeof body.status === 'string'
+    ? body.status
+    : typeof body.code === 'string'
+      ? body.code
+      : '';
+  if (httpStatus === 401) {
+    return providerCode === 'UNAUTHENTICATED' || providerCode === 'authentication';
+  }
+  if (httpStatus === 403) {
+    return providerCode === 'PERMISSION_DENIED' || providerCode === 'permission_denied';
+  }
+  if (providerCode !== 'INVALID_ARGUMENT' && providerCode !== 'invalid_request') return false;
+
+  const details = Array.isArray(body.details) ? body.details : [];
+  return details.some((detail) => detail && typeof detail === 'object'
+    && 'reason' in detail && detail.reason === 'API_KEY_INVALID');
 }
 
 function sanitizeCsv(value: string | undefined): string[] {
@@ -198,8 +239,9 @@ export async function callGeminiReceiptOcr(input: {
       attempts.push({ model, ok: true, elapsedMs: Date.now() - startedAt });
       return { data, model, attempts };
     } catch (error) {
-      const providerStatus = error && typeof error === 'object' && 'status' in error
-        ? Number(error.status)
+      const rawProviderStatus = error && typeof error === 'object' && 'status' in error ? error.status : null;
+      const providerStatus = typeof rawProviderStatus === 'number' && Number.isInteger(rawProviderStatus)
+        ? rawProviderStatus
         : null;
       attempts.push({
         model,
@@ -213,6 +255,11 @@ export async function callGeminiReceiptOcr(input: {
       // response, may try the next declared model. Timeouts, cancellation and
       // transport/server failures have an uncertain provider outcome and must
       // not dispatch another model automatically.
+      const definitiveCredentialRejection = !providerResponseReceived
+        && isDefinitiveGeminiCredentialRejection(error);
+      if (definitiveCredentialRejection) {
+        throw new GeminiOcrError(attempts, true);
+      }
       const fallbackSafe = providerResponseReceived || providerStatus === 400 || providerStatus === 404;
       if (!fallbackSafe) break;
     } finally {
@@ -222,4 +269,48 @@ export async function callGeminiReceiptOcr(input: {
   }
 
   throw new GeminiOcrError(attempts);
+}
+
+export async function callGeminiReceiptOcrWithCredentialFallback(input: {
+  credentials: ReadonlyArray<{ apiKey: string }>;
+  imageBase64: string;
+  mimeType: string;
+  prompt: string;
+  env?: NodeJS.ProcessEnv;
+  inferenceConfig?: GeminiOcrInferenceConfigSnapshot;
+  signal?: AbortSignal;
+}): Promise<ReceiptOcrResult> {
+  if (!input.credentials[0]) throw new Error('Gemini OCR API 키가 설정되지 않았습니다.');
+  const priorAttempts: ReceiptOcrAttempt[] = [];
+
+  for (let index = 0; index < input.credentials.length; index++) {
+    const credential = input.credentials[index];
+    if (!credential) continue;
+    try {
+      const result = await callGeminiReceiptOcr({
+        apiKey: credential.apiKey,
+        imageBase64: input.imageBase64,
+        mimeType: input.mimeType,
+        prompt: input.prompt,
+        env: input.env,
+        inferenceConfig: input.inferenceConfig,
+        signal: input.signal,
+      });
+      return priorAttempts.length
+        ? { ...result, attempts: [...priorAttempts, ...result.attempts] }
+        : result;
+    } catch (error) {
+      if (!(error instanceof GeminiOcrError)) {
+        throw error;
+      }
+      if (!error.definitiveCredentialRejection || index === input.credentials.length - 1) {
+        throw priorAttempts.length
+          ? new GeminiOcrError([...priorAttempts, ...error.attempts], error.definitiveCredentialRejection)
+          : error;
+      }
+      priorAttempts.push(...error.attempts);
+    }
+  }
+
+  throw new Error('Gemini OCR API 키가 설정되지 않았습니다.');
 }

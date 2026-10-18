@@ -187,6 +187,12 @@
   .admin-page-header-context, .admin-page-header-actions { min-height: 2.75rem; justify-content: flex-start; }
   .admin-page-header-actions :is(button, select, input, a[data-slot="button"]) { min-width: 2.75rem; min-height: 2.75rem; }
   .admin-page-header-actions select { height: 2.75rem; }
+  .admin-cms-inspector button:not([role="switch"]):not([role="checkbox"]) { min-width: 2.75rem; min-height: 2.75rem; }
+  .admin-cms-page-header, .admin-cms-page-header:has(> .admin-page-header-controls) { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 0.5rem; }
+  .admin-cms-page-header > .admin-page-header-identity { display: contents; }
+  .admin-cms-page-header .admin-page-header-title-group { grid-column: 1; grid-row: 1; min-width: 0; }
+  .admin-cms-page-header > .admin-page-header-controls { grid-column: 2; grid-row: 1; width: auto; min-width: max-content; overflow: visible; justify-content: flex-end; }
+  .admin-cms-page-header .admin-page-header-summary { grid-column: 1 / -1; grid-row: 2; width: 100%; }
 }
 @media (max-width: 1023px) {
   .admin-restaurant-primary-header .admin-page-header-controls { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible; }

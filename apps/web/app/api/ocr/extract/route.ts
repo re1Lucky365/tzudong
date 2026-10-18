@@ -5,7 +5,7 @@ import sharp from 'sharp';
 import { debugLog } from '@/lib/debug-log';
 import { assertPrivacySafe } from '@/lib/privacy/sanitize';
 import {
-    callGeminiReceiptOcr,
+    callGeminiReceiptOcrWithCredentialFallback,
     GEMINI_OCR_FALLBACK_MODEL,
     GeminiOcrError,
     getGeminiOcrInferenceConfigSnapshot,
@@ -191,7 +191,7 @@ export async function POST(req: Request) {
         const freshArtifacts: { current: {
             optimized: Buffer;
             savings: string;
-            ocrResult: Awaited<ReturnType<typeof callGeminiReceiptOcr>>;
+            ocrResult: Awaited<ReturnType<typeof callGeminiReceiptOcrWithCredentialFallback>>;
             envelope: ReturnType<typeof buildReceiptOcrEnvelope>;
             restaurantMatches: Awaited<ReturnType<typeof findOcrRestaurantMatches>>;
         } | null } = { current: null };
@@ -228,8 +228,8 @@ export async function POST(req: Request) {
             runProvider: async () => {
                 req.signal.throwIfAborted();
                 const { optimized, savings } = await optimizeImage(buffer!);
-                const ocrResult = await callGeminiReceiptOcr({
-                    apiKey: credentials[0]!.apiKey,
+                const ocrResult = await callGeminiReceiptOcrWithCredentialFallback({
+                    credentials,
                     imageBase64: optimized.toString('base64'),
                     mimeType: 'image/jpeg',
                     prompt: OCR_PROMPT,

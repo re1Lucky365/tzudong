@@ -64,3 +64,21 @@ review-media feature successor와 PG17.6 receipt는 정확한 97→102 다섯 mi
 1차 [심층 연구 전문](../../apps/web/performance/cross-audit-20261018/chatgpt-thesis-full-report.md)은 UI9분/출처5/검색99 완료를 확인하고43,130bytes·SHA4c5542b59d9bcb426eac29722b6da36c9c23337fa622bd9e822bd6b3ffe4ad82로 보존했다. ChatGPT 슬롯은 전문 저장 직후 해제했다. TZ-TH-001~009는 ACCEPT8·CONDITIONAL1로 판정했다. provider protocol·debt 복구·abort 경계, OCR 전체 입력 snapshot·공백 제외20~4,000자, 인라인 포커스 및 롱폼 request/response lineage를 수정했다. [현재 소스 검증](../../apps/web/performance/cross-audit-20261018/final-verification/verification.json)에 CMS131·provider JS9/고정Python15·lineage86·layout42, 진단0, production build54페이지를 구분해 기록했다. Gemini 반대 감사 묶음은 원래10개 소스 전문·thesis 전문·기존PG/closure 영수증을 포함하며 FIFO 대기 중이다.
 
 과거 결제 감사:10월2일1만원 충전·한 프로젝트 결제 연결의 UI readback은 있고10월8일 재관측에서 자동충전OFF가 유지됐다.10월15일에는 승인 계정의 유료 Tier/크레딧 표시만 확인했다. 실제 요청의 청구/credit debit 귀속과 정확 잔액은 미확인이다. 카드 삭제는 유효한 대체수단 요구로 취소돼 대상 잔존이며 미완료다. 추가 충전·카드 등록·결제 변경을 하지 않는다. 원본 증거는 pipeline-20261002/billing-readback.json, funded-gemini-followthrough-20261009/billing-before.json 및 longform-resume-readiness-20261009/card-removal-readback.json이다.
+
+후속 상태: `86328a4c52a03e953519ea8d09b2672bef7eda57`의 CI 33개가 완료됐고 실패는 없다. Swift, Catalog generate, orchestration-readiness가 성공했다. skipped hosted-ledger는 운영 SQL 검증이 아니며 Vercel status는 배포 증명이 아니다. 이후 발견한 OCR key fallback 및 사용자·배너 CMS 결함의 수정은 별도 head 검증 대상이다.
+
+롱폼 로컬 상태는 대상 1,071개, 보존된 provider 완료 receipt 3개, 전체 미완료 1,068개다. 현재 소스의 읽기 전용 계획은 new 1,066 / readback_required 5 / reusable 0, provider GET eligible 0이며 독립 검증 완료는 0개다. 새 영상의 남은 segment는 2,004개다. 이는 전체 영상 심층 분석 완료가 아니다. 정확한 입력·상태 해시와 경계는 `longform-local-state-readback-20261018.json`에 보존했다.
+
+10월18일 최신 공개 metadata 재조회에서는 eligible longform 1,071→1,076개(+5, +0.467%)였다. `/videos`1,058·`/shorts`83·완료 streams18이며 live/upcoming0, 중복0, eligible duration 누락0이다. 새 inventory의 offline plan은 new1,071·readback_required5·reusable0·GET eligible0·new segment2,014개다. 공개 metadata만 읽었으며 기존 canonical inventory·queue·receipt·analysis state는 변경하지 않았다. 전체 심층 분석·독립 사실 검증 완료를 뜻하지 않는다. `longform-inventory-refresh-20261018.json`의 SHA와 collection receipt를 보존했다.
+
+교차 감사 상태를 현재 이행과 맞췄다. 실제 thesis 전문1건은 완료·원문 보존했고 TZ-TH-001~005·009의 소스+필수 로컬 검증6건은 완료다. 006의 독립 앱 포커스 캡처, 008의 다음 외부 검토 및 007의 운영 설치 후 ACL/readiness는 별도 gate이며 Gemini·최종 역검증은 미완료다. `completion-manifest.json`의 오래된 미수행 문장을 정리했으며 기존 FIFO/job/hash는 유지했다.
+
+후속 직접 앱 검증에서 TZ-TH-006의 제보·리뷰 인라인 닫기 2건 모두 상세 종료 및 화면에 보이는 행 버튼으로 포커스 복원이 확인됐다. 합성 loopback·1440×960 CUA 증거이며 운영 검증은 아니다. 이에 소스·필수 로컬 검증 완료 집계는7건으로 갱신했다. `inline-focus-application-readback-20261018.json`에 source hash·raw interaction hash·geometry를 보존했다.
+
+Evidence-prefixed successor의 aggregate compile 결과 자체도 별도 PG17.6 컨테이너에서 실행했다. 89→100의11 plans 및100→105의5 plans가 각 단일 외부 transaction으로 완료됐고 compiler terminal output·DB readback·constituent terminal이 일치했다. 새 source와 초기 constituent source의 hash 차이는 `evidence-prefixed-successors-source-binding-followup-20261018.json`으로 구분한다. 신규 정책은 계속 held이며 운영 admission/apply 증거가 아니다.
+
+최종 후속 검증: CMS41개/468 assertions, OCR74개/614 assertions, SQL39개/245 assertions가 통과했다. 독립 CMS 반례4개는 기존 검사와 겹치므로 고유 검사 수에 더하지 않는다. parity3,350입력/진단0, Node24·npm11.6.2 build54페이지 및 CSS 경계가 통과했다. 잘못된 loopback build origin 거부는 첫 실패 영수증으로 보존했으며, 소스 guard를 바꾸지 않고 기존 canonical 공개 origin·자격증명 없음 조건으로 build를 완료했다. 운영 런타임 증거는 아니다.
+
+최종 사용자·배너 390·834·1440px 캡처6개 모두 문서 가로 넘침0이며 title18px, 데스크톱/태블릿 공통 header56px다. 모바일 header는 사용자150→96px(-54px,-36%), 배너142→88px(-54px,-38.03%); 주요 목록·페이지 버튼은32→44px(+12px,+37.5%)다. 조건별1회 관측으로95%구간을 산출하지 않으며 작업 시간·운영 성능 개선으로 해석하지 않는다. 원본 중간 관측과 최종 JPEG byte/hash·source hash는 `admin-cms-followup-20261018/artifact-map.json`에 구분해 보존했다.
+
+CMS-FINAL-001~004는 관측 revision CAS, 실제 삭제된 행의 미디어 정리, 명시적 최신 상태 수용으로 보완됐고 독립 재검토에서도 로컬 소스 결함이 닫혔다. Hosted revision trigger 동작은 아직 미확인이다. 기존 Gemini FIFO/job/hash는 유지하고, 최신 소스 추가 묶음은 준비만 한다. 연구·운영·배포 gate는 미완료다.

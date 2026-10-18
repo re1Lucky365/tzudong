@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
+    AdminBannerMutationError,
     useAdBannersAdmin,
     useCreateAdBanner,
     useUpdateAdBanner,
@@ -111,6 +112,81 @@ const matchesSavedBanner = (actual: AdBanner | undefined, expected: AdBanner) =>
     && actual.image_url === expected.image_url && actual.video_url === expected.video_url
     && actual.media_type === expected.media_type && actual.link_url === expected.link_url
     && JSON.stringify([...actual.display_target].sort()) === JSON.stringify([...expected.display_target].sort()));
+
+type BannerPendingReadback =
+    | { saved: AdBanner }
+    | { deletedId: string; mediaCleanupFailed: boolean };
+
+type BannerPendingReadbackDecision =
+    | { kind: 'saved-confirmed'; banner: AdBanner }
+    | { kind: 'saved-diverged'; latest: AdBanner | null }
+    | { kind: 'delete-confirmed' }
+    | { kind: 'delete-diverged'; latest: AdBanner };
+
+function getBannerPendingReadbackDecision(
+    banners: AdBanner[],
+    pending: BannerPendingReadback,
+): BannerPendingReadbackDecision {
+    if ('saved' in pending) {
+        const latest = banners.find((banner) => banner.id === pending.saved.id);
+        return matchesSavedBanner(latest, pending.saved)
+            ? { kind: 'saved-confirmed', banner: latest! }
+            : { kind: 'saved-diverged', latest: latest ?? null };
+    }
+
+    const latest = banners.find((banner) => banner.id === pending.deletedId);
+    return latest ? { kind: 'delete-diverged', latest } : { kind: 'delete-confirmed' };
+}
+
+type BannerRefreshEditorDecision =
+    | { kind: 'none' | 'unchanged' }
+    | { kind: 'rebase'; banner: AdBanner }
+    | { kind: 'close-removed' }
+    | { kind: 'preserve-conflict'; removed: boolean };
+
+type BannerEditorLiveSnapshot = {
+    revision: number;
+    editingBanner: AdBanner | null;
+    isDirty: boolean;
+};
+
+type BannerRefreshConflict = {
+    bannerId: string;
+    latest: AdBanner | null;
+};
+
+function isBannerRefreshConflictBlocking(
+    conflict: BannerRefreshConflict | null,
+    editingBanner: AdBanner | null,
+) {
+    return Boolean(conflict && conflict.bannerId === editingBanner?.id);
+}
+
+function getBannerRefreshEditorDecision(
+    banners: AdBanner[],
+    editingBanner: AdBanner | null,
+    isDirty: boolean,
+): BannerRefreshEditorDecision {
+    if (!editingBanner) return { kind: 'none' };
+    const latest = banners.find((banner) => banner.id === editingBanner.id);
+    if (!latest) return isDirty ? { kind: 'preserve-conflict', removed: true } : { kind: 'close-removed' };
+    if (matchesSavedBanner(latest, editingBanner)) return { kind: 'unchanged' };
+    return isDirty ? { kind: 'preserve-conflict', removed: false } : { kind: 'rebase', banner: latest };
+}
+
+async function readBannerRefresh<T>(
+    refetch: () => Promise<T>,
+    getLiveSnapshot: () => BannerEditorLiveSnapshot,
+) {
+    const started = getLiveSnapshot();
+    const result = await refetch();
+    const current = getLiveSnapshot();
+    return {
+        result,
+        current,
+        editorChangedDuringRefresh: current.revision !== started.revision,
+    };
+}
 
 const revokeObjectUrlIfNeeded = (url: string | null) => {
     if (url?.startsWith('blob:https:') || url?.startsWith('blob:http:')) {
@@ -219,8 +295,17 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
     const [actionResult, setActionResult] = useState<{ status: 'success' | 'warning' | 'error'; message: string } | null>(null);
     const [initialForm, setInitialForm] = useState(formData);
     const editorRef = useRef<HTMLElement>(null);
-    const [pendingReadback, setPendingReadback] = useState<{ saved: AdBanner } | { deletedId: string; mediaCleanupFailed: boolean } | null>(null);
+    const [pendingReadback, setPendingReadback] = useState<BannerPendingReadback | null>(null);
+    const [refreshConflict, setRefreshConflict] = useState<BannerRefreshConflict | null>(null);
     const isDirty = JSON.stringify(formData) !== JSON.stringify(initialForm) || Boolean(imageFile || videoFile);
+    const hasRefreshConflict = isBannerRefreshConflictBlocking(refreshConflict, editingBanner);
+    const editorRevisionRef = useRef(0);
+    const liveEditorSnapshotRef = useRef<BannerEditorLiveSnapshot>({ revision: 0, editingBanner: null, isDirty: false });
+    useLayoutEffect(() => {
+        const revision = editorRevisionRef.current + 1;
+        editorRevisionRef.current = revision;
+        liveEditorSnapshotRef.current = { revision, editingBanner, isDirty };
+    }, [editingBanner, formData, imageFile, isDirty, isEditorOpen, videoFile]);
     const isBusy = isUploading || createBanner.isPending || updateBanner.isPending || deleteBanner.isPending;
     const visibleBanners = useMemo(() => [...banners]
         .sort((a, b) => sortOrder === 'title' ? a.title.localeCompare(b.title, 'ko') : sortOrder === 'updated' ? Date.parse(b.updated_at) - Date.parse(a.updated_at) : b.priority - a.priority)
@@ -275,6 +360,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
         setEditingBanner(null);
         setBannerToDelete(null);
         setDeleteConfirmation('');
+        setRefreshConflict(null);
     };
 
     const handleOpenExternalLink = (rawUrl: string) => {
@@ -316,6 +402,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
         setVideoPreview(resolvedUrls?.video_url ?? null);
         setBannerToDelete(null);
         setDeleteConfirmation('');
+        setRefreshConflict(null);
     };
 
     const applyEditor = (banner: AdBanner | null, close = false) => {
@@ -329,7 +416,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
     };
     const requestEditor = (banner: AdBanner | null) => {
         if (isBusy || pendingReadback) return;
-        if (banner && banner.id === editingBanner?.id) {
+        if (banner && banner.id === editingBanner?.id && !refreshConflict) {
             editorRef.current?.focus();
             return;
         }
@@ -493,6 +580,14 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
 
     // 폼 제출
     const handleSubmit = async () => {
+        if (hasRefreshConflict) {
+            toast({
+                title: '최신 배너 상태 확인 필요',
+                description: '현재 입력을 저장하기 전에 목록의 최신 상태를 다시 열어 주세요.',
+                variant: 'destructive',
+            });
+            return;
+        }
         if (isBusy || bannersError || !isDirty || Boolean(pendingReadback)) return;
         if (!formData.title.trim()) {
             toast({
@@ -528,6 +623,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             return;
         }
 
+        const uploadedPaths: string[] = [];
         try {
             setIsUploading(true);
             setPendingEditor(null);
@@ -539,6 +635,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             // 새 이미지가 있으면 업로드
             if (imageFile) {
                 const uploadResult = await uploadImage.mutateAsync(imageFile);
+                uploadedPaths.push(uploadResult.path);
                 imageUrl = uploadResult.url;
                 videoUrl = null; // 이미지 업로드 시 영상 제거
             }
@@ -546,6 +643,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             // 새 영상이 있으면 업로드
             if (videoFile) {
                 const uploadResult = await uploadImage.mutateAsync(videoFile); // 동일한 업로드 훅 사용
+                uploadedPaths.push(uploadResult.path);
                 videoUrl = uploadResult.url;
                 imageUrl = null; // 영상 업로드 시 이미지 제거
             }
@@ -572,23 +670,43 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             };
 
             const savedBanner = editingBanner
-                ? await updateBanner.mutateAsync({ id: editingBanner.id, data: validatedDataToSubmit })
+                ? await updateBanner.mutateAsync({ id: editingBanner.id, expectedUpdatedAt: editingBanner.updated_at, data: validatedDataToSubmit })
                 : await createBanner.mutateAsync(validatedDataToSubmit);
             openEditPanel(savedBanner);
             setPendingReadback({ saved: savedBanner });
             const readback = await refetchBanners();
-            const confirmedBanner = readback.data?.find((banner) => banner.id === savedBanner.id);
-            const readbackMatches = matchesSavedBanner(confirmedBanner, savedBanner);
-            if (readback.isError || !readbackMatches) {
+            if (readback.isError || !Array.isArray(readback.data)) {
                 setActionResult({ status: 'warning', message: '저장은 완료했지만 목록 재확인이 필요합니다. 중복 저장하지 말고 새로고침으로 확인해 주세요.' });
             } else {
-                openEditPanel(confirmedBanner!);
+                const decision = getBannerPendingReadbackDecision(readback.data, { saved: savedBanner });
                 setPendingReadback(null);
-                setActionResult({ status: 'success', message: '저장한 배너 상태를 목록에서 다시 확인했습니다.' });
+                if (decision.kind === 'saved-confirmed') {
+                    openEditPanel(decision.banner);
+                    setActionResult({ status: 'success', message: '저장한 배너 상태를 목록에서 다시 확인했습니다.' });
+                } else if (decision.kind === 'saved-diverged' && decision.latest) {
+                    openEditPanel(decision.latest);
+                    setActionResult({ status: 'warning', message: '저장 뒤 배너가 다시 변경되어 목록의 최신 상태를 열었습니다.' });
+                } else {
+                    resetForm();
+                    setIsEditorOpen(false);
+                    setActionResult({ status: 'warning', message: '저장 뒤 배너가 목록에서 사라져 상세를 닫았습니다.' });
+                }
             }
         } catch (error) {
             console.error('배너 저장 실패:');
-            setActionResult({ status: 'error', message: '배너를 저장하지 못했습니다. 입력 내용은 유지됩니다. 목록에서 적용 여부를 확인한 후 다시 시도해 주세요.' });
+            if (error instanceof AdminBannerMutationError && (error.code === 'banner_revision_conflict' || error.code === 'banner_not_found')) {
+                const cleanupFailed = (await Promise.allSettled(uploadedPaths.map((path) => deleteImage.mutateAsync(path))))
+                    .some((result) => result.status === 'rejected');
+                if (editingBanner) setRefreshConflict({ bannerId: editingBanner.id, latest: error.latest });
+                setActionResult({
+                    status: 'warning',
+                    message: error.latest
+                        ? `배너가 다른 관리자에 의해 변경되어 현재 입력을 보존했습니다. 최신 상태를 다시 열어 비교해 주세요.${cleanupFailed ? ' 새 업로드 미디어 일부를 정리하지 못했습니다.' : ''}`
+                        : `편집하던 배너가 사라져 현재 입력을 보존했습니다. 상세를 닫기 전 내용을 확인해 주세요.${cleanupFailed ? ' 새 업로드 미디어 일부를 정리하지 못했습니다.' : ''}`,
+                });
+            } else {
+                setActionResult({ status: 'error', message: '배너를 저장하지 못했습니다. 입력 내용은 유지됩니다. 목록에서 적용 여부를 확인한 후 다시 시도해 주세요.' });
+            }
         } finally {
             setIsUploading(false);
         }
@@ -597,16 +715,17 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
     // 삭제 실행
     const handleDelete = async () => {
         if (!bannerToDelete) return;
-        if (deleteConfirmation !== '배너삭제' || bannerToDelete.id !== editingBanner?.id || isBusy || bannersError || Boolean(pendingReadback)) return;
+        if (deleteConfirmation !== '배너삭제' || bannerToDelete.id !== editingBanner?.id || isBusy || bannersError || Boolean(pendingReadback) || hasRefreshConflict) return;
+        const target = bannerToDelete;
 
         try {
             setIsUploading(true);
             setActionResult(null);
-            await deleteBanner.mutateAsync(bannerToDelete.id);
+            const deletedBanner = await deleteBanner.mutateAsync({ id: target.id, expectedUpdatedAt: target.updated_at });
 
             const mediaPaths = [
-                bannerToDelete.image_url,
-                bannerToDelete.video_url,
+                deletedBanner.image_url,
+                deletedBanner.video_url,
             ]
                 .map(resolveAdBannerMediaStoragePath)
                 .filter((path): path is string => path !== null);
@@ -617,46 +736,127 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                 mediaCleanupFailed = true;
                 console.error('배너 DB 삭제 후 미디어 정리 실패:');
             });
-            setPendingReadback({ deletedId: bannerToDelete.id, mediaCleanupFailed });
+            const pendingDeletion = { deletedId: deletedBanner.id, mediaCleanupFailed };
+            setPendingReadback(pendingDeletion);
             const readback = await refetchBanners();
-            const deletionConfirmed = !readback.isError && Array.isArray(readback.data) && !readback.data.some((banner) => banner.id === bannerToDelete.id);
-
             setBannerToDelete(null);
             setDeleteConfirmation('');
-            resetForm();
-            if (deletionConfirmed) {
+            if (!readback.isError && Array.isArray(readback.data)) {
+                const decision = getBannerPendingReadbackDecision(readback.data, pendingDeletion);
                 setPendingReadback(null);
-                setIsEditorOpen(false);
+                if (decision.kind === 'delete-confirmed') {
+                    resetForm();
+                    setIsEditorOpen(false);
+                    setActionResult({
+                        status: mediaCleanupFailed ? 'warning' : 'success',
+                        message: mediaCleanupFailed ? '배너 삭제를 확인했습니다. 연결 미디어 일부를 정리하지 못했습니다.' : '배너가 목록에서 삭제된 것을 확인했습니다.',
+                    });
+                } else if (decision.kind === 'delete-diverged') {
+                    openEditPanel(decision.latest);
+                    setActionResult({ status: 'warning', message: '삭제 뒤 같은 ID의 배너가 목록에 있어 최신 상태를 열었습니다. 다시 삭제하려면 내용을 확인해 주세요.' });
+                }
+            } else {
+                setActionResult({
+                    status: 'warning',
+                    message: '삭제 요청은 완료했지만 목록 재확인이 필요합니다. 다시 삭제하지 말고 새로고침해 주세요.',
+                });
             }
-            setActionResult({
-                status: deletionConfirmed && !mediaCleanupFailed ? 'success' : 'warning',
-                message: !deletionConfirmed ? '삭제 요청은 완료했지만 목록 재확인이 필요합니다. 다시 삭제하지 말고 새로고침해 주세요.'
-                    : mediaCleanupFailed ? '배너 삭제를 확인했습니다. 연결 미디어 일부를 정리하지 못했습니다.'
-                    : '배너가 목록에서 삭제된 것을 확인했습니다.',
-            });
         } catch (error) {
             console.error('배너 삭제 실패:');
-            setActionResult({ status: 'error', message: '삭제 결과를 확인하지 못했습니다. 목록에서 현재 상태를 확인해 주세요.' });
+            if (error instanceof AdminBannerMutationError && (error.code === 'banner_revision_conflict' || error.code === 'banner_not_found')) {
+                setRefreshConflict({ bannerId: target.id, latest: error.latest });
+                setActionResult({
+                    status: 'warning',
+                    message: error.latest
+                        ? '배너가 다른 관리자에 의해 변경되어 삭제하지 않았습니다. 최신 상태를 다시 열어 확인해 주세요.'
+                        : '배너가 이미 사라져 삭제하지 않았습니다. 현재 상세를 닫고 목록을 확인해 주세요.',
+                });
+            } else {
+                setActionResult({ status: 'error', message: '삭제 결과를 확인하지 못했습니다. 목록에서 현재 상태를 확인해 주세요.' });
+            }
         } finally {
             setIsUploading(false);
         }
     };
 
     const refreshBannerList = async () => {
-        const result = await refetchBanners();
+        const { result, current, editorChangedDuringRefresh } = await readBannerRefresh(
+            refetchBanners,
+            () => liveEditorSnapshotRef.current,
+        );
         const pending = pendingReadback;
-        if (result.isError || !Array.isArray(result.data) || !pending) return;
-        if ('saved' in pending) {
-            const confirmed = result.data?.find((banner) => banner.id === pending.saved.id);
-            if (!matchesSavedBanner(confirmed, pending.saved)) return;
-            openEditPanel(confirmed!);
-            setActionResult({ status: 'success', message: '저장한 배너 상태를 목록에서 다시 확인했습니다.' });
-        } else {
-            if (result.data?.some((banner) => banner.id === pending.deletedId)) return;
-            setIsEditorOpen(false);
-            setActionResult({ status: pending.mediaCleanupFailed ? 'warning' : 'success', message: pending.mediaCleanupFailed ? '배너 삭제를 확인했습니다. 연결 미디어 일부를 정리하지 못했습니다.' : '배너가 목록에서 삭제된 것을 확인했습니다.' });
+        if (result.isError || !Array.isArray(result.data)) return;
+        if (pending) {
+            const pendingDecision = getBannerPendingReadbackDecision(result.data, pending);
+            setPendingReadback(null);
+            if (pendingDecision.kind === 'saved-confirmed') {
+                openEditPanel(pendingDecision.banner);
+                setActionResult({ status: 'success', message: '저장한 배너 상태를 목록에서 다시 확인했습니다.' });
+            } else if (pendingDecision.kind === 'saved-diverged' && pendingDecision.latest) {
+                openEditPanel(pendingDecision.latest);
+                setActionResult({ status: 'warning', message: '저장 뒤 배너가 다시 변경되어 목록의 최신 상태를 열었습니다.' });
+            } else if (pendingDecision.kind === 'saved-diverged') {
+                resetForm();
+                setIsEditorOpen(false);
+                setActionResult({ status: 'warning', message: '저장 뒤 배너가 목록에서 사라져 상세를 닫았습니다.' });
+            } else if (pendingDecision.kind === 'delete-diverged') {
+                openEditPanel(pendingDecision.latest);
+                setActionResult({ status: 'warning', message: '삭제 뒤 같은 ID의 배너가 목록에 있어 최신 상태를 열었습니다. 다시 삭제하려면 내용을 확인해 주세요.' });
+            } else {
+                resetForm();
+                setIsEditorOpen(false);
+                const mediaCleanupFailed = 'mediaCleanupFailed' in pending && pending.mediaCleanupFailed;
+                setActionResult({ status: mediaCleanupFailed ? 'warning' : 'success', message: mediaCleanupFailed ? '배너 삭제를 확인했습니다. 연결 미디어 일부를 정리하지 못했습니다.' : '배너가 목록에서 삭제된 것을 확인했습니다.' });
+            }
+            return;
         }
-        setPendingReadback(null);
+
+        const decision = getBannerRefreshEditorDecision(result.data, current.editingBanner, current.isDirty);
+        if (editorChangedDuringRefresh) {
+            const latest = current.editingBanner
+                ? result.data.find((banner) => banner.id === current.editingBanner?.id) ?? null
+                : null;
+            const hasConfirmedConflict = decision.kind === 'rebase'
+                || decision.kind === 'close-removed'
+                || decision.kind === 'preserve-conflict';
+            if (hasConfirmedConflict && current.editingBanner) {
+                setRefreshConflict({ bannerId: current.editingBanner.id, latest });
+            }
+            setActionResult({
+                status: 'warning',
+                message: hasConfirmedConflict
+                    ? '새로고침 중 편집기 상태가 바뀌었고 목록의 최신 상태도 달라 현재 입력을 보존했습니다. 최신 상태를 다시 열기 전에는 저장할 수 없습니다.'
+                    : '새로고침 중 선택 또는 입력이 바뀌어 현재 편집 상태를 그대로 보존했습니다.',
+            });
+            return;
+        }
+        if (decision.kind === 'rebase') {
+            openEditPanel(decision.banner);
+            setActionResult({ status: 'success', message: '열린 배너 상세를 최신 목록 상태로 갱신했습니다.' });
+        } else if (decision.kind === 'close-removed') {
+            resetForm();
+            setIsEditorOpen(false);
+            setActionResult({ status: 'warning', message: '선택한 배너가 목록에서 사라져 상세를 닫았습니다.' });
+        } else if (decision.kind === 'preserve-conflict') {
+            if (current.editingBanner) {
+                setRefreshConflict({
+                    bannerId: current.editingBanner.id,
+                    latest: result.data.find((banner) => banner.id === current.editingBanner?.id) ?? null,
+                });
+            }
+            setActionResult({
+                status: 'warning',
+                message: decision.removed
+                    ? '편집 중인 배너가 목록에서 사라졌습니다. 입력을 보존했습니다. 다시 저장하지 말고 목록 상태를 확인해 주세요.'
+                    : '편집 중인 배너가 다른 상태로 갱신되었습니다. 입력을 보존했습니다. 저장 전에 변경 내용을 다시 확인해 주세요.',
+            });
+        }
+    };
+
+    const reopenRefreshConflict = () => {
+        if (!refreshConflict) return;
+        if (refreshConflict.latest) applyEditor(refreshConflict.latest);
+        else applyEditor(null, true);
     };
 
     const inspectorContent = (
@@ -666,13 +866,17 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                     <Button type="button" variant="outline" size="sm" onClick={() => setPendingEditor(null)}>계속 편집</Button>
                     <Button type="button" variant="outline" size="sm" onClick={() => applyEditor(pendingEditor.banner, pendingEditor.close)}>변경 버리고 이동</Button>
                 </div>}
+                {refreshConflict && <div role="alert" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-amber-200 bg-amber-50 p-2 text-sm text-amber-950">
+                    <span className="min-w-0 flex-1">목록의 최신 배너 상태와 현재 편집 내용이 다릅니다. 현재 입력은 보존되며 다시 기준을 잡기 전에는 저장할 수 없습니다.</span>
+                    <Button type="button" variant="outline" size="sm" onClick={reopenRefreshConflict}>{refreshConflict.latest ? '현재 입력 버리고 최신 상태 열기' : '현재 입력 버리고 상세 닫기'}</Button>
+                </div>}
                 {isEditorOpen && actionResult && <p role={actionResult.status === 'success' ? 'status' : 'alert'} className={cn("shrink-0 border-b px-3 py-2 text-sm", actionResult.status === 'success' ? 'bg-emerald-50 text-emerald-800' : actionResult.status === 'warning' ? 'bg-amber-50 text-amber-900' : 'bg-destructive/10 text-destructive')}>{actionResult.message}</p>}
                         <div className="admin-cms-inspector-header sticky top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card p-2.5">
                             <div className="min-w-0">
                                 <h2 id="banner-editor-title" className="text-sm font-semibold text-foreground">{!isEditorOpen ? '배너 상세' : editingBanner ? '배너 수정' : '새 배너 작성'}</h2>
                                 <p className="text-xs text-muted-foreground" role="status">{!isEditorOpen ? '목록에서 배너를 선택하세요.' : isDirty ? '저장하지 않은 변경' : editingBanner ? '저장된 배너' : '제목과 표시 위치를 입력하세요.'}</p>
                             </div>
-                            {isEditorOpen && <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={handleSubmit} disabled={isBusy || bannersError || !isDirty || Boolean(pendingReadback)}>{isBusy ? '처리 중…' : editingBanner ? '수정 저장' : '배너 추가'}</Button><Button type="button" variant="ghost" size="sm" disabled={isBusy || Boolean(pendingReadback)} onClick={closeEditor}><X className="h-4 w-4" aria-hidden="true" />{isNarrow ? '목록으로' : '닫기'}</Button></div>}
+                            {isEditorOpen && <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={handleSubmit} disabled={isBusy || bannersError || !isDirty || Boolean(pendingReadback) || hasRefreshConflict}>{isBusy ? '처리 중…' : editingBanner ? '수정 저장' : '배너 추가'}</Button><Button type="button" variant="ghost" size="sm" disabled={isBusy || Boolean(pendingReadback)} onClick={closeEditor}><X className="h-4 w-4" aria-hidden="true" />{isNarrow ? '목록으로' : '닫기'}</Button></div>}
                         </div>
 
                         {pendingReadback && <div className="flex shrink-0 items-center gap-2 border-b bg-amber-50 px-3 py-2 text-xs text-amber-900"><span className="min-w-0 flex-1">이전 변경의 상태를 먼저 확인해 주세요.</span><Button type="button" size="sm" variant="outline" disabled={bannersFetching || isBusy} onClick={() => void refreshBannerList()}>상태 재확인</Button></div>}
@@ -745,7 +949,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                     {isDirty && <p className="mt-1 text-xs text-destructive">변경 내용을 저장하거나 되돌린 후 삭제할 수 있습니다.</p>}
                                     <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                                         <Input value={deleteConfirmation} onChange={(event) => { setBannerToDelete(editingBanner); setDeleteConfirmation(event.target.value); }} placeholder="배너삭제" className="bg-background" aria-label="배너 삭제 확인 문구" />
-                                        <Button type="button" variant="destructive" className="w-full sm:w-auto" disabled={deleteConfirmation !== '배너삭제' || isBusy || bannersError || Boolean(pendingReadback) || isDirty} onClick={() => void handleDelete()}>
+                                        <Button type="button" variant="destructive" className="w-full sm:w-auto" disabled={deleteConfirmation !== '배너삭제' || isBusy || bannersError || Boolean(pendingReadback) || hasRefreshConflict || isDirty} onClick={() => void handleDelete()}>
                                             {deleteBanner.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />}
                                             삭제
                                         </Button>
@@ -769,7 +973,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             )}
 
             <div className={cn("relative z-10 flex min-h-0 flex-1 flex-col", embedded ? "h-full" : "container mx-auto min-h-screen max-w-7xl p-3 md:p-4")}>
-                <AdminPageHeader title={getAdminModuleTitle("banners")} icon={ImageIcon}
+                <AdminPageHeader title={getAdminModuleTitle("banners")} icon={ImageIcon} className="admin-cms-page-header"
                     data-admin-module-header={embedded ? "compact" : undefined} data-admin-module-header-module={embedded ? "banners" : undefined}
                     summary={<>전체 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(sortedBanners.length, '개')} · 활성 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(activeBannerCount, '개')} · 비활성 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(inactiveBannerCount, '개')} · 데스크톱 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(sidebarTargetCount)} · 모바일 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(mobileTargetCount)}</>}
                     actions={<div className="flex min-w-0 items-center gap-1.5" data-admin-module-actions={embedded ? "top-right" : undefined}>
@@ -790,13 +994,13 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                             <h2 id="banner-list-title" className="sr-only">배너 목록</h2>
                             <div className="flex w-full min-w-0 gap-2"><div className="relative min-w-0 flex-1">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                                <Input id="admin-banner-search" aria-label="배너 제목·설명 검색" placeholder="제목·설명 검색" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} className="h-9 pl-9" />
+                                <Input id="admin-banner-search" aria-label="배너 제목·설명 검색" placeholder="제목·설명 검색" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} className="h-11 pl-9 md:h-8" />
                             </div></div>
                             <div className="flex w-full flex-wrap items-center gap-2">
-                                <select aria-label="배너 활성 상태 필터" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs"><option value="all">모든 상태</option><option value="active">활성</option><option value="inactive">비활성</option></select>
-                                <select aria-label="배너 표시 위치 필터" value={targetFilter} onChange={(event) => setTargetFilter(event.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs"><option value="all">모든 위치</option><option value="sidebar">데스크톱 배너</option><option value="mobile_popup">모바일 팝업</option></select>
-                                <select aria-label="배너 정렬" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs"><option value="priority">우선순위순</option><option value="updated">최근 수정순</option><option value="title">제목순</option></select>
-                                {(searchQuery || statusFilter !== 'all' || targetFilter !== 'all') && <Button type="button" size="sm" variant="ghost" onClick={() => { setSearchQuery(''); setStatusFilter('all'); setTargetFilter('all'); }}>초기화</Button>}
+                                <select aria-label="배너 활성 상태 필터" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 rounded-md border border-input bg-background px-2 text-xs md:h-8"><option value="all">모든 상태</option><option value="active">활성</option><option value="inactive">비활성</option></select>
+                                <select aria-label="배너 표시 위치 필터" value={targetFilter} onChange={(event) => setTargetFilter(event.target.value)} className="h-11 rounded-md border border-input bg-background px-2 text-xs md:h-8"><option value="all">모든 위치</option><option value="sidebar">데스크톱 배너</option><option value="mobile_popup">모바일 팝업</option></select>
+                                <select aria-label="배너 정렬" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} className="h-11 rounded-md border border-input bg-background px-2 text-xs md:h-8"><option value="priority">우선순위순</option><option value="updated">최근 수정순</option><option value="title">제목순</option></select>
+                                {(searchQuery || statusFilter !== 'all' || targetFilter !== 'all') && <Button type="button" size="sm" variant="ghost" className="h-11 md:h-8" onClick={() => { setSearchQuery(''); setStatusFilter('all'); setTargetFilter('all'); }}>초기화</Button>}
                             </div>
                             {bannersError && <div role="alert" className="flex w-full flex-wrap items-center gap-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive"><span className="flex-1">배너 목록을 불러오지 못했습니다.{banners.length > 0 && ' 이전 목록을 표시합니다.'}</span><Button type="button" variant="outline" size="sm" disabled={bannersFetching || isBusy} onClick={() => void refreshBannerList()}>다시 시도</Button></div>}
                         </div>
@@ -838,7 +1042,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex min-w-0 items-start justify-between gap-2">
                                                     <p className="min-w-0 truncate text-sm font-semibold text-foreground">{banner.title}</p>
-                                                    <Badge variant={banner.is_active ? "default" : "outline"} className="shrink-0 rounded-full text-2xs">{banner.is_active ? '활성' : '비활성'}</Badge>
+                                                    <Badge variant="secondary" className={cn("shrink-0 rounded-full border-transparent text-2xs", banner.is_active ? "bg-emerald-50 text-emerald-800" : "bg-muted text-muted-foreground")}>{banner.is_active ? '활성' : '비활성'}</Badge>
                                                 </div>
                                                 <p className="mt-0.5 truncate text-xs text-muted-foreground">{banner.description || '설명 없음'} · 우선순위 {banner.priority}</p>
                                                 <div className="mt-1 flex min-w-0 flex-nowrap gap-1 overflow-x-auto scrollbar-hide [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
@@ -853,7 +1057,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                             })}</ul>
                             <table className="admin-cms-table hidden table-fixed md:table">
                                 <caption className="sr-only">배너 목록</caption>
-                                <thead className="sticky top-0 z-10 bg-muted"><tr><th scope="col" className="w-[44%]">배너</th><th scope="col" className="w-[14%]">상태</th><th scope="col" className="w-[30%]">노출 위치</th><th scope="col" className="w-[12%]">우선순위</th></tr></thead>
+                                <thead className="sticky top-0 z-10 bg-card"><tr><th scope="col" className="w-[42%]">배너</th><th scope="col" className="w-[14%]">상태</th><th scope="col" className="w-[28%]">노출 위치</th><th scope="col" className="w-[16%] whitespace-nowrap">우선순위</th></tr></thead>
                                 <tbody>{visibleBanners.map((banner) => {
                                     const isSelected = editingBanner?.id === banner.id;
                                     const resolvedUrls = resolveAdBannerPersistenceUrls(banner);
@@ -862,7 +1066,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                             <span className="relative flex h-10 w-12 shrink-0 items-center justify-center overflow-hidden rounded border bg-muted/40">{resolvedUrls?.image_url ? <Image src={resolvedUrls.image_url} alt="" fill unoptimized sizes="48px" className="object-cover" /> : <Scroll className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}</span>
                                             <span className="min-w-0"><span className="block truncate text-sm font-medium">{banner.title}</span><span className="block truncate text-xs text-muted-foreground">{banner.description || '설명 없음'}</span></span>
                                         </button></td>
-                                        <td><Badge variant={banner.is_active ? 'default' : 'outline'} className="whitespace-nowrap rounded-full text-2xs">{banner.is_active ? '활성' : '비활성'}</Badge></td>
+                                        <td><Badge variant="secondary" className={cn("whitespace-nowrap rounded-full border-transparent text-2xs", banner.is_active ? "bg-emerald-50 text-emerald-800" : "bg-muted text-muted-foreground")}>{banner.is_active ? '활성' : '비활성'}</Badge></td>
                                         <td><div className="flex flex-wrap gap-1">{banner.display_target.includes('sidebar') && <Badge variant="secondary" className="whitespace-nowrap rounded-full text-2xs">데스크톱 배너</Badge>}{banner.display_target.includes('mobile_popup') && <Badge variant="secondary" className="whitespace-nowrap rounded-full text-2xs">모바일 팝업</Badge>}</div></td>
                                         <td className="tabular-nums">{banner.priority}</td>
                                     </tr>;

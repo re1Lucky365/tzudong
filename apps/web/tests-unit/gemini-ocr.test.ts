@@ -4,6 +4,7 @@ import {
   buildGeminiReceiptOcrParts,
   buildGeminiReceiptOcrRequest,
   callGeminiReceiptOcr,
+  callGeminiReceiptOcrWithCredentialFallback,
   GEMINI_OCR_FALLBACK_MODEL,
   getGeminiOcrDefaultModel,
   getGeminiOcrInferenceConfigSnapshot,
@@ -261,6 +262,295 @@ describe('gemini receipt ocr helper', () => {
       },
     })).rejects.toThrow(GeminiOcrError);
     expect(seenModels).toEqual(['first-model']);
+  });
+
+  test('rotates credentials in order only after a structured API key rejection', async () => {
+    const originalFetch = globalThis.fetch;
+    const seenCredentials: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init);
+      const credentialMarker = request.headers.get('x-goog-api-key') ?? new URL(request.url).searchParams.get('key') ?? '';
+      seenCredentials.push(credentialMarker);
+      if (credentialMarker === 'credential-stale-marker') {
+        return Response.json({
+          error: {
+            code: 400,
+            message: 'synthetic rejected credential',
+            status: 'INVALID_ARGUMENT',
+            details: [{
+              '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
+              reason: 'API_KEY_INVALID',
+              domain: 'googleapis.com',
+            }],
+          },
+        }, { status: 400 });
+      }
+      return Response.json({ candidates: [{ content: { parts: [{ text: '{"store_name":"회전 식당"}' }] } }] });
+    }) as typeof fetch;
+
+    try {
+      const result = await callGeminiReceiptOcrWithCredentialFallback({
+        credentials: [
+          { apiKey: 'credential-stale-marker' },
+          { apiKey: 'credential-healthy-marker' },
+        ],
+        imageBase64: 'AA==',
+        mimeType: 'image/png',
+        prompt: 'synthetic receipt',
+        env: { GEMINI_OCR_MODEL: 'gemini-3.6-flash' } as NodeJS.ProcessEnv,
+      });
+
+      expect(seenCredentials).toEqual(['credential-stale-marker', 'credential-healthy-marker']);
+      expect(result.data.store_name).toBe('회전 식당');
+      expect(result.attempts.map(attempt => attempt.ok)).toEqual([false, true]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('does not rotate credentials after transport or generic request uncertainty', async () => {
+    const originalFetch = globalThis.fetch;
+    const seenCredentials: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init);
+      seenCredentials.push(request.headers.get('x-goog-api-key') ?? new URL(request.url).searchParams.get('key') ?? '');
+      throw new Error('synthetic transport uncertainty');
+    }) as typeof fetch;
+
+    try {
+      await expect(callGeminiReceiptOcrWithCredentialFallback({
+        credentials: [
+          { apiKey: 'credential-uncertain-marker' },
+          { apiKey: 'credential-unused-marker' },
+        ],
+        imageBase64: 'AA==',
+        mimeType: 'image/png',
+        prompt: 'synthetic receipt',
+        env: { GEMINI_OCR_MODEL: 'gemini-3.6-flash' } as NodeJS.ProcessEnv,
+      })).rejects.toMatchObject({ definitiveCredentialRejection: false });
+      expect(seenCredentials).toEqual(['credential-uncertain-marker']);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('does not treat an unclassified 400 response as credential rejection', async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      return Response.json({
+        error: { code: 400, message: 'synthetic malformed request', status: 'INVALID_ARGUMENT' },
+      }, { status: 400 });
+    }) as typeof fetch;
+
+    try {
+      await expect(callGeminiReceiptOcrWithCredentialFallback({
+        credentials: [
+          { apiKey: 'credential-request-marker' },
+          { apiKey: 'credential-unused-marker' },
+        ],
+        imageBase64: 'AA==',
+        mimeType: 'image/png',
+        prompt: 'synthetic receipt',
+        env: { GEMINI_OCR_MODEL: 'gemini-3.6-flash' } as NodeJS.ProcessEnv,
+      })).rejects.toMatchObject({ definitiveCredentialRejection: false });
+      expect(calls).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('does not rotate on contradictory 5xx authentication metadata', async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      return Response.json({
+        error: {
+          code: 500,
+          message: 'synthetic contradictory provider failure',
+          status: 'UNAUTHENTICATED',
+          details: [{
+            '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
+            reason: 'API_KEY_INVALID',
+            domain: 'googleapis.com',
+          }],
+        },
+      }, { status: 500 });
+    }) as typeof fetch;
+
+    try {
+      await expect(callGeminiReceiptOcrWithCredentialFallback({
+        credentials: [
+          { apiKey: 'credential-server-error-marker' },
+          { apiKey: 'credential-unused-marker' },
+        ],
+        imageBase64: 'AA==',
+        mimeType: 'image/png',
+        prompt: 'synthetic receipt',
+        env: { GEMINI_OCR_MODEL: 'gemini-3.6-flash' } as NodeJS.ProcessEnv,
+      })).rejects.toMatchObject({ definitiveCredentialRejection: false });
+      expect(calls).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('does not rotate on status-less structured error prose', async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      throw new Error(JSON.stringify({
+        error: {
+          status: 'UNAUTHENTICATED',
+          details: [{ reason: 'API_KEY_INVALID' }],
+        },
+      }));
+    }) as typeof fetch;
+
+    try {
+      await expect(callGeminiReceiptOcrWithCredentialFallback({
+        credentials: [
+          { apiKey: 'credential-statusless-marker' },
+          { apiKey: 'credential-unused-marker' },
+        ],
+        imageBase64: 'AA==',
+        mimeType: 'image/png',
+        prompt: 'synthetic receipt',
+        env: { GEMINI_OCR_MODEL: 'gemini-3.6-flash' } as NodeJS.ProcessEnv,
+      })).rejects.toMatchObject({ definitiveCredentialRejection: false });
+      expect(calls).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('does not rotate when structured authentication metadata has a non-numeric status', async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      throw Object.assign(new Error(JSON.stringify({
+        error: { status: 'UNAUTHENTICATED' },
+      })), { status: '401' });
+    }) as typeof fetch;
+
+    try {
+      await expect(callGeminiReceiptOcrWithCredentialFallback({
+        credentials: [
+          { apiKey: 'credential-string-status-marker' },
+          { apiKey: 'credential-unused-marker' },
+        ],
+        imageBase64: 'AA==',
+        mimeType: 'image/png',
+        prompt: 'synthetic receipt',
+        env: { GEMINI_OCR_MODEL: 'gemini-3.6-flash' } as NodeJS.ProcessEnv,
+      })).rejects.toMatchObject({ definitiveCredentialRejection: false });
+      expect(calls).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('does not rotate after a provider response is received but cannot be parsed', async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      return Response.json({ candidates: [{ content: { parts: [{ text: 'synthetic non-json response' }] } }] });
+    }) as typeof fetch;
+
+    try {
+      await expect(callGeminiReceiptOcrWithCredentialFallback({
+        credentials: [
+          { apiKey: 'credential-response-marker' },
+          { apiKey: 'credential-unused-marker' },
+        ],
+        imageBase64: 'AA==',
+        mimeType: 'image/png',
+        prompt: 'synthetic receipt',
+        env: { GEMINI_OCR_MODEL: 'gemini-3.6-flash' } as NodeJS.ProcessEnv,
+      })).rejects.toMatchObject({ definitiveCredentialRejection: false });
+      expect(calls).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('does not rotate after caller cancellation even when the provider response arrives', async () => {
+    const originalFetch = globalThis.fetch;
+    const controller = new AbortController();
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      controller.abort();
+      return Response.json({ candidates: [{ content: { parts: [{ text: '{"store_name":"취소 식당"}' }] } }] });
+    }) as typeof fetch;
+
+    try {
+      await expect(callGeminiReceiptOcrWithCredentialFallback({
+        credentials: [
+          { apiKey: 'credential-cancelled-marker' },
+          { apiKey: 'credential-unused-marker' },
+        ],
+        imageBase64: 'AA==',
+        mimeType: 'image/png',
+        prompt: 'synthetic receipt',
+        env: { GEMINI_OCR_MODEL: 'gemini-3.6-flash' } as NodeJS.ProcessEnv,
+        signal: controller.signal,
+      })).rejects.toMatchObject({ definitiveCredentialRejection: false });
+      expect(calls).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('preserves prior bounded attempts when a rotated credential has an uncertain failure', async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      if (calls === 1) {
+        return Response.json({
+          error: {
+            code: 400,
+            message: 'synthetic rejected credential',
+            status: 'INVALID_ARGUMENT',
+            details: [{
+              '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
+              reason: 'API_KEY_INVALID',
+              domain: 'googleapis.com',
+            }],
+          },
+        }, { status: 400 });
+      }
+      throw new Error('synthetic transport uncertainty');
+    }) as typeof fetch;
+
+    try {
+      await expect(callGeminiReceiptOcrWithCredentialFallback({
+        credentials: [
+          { apiKey: 'credential-stale-marker' },
+          { apiKey: 'credential-uncertain-marker' },
+          { apiKey: 'credential-unused-marker' },
+        ],
+        imageBase64: 'AA==',
+        mimeType: 'image/png',
+        prompt: 'synthetic receipt',
+        env: { GEMINI_OCR_MODEL: 'gemini-3.6-flash' } as NodeJS.ProcessEnv,
+      })).rejects.toMatchObject({
+        definitiveCredentialRejection: false,
+        attempts: [
+          { ok: false, error: 'provider_request_failed' },
+          { ok: false, error: 'provider_request_failed' },
+        ],
+      });
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   test('does not include the API key in missing-key errors', async () => {

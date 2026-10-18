@@ -1,8 +1,8 @@
 {
   "thread_id": "01a14e99-c202-7fa1-90c1-2e9cb7da815f",
-  "source_revision": "b5d62c34f4a2e854ab10fd9f6741597b6081c43b",
-  "source_bundle_sha256": "bd8f5668b7a00d48a623471183863cda1ae9eb48c14a0d1dc569508e0f2058c3",
-  "source_scope": "10 frozen sources, originally captured from ea08db3a plus task edits. Exact source hashes match after develop merge. This is not the whole merged repository.",
+  "source_revision": "86328a4c52a03e953519ea8d09b2672bef7eda57",
+  "source_bundle_sha256": null,
+  "source_scope": "Committed 86328a4c source plus the exact 24-file followup snapshot in followup-verification/index.json; the original thesis and queued Gemini bundle remain separately immutable.",
   "reports": [
     {
       "stage": "thesis",
@@ -86,7 +86,8 @@
         "These are local process and SQLite boundary tests, not provider quota, billing, or Gemini request evidence."
       ],
       "decision_artifact": "apps/web/performance/cross-audit-20261018/provider-findings.json",
-      "decision_artifact_sha256": "84eb9edc444bad055c1775e6fe8b9f34756c89fabda5219d734faba807750630"
+      "decision_artifact_sha256": "84eb9edc444bad055c1775e6fe8b9f34756c89fabda5219d734faba807750630",
+      "implementation_gate": "completed_source_and_required_local_verification"
     },
     {
       "id": "TZ-TH-002",
@@ -112,7 +113,8 @@
         "A healthy runner must implement the canonical idempotent release action for the frozen target identity."
       ],
       "decision_artifact": "apps/web/performance/cross-audit-20261018/provider-findings.json",
-      "decision_artifact_sha256": "84eb9edc444bad055c1775e6fe8b9f34756c89fabda5219d734faba807750630"
+      "decision_artifact_sha256": "84eb9edc444bad055c1775e6fe8b9f34756c89fabda5219d734faba807750630",
+      "implementation_gate": "completed_source_and_required_local_verification"
     },
     {
       "id": "TZ-TH-003",
@@ -136,7 +138,8 @@
         "No actual provider request was started."
       ],
       "decision_artifact": "apps/web/performance/cross-audit-20261018/provider-findings.json",
-      "decision_artifact_sha256": "84eb9edc444bad055c1775e6fe8b9f34756c89fabda5219d734faba807750630"
+      "decision_artifact_sha256": "84eb9edc444bad055c1775e6fe8b9f34756c89fabda5219d734faba807750630",
+      "implementation_gate": "completed_source_and_required_local_verification"
     },
     {
       "id": "TZ-TH-004",
@@ -158,7 +161,8 @@
         "Once ReviewSaveOperation.submit starts, edit preservation rather than rollback is the intended behavior because an upload or insert may already have committed."
       ],
       "decision_artifact": "apps/web/performance/cross-audit-20261018/cms-findings.json",
-      "decision_artifact_sha256": "bb585594e43e7c8c3d50d8f572dfbe381ef2d3dde040c3491411113f129041be"
+      "decision_artifact_sha256": "bb585594e43e7c8c3d50d8f572dfbe381ef2d3dde040c3491411113f129041be",
+      "implementation_gate": "completed_source_and_required_local_verification"
     },
     {
       "id": "TZ-TH-005",
@@ -177,7 +181,8 @@
         "Whitespace normalization is limited to JavaScript trim semantics; no broader Unicode normalization was introduced or claimed."
       ],
       "decision_artifact": "apps/web/performance/cross-audit-20261018/cms-findings.json",
-      "decision_artifact_sha256": "bb585594e43e7c8c3d50d8f572dfbe381ef2d3dde040c3491411113f129041be"
+      "decision_artifact_sha256": "bb585594e43e7c8c3d50d8f572dfbe381ef2d3dde040c3491411113f129041be",
+      "implementation_gate": "completed_source_and_required_local_verification"
     },
     {
       "id": "TZ-TH-006",
@@ -197,7 +202,14 @@
         "No claim is made about deployment or production browser state."
       ],
       "decision_artifact": "apps/web/performance/cross-audit-20261018/cms-findings.json",
-      "decision_artifact_sha256": "bb585594e43e7c8c3d50d8f572dfbe381ef2d3dde040c3491411113f129041be"
+      "decision_artifact_sha256": "bb585594e43e7c8c3d50d8f572dfbe381ef2d3dde040c3491411113f129041be",
+      "implementation_gate": "completed_source_required_local_verification_and_independent_application_focus_readback",
+      "application_verification": {
+        "path": "apps/web/performance/cross-audit-20261018/inline-focus-application-readback-20261018.json",
+        "sha256": "24cb258c14964ecc4d9b748454707a9b3a593f1b4a03ef3b75949db99d431931",
+        "directCasesPassed": 2,
+        "operatingValidation": false
+      }
     },
     {
       "id": "TZ-TH-007",
@@ -217,7 +229,8 @@
         "observedHostedSuperuserConflict": "REJECTED",
         "futurePostInstallEffectiveAcl": "UNVERIFIED",
         "futurePostInstallRuntimeReadiness": "UNVERIFIED"
-      }
+      },
+      "implementation_gate": "conditional_hosted_post_install_effective_acl_and_runtime_unverified"
     },
     {
       "id": "TZ-TH-008",
@@ -233,7 +246,8 @@
         "The receipt is local exact-version evidence only. It does not prove hosted database state, provider or Storage bytes, production deployment, or launch readiness."
       ],
       "decision_artifact": "apps/web/performance/cross-audit-20261018/db-evidence-findings.json",
-      "decision_artifact_sha256": "070c7e9c2c042a822cdc48c23d6dc923e12a3c70e082016eaddc388d8a586a84"
+      "decision_artifact_sha256": "070c7e9c2c042a822cdc48c23d6dc923e12a3c70e082016eaddc388d8a586a84",
+      "implementation_gate": "exact_receipt_packaged_next_external_reauthentication_pending"
     },
     {
       "id": "TZ-TH-009",
@@ -291,7 +305,8 @@
         "The receipt files are local unsigned evidence. Coordinated malicious rewriting of the receipt identity, retained IDs, observation, and all hashes is outside this local integrity contract and would require a signed or append-only external ledger."
       ],
       "decision_artifact": "apps/web/performance/cross-audit-20261018/lineage-findings.json",
-      "decision_artifact_sha256": "386c652b4b50f202e6abc4898cb9baae9fd3016e6bdefb81d2045c27e3fbdc8e"
+      "decision_artifact_sha256": "386c652b4b50f202e6abc4898cb9baae9fd3016e6bdefb81d2045c27e3fbdc8e",
+      "implementation_gate": "completed_source_and_required_local_verification"
     }
   ],
   "verification_artifacts": [
@@ -334,24 +349,90 @@
     {
       "path": "apps/web/performance/cross-audit-20261018/final-verification/verification.json",
       "sha256": "830376946afd30a5b1e885d4e498322223631871d409a6aa6f44b928ded6a9ea"
+    },
+    {
+      "path": "apps/web/performance/cross-audit-20261018/followup-verification/index.json",
+      "sha256": "eec2ed1c714b5ee80d7f49692d544e4d343b321ae94677f505da87773ad4d1f3"
+    },
+    {
+      "path": "apps/web/performance/admin-cms-followup-20261018/artifact-map.json",
+      "sha256": "7c5b421ada356a24d21fefa0751bb941943658e8f24682a4b44a28d7faf4c5eb"
+    },
+    {
+      "path": "apps/web/performance/cross-audit-20261018/inline-focus-application-readback-20261018.json",
+      "sha256": "24cb258c14964ecc4d9b748454707a9b3a593f1b4a03ef3b75949db99d431931"
+    },
+    {
+      "path": "apps/web/performance/cross-audit-20261018/admin-users-banners-final-resolution.json",
+      "sha256": "9635c789bce58d6ed95ed94075f0cfb65ea860092e381b179796ffd9b1a5504a"
+    },
+    {
+      "path": "apps/web/performance/cross-audit-20261018/admin-users-banners-native-resolution-review.json",
+      "sha256": "58f032e81e3c33efb68c938dc2ce0c72d931511ee7d45a85c8fb8e986e491815"
+    },
+    {
+      "path": "apps/web/performance/cross-audit-20261018/evidence-prefixed-successors-aggregate-execution-20261018.json",
+      "sha256": "dedd656403e1f2577c75eab435ea27acf7adcdb57cd3b34b244f0849f5e5ca2b"
+    },
+    {
+      "path": "apps/web/performance/cross-audit-20261018/evidence-prefixed-native-review-addendum.json",
+      "sha256": "772899842329bd679efeb7fba6249a7bdc693577fb3d1e8db3dfdfa751550619"
+    },
+    {
+      "path": "apps/web/performance/cross-audit-20261018/longform-inventory-refresh-20261018.json",
+      "sha256": "e8a1765232011eee540bf6e86820c14dc5890e9bf72b84c4559fdde10df1ecf1"
     }
   ],
   "remaining_blockers": [
-    "Gemini antithesis research and final-source GPT-6 Pro reverse research pending; local finding adjudication in progress.",
-    "No external report or report-based repair completed yet.",
-    "Operating deployment, hosted SQL and complete live admin verification unverified.",
-    "Latest PR required CI and reviews pending; local source does not prove operating readiness."
+    "Gemini adversarial Deep Research and final-source GPT-6 Pro reverse Deep Research remain pending. One actual thesis and seven report-based local repair gates are completed.",
+    "New followup commit requires current-head CI and review readback before protected promotion.",
+    "TZ-TH-007 hosted post-install ACL/runtime and TZ-TH-008 next-stage external reauthentication remain incomplete.",
+    "Evidence-prefixed SQL successors remain compile-only and held. Fresh protected-source admission, writer fences, operating apply and post-install readback remain unverified.",
+    "Operating banner revision-trigger behavior, protected develop/data/main promotion, operating deployment and full live administrator workflows remain unverified."
   ],
   "status": "incomplete_thesis_adjudicated_antithesis_pending",
-  "local_state": "Relevant188tests passed; followup11tests passed with105-ledger refusal; targeted ESLint passed; compiler parity3350inputs diagnostics0; build54pages and CSS boundaries passed; local PG17 ledger102 replay passed.",
-  "execution_state": "Thesis UI complete9m, full Markdown43130bytes retained and hash verified; reservation released, next_owner01a14e99-241b-7730-b4a5-cfb54370a619. No antithesis or reverse research completed.",
+  "local_state": "Latest followups: CMS41 pass/468 assertions; OCR74 pass/614 assertions; SQL39 pass/245 assertions; independent CMS4 counterexamples pass (overlap, not added as unique tests); parity3350 inputs/diagnostics0; build54 pages and CSS boundaries pass; six 390/834/1440 captures overflow-free. Earlier provider/lineage source is unchanged and retains its separate verification.",
+  "execution_state": "One actual thesis completed and saved verbatim; its reservation was released. Gemini antithesis is queued with its original job and hash; no antithesis or reverse report has completed.",
   "installation_state": "Node24.22.0/npm11.6.2 npm ci758packages completed in isolated candidate.",
   "deployment_state": "No deployment or operating DB write in this resumed task.",
-  "updated_at": "2026-10-18T12:03:18.317956+00:00",
+  "updated_at": "2026-10-18T14:09:35.693642+00:00",
   "original_bundle_source_revision": "eba019509a1f7fd04d833f90afea25b9875598bb",
-  "final_source_verification": "apps/web/performance/cross-audit-20261018/final-verification/verification.json",
+  "final_source_verification": "apps/web/performance/cross-audit-20261018/followup-verification/index.json",
   "remaining_report_stages": [
     "gemini_antithesis",
     "chatgpt_final_source_reverse_audit"
-  ]
+  ],
+  "original_thesis_source_revision": "b5d62c34f4a2e854ab10fd9f6741597b6081c43b",
+  "original_thesis_bundle_sha256": "bd8f5668b7a00d48a623471183863cda1ae9eb48c14a0d1dc569508e0f2058c3",
+  "thesis_followthrough_counts": {
+    "total": 9,
+    "source_and_required_local_verification_completed": 7,
+    "separate_focus_evidence_pending": 0,
+    "evidence_packaging_complete_external_reauthentication_pending": 1,
+    "conditional_hosted_evidence_pending": 1
+  },
+  "working_tree_followups": {
+    "state": "local_verified_pending_commit_and_remote_ci",
+    "areas": [
+      "OCR integer-status credential fallback",
+      "Users pagination and guarded query intents",
+      "Banner observed-revision CAS, authoritative media cleanup and explicit readback recovery",
+      "Shared compact CMS headers, semantic status colors and mobile primary controls",
+      "Evidence-prefixed compile-only SQL successors with constituent and aggregate PG17 rehearsal"
+    ],
+    "deployment": "not_deployed"
+  },
+  "source_state": "hash-bound locally verified followups based on source_revision, pending commit",
+  "last_completed_committed_ci": {
+    "revision": "86328a4c52a03e953519ea8d09b2672bef7eda57",
+    "all_checks_completed": 33,
+    "failed": 0,
+    "swift": "SUCCESS",
+    "catalog_generate": "SUCCESS",
+    "orchestration_readiness": "SUCCESS",
+    "conditional_skips_are_passes": false,
+    "receipt": "apps/web/performance/cross-audit-20261018/pr-ci-readback-86328a4c.json",
+    "interpretation": "Does not validate uncommitted followups or prove deployment."
+  },
+  "prepared_current_source_package": "apps/web/performance/cross-audit-20261018/final-source-antithesis-post-cms/final-source-antithesis-source-manifest.json"
 }

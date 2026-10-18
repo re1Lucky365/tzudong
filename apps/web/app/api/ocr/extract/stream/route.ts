@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import sharp from 'sharp';
 import { assertPrivacySafe } from '@/lib/privacy/sanitize';
 import {
-  callGeminiReceiptOcr,
+  callGeminiReceiptOcrWithCredentialFallback,
   GEMINI_OCR_FALLBACK_MODEL,
   GeminiOcrError,
   getGeminiOcrInferenceConfigSnapshot,
@@ -13,7 +13,12 @@ import {
   RECEIPT_OCR_PREPROCESS_VERSION,
   RECEIPT_OCR_PROMPT_VERSION,
 } from '@/lib/ocr/receipt-prompt';
-import { getOcrModelPolicy, resolveOcrAiRuntimeConfig, type OcrAiRuntimeConfigCandidate } from '@/lib/ocr/runtime-config';
+import {
+  getOcrModelPolicy,
+  resolveOcrAiRuntimeConfig,
+  type OcrAiRuntimeConfigCandidate,
+  type OcrCredentialCandidate,
+} from '@/lib/ocr/runtime-config';
 import {
     buildReceiptOcrEnvelope,
     RECEIPT_OCR_NORMALIZATION_VERSION,
@@ -115,17 +120,18 @@ async function optimizeImage(buffer: Buffer): Promise<{ optimized: Buffer; savin
 
 async function runStreamingOcrCandidate(input: {
   candidate: OcrAiRuntimeConfigCandidate;
+  credentials: OcrCredentialCandidate[];
   imageBase64: string;
   inferenceConfig: GeminiOcrInferenceConfigSnapshot;
   signal: AbortSignal;
   send: (event: string, payload: Record<string, unknown>) => void;
 }) {
-  const { candidate, imageBase64, inferenceConfig, signal, send } = input;
-  if (!candidate.apiKey) throw new Error(`${candidate.provider} OCR API 키가 설정되지 않았습니다.`);
+  const { candidate, credentials, imageBase64, inferenceConfig, signal, send } = input;
+  if (!credentials[0]) throw new Error(`${candidate.provider} OCR API 키가 설정되지 않았습니다.`);
   const modelPolicy = getOcrModelPolicy(candidate);
 
-  const geminiResult = await callGeminiReceiptOcr({
-    apiKey: candidate.apiKey,
+  const geminiResult = await callGeminiReceiptOcrWithCredentialFallback({
+    credentials,
     imageBase64,
     mimeType: 'image/jpeg',
     prompt: RECEIPT_OCR_EXTRACTION_PROMPT,
@@ -225,7 +231,7 @@ export async function POST(req: Request) {
       const freshArtifacts: { current: {
         optimized: Buffer;
         savings: string;
-        result: Awaited<ReturnType<typeof callGeminiReceiptOcr>>;
+        result: Awaited<ReturnType<typeof callGeminiReceiptOcrWithCredentialFallback>>;
         envelope: ReturnType<typeof buildReceiptOcrEnvelope>;
         restaurantMatches: Awaited<ReturnType<typeof findOcrRestaurantMatches>>;
       } | null } = { current: null };
@@ -264,7 +270,8 @@ export async function POST(req: Request) {
           send('progress', { message: 'AI 모델이 영수증을 분석하기 시작했어요.', stage: 'model_start', savings });
           providerStarted = true;
           const result = await runStreamingOcrCandidate({
-            candidate: { ...candidate, apiKey: credentials[0]!.apiKey },
+            candidate,
+            credentials,
             imageBase64: optimized.toString('base64'),
             inferenceConfig,
             signal: req.signal,

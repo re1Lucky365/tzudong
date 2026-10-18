@@ -53,8 +53,6 @@ type AdBannerPersistenceInput = {
 };
 
 
-type AdBannerUpdate = Partial<Omit<AdBannerDatabaseRow, 'id' | 'created_at' | 'updated_at' | 'created_by'>>;
-
 function resolvePersistedBannerUrls(data: AdBannerPersistenceInput) {
     const resolvedUrls = resolveAdBannerPersistenceUrls({
         image_url: data.image_url,
@@ -122,23 +120,6 @@ function mapAdBannerRows(rows: readonly unknown[] | null): AdBanner[] {
 }
 
 
-function createAdBannerUpdate(
-    data: Partial<AdBannerFormData>,
-    persistedUrls: AdBannerPersistenceRow,
-): AdBannerUpdate {
-    const resolvedUrls = resolvePersistedBannerUrls({
-        image_url: data.image_url === undefined ? persistedUrls.image_url : data.image_url,
-        video_url: data.video_url === undefined ? persistedUrls.video_url : data.video_url,
-        media_type: data.media_type === undefined ? persistedUrls.media_type : data.media_type,
-        link_url: data.link_url === undefined ? persistedUrls.link_url : data.link_url,
-    });
-
-    return {
-        ...data,
-        ...resolvedUrls,
-    };
-}
-
 async function getPersistedBannerUrls(id: string): Promise<AdBannerPersistenceRow> {
     const { data, error } = await supabase
         .from('ad_banners')
@@ -152,6 +133,59 @@ async function getPersistedBannerUrls(id: string): Promise<AdBannerPersistenceRo
     }
 
     return resolvePersistedBannerUrls(data);
+}
+
+export type AdminBannerMutationErrorCode =
+    | 'banner_revision_conflict'
+    | 'banner_not_found'
+    | 'banner_mutation_forbidden'
+    | 'banner_mutation_invalid'
+    | 'banner_readback_failed'
+    | 'banner_update_failed'
+    | 'banner_delete_failed'
+    | 'banner_invalid_response';
+
+export class AdminBannerMutationError extends Error {
+    constructor(
+        public readonly code: AdminBannerMutationErrorCode,
+        public readonly latest: AdBanner | null = null,
+    ) {
+        super(code);
+        this.name = 'AdminBannerMutationError';
+    }
+}
+
+function isAdminBannerMutationErrorCode(value: unknown): value is AdminBannerMutationErrorCode {
+    return typeof value === 'string' && [
+        'banner_revision_conflict',
+        'banner_not_found',
+        'banner_mutation_forbidden',
+        'banner_mutation_invalid',
+        'banner_readback_failed',
+        'banner_update_failed',
+        'banner_delete_failed',
+    ].includes(value);
+}
+
+async function requestAdminBannerMutation(
+    method: 'PATCH' | 'DELETE',
+    body: Record<string, unknown>,
+) {
+    const response = await fetch('/api/admin/banners', {
+        method,
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => null) as { banner?: unknown; deletedBanner?: unknown; code?: unknown } | null;
+    if (!response.ok) {
+        const code = isAdminBannerMutationErrorCode(payload?.code) ? payload.code : 'banner_invalid_response';
+        const latest = code === 'banner_revision_conflict' ? mapAdBannerRow(payload?.banner) : null;
+        if (code === 'banner_revision_conflict' && !latest) {
+            throw new AdminBannerMutationError('banner_invalid_response');
+        }
+        throw new AdminBannerMutationError(code, latest);
+    }
+    return payload;
 }
 
 /**
@@ -172,12 +206,11 @@ export function useAdBannersAdmin(enabled = true) {
                 throw new Error('admin-banners-failed');
             }
 
-            const payload = await response.json() as { banners?: unknown };
-            const rows = Array.isArray(payload.banners) ? payload.banners : [];
-            return rows.flatMap((row) => {
-                const banner = mapAdBannerRow(row);
-                return banner ? [banner] : [];
-            });
+            const payload = await response.json().catch(() => null) as { banners?: unknown } | null;
+            if (!payload || !Array.isArray(payload.banners)) {
+                throw new Error('admin-banners-invalid-response');
+            }
+            return mapAdBannerRows(payload.banners);
         },
         enabled: isAdmin && enabled,
         staleTime: 5 * 60 * 1000, // 5분
@@ -312,21 +345,9 @@ export function useUpdateAdBanner() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ id, data }: { id: string; data: Partial<AdBannerFormData> }): Promise<AdBanner> => {
-            const persistedUrls = await getPersistedBannerUrls(id);
-            const { data: result, error } = await supabase
-                .from('ad_banners')
-                .update(createAdBannerUpdate(data, persistedUrls))
-                .eq('id', id)
-                .select(AD_BANNER_SELECT)
-                .single()
-                .overrideTypes<AdBannerDatabaseRow, { merge: false }>();
-
-            if (error) {
-                throw error;
-            }
-
-            return requireAdBannerRow(result);
+        mutationFn: async ({ id, expectedUpdatedAt, data }: { id: string; expectedUpdatedAt: string; data: AdBannerFormData }): Promise<AdBanner> => {
+            const payload = await requestAdminBannerMutation('PATCH', { id, expectedUpdatedAt, data });
+            return requireAdBannerRow(payload?.banner);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: AD_BANNERS_QUERY_KEY });
@@ -353,15 +374,9 @@ export function useDeleteAdBanner() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (id: string): Promise<void> => {
-            const { error } = await supabase
-                .from('ad_banners')
-                .delete()
-                .eq('id', id);
-
-            if (error) {
-                throw error;
-            }
+        mutationFn: async ({ id, expectedUpdatedAt }: { id: string; expectedUpdatedAt: string }): Promise<AdBanner> => {
+            const payload = await requestAdminBannerMutation('DELETE', { id, expectedUpdatedAt });
+            return requireAdBannerRow(payload?.deletedBanner);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: AD_BANNERS_QUERY_KEY });
