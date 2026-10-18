@@ -97,6 +97,14 @@ function formatModerationReceivedAt(value: string): string {
     });
 }
 
+function shouldRestoreModerationRowFocus(activeElement: Element | null): boolean {
+    return activeElement === null
+        || activeElement === document.body
+        || activeElement === document.documentElement
+        || (activeElement instanceof Element
+            && activeElement.closest('[data-admin-moderation-drawer], [data-admin-moderation-inspector="true"]') !== null);
+}
+
 function getModerationRecordLabel(id: string): string {
     return `…${id.slice(-8)}`;
 }
@@ -312,6 +320,15 @@ export function SubmissionListView({
     const isMobile = useIsMobile();
     const [inlineInspector, setInlineInspector] = useState(false);
     const rowTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const restoreRowTriggerFocus = useCallback(() => {
+        if (shouldRestoreModerationRowFocus(document.activeElement)
+            && rowTriggerRef.current?.isConnected && !rowTriggerRef.current.disabled) {
+            rowTriggerRef.current?.focus();
+        }
+    }, []);
+    const scheduleInlineInspectorFocusRestore = useCallback(() => {
+        if (inlineInspector) window.requestAnimationFrame(restoreRowTriggerFocus);
+    }, [inlineInspector, restoreRowTriggerFocus]);
     const listScrollRef = useRef<HTMLDivElement | null>(null);
     const reviewDetailPanelRef = useRef<HTMLElement>(null);
     useEffect(() => {
@@ -1445,7 +1462,8 @@ export function SubmissionListView({
         setRecommendationAdminNote('');
         setRecommendationApprovalConfirmation('');
         setRecommendationRejectionConfirmation('');
-    }, []);
+        scheduleInlineInspectorFocusRestore();
+    }, [scheduleInlineInspectorFocusRestore]);
 
     // 네이버 검색 API 호출 함수
     const searchNaverPlace = async (query: string, display: number = 5) => {
@@ -1803,6 +1821,16 @@ export function SubmissionListView({
     }, [closeSubmissionDetail, onDelete, selectedSubmission?.id, submissionDeleteConfirmation, submissionDeleteTarget]);
 
     // 리뷰 액션 핸들러
+    const closeReviewDetail = useCallback(() => {
+        setSelectedReview(null);
+        setReviewAction(null);
+        setReviewAdminNote('');
+        setReviewDeleteTarget(null);
+        setReviewDeleteConfirmation('');
+        setPreviewImage(null);
+        scheduleInlineInspectorFocusRestore();
+    }, [scheduleInlineInspectorFocusRestore]);
+
     const handleReviewAction = useCallback((action: 'approve' | 'reject', review: Review) => {
         setSelectedReview(review);
         setReviewDeleteTarget(null);
@@ -1827,10 +1855,8 @@ export function SubmissionListView({
             onRejectReview(selectedReview, reviewAdminNote.trim());
         }
 
-        setSelectedReview(null);
-        setReviewAction(null);
-        setReviewAdminNote('');
-    }, [selectedReview, reviewAction, reviewAdminNote, onApproveReview, onRejectReview]);
+        closeReviewDetail();
+    }, [selectedReview, reviewAction, reviewAdminNote, onApproveReview, onRejectReview, closeReviewDetail]);
 
     const handleDeleteReview = useCallback((review: Review) => {
         setSelectedReview(review);
@@ -1851,12 +1877,9 @@ export function SubmissionListView({
         setReviewDeleteTarget(null);
         setReviewDeleteConfirmation('');
         if (selectedReview?.id === reviewDeleteTarget.id) {
-            setSelectedReview(null);
-            setReviewAction(null);
-            setReviewAdminNote('');
-            setPreviewImage(null);
+            closeReviewDetail();
         }
-    }, [onDeleteReview, reviewDeleteConfirmation, reviewDeleteTarget, selectedReview?.id]);
+    }, [onDeleteReview, reviewDeleteConfirmation, reviewDeleteTarget, selectedReview?.id, closeReviewDetail]);
 
     const renderOverrideApprovalPanel = () => {
         if (!showWarningModal || !selectedSubmission) return null;
@@ -2070,7 +2093,7 @@ export function SubmissionListView({
                 {selectedSubmission && (
                     <div className="flex shrink-0 gap-1">
                         {selectedSubmission.submission_type !== 'recommend' && <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" aria-label="선택한 제보 삭제" disabled={loading} onClick={handleDeleteSelectedSubmission}><Trash2 className="h-3.5 w-3.5" /></Button>}
-                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={closeSubmissionDetail}>닫기</Button>
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={closeInspector}>닫기</Button>
                     </div>
                 )}
             </div>
@@ -2310,12 +2333,7 @@ export function SubmissionListView({
                         variant="ghost"
                         size="sm"
                         className="h-8 px-2 text-xs"
-                        onClick={() => {
-                            setSelectedReview(null);
-                            setReviewAction(null);
-                            setReviewAdminNote('');
-                            setPreviewImage(null);
-                        }}
+                        onClick={closeInspector}
                     >
                         선택 해제
                     </Button>
@@ -2528,24 +2546,9 @@ export function SubmissionListView({
     const hasSelection = activeTab === 'reviews' ? !!selectedReview : !!selectedSubmission;
     const resultCount = activeTab === 'reviews' ? orderedReviews.length : filteredSubmissions.length;
     const displayedCount = activeTab === 'reviews' ? displayedReviews.length : displayedSubmissions.length;
-    const restoreRowTriggerFocus = useCallback(() => {
-        const activeElement = document.activeElement;
-        const focusStayedInInspector = activeElement instanceof Element
-            && activeElement.closest('[data-admin-moderation-drawer]') !== null;
-        const focusNeedsRestoring = activeElement === null
-            || activeElement === document.body
-            || activeElement === document.documentElement
-            || focusStayedInInspector;
-        if (focusNeedsRestoring && rowTriggerRef.current?.isConnected && !rowTriggerRef.current.disabled) {
-            rowTriggerRef.current?.focus();
-        }
-    }, []);
     const closeInspector = () => {
-        if (activeTab === 'reviews') {
-            setSelectedReview(null); setReviewAction(null); setReviewAdminNote('');
-            setReviewDeleteTarget(null); setReviewDeleteConfirmation(''); setPreviewImage(null);
-        } else closeSubmissionDetail();
-        if (inlineInspector) window.requestAnimationFrame(restoreRowTriggerFocus);
+        if (activeTab === 'reviews') closeReviewDetail();
+        else closeSubmissionDetail();
     };
     const searchValue = activeTab === 'reviews' ? reviewSearchQuery : searchQuery;
     const changeSearch = (value: string) => activeTab === 'reviews' ? setReviewSearchQuery(value) : setSearchQuery(value);

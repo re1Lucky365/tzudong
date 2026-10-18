@@ -870,6 +870,14 @@ def validate_observation(value):
     return value
 
 
+def _request_observation_binding_matches(receipt, observation):
+    """Require the retained originating request and first provider response ID."""
+    request_sha256 = receipt.get("requestSha256")
+    return (isinstance(request_sha256, str) and SHA256.fullmatch(request_sha256) is not None
+            and observation["requestSha256"] == request_sha256
+            and "responseId" in receipt and observation["responseId"] == receipt["responseId"])
+
+
 def validate_saved_evidence(evidence, row, config, *, config_identity=None):
     if evidence.get("processing") == "static_full_video":
         return _validate_legacy_evidence(evidence, row, replace(config, protocol=1))
@@ -923,7 +931,8 @@ def segment_evidence(state, row, config, *, config_identity=None):
             or receipt.get("model") != config.model or type(receipt.get("callsAttempted")) is not int or receipt["callsAttempted"] != 2
             or type(receipt.get("reservedCalls")) is not int or receipt["reservedCalls"] != 2
             or receipt.get("reservedInputTokens") != config.input_limit or receipt.get("reservedOutputTokens") != config.output_limit
-            or receipt.get("observationSha256") != digest(evidence["observation"])):
+            or receipt.get("observationSha256") != digest(evidence["observation"])
+            or not _request_observation_binding_matches(receipt, evidence["observation"])):
         raise AnalysisError("SEGMENT_RECEIPT_INVALID")
     observed_path = receipt_path.with_name(receipt_path.name.replace(".receipt.json", ".observation.json"))
     if checked_document(observed_path) != evidence["observation"]:
@@ -1080,7 +1089,10 @@ def _readback_binding(receipt, observation, normalized, *, kind, receipt_identit
              "responseId": normalized["responseId"], "requestSha256": request_sha256,
              "previousObservationSha256": digest(observation), "nextObservationSha256": digest(normalized)}
     if (kind not in ("active_schema_readback", "wire_schema_predecessor_readback")
+            or not SHA256.fullmatch(str(request_sha256))
             or receipt.get("identity") != receipt_identity
+            or (kind == "active_schema_readback" and receipt.get("requestSha256") != request_sha256)
+            or (kind == "active_schema_readback" and receipt.get("responseId") != normalized["responseId"])
             or receipt.get("observationSha256") != value["previousObservationSha256"]
             or observation["responseId"] != normalized["responseId"]
             or observation["requestSha256"] != request_sha256
@@ -1101,6 +1113,10 @@ def _recover_readback_binding(receipt_path, observation_path, receipt, *, kind, 
     if (set(binding) != expected or binding["kind"] != kind
             or binding["receiptIdentitySha256"] != digest(receipt_identity)
             or receipt.get("identity") != receipt_identity
+            or not SHA256.fullmatch(str(binding["requestSha256"]))
+            or (kind == "active_schema_readback"
+                and receipt.get("requestSha256") != binding["requestSha256"])
+            or (kind == "active_schema_readback" and receipt.get("responseId") != observation["responseId"])
             or binding["responseId"] != observation["responseId"]
             or not SHA256.fullmatch(str(binding["previousObservationSha256"]))
             or not SHA256.fullmatch(str(binding["nextObservationSha256"]))
@@ -1146,7 +1162,7 @@ def _active_readback_binding(receipt, observation, normalized):
     return _readback_binding(receipt, observation, normalized,
                              kind="active_schema_readback",
                              receipt_identity=receipt.get("identity"),
-                             request_sha256=observation["requestSha256"])
+                             request_sha256=receipt.get("requestSha256"))
 
 
 def _recover_active_readback_binding(receipt_path, observation_path, receipt, receipt_identity):
@@ -1345,6 +1361,10 @@ def _known_segment_disposition(state, row, config):
                         "uncertaintyReason": "REQUEST_OBSERVATION_BINDING_MISMATCH",
                         "providerGetEligible": False}
             observation = validate_observation(observation)
+            if not _request_observation_binding_matches(receipt, observation):
+                return {"state": "readback_required", "kind": "uncertain", "code": receipt.get("code"),
+                        "uncertaintyReason": "REQUEST_OBSERVATION_BINDING_MISMATCH",
+                        "providerGetEligible": False}
             provider_get_eligible = (
                 observation["responseId"] is not None
                 and observation["operation"] in ("generate", "readback")
@@ -1755,7 +1775,8 @@ def execute(rows, inventory_info, state: Path, config, limits, *, batch_id=None,
                         receipt = {"identity": identity(span, config), "state": "running", "code": "READBACK_REQUIRED", "callsAttempted": 0,
                                    "reservedCalls": 2, "reservedInputTokens": config.input_limit, "reservedOutputTokens": config.output_limit,
                                    "model": config.model, "modelEvidenceSha256": config.model_evidence_hash, "membershipEvidence": row["membership"],
-                                   "usage": None, "evidenceSha256": None, "observationSha256": None, "costVerified": False}
+                                   "requestSha256": None, "responseId": None, "usage": None,
+                                   "evidenceSha256": None, "observationSha256": None, "costVerified": False}
                         if lineage:
                             receipt.update(batchId=batch_key, repairLineageSha256=digest(lineage))
                         atomic_document(receipt_path, receipt)
@@ -1764,7 +1785,20 @@ def execute(rows, inventory_info, state: Path, config, limits, *, batch_id=None,
 
                         def observe(value):
                             nonlocal observation
-                            observation = validate_observation(value)
+                            observed = validate_observation(value)
+                            request_sha256 = receipt.get("requestSha256")
+                            if request_sha256 is None:
+                                if observed["operation"] != "count" or observed["responseId"] is not None:
+                                    raise AnalysisError("REQUEST_OBSERVATION_BINDING_MISMATCH")
+                                receipt["requestSha256"] = observed["requestSha256"]
+                            elif observed["requestSha256"] != request_sha256:
+                                raise AnalysisError("REQUEST_OBSERVATION_BINDING_MISMATCH")
+                            response_id = receipt.get("responseId")
+                            if response_id is None and observed["responseId"] is not None:
+                                receipt["responseId"] = observed["responseId"]
+                            elif response_id is not None and observed["responseId"] != response_id:
+                                raise AnalysisError("REQUEST_OBSERVATION_BINDING_MISMATCH")
+                            observation = observed
                             atomic_document(observation_path, observation)
                             if value["httpOutcome"] != "not_sent":
                                 seen_operations.add(value["operation"])
@@ -1874,6 +1908,7 @@ def readback(rows, state, config, *, provider=False, max_calls=0):
                         outcome = segment_outcome(part_receipt, span)
                         if (part_receipt.get("identity") != expected_part_identity
                                 or part_receipt.get("observationSha256") != digest(observed)
+                                or not _request_observation_binding_matches(part_receipt, observed)
                                 or outcome["state"] != "uncertain"
                                 or not provider or not observed["responseId"]
                                 or observed["operation"] not in ("generate", "readback")
@@ -1915,7 +1950,8 @@ def readback(rows, state, config, *, provider=False, max_calls=0):
                                 start=span["segmentStartSeconds"], end=span["segmentEndSeconds"], prompt=segment_prompt(span),
                                 input_limit=config.input_limit, output_limit=config.output_limit, timeout=config.timeout,
                                 key=key, budget=project_budget(), observe=observe, response_id=observed["responseId"],
-                                request_digest=observed["requestSha256"], counted_input_tokens=observed["countedInputTokens"])
+                                request_digest=part_receipt["requestSha256"],
+                                counted_input_tokens=observed["countedInputTokens"])
                             observation = validate_observation(recovered["observation"])
                             part = {"identity": identity(span, config), "analysis": validate_analysis(decode(recovered["text"]), span),
                                     "usage": observation["usage"], "reportSha256": recovered["responseSha256"],

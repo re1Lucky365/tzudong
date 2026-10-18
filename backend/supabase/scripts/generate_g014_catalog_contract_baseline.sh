@@ -44,6 +44,7 @@ relevant_sources=(
   'backend/supabase/scripts/transform_storyboard_owner_replay.py'
   'backend/supabase/scripts/transform_review_storage_pg15_replay.py'
   'backend/supabase/scripts/transform_feature_rpc_catalog_pg15_replay.py'
+  'backend/supabase/scripts/transform_review_verification_readiness_pg15_replay.py'
   'backend/supabase/scripts/transform_registration_replay.py'
   'backend/supabase/scripts/transform_advisor_replay.py'
   'backend/supabase/scripts/verify_admin_user_ids_replay.py'
@@ -1616,6 +1617,16 @@ for migration in "${effective_migrations[@]}"; do
       g026_chain_apply 'feature-rpc-catalog-pg15-replay-transformer' \
         "$script_dir/transform_feature_rpc_catalog_pg15_replay.py"
       g026_chain_apply "feature-rpc-catalog-pg15-replay:${migration##*/}" "$transformed_migration"
+      compose exec -T db psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres <"$transformed_migration"
+      ;;
+    20261016090000_review_verification_delete_guard_readiness.sql)
+      transformed_migration="$work_dir/review-verification-readiness-pg15-${migration##*/}"
+      python3 "$script_dir/transform_review_verification_readiness_pg15_replay.py" \
+        --source "$migration" --output "$transformed_migration"
+      g026_chain_apply 'review-verification-readiness-pg15-replay-transformer' \
+        "$script_dir/transform_review_verification_readiness_pg15_replay.py"
+      g026_chain_apply "review-verification-readiness-pg15-replay:${migration##*/}" \
+        "$transformed_migration"
       compose exec -T db psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres <"$transformed_migration"
       ;;
     *)

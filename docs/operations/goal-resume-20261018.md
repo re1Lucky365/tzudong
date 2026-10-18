@@ -42,21 +42,25 @@
 
 ## 2026-10-18 로컬 증빙
 
-[CMS 측정](../../apps/web/performance/admin-tables-20261018/README.md), [실제 PG17.6 재생](../../apps/web/performance/feature-sql-integration-20261013/pg17-existing-catalog-replay-review-verification-readiness-20261018.json), [외부 감사 준비](../../apps/web/performance/cross-audit-20261018/master-plan.md)를 보존했다. 외부 감사는 공통 대기열이며 업로드·전송은 0회다. 최신 develop 통합·새 head CI·운영 배포·전체 메뉴 실제 검증은 남아 있다.
+[CMS 측정](../../apps/web/performance/admin-tables-20261018/README.md), [실제 PG17.6 재생](../../apps/web/performance/feature-sql-integration-20261013/pg17-existing-catalog-replay-review-verification-readiness-20261018.json), [외부 감사 준비](../../apps/web/performance/cross-audit-20261018/master-plan.md)를 보존했다. 준비 시점에는 외부 전송이 없었고, 이후 아래 1차 연구의 첨부 2개·전송 1회를 완료했다. 최신 develop을 통합했으며 새 수정 head의 CI·운영 배포·전체 메뉴 실제 검증은 남아 있다.
 
 ## 웹 심층 리서치 왕복 검증
 
-- [ ] GPT-6 Pro + 심층 리서치의 실제 시작·완료, 전문·원래 URL·SHA를 보존한다.
+- [x] GPT-6 Pro + 심층 리서치의 실제 시작·완료, 전문·원래 URL·SHA를 보존한다.
 - [ ] Gemini 4 Argon 최고가 + Deep Research로 앞선 보고서와 소스에 반대 감사를 수행한다.
 - [ ] 모든 지적에 안정적인 ID를 부여하고 ACCEPT/CONDITIONAL/REJECT/DEFER를 근거와 함께 판정한다.
 - [ ] 수용 지적을 실제 수정·경계/회귀 검사와 연결한다.
 - [ ] 최종 수정 소스로 GPT-6 Pro + 심층 리서치 역검증을 수행하고 새 결함도 조치한다.
 - [ ] completion-manifest.json의 세 보고서·조치·필수 검증이 충족될 때만 교차 감사 complete로 판정한다. 운영 배포와 전체 목표 완료는 별도다.
 
-공통 coordinator의 기존 job·FIFO·서비스당 한 건·소유자 해제 계약을 보존한다. 현재 manifest는 incomplete_queued이며 빈 파일이나 로컬 리뷰를 웹 연구 완료로 대체하지 않는다.
+공통 coordinator의 기존 job·FIFO·서비스당 한 건·소유자 해제 계약을 보존한다. 현재 manifest는 incomplete_thesis_adjudicated_antithesis_pending이며 빈 파일이나 로컬 리뷰를 웹 연구 완료로 대체하지 않는다.
 
 ## SQL 승격 경계
 
-review-media feature successor와 PG17.6 receipt는 정확한 97→102 다섯 migration 증빙이다. `20261017`의 evidence/popularity migration 세 개는 별도 102→105 승격이며, 기존 102 receipt를 105 증빙으로 표시하거나 재사용하지 않는다.
+review-media feature successor와 PG17.6 receipt는 정확한 97→102 다섯 migration 증빙이다. 처음 설계한 evidence/popularity 102→105 순서와 달리, 10월18일 운영 SELECT에서는 ledger89·evidence3·feature0이 관측됐다. 기존 admission을 억지로 맞추지 않으며, 선행 ledger의 정확한 행·문장 해시와 현재 토폴로지를 확인한 별도 successor가 필요하다. 기존 102 receipt를 운영105 증빙으로 표시하거나 재사용하지 않는다.
 
 통합 commit `b5d62c34f4a2e854ab10fd9f6741597b6081c43b`에서 관련13개 파일188개 테스트·4,934 assertions, ESLint, compiler parity3,350입력/진단0, production build54페이지와 route CSS 경계가 통과했다. [통합 원시 결과와 영수증](../../apps/web/performance/feature-completion-20261013/integration-20261018/verification.json)을 보존했다. 105 ledger 거부를 추가한 후 관련11개 테스트도 통과했다. backend의 caption20·eligibility1·provider6·evidence-frame9개는 원시 결과 파일로 보존했다. 기존 전체 discovery의 macOS/Windows jq 실행 오류는 범위 밖 환경 실패로 남긴다.
+
+1차 [심층 연구 전문](../../apps/web/performance/cross-audit-20261018/chatgpt-thesis-full-report.md)은 UI9분/출처5/검색99 완료를 확인하고43,130bytes·SHA4c5542b59d9bcb426eac29722b6da36c9c23337fa622bd9e822bd6b3ffe4ad82로 보존했다. ChatGPT 슬롯은 전문 저장 직후 해제했다. TZ-TH-001~009는 ACCEPT8·CONDITIONAL1로 판정했다. provider protocol·debt 복구·abort 경계, OCR 전체 입력 snapshot·공백 제외20~4,000자, 인라인 포커스 및 롱폼 request/response lineage를 수정했다. [현재 소스 검증](../../apps/web/performance/cross-audit-20261018/final-verification/verification.json)에 CMS131·provider JS9/고정Python15·lineage86·layout42, 진단0, production build54페이지를 구분해 기록했다. Gemini 반대 감사 묶음은 원래10개 소스 전문·thesis 전문·기존PG/closure 영수증을 포함하며 FIFO 대기 중이다.
+
+과거 결제 감사:10월2일1만원 충전·한 프로젝트 결제 연결의 UI readback은 있고10월8일 재관측에서 자동충전OFF가 유지됐다.10월15일에는 승인 계정의 유료 Tier/크레딧 표시만 확인했다. 실제 요청의 청구/credit debit 귀속과 정확 잔액은 미확인이다. 카드 삭제는 유효한 대체수단 요구로 취소돼 대상 잔존이며 미완료다. 추가 충전·카드 등록·결제 변경을 하지 않는다. 원본 증거는 pipeline-20261002/billing-readback.json, funded-gemini-followthrough-20261009/billing-before.json 및 longform-resume-readiness-20261009/card-removal-readback.json이다.

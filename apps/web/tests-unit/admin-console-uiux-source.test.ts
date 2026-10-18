@@ -6400,6 +6400,9 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(submissionSource).toContain('onClick={handleDeleteSelectedSubmission}');
     expect(submissionSource).toContain('data-admin-moderation-drawer');
     expect(submissionSource).toContain('rowTriggerRef.current?.focus()');
+    expect(submissionSource).toContain('[data-admin-moderation-drawer], [data-admin-moderation-inspector="true"]');
+    expect(submissionSource.match(/onClick=\{closeInspector\}/g)?.length ?? 0).toBe(2);
+    expect(submissionSource).toContain('scheduleInlineInspectorFocusRestore();');
 
     expect(submissionSource).toContain('aria-label="제보·리뷰 종류"');
     expect(submissionSource).toContain('aria-pressed={activeTab === tab.id}');

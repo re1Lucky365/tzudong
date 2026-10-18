@@ -107,15 +107,29 @@ function fixture() {
         prepareReceiptImage: async (file: File) => file, compressFoodImage: async (file: File) => file,
         prepareDraftDeletion: (...args: unknown[]) => prepareDeletion(...args),
     }) as (owner: () => string, revision: () => ReviewDraft | null) => ReviewSaveOperation;
+    const sameReviewSaveInputsSnapshot = evaluate(
+        `${nodeText(source, 'sameReviewSaveInputsSnapshot')}\nsameReviewSaveInputsSnapshot;`,
+        {},
+    ) as (left: Record<string, unknown>, right: Record<string, unknown>) => boolean;
     const fields = {
+        revision: 1, ownerId: 'fixture-owner',
         visitedDate: '2026-10-04', visitedTime: '12:00', categories: ['한식'],
         content: 'Synthetic offline fixture review content only.',
         verificationPhoto: new File(['receipt'], 'receipt.jpg'), foodPhotos: [new File(['food'], 'food.jpg')],
-        restaurantId: 'fixture-restaurant',
+        restaurantId: 'fixture-restaurant', restaurantName: 'Fixture',
+        verificationInputMode: 'manual' as 'ai' | 'manual', isAnalyzing: false, ocrRunGeneration: 0,
         ocrResultRef: null as string | null, ocrResultRevision: null as string | null,
     };
     const messages: {title: string; description?: string}[] = [];
     const recoveryStates: (string | null)[] = [];
+    const latestSaveInputsRef = { current: fields };
+    const reviseLatestSaveInputs = (patch: Record<string, unknown>) => {
+        latestSaveInputsRef.current = {
+            ...latestSaveInputsRef.current,
+            ...patch,
+            revision: latestSaveInputsRef.current.revision + 1,
+        };
+    };
     const bindings = {
         ...fields, selectedRestaurant: { id: fields.restaurantId, name: 'Fixture' }, restaurant: null,
         user: { id: 'fixture-owner' }, saveOwnerRef: { current: 'fixture-owner' },
@@ -125,7 +139,9 @@ function fixture() {
         autoSaveInFlightRef: { current: null },
         verificationSelectionRef: { current: { invalidate() {} } },
         verificationInputModeRef: { current: 'manual' as 'ai' | 'manual' }, isAnalyzing: false,
-        latestSaveInputsRef: { current: fields }, REVIEW_CONTENT_MAX_LENGTH: 4_000,
+        ocrRunGenerationRef: { current: 0 },
+        latestSaveInputsRef, reviseLatestSaveInputs, REVIEW_CONTENT_MAX_LENGTH: 4_000,
+        sameReviewSaveInputsSnapshot,
         setIsSubmitting() {}, toast: (message: {title: string}) => messages.push(message),
         fetchFeatureDatabaseReadiness: async () => featureReady
             ? { schemaVersion: 1, status: 'ready', code: 'FEATURE_DATABASE_READY' }
@@ -188,6 +204,7 @@ describe('actual receipt result recovery', () => {
             useCallback: (callback: unknown) => callback,
             verificationInputModeRef, receiptOcrPreparationRef, ocrRunGenerationRef, ocrAbortControllerRef,
             userStepOverrideDuringOcrRef, latestSaveInputsRef: { current: {} },
+            reviseLatestSaveInputs() {},
             setVerificationInputMode(value: 'ai' | 'manual') { renderedMode = value; },
             setOcrResultRef() {}, setOcrResultRevision() {},
             setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
@@ -195,6 +212,7 @@ describe('actual receipt result recovery', () => {
         const selectPhoto = evaluate(`${nodeText(source, 'handleVerificationPhotoSelected')};`, {
             verificationSelectionRef, receiptOcrPreparationRef, verificationInputModeRef,
             ocrRunGenerationRef, ocrAbortControllerRef,
+            reviseLatestSaveInputs() {},
             setIsAnalyzing() {}, setOcrProgress() {}, featureHeld: false,
             isSupportedReceiptImage: () => true, toast() {}, FEATURE_DATABASE_HELD_MESSAGE: 'held',
             generateSafeFilename: () => 'prepared.jpg', prepareVerificationUploadFile,
@@ -245,6 +263,7 @@ describe('actual receipt result recovery', () => {
             verificationSelectionRef: { current: { invalidate() {} } },
             receiptOcrPreparationRef: { current: { invalidate() {} } },
             latestSaveInputsRef: { current: {} },
+            reviseLatestSaveInputs() {},
             verificationPhotoUrlRef: { current: null },
             ocrRunGenerationRef: generation, ocrAbortControllerRef: { current: controller },
             ocrRecoveryContextRef: recovery,
@@ -327,6 +346,7 @@ describe('actual receipt result recovery', () => {
             useCallback: (callback: unknown) => callback,
             verificationInputModeRef, receiptOcrPreparationRef, ocrRunGenerationRef, ocrAbortControllerRef,
             userStepOverrideDuringOcrRef, latestSaveInputsRef: { current: {} },
+            reviseLatestSaveInputs() {},
             setVerificationInputMode() {}, setOcrResultRef() {}, setOcrResultRevision() {},
             setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
         }) as (mode: 'ai' | 'manual') => void;
@@ -334,6 +354,7 @@ describe('actual receipt result recovery', () => {
             AbortController, featureHeld: false, user: { id: 'fixture-owner' },
             canForceOcrRefresh: false, forceOcrRefresh: false,
             ocrRunGenerationRef, ocrAbortControllerRef,
+            reviseLatestSaveInputs() {},
             setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
             supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'offline-session-token' } } }) } },
             readReceiptOcrStatus: () => { enteredRead(); return pending; },
@@ -378,6 +399,7 @@ describe('actual receipt result recovery', () => {
             useCallback: (callback: unknown) => callback,
             verificationInputModeRef, receiptOcrPreparationRef, ocrRunGenerationRef, ocrAbortControllerRef,
             userStepOverrideDuringOcrRef, latestSaveInputsRef: { current: {} },
+            reviseLatestSaveInputs() {},
             setVerificationInputMode() {}, setOcrResultRef() {}, setOcrResultRevision() {},
             setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
         }) as (mode: 'ai' | 'manual') => void;
@@ -385,6 +407,7 @@ describe('actual receipt result recovery', () => {
             AbortController, featureHeld: false, user: { id: 'fixture-owner' },
             canForceOcrRefresh: false, forceOcrRefresh: false,
             ocrRunGenerationRef, ocrAbortControllerRef, manuallyEditedOcrFieldsRef,
+            reviseLatestSaveInputs() {},
             lastManualOcrInteractionAtRef, lastOcrRevealSignatureRef, userStepOverrideDuringOcrRef,
             setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {}, setAiFilledFields() {},
             supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'offline-session-token' } } }) } },
@@ -433,6 +456,7 @@ describe('actual receipt result recovery', () => {
             canForceOcrRefresh: false,
             forceOcrRefresh: false,
             manuallyEditedOcrFieldsRef,
+            reviseLatestSaveInputs() {},
             lastManualOcrInteractionAtRef,
             userStepOverrideDuringOcrRef,
             lastOcrRevealSignatureRef,
@@ -488,19 +512,23 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
     });
     test('photo-only mode clears a completed OCR binding and uses the standard review insert', async () => {
         const f = fixture();
+        f.bindings.verificationInputModeRef.current = 'ai';
         f.bindings.latestSaveInputsRef.current = {
             ...f.bindings.latestSaveInputsRef.current,
+            revision: f.bindings.latestSaveInputsRef.current.revision + 1,
+            verificationInputMode: 'ai',
             ocrResultRef: '11111111-1111-4111-8111-111111111111',
             ocrResultRevision: '22222222-2222-4222-8222-222222222222',
         };
         const cleared = { ref: false, revision: false };
         const setMode = evaluate(`${nodeText(source, 'setReceiptVerificationInputMode')};`, {
             useCallback: (callback: unknown) => callback,
-            verificationInputModeRef: { current: 'ai' },
+            verificationInputModeRef: f.bindings.verificationInputModeRef,
             receiptOcrPreparationRef: { current: createLatestSelection() },
-            ocrRunGenerationRef: { current: 0 }, ocrAbortControllerRef: { current: null },
+            ocrRunGenerationRef: f.bindings.ocrRunGenerationRef, ocrAbortControllerRef: { current: null },
             userStepOverrideDuringOcrRef: { current: false },
             latestSaveInputsRef: f.bindings.latestSaveInputsRef,
+            reviseLatestSaveInputs: f.bindings.reviseLatestSaveInputs,
             setVerificationInputMode() {},
             setOcrResultRef(value: null) { cleared.ref = value === null; },
             setOcrResultRevision(value: null) { cleared.revision = value === null; },
@@ -522,13 +550,13 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         f.bindings.verificationInputModeRef.current = mode;
         f.bindings.latestSaveInputsRef.current = {
             ...f.bindings.latestSaveInputsRef.current,
+            revision: f.bindings.latestSaveInputsRef.current.revision + 1,
+            content: '가'.repeat(4_001),
+            verificationInputMode: mode,
             ocrResultRef: mode === 'ai' ? '11111111-1111-4111-8111-111111111111' : null,
             ocrResultRevision: mode === 'ai' ? '22222222-2222-4222-8222-222222222222' : null,
         };
-        const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, {
-            ...f.bindings,
-            content: '가'.repeat(4_001),
-        }) as () => Promise<void>;
+        const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, f.bindings) as () => Promise<void>;
 
         await submit();
 
@@ -536,6 +564,26 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         expect(f.counts.inserts).toBe(0);
         expect(f.rows.size).toBe(0);
         expect(f.messages.at(-1)?.title).toBe('리뷰 내용이 너무 깁니다');
+    });
+    test('accepts exactly 4,000 normalized characters and persists the normalized content', async () => {
+        const f = fixture();
+        f.bindings.reviseLatestSaveInputs({ content: `  ${'가'.repeat(4_000)}  ` });
+
+        await f.submit();
+
+        expect(f.counts.uploads).toBe(2);
+        expect(f.counts.inserts).toBe(1);
+        expect([...f.rows.values()][0].content).toBe('가'.repeat(4_000));
+    });
+    test('rejects fewer than 20 normalized characters before any upload', async () => {
+        const f = fixture();
+        f.bindings.reviseLatestSaveInputs({ content: `  ${'가'.repeat(19)}  ` });
+
+        await f.submit();
+
+        expect(f.counts.uploads).toBe(0);
+        expect(f.counts.inserts).toBe(0);
+        expect(f.messages.at(-1)?.title).toBe('리뷰 내용이 너무 짧습니다');
     });
     test.each([
         { name: 'active analysis', isAnalyzing: true, ref: '11111111-1111-4111-8111-111111111111', revision: '22222222-2222-4222-8222-222222222222' },
@@ -546,13 +594,13 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         f.bindings.verificationInputModeRef.current = 'ai';
         f.bindings.latestSaveInputsRef.current = {
             ...f.bindings.latestSaveInputsRef.current,
+            revision: f.bindings.latestSaveInputsRef.current.revision + 1,
+            verificationInputMode: 'ai',
+            isAnalyzing,
             ocrResultRef: ref,
             ocrResultRevision: revision,
         };
-        const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, {
-            ...f.bindings,
-            isAnalyzing,
-        }) as () => Promise<void>;
+        const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, f.bindings) as () => Promise<void>;
 
         await submit();
 
@@ -561,11 +609,13 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         expect(f.rows.size).toBe(0);
         expect(f.messages.at(-1)?.title).toBe('영수증 분석을 확인해주세요');
     });
-    test('photo-only selection during readiness cannot submit the captured OCR binding', async () => {
+    test('photo-only selection during readiness rejects the stale save attempt before upload', async () => {
         const f = fixture();
         f.bindings.verificationInputModeRef.current = 'ai';
         f.bindings.latestSaveInputsRef.current = {
             ...f.bindings.latestSaveInputsRef.current,
+            revision: f.bindings.latestSaveInputsRef.current.revision + 1,
+            verificationInputMode: 'ai',
             ocrResultRef: '11111111-1111-4111-8111-111111111111',
             ocrResultRevision: '22222222-2222-4222-8222-222222222222',
         };
@@ -585,9 +635,10 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
             useCallback: (callback: unknown) => callback,
             verificationInputModeRef: f.bindings.verificationInputModeRef,
             receiptOcrPreparationRef: { current: createLatestSelection() },
-            ocrRunGenerationRef: { current: 0 }, ocrAbortControllerRef: { current: null },
+            ocrRunGenerationRef: f.bindings.ocrRunGenerationRef, ocrAbortControllerRef: { current: null },
             userStepOverrideDuringOcrRef: { current: false },
             latestSaveInputsRef: f.bindings.latestSaveInputsRef,
+            reviseLatestSaveInputs: f.bindings.reviseLatestSaveInputs,
             setVerificationInputMode() {}, setOcrResultRef() {}, setOcrResultRevision() {},
             setIsAnalyzing() {}, setOcrProgress() {}, setOcrFallbackNotice() {},
         }) as (mode: 'ai' | 'manual') => void;
@@ -598,15 +649,18 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         finishReadiness();
         await pending;
 
-        expect(f.rows.size).toBe(1);
-        expect(f.counts.uploads).toBe(2);
-        expect([...f.rows.values()][0]).not.toHaveProperty('receipt_data');
+        expect(f.rows.size).toBe(0);
+        expect(f.counts.uploads).toBe(0);
+        expect(f.counts.inserts).toBe(0);
+        expect(f.messages.at(-1)?.title).toBe('입력 내용이 변경되었습니다');
     });
     test('an AI binding changed during readiness is rejected before upload', async () => {
         const f = fixture();
         f.bindings.verificationInputModeRef.current = 'ai';
         f.bindings.latestSaveInputsRef.current = {
             ...f.bindings.latestSaveInputsRef.current,
+            revision: f.bindings.latestSaveInputsRef.current.revision + 1,
+            verificationInputMode: 'ai',
             ocrResultRef: '11111111-1111-4111-8111-111111111111',
             ocrResultRevision: '22222222-2222-4222-8222-222222222222',
         };
@@ -627,6 +681,7 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         await readinessStarted;
         f.bindings.latestSaveInputsRef.current = {
             ...f.bindings.latestSaveInputsRef.current,
+            revision: f.bindings.latestSaveInputsRef.current.revision + 1,
             ocrResultRef: null,
             ocrResultRevision: null,
         };
@@ -635,7 +690,57 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
 
         expect(f.counts.uploads).toBe(0);
         expect(f.counts.inserts).toBe(0);
-        expect(f.messages.at(-1)?.title).toBe('영수증 분석을 확인해주세요');
+        expect(f.messages.at(-1)?.title).toBe('입력 내용이 변경되었습니다');
+    });
+    test.each([
+        ['restaurant', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ restaurantId: 'other-restaurant', restaurantName: 'Other' })],
+        ['restaurant name', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ restaurantName: 'Renamed restaurant' })],
+        ['date', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ visitedDate: '2026-10-05' })],
+        ['time', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ visitedTime: '13:30' })],
+        ['categories', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ categories: ['양식'] })],
+        ['content', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ content: 'Changed while readiness was pending.' })],
+        ['verification photo', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ verificationPhoto: new File(['next'], 'next.jpg') })],
+        ['food photos', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ foodPhotos: [new File(['next-food'], 'next-food.jpg')] })],
+        ['analysis state', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ isAnalyzing: true })],
+        ['OCR result ref', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ ocrResultRef: '11111111-1111-4111-8111-111111111111' })],
+        ['OCR result revision', (f: ReturnType<typeof fixture>) => f.bindings.reviseLatestSaveInputs({ ocrResultRevision: '22222222-2222-4222-8222-222222222222' })],
+        ['mode', (f: ReturnType<typeof fixture>) => {
+            f.bindings.verificationInputModeRef.current = 'ai';
+            f.bindings.reviseLatestSaveInputs({ verificationInputMode: 'ai' });
+        }],
+        ['OCR generation', (f: ReturnType<typeof fixture>) => {
+            f.bindings.ocrRunGenerationRef.current += 1;
+            f.bindings.reviseLatestSaveInputs({ ocrRunGeneration: f.bindings.ocrRunGenerationRef.current });
+        }],
+        ['owner', (f: ReturnType<typeof fixture>) => {
+            f.bindings.saveOwnerRef.current = 'other-owner';
+            f.bindings.reviseLatestSaveInputs({ ownerId: 'other-owner' });
+        }],
+    ] as const)('rejects a %s change during deferred readiness before upload', async (_name, mutate) => {
+        const f = fixture();
+        let enterReadiness!: () => void;
+        let finishReadiness!: () => void;
+        const readinessStarted = new Promise<void>(resolve => { enterReadiness = resolve; });
+        const readiness = new Promise<void>(resolve => { finishReadiness = resolve; });
+        const submit = evaluate(`${nodeText(source, 'handleSubmit')};`, {
+            ...f.bindings,
+            fetchFeatureDatabaseReadiness: async () => {
+                enterReadiness();
+                await readiness;
+                return { schemaVersion: 1, status: 'ready', code: 'FEATURE_DATABASE_READY' };
+            },
+        }) as () => Promise<void>;
+
+        const pending = submit();
+        await readinessStarted;
+        mutate(f);
+        finishReadiness();
+        await pending;
+
+        expect(f.counts.uploads).toBe(0);
+        expect(f.counts.inserts).toBe(0);
+        expect(f.rows.size).toBe(0);
+        expect(f.messages.at(-1)?.title).toBe('입력 내용이 변경되었습니다');
     });
     test('held feature readiness stops before draft capture, upload, or review insert', async () => {
         const f = fixture(); f.setFeatureReady(false); await f.submit();
@@ -665,10 +770,15 @@ describe('actual ReviewModal submit and Supabase adapter', () => {
         const f = fixture(); await Promise.all([f.submit(), f.submit()]);
         expect(f.counts.inserts).toBe(1); expect(f.counts.uploads).toBe(2); expect(f.counts.success).toBe(1);
     });
-    test('changed input during submit is preserved after committed original draft', async () => {
-        const f = fixture(); const pending = f.submit();
-        f.bindings.latestSaveInputsRef.current = { ...f.bindings.latestSaveInputsRef.current, content: 'Changed during submission' };
-        await pending;
+    test('changed input after review dispatch is preserved after committed original draft', async () => {
+        const f = fixture();
+        f.onInsert(() => {
+            f.bindings.latestSaveInputsRef.current = {
+                ...f.bindings.latestSaveInputsRef.current,
+                content: 'Changed during submission',
+            };
+        });
+        await f.submit();
         expect(f.rows.size).toBe(1); expect(f.counts.cleared).toBe(1); expect(f.counts.closes).toBe(0);
         expect(f.messages[0].title).toBe('이전 내용으로 등록되었습니다');
         expect(f.recoveryStates).toEqual(['edit']);

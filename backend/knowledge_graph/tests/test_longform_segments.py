@@ -924,6 +924,8 @@ class SegmentExecutionTests(unittest.TestCase):
         observation = m.checked_document(observation_path)
         self.assertEqual((receipt["state"], observation["operation"]), ("uncertain", "generate"))
         self.assertIsNotNone(observation["responseId"])
+        self.assertEqual(receipt["requestSha256"], observation["requestSha256"])
+        self.assertEqual(receipt["responseId"], observation["responseId"])
 
         for operation, eligible in (("generate", 1), ("readback", 1), ("count", 0)):
             with self.subTest(operation=operation):
@@ -938,6 +940,75 @@ class SegmentExecutionTests(unittest.TestCase):
                 self.assertEqual(plan["classificationDenominator"]["providerGetEligible"], eligible)
                 self.assertEqual(plan["classificationDenominator"]["automaticProviderCalls"], 0)
                 self.assertEqual({path: path.read_bytes() for path in self.state.rglob("*.json")}, before)
+
+    def test_cross_swapped_response_id_is_not_get_eligible_or_sent(self):
+        self.scenario = "pending"
+        self.execute(batch_id="originating-request-a")
+        span = m.segment_rows(self.row, self.config)[0]
+        _, receipt_path, _ = m.paths(self.state, span, self.config)
+        observation_path = receipt_path.with_name(
+            receipt_path.name.replace(".receipt.json", ".observation.json")
+        )
+        receipt = m.checked_document(receipt_path)
+        originating = m.checked_document(observation_path)
+        swapped = {**originating, "responseId": "v1_fixture_request_b",
+                   "requestSha256": originating["requestSha256"]}
+        m.atomic_document(observation_path, swapped)
+        receipt["observationSha256"] = m.digest(swapped)
+        m.atomic_document(receipt_path, receipt)
+
+        with patch.object(m.adapter, "invoke", side_effect=AssertionError("mismatched request must not GET")):
+            plan = m.make_plan([self.row], self.info, self.state, self.config)
+            readback = m.readback([self.row], self.state, self.config, provider=True, max_calls=1)
+
+        self.assertEqual(plan["cache"]["readback_required"], 1)
+        self.assertEqual(plan["classificationDenominator"]["providerGetEligible"], 0)
+        self.assertEqual(plan["classificationDenominator"]["uncertaintyReasons"], {
+            "REQUEST_OBSERVATION_BINDING_MISMATCH": 1,
+        })
+        self.assertEqual(readback, {"phase": "readback", "recovered": 0,
+                                    "unresolved": 1, "readbackCalls": 0})
+
+    def test_pre_lineage_success_and_uncertainty_remain_byte_identical_provider_holds(self):
+        original_state = self.state
+        for scenario, expected_cache in (("valid", "corrupt"), ("pending", "readback_required")):
+            with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as temporary:
+                self.state = Path(temporary) / "state"
+                self.scenario = scenario
+                self.execute(batch_id=f"pre-lineage-{scenario}")
+                span = m.segment_rows(self.row, self.config)[0]
+                _, segment_path, _ = m.paths(self.state, span, self.config)
+                _, root_path, root_evidence_path = m.paths(self.state, self.row, self.config)
+                segment = m.checked_document(segment_path)
+                segment.pop("requestSha256")
+                segment.pop("responseId")
+                m.atomic_document(segment_path, segment)
+                root = m.checked_document(root_path)
+                if scenario == "valid":
+                    evidence = m.checked_document(root_evidence_path)
+                    evidence["segments"][0]["receiptSha256"] = m.digest(segment)
+                    m.atomic_document(root_evidence_path, evidence)
+                    root["evidenceSha256"] = m.digest(evidence)
+                else:
+                    root["blockedSegment"]["receiptSha256"] = m.digest(segment)
+                m.atomic_document(root_path, root)
+                before = self.video_snapshot()
+                calls = len(self.calls)
+
+                with patch.object(m.adapter, "invoke", side_effect=AssertionError("pre-lineage hold cannot call provider")):
+                    plan = m.make_plan([self.row], self.info, self.state, self.config)
+                    executed = m.execute([self.row], self.info, self.state, self.config, self.limits,
+                                         batch_id=f"post-lineage-{scenario}")
+                    readback = m.readback([self.row], self.state, self.config, provider=True, max_calls=1)
+
+                self.assertEqual(plan["cache"][expected_cache], 1)
+                self.assertEqual(plan["classificationDenominator"]["providerGetEligible"], 0)
+                self.assertEqual((executed["blocked"], executed["attempted"]), (1, 0))
+                self.assertEqual(readback, {"phase": "readback", "recovered": 0,
+                                            "unresolved": 1, "readbackCalls": 0})
+                self.assertEqual(len(self.calls), calls)
+                self.assertEqual(self.video_snapshot(), before)
+        self.state = original_state
 
     def test_config_hash_binds_schema_segment_and_adapter_changes(self):
         original = m.digest(self.config.identity)

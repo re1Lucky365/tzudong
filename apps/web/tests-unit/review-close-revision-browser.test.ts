@@ -59,8 +59,10 @@ async function bundle(sourceRoot: string) {
         };
         const useAuth = () => ({ user: { id: owner } });
         const REVIEW_FORM_STEPS = [{ id: 1 }, { id: 2 }, { id: 3 }];
+        const REVIEW_CONTENT_MAX_LENGTH = 4000;
         const toast = () => {};
         ${nodes.get('createReviewSaveOperation')}
+        ${nodes.get('sameReviewSaveInputsSnapshot')}
         ${nodes.get('ReviewModal')}
         function ReviewComposer({ isOpen, restaurant, label, initialContent }) {
             const { user } = useAuth();
@@ -71,15 +73,21 @@ async function bundle(sourceRoot: string) {
             const [content, setContent] = useState(initialContent);
             const [verificationPhoto, replaceVerificationPhoto] = useState(() => new File(['synthetic'], 'receipt.jpg', { type: 'image/jpeg' }));
             const [foodPhotos, setFoodPhotos] = useState(() => [new File(['synthetic'], 'food.webp', { type: 'image/webp' })]);
+            const verificationInputMode = 'manual', isAnalyzing = false;
             const ocrResultRef = null, ocrResultRevision = null;
             const [currentStep, setCurrentStep] = useState(3);
             const [, setIsSubmitting] = useState(false), [, setIsSaving] = useState(false), [, setLastSavedAt] = useState(null), [, setSaveRecovery] = useState(null);
             const saveOwnerRef = useRef(user.id), saveOperationRef = useRef(null), submitInFlightRef = useRef(false);
             const closeRequestedRef = useRef(false), composerOpenRef = useRef(isOpen), consumerNotifiedRef = useRef(false), autoSaveInFlightRef = useRef(null);
-            const ocrRunGenerationRef = useRef(0), ocrRecoveryContextRef = useRef(null);
+            const ocrRunGenerationRef = useRef(0), saveInputRevisionRef = useRef(0), verificationInputModeRef = useRef(verificationInputMode), ocrRecoveryContextRef = useRef(null);
             const verificationSelectionRef = useRef({ invalidate() {} }), receiptOcrPreparationRef = useRef({ invalidate() {} });
             const draftScopeRef = useRef({ ownerId: user.id, restaurantId: restaurant.id, revision: null });
-            const latestSaveInputsRef = useRef({ visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: restaurant.id, ocrResultRef, ocrResultRevision });
+            const latestSaveInputsRef = useRef({ revision: 0, ownerId: user.id, visitedDate, visitedTime, categories, content, verificationPhoto, foodPhotos, restaurantId: restaurant.id, restaurantName: restaurant.name, verificationInputMode, isAnalyzing, ocrRunGeneration: ocrRunGenerationRef.current, ocrResultRef, ocrResultRevision });
+            const reviseLatestSaveInputs = useCallback(patch => {
+                const revision = saveInputRevisionRef.current + 1;
+                saveInputRevisionRef.current = revision;
+                latestSaveInputsRef.current = { ...latestSaveInputsRef.current, ...patch, revision };
+            }, []);
             ${lifecycle.join(';\n')};
             const onSuccess = () => { counts.success++; };
             const onClose = () => { counts.closes++; };
