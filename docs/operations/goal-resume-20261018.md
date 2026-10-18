@@ -11,8 +11,8 @@
 - [x] 최종 1440·834·390px 브라우저에서 실제 viewport를 확인하고 overflow·행 높이·상세·검색·필터를 재검증한다. 과거 viewport 불일치 캡처를 최종 증빙으로 쓰지 않는다.
 - [x] provider budget, OCR binding/4000자 경계, KG caption/receipt eligibility, runtime closure 및 SQL readiness 리뷰 수정을 검증한다.
 - [x] 신규 forward migration의 102개 ledger·5단계 successor 계약과 PG17 실패·권한·idempotency/readback 검증을 마친다. 운영 적용과 구분한다.
-- [ ] 관련 단위 검사·ESLint·고정 TypeScript parity·production build를 마친다. 변경이나 구체적 위험이 없으면 통과한 전체 검사를 반복하지 않는다.
-- [ ] 검증된 작업만 커밋하고 develop 병합 충돌을 의미에 맞게 해결한다. 현재 확인한 충돌 파일은 platform-modernization reconciliation JSON이다.
+- [x] 관련 단위 검사·ESLint·고정 TypeScript parity·production build를 마친다. 변경이나 구체적 위험이 없으면 통과한 전체 검사를 반복하지 않는다.
+- [x] 검증된 작업만 커밋하고 develop 병합 충돌을 의미에 맞게 해결한다. 현재 확인한 충돌 파일은 platform-modernization reconciliation JSON이다.
 - [ ] PR #3215 최신 head의 리뷰·Swift·필수 CI를 확인하고 보호된 `develop → data → main` 승격을 마친다.
 - [ ] 현재 운영 rollback SHA와 정확한 Vercel 프로젝트를 확인하고 held/ready 계약에 따라 배포한다. 운영 SHA·도메인·hold 상태를 readback한다.
 - [ ] 운영 SQL은 새 실행 증빙·현재 권한·writer fence·inflight 상태를 충족할 때 적용하고 readback한다. 과거 중지 확인을 현재 fence로 대체하지 않는다.
@@ -58,3 +58,5 @@
 ## SQL 승격 경계
 
 review-media feature successor와 PG17.6 receipt는 정확한 97→102 다섯 migration 증빙이다. `20261017`의 evidence/popularity migration 세 개는 별도 102→105 승격이며, 기존 102 receipt를 105 증빙으로 표시하거나 재사용하지 않는다.
+
+통합 commit `b5d62c34f4a2e854ab10fd9f6741597b6081c43b`에서 관련13개 파일188개 테스트·4,934 assertions, ESLint, compiler parity3,350입력/진단0, production build54페이지와 route CSS 경계가 통과했다. [통합 원시 결과와 영수증](../../apps/web/performance/feature-completion-20261013/integration-20261018/verification.json)을 보존했다. 105 ledger 거부를 추가한 후 관련11개 테스트도 통과했다. backend의 caption20·eligibility1·provider6·evidence-frame9개는 원시 결과 파일로 보존했다. 기존 전체 discovery의 macOS/Windows jq 실행 오류는 범위 밖 환경 실패로 남긴다.
