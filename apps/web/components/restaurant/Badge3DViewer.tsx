@@ -31,7 +31,7 @@ export default function Badge3DViewer({
 }: {
   tier: "fire" | "rainbow";
   onClose: () => void;
-  lowPower?: boolean;
+  lowPower: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
