@@ -41,6 +41,7 @@ export function PopularityBadge({
           .tz-popularity-badge:hover img { transform: scale(1.15); }
         }
       `}</style>
+      {/* eslint-disable-next-line @next/next/no-img-element -- Static badge WebP hides itself when the file is missing, and the hover scale targets this img. */}
       <img
         src={BADGE_SRC[tier]}
         alt={`${tier} popularity badge`}

@@ -11,6 +11,8 @@ export const POPULARITY_MARKER_CSS = `
   transform: scale(1);
   animation: tz-popularity-pulse 1.8s ease-in-out infinite;
 }
+.tz-popularity-marker[data-popularity-tier="fire"]::before { border: 2px solid #ff6a00; }
+.tz-popularity-marker[data-popularity-tier="rainbow"]::before { border: 2px solid #7c5cff; }
 @keyframes tz-popularity-pulse {
   50% { transform: scale(1.12); opacity: 1; }
 }
