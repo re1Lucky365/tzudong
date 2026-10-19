@@ -159,22 +159,6 @@ const EVALUATION_FILTER_KEYS = [
   'category_TF',
   'status',
 ] as const;
-const ADMIN_SUBMISSION_SELECT = [
-  'id',
-  'user_id',
-  'submission_type',
-  'status',
-  'restaurant_name',
-  'restaurant_address',
-  'restaurant_phone',
-  'restaurant_categories',
-  'admin_notes',
-  'rejection_reason',
-  'resolved_by_admin_id',
-  'reviewed_at',
-  'created_at',
-  'updated_at',
-].join(', ');
 const ADMIN_SUBMISSION_ITEM_SELECT = [
   'id',
   'submission_id',
@@ -1689,17 +1673,14 @@ function AdminEvaluationPage({
     queryFn: async () => {
       if (!user || !isAdmin) return [];
 
-      // 1. submissions 조회 (pending 및 partially_approved)
-      const { data: submissionsData, error: submissionsError } = await supabase
-        .from('restaurant_submissions')
-        .select(ADMIN_SUBMISSION_SELECT)
-        .in('status', ['pending', 'partially_approved'])
-        .order('created_at', { ascending: false })
-        .overrideTypes<Record<string, unknown>[], { merge: false }>();
-
-
-      if (submissionsError) throw submissionsError;
-      const typedSubmissions = parseValidatedRows(submissionsData ?? [], isSubmissionRow);
+      const response = await fetch('/api/admin/submissions', {
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('admin-submissions-failed');
+      const payload = await response.json().catch(() => null) as { submissions?: unknown } | null;
+      if (!payload || !Array.isArray(payload.submissions)) throw new Error('admin-submissions-invalid');
+      const typedSubmissions = parseValidatedRows(payload.submissions, isSubmissionRow);
       if (!typedSubmissions.length) return [];
       const submissionIds = typedSubmissions.map(s => s.id);
       const userIds = [...new Set(typedSubmissions.map(s => s.user_id))];
