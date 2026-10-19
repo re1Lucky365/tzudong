@@ -1,7 +1,7 @@
 'use client';
 
 import { formatTzuyangReviewForDisplay } from '@/lib/tzuyang-review-display';
-import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, memo, type ReactNode } from 'react';
 import { useFilledSkeletonCount } from '@/lib/use-filled-skeleton-count';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import {
     AlertTriangle,
     ScanSearch,
     RefreshCw,
+    ChevronRight,
 } from 'lucide-react';
 import { YouTubeIcon } from '@/components/icons/YouTubeIcon';
 import { Card } from '@/components/ui/card';
@@ -49,6 +50,10 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { GUARDED_MUTATION_CONFIRMATION } from '@/lib/admin/guarded-mutation-contract';
+import {
+    retainConfirmedOcrRecoveryOperation,
+    type PendingOcrRecoveryOperation,
+} from '@/lib/admin/ocr-recovery-confirmation';
 import { getSubmissionApprovalState } from '@/lib/admin/submission-approval-state';
 import {
     ADMIN_SUBMISSION_QUEUE_REASON_FILTERS,
@@ -61,6 +66,10 @@ import {
 import { resolveReviewPhotoUrl, type ReviewPhotoOwnership } from '@/lib/review-photo-url';
 import { normalizeCanonicalYouTubeWatchUrl } from '@/lib/youtube-url';
 import { decodeBasicHtmlEntities, stripUnsafeMarkup } from '@/lib/html-escape';
+import {
+    FEATURE_DATABASE_HELD_MESSAGE,
+    parseFeatureDatabaseReadiness,
+} from '@/lib/runtime-feature-readiness-contract';
 
 type SubmissionAdminTab = 'new' | 'edit' | 'recommend' | 'reviews';
 
@@ -71,8 +80,79 @@ const RECOMMEND_REJECT_CONFIRMATION = '추천거부';
 const REVIEW_DELETE_CONFIRMATION = '리뷰삭제';
 const OCR_RESET_ALL_CONFIRMATION = 'OCR초기화';
 const OVERRIDE_APPROVAL_CONFIRMATION = '무시승인';
-const GUARDED_OCR_CONFIRMATION_MESSAGE =
-    `이 OCR 작업은 ${GUARDED_MUTATION_CONFIRMATION} 보호 절차로 실행됩니다. 계속하시겠습니까?`;
+const GUARDED_OCR_CONFIRMATION_MESSAGE = '계속하시겠습니까?';
+const OCR_RECOVERY_COST_NOTICE = '이전 분석 결과는 확정되지 않았으며 추가 API 사용이 발생할 수 있습니다.';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+
+type OcrRecoveryPreview = {
+    status: 'eligible' | 'processing' | 'not_indeterminate' | 'recovery_in_progress' | 'conflict';
+    expectedGeneration: string | null;
+    inputSnapshotHash: string | null;
+    recoveryOperationId: string | null;
+};
+
+function parseOcrRecoveryPreview(value: unknown, reviewId: string): OcrRecoveryPreview | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    const expectedKeys = [
+        'expectedGeneration', 'inputSnapshotHash', 'recoveryOperationId',
+        'reviewId', 'schemaVersion', 'status',
+    ].sort();
+    if (keys.length !== expectedKeys.length
+        || keys.some((key, index) => key !== expectedKeys[index])
+        || record.schemaVersion !== 1
+        || record.reviewId !== reviewId) return null;
+    if (!['eligible', 'processing', 'not_indeterminate', 'recovery_in_progress', 'conflict'].includes(String(record.status))) {
+        return null;
+    }
+    const expectedGeneration = typeof record.expectedGeneration === 'string' && UUID_PATTERN.test(record.expectedGeneration)
+        ? record.expectedGeneration : null;
+    const inputSnapshotHash = typeof record.inputSnapshotHash === 'string' && SHA256_PATTERN.test(record.inputSnapshotHash)
+        ? record.inputSnapshotHash : null;
+    const recoveryOperationId = typeof record.recoveryOperationId === 'string' && UUID_PATTERN.test(record.recoveryOperationId)
+        ? record.recoveryOperationId : null;
+    if ((record.status === 'eligible' || record.status === 'recovery_in_progress')
+        && (!expectedGeneration || !inputSnapshotHash)) return null;
+    if (record.status === 'recovery_in_progress' && !recoveryOperationId) return null;
+    return {
+        status: record.status as OcrRecoveryPreview['status'],
+        expectedGeneration,
+        inputSnapshotHash,
+        recoveryOperationId,
+    };
+}
+
+const SUBMISSION_TYPE_LABELS: Record<SubmissionRecord['submission_type'], string> = {
+    new: '신규 제보',
+    edit: '수정 요청',
+    recommend: '쯔양 제보',
+};
+
+function formatModerationReceivedAt(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+
+    return date.toLocaleString('ko-KR', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+function shouldRestoreModerationRowFocus(activeElement: Element | null): boolean {
+    return activeElement === null
+        || activeElement === document.body
+        || activeElement === document.documentElement
+        || (activeElement instanceof Element
+            && activeElement.closest('[data-admin-moderation-drawer], [data-admin-moderation-inspector="true"]') !== null);
+}
+
+function getModerationRecordLabel(id: string): string {
+    return `…${id.slice(-8)}`;
+}
 
 function confirmGuardedOcrMutation(actionLabel: string): boolean {
     return window.confirm(`${actionLabel}\n\n${GUARDED_OCR_CONFIRMATION_MESSAGE}`);
@@ -194,7 +274,7 @@ const ReviewPhotoItem = memo(function ReviewPhotoItem({
         <button
             type="button"
             className={cn(
-                "flex-shrink-0 border rounded-lg overflow-hidden relative cursor-pointer hover:ring-2 hover:ring-primary transition-all",
+                "flex-shrink-0 border rounded-lg overflow-hidden relative cursor-pointer hover:ring-2 hover:ring-primary transition-shadow", // taste-skill-ignore: Selectable receipt/image form control.
                 isReceipt ? "h-48 min-w-28" : "h-32 min-w-24"  // 영수증은 더 크게
             )}
             onClick={onClick}
@@ -248,6 +328,7 @@ interface SubmissionListViewProps {
     isFetchingNextSubmissionPage?: boolean;
     onLoadMoreSubmissions?: () => void;
     onRefresh?: () => void;
+    toolbarTrailingAction?: ReactNode;
     loading?: boolean;
     // 리뷰 관련 props
     reviews?: Review[];
@@ -269,6 +350,7 @@ export function SubmissionListView({
     isFetchingNextSubmissionPage = false,
     onLoadMoreSubmissions,
     onRefresh,
+    toolbarTrailingAction,
     // 리뷰 관련 props
     reviews = [],
     onApproveReview,
@@ -283,6 +365,15 @@ export function SubmissionListView({
     const isMobile = useIsMobile();
     const [inlineInspector, setInlineInspector] = useState(false);
     const rowTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const restoreRowTriggerFocus = useCallback(() => {
+        if (shouldRestoreModerationRowFocus(document.activeElement)
+            && rowTriggerRef.current?.isConnected && !rowTriggerRef.current.disabled) {
+            rowTriggerRef.current?.focus();
+        }
+    }, []);
+    const scheduleInlineInspectorFocusRestore = useCallback(() => {
+        if (inlineInspector) window.requestAnimationFrame(restoreRowTriggerFocus);
+    }, [inlineInspector, restoreRowTriggerFocus]);
     const listScrollRef = useRef<HTMLDivElement | null>(null);
     const reviewDetailPanelRef = useRef<HTMLElement>(null);
     useEffect(() => {
@@ -357,10 +448,9 @@ export function SubmissionListView({
     const [ocrStatus, setOcrStatus] = useState<{ pending: number; duplicate: number; processed: number } | null>(null);
     const [isOcrRunning, setIsOcrRunning] = useState(false);
     const [ocrRerunningIds, setOcrRerunningIds] = useState<Set<string>>(new Set());
-    const [ocrCountdowns, setOcrCountdowns] = useState<Record<string, number>>({});  // 리뷰 ID별 카운트다운 (초)
     const ocrPollingRef = useRef<NodeJS.Timeout | null>(null);
     const ocrRealtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-    const ocrCountdownRef = useRef<NodeJS.Timeout | null>(null);
+    const ocrRecoveryOperationsRef = useRef<Map<string, PendingOcrRecoveryOperation>>(new Map());
     const submissionTabSwipeStartXRef = useRef<number | null>(null);
     const submissionTabSwipeEndXRef = useRef<number | null>(null);
     const submissionTabSwipeStartYRef = useRef<number | null>(null);
@@ -378,12 +468,13 @@ export function SubmissionListView({
     const [visibleEditCount, setVisibleEditCount] = useState(SUBMISSION_LIST_PAGE_SIZE);
     const [visibleRecommendCount, setVisibleRecommendCount] = useState(SUBMISSION_LIST_PAGE_SIZE);
     const [visibleReviewCount, setVisibleReviewCount] = useState(SUBMISSION_LIST_PAGE_SIZE);
+    const isFocusedReviewWorkspace = initialTab === 'reviews';
 
 
     const SUBMISSION_TAB_SWIPE_DISTANCE = 24;
 
     const handleSubmissionTabTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-        if (isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current === 'pointer') return;
+        if (isFocusedReviewWorkspace || isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current === 'pointer') return;
         submissionTabSwipeInputRef.current = 'touch';
         submissionTabSwipePointerIdRef.current = null;
         submissionTabSwipeStartXRef.current = e.touches[0].clientX;
@@ -391,7 +482,7 @@ export function SubmissionListView({
         submissionTabSwipeEndXRef.current = null;
         submissionTabSwipeEndYRef.current = null;
         isSubmissionTabSwipeActiveRef.current = true;
-    }, []);
+    }, [isFocusedReviewWorkspace]);
 
     const handleSubmissionTabTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
         if (!isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current !== 'touch') return;
@@ -479,7 +570,7 @@ export function SubmissionListView({
     }, [activeTab, setActiveTabWithReset]);
 
     const handleSubmissionTabPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-        if (isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current === 'touch') return;
+        if (isFocusedReviewWorkspace || isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current === 'touch') return;
         submissionTabSwipeInputRef.current = 'pointer';
         submissionTabSwipePointerIdRef.current = e.pointerId;
         isSubmissionTabSwipeActiveRef.current = true;
@@ -487,7 +578,7 @@ export function SubmissionListView({
         submissionTabSwipeStartYRef.current = e.clientY;
         submissionTabSwipeEndXRef.current = null;
         submissionTabSwipeEndYRef.current = null;
-    }, []);
+    }, [isFocusedReviewWorkspace]);
 
     const handleSubmissionTabPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         if (!isSubmissionTabSwipeActiveRef.current || submissionTabSwipeInputRef.current !== 'pointer' || submissionTabSwipePointerIdRef.current !== e.pointerId) return;
@@ -592,20 +683,31 @@ export function SubmissionListView({
     }, [selectedReview]);
 
     // OCR 상태 조회
+    const [ocrFeatureHeld, setOcrFeatureHeld] = useState(true);
+
     const fetchOcrStatus = useCallback(async () => {
         try {
             const response = await fetch('/api/admin/ocr-receipts');
             if (response.ok) {
                 const data = await response.json();
+                const readiness = parseFeatureDatabaseReadiness(data.readiness);
+                setOcrFeatureHeld(readiness.status !== 'ready');
                 setOcrStatus(data);
+            } else {
+                setOcrFeatureHeld(true);
             }
-        } catch (error) {
+        } catch {
+            setOcrFeatureHeld(true);
             console.error('OCR 상태 조회 실패:');
         }
     }, []);
 
     // OCR 실행 (미처리 리뷰만)
     const handleRunOcr = useCallback(async () => {
+        if (ocrFeatureHeld) {
+            toast.error(FEATURE_DATABASE_HELD_MESSAGE);
+            return;
+        }
         if (!confirmGuardedOcrMutation('미처리 리뷰 OCR 처리를 시작합니다.')) return;
 
         setIsOcrRunning(true);
@@ -617,7 +719,7 @@ export function SubmissionListView({
             });
             const data = await response.json();
             if (response.ok && data.success) {
-                toast.success(buildGuardedOcrSuccessMessage(data, data.message || 'OCR 처리가 시작되었습니다.'));
+                toast.success(buildGuardedOcrSuccessMessage(data, data.message || 'OCR 처리 요청이 접수되었습니다.'));
                 // GitHub Actions가 완료되면 상태가 갱신되므로 잠시 후 다시 조회
                 setTimeout(() => fetchOcrStatus(), 3000);
             } else {
@@ -628,16 +730,20 @@ export function SubmissionListView({
         } finally {
             setIsOcrRunning(false);
         }
-    }, [fetchOcrStatus]);
+    }, [fetchOcrStatus, ocrFeatureHeld]);
 
-    // OCR 전체 리셋 및 재실행
+    // 대기 배치를 우선 처리하며 한 번에 최대 50건만 재실행
     const handleResetAllOcr = useCallback(async () => {
+        if (ocrFeatureHeld) {
+            toast.error(FEATURE_DATABASE_HELD_MESSAGE);
+            return;
+        }
         if (ocrResetConfirmation !== OCR_RESET_ALL_CONFIRMATION) {
-            toast.error('OCR 전체 재실행 확인 문구가 일치하지 않습니다.');
+            toast.error('OCR 배치 재실행 확인 문구가 일치하지 않습니다.');
             return;
         }
 
-        if (!confirmGuardedOcrMutation('모든 리뷰 OCR 데이터를 초기화하고 재실행합니다.')) return;
+        if (!confirmGuardedOcrMutation('대기 배치를 먼저 처리합니다. 대기가 없으면 최대 50건의 OCR 데이터를 초기화해 재실행합니다.')) return;
 
         setIsOcrRunning(true);
         try {
@@ -651,18 +757,18 @@ export function SubmissionListView({
             });
             const data = await response.json();
             if (response.ok && data.success) {
-                toast.success(buildGuardedOcrSuccessMessage(data, data.message || 'OCR 전체 재실행이 시작되었습니다.'));
+                toast.success(buildGuardedOcrSuccessMessage(data, data.message || 'OCR 배치 실행 요청을 접수했습니다.'));
                 setOcrResetConfirmation('');
                 setTimeout(() => fetchOcrStatus(), 3000);
             } else {
-                toast.error(`OCR 전체 재실행 실패: ${data.error || '알 수 없는 오류'}`);
+                toast.error(`OCR 배치 재실행 실패: ${data.error || '알 수 없는 오류'}`);
             }
         } catch {
-            toast.error('OCR 전체 재실행 중 오류가 발생했습니다.');
+            toast.error('OCR 배치 재실행 중 오류가 발생했습니다.');
         } finally {
             setIsOcrRunning(false);
         }
-    }, [fetchOcrStatus, ocrResetConfirmation]);
+    }, [fetchOcrStatus, ocrFeatureHeld, ocrResetConfirmation]);
 
     // 리뷰 탭 활성화 시 OCR 상태 조회 + 주기적 갱신
     useEffect(() => {
@@ -674,48 +780,78 @@ export function SubmissionListView({
         }
     }, [activeTab, fetchOcrStatus]);
 
-    // OCR 카운트다운 타이머 관리
-    const hasOcrCountdowns = useMemo(() => Object.keys(ocrCountdowns).length > 0, [ocrCountdowns]);
-
-    useEffect(() => {
-        // 카운트다운이 있는 리뷰가 있으면 1초마다 감소
-        if (!hasOcrCountdowns) {
-            if (ocrCountdownRef.current) {
-                clearInterval(ocrCountdownRef.current);
-                ocrCountdownRef.current = null;
-            }
+    // 단일 리뷰 OCR 재실행. 이미 대기 중인 행은 DB preview 뒤에만 명시 recovery를 허용한다.
+    const handleRerunOcr = useCallback(async (review: Review) => {
+        const reviewId = review.id;
+        if (ocrFeatureHeld) {
+            toast.error(FEATURE_DATABASE_HELD_MESSAGE);
             return;
         }
 
-        ocrCountdownRef.current = setInterval(() => {
-            setOcrCountdowns(prev => {
-                const next: Record<string, number> = {};
-                for (const [id, seconds] of Object.entries(prev)) {
-                    if (seconds > 1) {
-                        next[id] = seconds - 1;
-                    }
-                    // 0이 되면 제거
+        let recoveryOperation: PendingOcrRecoveryOperation | null = null;
+        const isPending = !review.ocr_processed_at && review.receipt_data == null && review.is_duplicate !== true;
+        if (isPending) {
+            let previewPayload: unknown;
+            try {
+                const previewResponse = await fetch('/api/admin/ocr-receipts/rerun', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'preview_provider_indeterminate', reviewId }),
+                });
+                previewPayload = await previewResponse.json();
+                if (!previewResponse.ok) {
+                    const error = previewPayload && typeof previewPayload === 'object' && !Array.isArray(previewPayload)
+                        ? (previewPayload as Record<string, unknown>).error : null;
+                    toast.error(typeof error === 'string' ? error : 'OCR 복구 상태를 확인하지 못했습니다.');
+                    return;
                 }
-                return next;
-            });
-        }, 1000);
-
-        return () => {
-            if (ocrCountdownRef.current) {
-                clearInterval(ocrCountdownRef.current);
-                ocrCountdownRef.current = null;
+            } catch {
+                toast.error('OCR 복구 상태를 확인하지 못했습니다.');
+                return;
             }
-        };
-    }, [hasOcrCountdowns]);
 
-    // 단일 리뷰 OCR 재실행 (GitHub Actions 트리거)
-    const handleRerunOcr = useCallback(async (reviewId: string) => {
-        if (!confirmGuardedOcrMutation('선택한 리뷰 OCR 데이터를 초기화하고 재실행합니다.')) return;
+            const recoveryRecord = previewPayload && typeof previewPayload === 'object' && !Array.isArray(previewPayload)
+                ? (previewPayload as Record<string, unknown>).recovery : null;
+            const preview = parseOcrRecoveryPreview(recoveryRecord, reviewId);
+            if (!preview) {
+                toast.error('OCR 복구 상태를 확인하지 못했습니다.');
+                return;
+            }
+            if (preview.status === 'processing') {
+                toast.error('기존 OCR 처리가 진행 중입니다. 처리 상태를 확인해 주세요.');
+                return;
+            }
+            if (preview.status === 'conflict') {
+                toast.error('OCR 복구 상태가 변경되었습니다. 최신 상태를 다시 확인해 주세요.');
+                return;
+            }
+            if (preview.status === 'eligible' || preview.status === 'recovery_in_progress') {
+                const retained = ocrRecoveryOperationsRef.current.get(reviewId);
+                const canReuseRetained = retained
+                    && retained.expectedGeneration === preview.expectedGeneration
+                    && retained.inputSnapshotHash === preview.inputSnapshotHash;
+                const operationId = preview.recoveryOperationId
+                    ?? (canReuseRetained ? retained.operationId : crypto.randomUUID());
+                recoveryOperation = {
+                    operationId,
+                    expectedGeneration: preview.expectedGeneration!,
+                    inputSnapshotHash: preview.inputSnapshotHash!,
+                };
+                if (!retainConfirmedOcrRecoveryOperation(
+                    ocrRecoveryOperationsRef.current,
+                    reviewId,
+                    recoveryOperation,
+                    preview.status === 'eligible' && !canReuseRetained,
+                    () => confirmGuardedOcrMutation(OCR_RECOVERY_COST_NOTICE),
+                )) return;
+            }
+        }
+
+        if (!recoveryOperation
+            && !confirmGuardedOcrMutation('선택한 리뷰 OCR 데이터를 초기화하고 재실행합니다.')) return;
 
         // 해당 리뷰 ID를 재실행 중 상태로 추가
         setOcrRerunningIds(prev => new Set(prev).add(reviewId));
-        // 40초 카운트다운 시작
-        setOcrCountdowns(prev => ({ ...prev, [reviewId]: 40 }));
 
         try {
             // GitHub Actions 워크플로우 트리거
@@ -723,13 +859,20 @@ export function SubmissionListView({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    ...(recoveryOperation ? {
+                        action: 'recover_provider_indeterminate',
+                        recoveryOperationId: recoveryOperation.operationId,
+                        expectedGeneration: recoveryOperation.expectedGeneration,
+                        inputSnapshotHash: recoveryOperation.inputSnapshotHash,
+                    } : {}),
                     reviewId,
                     guardedMutationConfirmation: GUARDED_MUTATION_CONFIRMATION,
                 }),
             });
             const data = await response.json();
             if (response.ok && data.success) {
-                toast.success(buildGuardedOcrSuccessMessage(data, data.message || 'OCR 처리가 시작되었습니다.'));
+                ocrRecoveryOperationsRef.current.delete(reviewId);
+                toast.success(buildGuardedOcrSuccessMessage(data, data.message || 'OCR 처리 요청이 접수되었습니다.'));
 
                 // 선택된 리뷰 OCR 상태 초기화 (UI 즉시 반영)
                 if (selectedReview && selectedReview.id === reviewId) {
@@ -741,33 +884,32 @@ export function SubmissionListView({
                     } : null);
                 }
             } else {
+                const dispatchIndeterminate = Boolean(
+                    data && typeof data === 'object' && !Array.isArray(data)
+                    && (data as Record<string, unknown>).dispatchIndeterminate === true,
+                );
+                if (!dispatchIndeterminate && recoveryOperation) {
+                    ocrRecoveryOperationsRef.current.delete(reviewId);
+                }
                 toast.error(`OCR 재실행 실패: ${data.error || '알 수 없는 오류'}`);
-                // 실패 시 해당 ID 제거 및 카운트다운 중지
+                // 실패 시 해당 ID 제거
                 setOcrRerunningIds(prev => {
                     const next = new Set(prev);
                     next.delete(reviewId);
                     return next;
                 });
-                setOcrCountdowns(prev => {
-                    const next = { ...prev };
-                    delete next[reviewId];
-                    return next;
-                });
             }
         } catch {
+            // A lost response may follow a committed recovery rotation. Keep the
+            // operation id so the next preview/retry cannot rotate again.
             toast.error('OCR 재실행 중 오류가 발생했습니다.');
             setOcrRerunningIds(prev => {
                 const next = new Set(prev);
                 next.delete(reviewId);
                 return next;
             });
-            setOcrCountdowns(prev => {
-                const next = { ...prev };
-                delete next[reviewId];
-                return next;
-            });
         }
-    }, [selectedReview]);
+    }, [ocrFeatureHeld, selectedReview]);
 
     // 리뷰 상세 패널이 열릴 때 Supabase Realtime 구독 + 폴링 시작
     useEffect(() => {
@@ -812,12 +954,6 @@ export function SubmissionListView({
                         setOcrRerunningIds(prev => {
                             const next = new Set(prev);
                             next.delete(reviewId);
-                            return next;
-                        });
-                        // 카운트다운 제거
-                        setOcrCountdowns(prev => {
-                            const next = { ...prev };
-                            delete next[reviewId];
                             return next;
                         });
                         toast.success('OCR 처리가 완료되었습니다.');
@@ -865,6 +1001,7 @@ export function SubmissionListView({
                 const ocrData = data as { ocr_processed_at: string | null; receipt_data: Review['receipt_data']; is_duplicate: boolean | null } | null;
 
                 if (!error && ocrData?.ocr_processed_at && ocrData.ocr_processed_at !== originalOcrProcessedAt) {
+                    ocrRecoveryOperationsRef.current.delete(reviewId);
                     setSelectedReview(prev => prev ? {
                         ...prev,
                         ocr_processed_at: ocrData.ocr_processed_at,
@@ -874,12 +1011,6 @@ export function SubmissionListView({
                     setOcrRerunningIds(prev => {
                         const next = new Set(prev);
                         next.delete(reviewId);
-                        return next;
-                    });
-                    // 카운트다운 제거
-                    setOcrCountdowns(prev => {
-                        const next = { ...prev };
-                        delete next[reviewId];
                         return next;
                     });
                     toast.success('OCR 처리가 완료되었습니다.');
@@ -1057,7 +1188,7 @@ export function SubmissionListView({
     ]);
     const rowButtonClassName = 'block w-full min-w-0 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
     const listBodyClassName = 'admin-cms-table-container min-h-0 flex-1 overflow-y-auto';
-    const filterClassName = 'h-9 min-w-0 rounded-md border border-input bg-background px-2 text-xs';
+    const filterClassName = 'h-11 min-w-0 rounded-md border border-input bg-background px-2 text-xs md:h-8';
     const listCategoryBadgeClassName = 'px-1.5 py-0 text-[11px]';
     const renderListSkeletonCards = (label: string) => (
         <div ref={submissionListSkeleton.ref} className={listBodyClassName} role="status" aria-busy="true" aria-label={`${label} 목록 로딩 중`}>
@@ -1238,20 +1369,20 @@ export function SubmissionListView({
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'approved':
-                return <Badge className="bg-green-600 text-xs">승인</Badge>;
+                return <Badge variant="outline" className="rounded border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200">승인</Badge>;
             case 'partially_approved':
-                return <Badge className="bg-amber-500 text-xs">부분승인</Badge>;
+                return <Badge variant="outline" className="rounded border-amber-200 bg-amber-50 text-xs font-medium text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200">부분승인</Badge>;
             case 'rejected':
-                return <Badge variant="destructive" className="text-xs">거부</Badge>;
+                return <Badge variant="outline" className="rounded border-destructive/30 bg-destructive/5 text-xs font-medium text-destructive">거부</Badge>;
             case 'pending':
-                return <Badge variant="secondary" className="text-xs"><Clock className="h-3 w-3 mr-1" />대기</Badge>;
+                return <Badge variant="outline" className="rounded border-border bg-muted/55 text-xs font-medium text-foreground"><Clock className="mr-1 h-3 w-3" />대기</Badge>;
             default:
-                return <Badge variant="outline" className="text-xs">미확인</Badge>;
+                return <Badge variant="outline" className="rounded text-xs font-medium text-muted-foreground">미확인</Badge>;
         }
     };
     const getSubmissionQueueReasonBadgeClassName = (reason: AdminSubmissionQueueReason) =>
         cn(
-            "max-w-full rounded-full px-2 py-0 text-2xs font-semibold leading-5 xl:text-2xs",
+            "max-w-full rounded px-1.5 py-0 text-2xs font-medium leading-5 xl:text-2xs",
             reason.severity === 'danger' && "border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/25 dark:text-red-200",
             reason.severity === 'warning' && "border-border bg-secondary text-foreground",
             reason.severity === 'info' && "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/25 dark:text-blue-200"
@@ -1267,7 +1398,7 @@ export function SubmissionListView({
 
         return (
             <div
-                className="mt-1 flex flex-wrap gap-1"
+                className={cn("flex flex-wrap gap-1", placement === 'detail' && "mt-2")}
                 data-admin-submission-safety-badges={placement}
                 aria-label="제보 큐 검수 사유"
             >
@@ -1285,7 +1416,7 @@ export function SubmissionListView({
                 {placement === 'card' && summary.reasons.length > reasons.length && (
                     <Badge
                         variant="outline"
-                        className="rounded-full px-2 py-0 text-2xs leading-5 text-muted-foreground xl:text-2xs"
+                        className="rounded px-1.5 py-0 text-2xs leading-5 text-muted-foreground xl:text-2xs"
                         data-admin-submission-safety-badge="more"
                     >
                         +{summary.reasons.length - reasons.length}
@@ -1307,7 +1438,7 @@ export function SubmissionListView({
 
         if (isPending) {
             return (
-                <Badge variant="secondary" className="gap-1 text-xs">
+                <Badge variant="outline" className="gap-1 rounded border-border bg-muted/55 text-xs font-medium text-foreground">
                     <Clock className="h-3 w-3" /> 대기
                 </Badge>
             );
@@ -1315,7 +1446,7 @@ export function SubmissionListView({
 
         if (isApproved) {
             return (
-                <Badge className="gap-1 bg-green-500 text-xs">
+                <Badge variant="outline" className="gap-1 rounded border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200">
                     <CheckCircle2 className="h-3 w-3" /> 승인
                 </Badge>
             );
@@ -1323,7 +1454,7 @@ export function SubmissionListView({
 
         if (isRejected) {
             return (
-                <Badge variant="destructive" className="gap-1 text-xs">
+                <Badge variant="outline" className="gap-1 rounded border-destructive/30 bg-destructive/5 text-xs font-medium text-destructive">
                     <XCircle className="h-3 w-3" /> 거부
                 </Badge>
             );
@@ -1396,7 +1527,8 @@ export function SubmissionListView({
         setRecommendationAdminNote('');
         setRecommendationApprovalConfirmation('');
         setRecommendationRejectionConfirmation('');
-    }, []);
+        scheduleInlineInspectorFocusRestore();
+    }, [scheduleInlineInspectorFocusRestore]);
 
     // 네이버 검색 API 호출 함수
     const searchNaverPlace = async (query: string, display: number = 5) => {
@@ -1754,6 +1886,16 @@ export function SubmissionListView({
     }, [closeSubmissionDetail, onDelete, selectedSubmission?.id, submissionDeleteConfirmation, submissionDeleteTarget]);
 
     // 리뷰 액션 핸들러
+    const closeReviewDetail = useCallback(() => {
+        setSelectedReview(null);
+        setReviewAction(null);
+        setReviewAdminNote('');
+        setReviewDeleteTarget(null);
+        setReviewDeleteConfirmation('');
+        setPreviewImage(null);
+        scheduleInlineInspectorFocusRestore();
+    }, [scheduleInlineInspectorFocusRestore]);
+
     const handleReviewAction = useCallback((action: 'approve' | 'reject', review: Review) => {
         setSelectedReview(review);
         setReviewDeleteTarget(null);
@@ -1778,10 +1920,8 @@ export function SubmissionListView({
             onRejectReview(selectedReview, reviewAdminNote.trim());
         }
 
-        setSelectedReview(null);
-        setReviewAction(null);
-        setReviewAdminNote('');
-    }, [selectedReview, reviewAction, reviewAdminNote, onApproveReview, onRejectReview]);
+        closeReviewDetail();
+    }, [selectedReview, reviewAction, reviewAdminNote, onApproveReview, onRejectReview, closeReviewDetail]);
 
     const handleDeleteReview = useCallback((review: Review) => {
         setSelectedReview(review);
@@ -1802,12 +1942,9 @@ export function SubmissionListView({
         setReviewDeleteTarget(null);
         setReviewDeleteConfirmation('');
         if (selectedReview?.id === reviewDeleteTarget.id) {
-            setSelectedReview(null);
-            setReviewAction(null);
-            setReviewAdminNote('');
-            setPreviewImage(null);
+            closeReviewDetail();
         }
-    }, [onDeleteReview, reviewDeleteConfirmation, reviewDeleteTarget, selectedReview?.id]);
+    }, [onDeleteReview, reviewDeleteConfirmation, reviewDeleteTarget, selectedReview?.id, closeReviewDetail]);
 
     const renderOverrideApprovalPanel = () => {
         if (!showWarningModal || !selectedSubmission) return null;
@@ -2011,36 +2148,38 @@ export function SubmissionListView({
             ref={submissionDetailPanelRef}
             tabIndex={-1}
             data-admin-moderation-inspector="true"
-            className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border bg-card", inlineInspector && "admin-cms-inspector")}
+            className={cn("admin-surface flex h-full min-h-0 min-w-0 flex-col overflow-hidden", inlineInspector && "admin-cms-inspector")}
         >
-            <div className="flex min-h-12 items-center justify-between gap-2 border-b px-3 py-2">
+            <div data-ui="moderation-inspector-header" className="flex min-h-11 items-center justify-between gap-2 border-b px-3 py-2 md:min-h-10">
                 <div className="min-w-0">
-                    <h3 className="truncate text-base font-semibold leading-6">{selectedSubmission?.restaurant_name || '왼쪽 목록에서 제보를 선택하세요'}</h3>
+                    <h3 className="admin-section-title truncate">{selectedSubmission?.restaurant_name || '왼쪽 목록에서 제보를 선택하세요'}</h3>
+                    {selectedSubmission && <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={selectedSubmission.id}>{SUBMISSION_TYPE_LABELS[selectedSubmission.submission_type]} · <span aria-hidden="true">{getModerationRecordLabel(selectedSubmission.id)}</span><span className="sr-only">전체 식별자 {selectedSubmission.id}</span></p>}
                 </div>
                 {selectedSubmission && (
                     <div className="flex shrink-0 gap-1">
                         {selectedSubmission.submission_type !== 'recommend' && <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" aria-label="선택한 제보 삭제" disabled={loading} onClick={handleDeleteSelectedSubmission}><Trash2 className="h-3.5 w-3.5" /></Button>}
-                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={closeSubmissionDetail}>닫기</Button>
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={closeInspector}>닫기</Button>
                     </div>
                 )}
             </div>
 
             {!selectedSubmission ? (
-                <div className="flex min-h-[360px] flex-col items-center justify-center gap-2 p-4 text-center text-sm text-muted-foreground">
+                <div className="admin-empty-state flex min-h-[360px] flex-col items-center justify-center gap-2 p-4 text-center text-sm text-muted-foreground">
                     <Edit className="h-8 w-8" />
                     <p>제보를 선택하세요.</p>
                 </div>
             ) : (
                 <>
                     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-                        <Card className="p-3 shadow-none">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="min-w-0">
-                                    <p className="truncate text-sm font-semibold">{selectedSubmission.restaurant_name}</p>
-                                    <p className="mt-1 break-all text-xs text-muted-foreground">{selectedSubmission.restaurant_address || '주소 없음'}</p>
-                                </div>
+                        <Card className="admin-detail-section p-3 shadow-none">
+                            <div className="flex items-start justify-between gap-3">
+                                <p className="min-w-0 break-words text-xs leading-5 text-muted-foreground">{selectedSubmission.restaurant_address || '주소 없음'}</p>
                                 {getStatusBadge(selectedSubmission.status)}
                             </div>
+                            <dl data-ui="moderation-record-fields" className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t pt-3 text-xs">
+                                <div className="min-w-0"><dt className="admin-field-label text-muted-foreground">제보자</dt><dd className="mt-0.5 truncate font-medium text-foreground">{selectedSubmission.profiles?.nickname || '익명'}</dd></div>
+                                <div className="min-w-0"><dt className="admin-field-label text-muted-foreground">접수</dt><dd className="mt-0.5 tabular-nums text-foreground">{formatModerationReceivedAt(selectedSubmission.created_at)}</dd></div>
+                            </dl>
                             {renderSubmissionQueueSafetyBadges(selectedSubmissionQueueSafetySummary, 'detail')}
                         </Card>
                         {renderApprovalContractPanel()}
@@ -2131,7 +2270,7 @@ export function SubmissionListView({
                         )}
                     </div>
                     {(selectedSubmission.status === 'pending' || selectedSubmission.status === 'partially_approved') && (
-                        <div className="grid shrink-0 grid-cols-2 gap-2 border-t bg-background p-3 sm:grid-cols-[1fr_1fr_1.4fr]">
+                        <div data-ui="moderation-inspector-actions" className="grid shrink-0 grid-cols-2 gap-2 border-t bg-background p-3 sm:grid-cols-[1fr_1fr_1.4fr] [&_button]:min-h-11 md:[&_button]:min-h-8">
                             <Button type="button" variant="outline" size="sm" onClick={closeSubmissionDetail} disabled={loading}>
                                 닫기
                             </Button>
@@ -2167,7 +2306,7 @@ export function SubmissionListView({
                 <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleRerunOcr(review.id)}
+                    onClick={() => handleRerunOcr(review)}
                     disabled={ocrRerunningIds.has(review.id)}
                     className="ml-auto h-7 gap-1 px-2 text-xs"
                 >
@@ -2176,13 +2315,17 @@ export function SubmissionListView({
                     ) : (
                         <RefreshCw className="h-3 w-3" />
                     )}
-                    {ocrRerunningIds.has(review.id) ? `${ocrCountdowns[review.id] || 0}초` : 'OCR 다시 실행'}
+                    {ocrRerunningIds.has(review.id)
+                        ? '결과 확인 중'
+                        : !review.ocr_processed_at && review.receipt_data == null
+                            ? 'OCR 복구'
+                            : 'OCR 다시 실행'}
                 </Button>
             </Label>
             {ocrRerunningIds.has(review.id) && !review.ocr_processed_at && (
                 <Card className="border-border bg-secondary p-3 text-sm text-foreground shadow-none">
                     <Loader2 className="mr-2 inline h-4 w-4 animate-spin motion-reduce:animate-none" />
-                    OCR 처리 중... {ocrCountdowns[review.id] || 0}초 후 완료 예정
+                    OCR 결과를 확인하고 있습니다.
                 </Card>
             )}
             {!ocrRerunningIds.has(review.id) && !review.ocr_processed_at && (
@@ -2217,7 +2360,7 @@ export function SubmissionListView({
                                     </div>
                                 )}
                                 {review.receipt_data.confidence !== undefined && (
-                                    <div className="flex justify-between gap-3 border-t pt-2">
+                                    <div className="flex justify-between gap-3 pt-2">
                                         <span className="text-muted-foreground">OCR 신뢰도</span>
                                         <Badge variant={review.receipt_data.confidence >= 0.8 ? 'default' : 'secondary'} className="text-xs">
                                             {(review.receipt_data.confidence * 100).toFixed(0)}%
@@ -2225,7 +2368,7 @@ export function SubmissionListView({
                                     </div>
                                 )}
                                 {review.is_duplicate && review.receipt_data.duplicate_of && (
-                                    <div className="border-t pt-2 text-red-600 dark:text-red-400">
+                                    <div className="pt-2 text-red-600 dark:text-red-400">
                                         <AlertTriangle className="mr-1 inline h-4 w-4" />
                                         중복 영수증 · 원본 {review.receipt_data.duplicate_of.slice(0, 8)}...
                                     </div>
@@ -2247,23 +2390,19 @@ export function SubmissionListView({
             ref={reviewDetailPanelRef}
             tabIndex={-1}
             data-admin-moderation-inspector="true"
-            className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border bg-card", inlineInspector && "admin-cms-inspector")}
+            className={cn("admin-surface flex h-full min-h-0 min-w-0 flex-col overflow-hidden", inlineInspector && "admin-cms-inspector")}
         >
-            <div className="flex min-h-12 items-center justify-between gap-2 border-b px-3 py-2">
+            <div data-ui="moderation-inspector-header" className="flex min-h-11 items-center justify-between gap-2 border-b px-3 py-2 md:min-h-10">
                 <div className="min-w-0">
-                    <h3 className="truncate text-base font-semibold leading-6">{selectedReview?.restaurants?.name || '왼쪽 목록에서 리뷰를 선택하세요'}</h3>
+                    <h3 className="admin-section-title truncate">{selectedReview?.restaurants?.name || '왼쪽 목록에서 리뷰를 선택하세요'}</h3>
+                    {selectedReview && <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={selectedReview.id}>리뷰 · <span aria-hidden="true">{getModerationRecordLabel(selectedReview.id)}</span><span className="sr-only">전체 식별자 {selectedReview.id}</span></p>}
                 </div>
                 {selectedReview && (
                     <Button
                         variant="ghost"
                         size="sm"
                         className="h-8 px-2 text-xs"
-                        onClick={() => {
-                            setSelectedReview(null);
-                            setReviewAction(null);
-                            setReviewAdminNote('');
-                            setPreviewImage(null);
-                        }}
+                        onClick={closeInspector}
                     >
                         선택 해제
                     </Button>
@@ -2271,14 +2410,14 @@ export function SubmissionListView({
             </div>
 
             {!selectedReview ? (
-                <div className="flex min-h-[360px] flex-col items-center justify-center gap-2 p-4 text-center text-sm text-muted-foreground">
+                <div className="admin-empty-state flex min-h-[360px] flex-col items-center justify-center gap-2 p-4 text-center text-sm text-muted-foreground">
                     <MessageSquare className="h-8 w-8" />
                     <p>리뷰를 선택하세요.</p>
                 </div>
             ) : (
                 <>
                     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-                        <Card className="bg-muted/40 p-3 shadow-none">
+                        <Card className="admin-detail-section p-3 shadow-none">
                             <div className="space-y-2 text-sm">
                                 <div className="flex items-start justify-between gap-2">
                                     <h3 className="font-semibold">{selectedReview.title}</h3>
@@ -2323,7 +2462,7 @@ export function SubmissionListView({
                                     <Button
                                         variant="secondary"
                                         size="icon"
-                                        className="absolute right-2 top-2 h-8 w-8 rounded-full bg-white/90 shadow-md hover:bg-white"
+                                        data-ui="receipt-image-overlay" className="absolute right-2 top-2 h-8 w-8 rounded-full bg-white/90 shadow-md hover:bg-white"
                                         onClick={() => setPreviewImage(null)}
                                     >
                                         <X className="h-4 w-4 text-gray-700" />
@@ -2365,9 +2504,9 @@ export function SubmissionListView({
 
                         <Card className="border-orange-200 bg-orange-50/70 p-3 shadow-none dark:border-orange-900/50 dark:bg-orange-950/20">
                             <div className="space-y-2">
-                                <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">OCR 전체 다시 실행</p>
+                                <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">OCR 배치 다시 실행</p>
                                 <p className="text-xs leading-5 text-orange-800 dark:text-orange-100/80">
-                                    모든 리뷰의 OCR을 초기화하려면 {OCR_RESET_ALL_CONFIRMATION}를 입력한 뒤 상단/아래 버튼을 누르세요.
+                                    대기 배치를 우선 처리하며, 없으면 최대 50건을 초기화합니다. {OCR_RESET_ALL_CONFIRMATION}를 입력해 실행하세요.
                                 </p>
                                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                                     <Input
@@ -2383,7 +2522,7 @@ export function SubmissionListView({
                                         disabled={isOcrRunning || ocrResetConfirmation !== OCR_RESET_ALL_CONFIRMATION}
                                         className="h-9 text-orange-700 dark:text-orange-300"
                                     >
-                                        전체 다시 실행
+                                        최대 50건 다시 실행
                                     </Button>
                                 </div>
                             </div>
@@ -2436,7 +2575,7 @@ export function SubmissionListView({
                             </Card>
                         )}
                     </div>
-                    <div className="grid shrink-0 grid-cols-3 gap-2 border-t bg-background p-3">
+                    <div data-ui="moderation-inspector-actions" className="grid shrink-0 grid-cols-3 gap-2 border-t bg-background p-3 [&_button]:min-h-11 md:[&_button]:min-h-8">
                         <Button
                             variant="outline"
                             size="sm"
@@ -2477,11 +2616,8 @@ export function SubmissionListView({
     const resultCount = activeTab === 'reviews' ? orderedReviews.length : filteredSubmissions.length;
     const displayedCount = activeTab === 'reviews' ? displayedReviews.length : displayedSubmissions.length;
     const closeInspector = () => {
-        if (activeTab === 'reviews') {
-            setSelectedReview(null); setReviewAction(null); setReviewAdminNote('');
-            setReviewDeleteTarget(null); setReviewDeleteConfirmation(''); setPreviewImage(null);
-        } else closeSubmissionDetail();
-        if (inlineInspector) window.requestAnimationFrame(() => rowTriggerRef.current?.focus());
+        if (activeTab === 'reviews') closeReviewDetail();
+        else closeSubmissionDetail();
     };
     const searchValue = activeTab === 'reviews' ? reviewSearchQuery : searchQuery;
     const changeSearch = (value: string) => activeTab === 'reviews' ? setReviewSearchQuery(value) : setSearchQuery(value);
@@ -2494,16 +2630,16 @@ export function SubmissionListView({
 
     return (
         <TooltipProvider>
-            <div data-admin-moderation-workspace={activeTab === 'reviews' ? 'reviews' : 'submissions'} className="flex h-full min-h-0 min-w-0 flex-col gap-2">
-                <nav className="grid shrink-0 grid-cols-4 gap-1 rounded-lg border bg-muted/20 p-1" aria-label="제보·리뷰 종류">
-                    {tabs.map(tab => <button key={tab.id} type="button" aria-pressed={activeTab === tab.id} onClick={() => setActiveTabWithReset(tab.id)} className={cn('flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1 rounded-md px-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary', activeTab === tab.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted')}>
+            <div data-admin-moderation-workspace={activeTab === 'reviews' ? 'reviews' : 'submissions'} className="flex h-full min-h-0 min-w-0 flex-col gap-2 p-2">
+                {!(isFocusedReviewWorkspace && activeTab === 'reviews') && <nav className="grid shrink-0 grid-cols-4 gap-1 bg-muted/50 p-1" aria-label="제보·리뷰 종류">
+                    {tabs.map(tab => <button key={tab.id} type="button" aria-pressed={activeTab === tab.id} onClick={() => setActiveTabWithReset(tab.id)} className={cn('flex min-h-11 min-w-0 flex-wrap items-center justify-center gap-1 rounded-md px-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:min-h-8', activeTab === tab.id ? 'bg-background text-primary' : 'text-muted-foreground hover:bg-muted')}>
                         <span className="hidden sm:inline-flex">{tab.icon}</span><span>{tab.label}</span><span className="tabular-nums text-muted-foreground" aria-label={`대기 ${tab.count}건`}>{tab.count}</span>
                     </button>)}
-                </nav>
-                <div data-admin-moderation-toolbar className="admin-cms-toolbar shrink-0">
+                </nav>}
+                <div data-admin-moderation-toolbar className="admin-toolbar admin-cms-toolbar shrink-0">
                     <div className="relative min-w-[180px] flex-1">
                         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input type="search" aria-label={activeTab === 'reviews' ? '리뷰 검색' : '제보 검색'} placeholder={activeTab === 'reviews' ? '맛집·리뷰·작성자 검색' : '맛집·주소·제보자 검색'} value={searchValue} onChange={event => changeSearch(event.target.value)} className="h-9 pl-8 pr-8 text-sm" />
+                        <Input type="search" aria-label={activeTab === 'reviews' ? '리뷰 검색' : '제보 검색'} placeholder={activeTab === 'reviews' ? '맛집·리뷰·작성자 검색' : '맛집·주소·제보자 검색'} value={searchValue} onChange={event => changeSearch(event.target.value)} className="h-11 pl-8 pr-8 text-sm md:h-8" />
                         {searchValue && <button type="button" aria-label="검색 지우기" onClick={() => changeSearch('')} className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md hover:bg-muted"><X className="h-3.5 w-3.5" /></button>}
                     </div>
                     <select aria-label="처리 상태" value={statusFilter} onChange={event => { setStatusFilter(event.target.value as AdminModerationFilter); resetVisibleCountByTab(activeTab); }} className={filterClassName}>
@@ -2513,16 +2649,21 @@ export function SubmissionListView({
                     <select aria-label="목록 정렬" value={sortOrder} onChange={event => setSortOrder(event.target.value as AdminModerationSort)} className={filterClassName}>
                         <option value="priority">대기 우선</option><option value="newest">최근 접수순</option><option value="oldest">오래된 접수순</option><option value="name">맛집 이름순</option>
                     </select>
-                    {onRefresh && activeTab !== 'reviews' && <Button type="button" variant="outline" size="icon" className="h-9 w-9" aria-label="목록 새로고침" onClick={onRefresh} disabled={loading}><RefreshCw className="h-3.5 w-3.5" /></Button>}
+                    {onRefresh && activeTab !== 'reviews' && <Button type="button" variant="outline" size="icon" className="h-11 w-11 md:h-8 md:w-8" aria-label="목록 새로고침" onClick={onRefresh} disabled={loading}><RefreshCw className="h-3.5 w-3.5" /></Button>}
                     {activeTab === 'reviews' && <details className="relative text-xs">
-                        <summary className="flex h-9 cursor-pointer items-center gap-1 rounded-md border px-2"><ScanSearch className="h-3.5 w-3.5" />OCR 관리</summary>
-                        <div className="absolute right-0 top-10 z-20 w-64 space-y-3 rounded-lg border bg-popover p-3 shadow-md">
+                        <summary className="flex h-11 cursor-pointer items-center gap-1 rounded-md border px-2 md:h-8"><ScanSearch className="h-3.5 w-3.5" />OCR 관리</summary>
+                        <div data-ui="moderation-ocr-popover" className="absolute right-0 top-10 z-20 w-64 space-y-3 rounded-lg border bg-popover p-3 shadow-md">
                             <p className="text-muted-foreground">대기 {ocrStatus?.pending ?? '미확인'} · 중복 {ocrStatus?.duplicate ?? '미확인'}</p>
                             <Button size="sm" variant="outline" onClick={handleRunOcr} disabled={isOcrRunning || (ocrStatus?.pending === 0)} className="h-8 w-full text-xs">{isOcrRunning ? '처리 중' : '대기 OCR 실행'}</Button>
-                            <label className="block space-y-1"><span>전체 초기화 확인</span><Input value={ocrResetConfirmation} onChange={event => setOcrResetConfirmation(event.target.value)} placeholder={OCR_RESET_ALL_CONFIRMATION} className="h-8 text-xs" /></label>
-                            <Button size="sm" variant="outline" onClick={handleResetAllOcr} disabled={isOcrRunning || ocrResetConfirmation !== OCR_RESET_ALL_CONFIRMATION} className="h-8 w-full text-xs text-destructive">전체 다시 실행</Button>
+                            <label className="block space-y-1"><span>배치 초기화 확인</span><Input value={ocrResetConfirmation} onChange={event => setOcrResetConfirmation(event.target.value)} placeholder={OCR_RESET_ALL_CONFIRMATION} className="h-8 text-xs" /></label>
+                            <Button size="sm" variant="outline" onClick={handleResetAllOcr} disabled={isOcrRunning || ocrResetConfirmation !== OCR_RESET_ALL_CONFIRMATION} className="h-8 w-full text-xs text-destructive">최대 50건 다시 실행</Button>
                         </div>
                     </details>}
+                    {toolbarTrailingAction}
+                </div>
+                <div className="flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-2 px-1 text-xs text-muted-foreground" aria-live="polite">
+                    <span><strong className="font-semibold text-foreground">{currentTabSummary.label}</strong> · {resultCount}건</span>
+                    <span>{searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all' ? '필터 적용 중' : '전체 조회'}</span>
                 </div>
                 {activeTab !== 'reviews' && <div className="flex shrink-0 flex-wrap gap-1" data-admin-submission-queue-reason-filter="true" aria-label="제보 큐 검수 사유 필터">
                     {queueReasonFilterOptions.filter(option => option.value === 'all' || option.count > 0 || option.value === queueReasonFilter).map(option => <button key={option.value} type="button" aria-pressed={queueReasonFilter === option.value} data-admin-submission-queue-reason-filter-option={option.value} onClick={() => handleQueueReasonFilterChange(option.value)} className={cn('min-h-7 rounded-md border px-2 text-[11px]', queueReasonFilter === option.value ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted')}>
@@ -2530,7 +2671,7 @@ export function SubmissionListView({
                     </button>)}
                 </div>}
                 <div className={cn('grid min-h-0 flex-1 gap-2 overflow-hidden', inlineInspector && hasSelection && 'xl:grid-cols-[minmax(0,1fr)_360px]')}>
-                    <section data-admin-moderation-list className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border bg-card" aria-label={activeTab === 'reviews' ? '리뷰 목록' : '제보 목록'}>
+                    <section data-admin-moderation-list className="admin-surface flex min-h-0 min-w-0 flex-col overflow-hidden" aria-label={activeTab === 'reviews' ? '리뷰 목록' : '제보 목록'}>
                         {(activeTab === 'reviews' ? reviewsLoading : loading && !submissions.length) ? renderListSkeletonCards(currentTabSummary.label) : <div ref={listScrollRef} className={listBodyClassName}
                             style={isMobile && activeTab === 'reviews' ? { touchAction: 'pan-y' } : undefined}
                             onPointerDown={isMobile && activeTab === 'reviews' ? handleSubmissionTabPointerDown : undefined}
@@ -2541,20 +2682,40 @@ export function SubmissionListView({
                             onTouchMove={isMobile && activeTab === 'reviews' ? handleSubmissionTabTouchMove : undefined}
                             onTouchEnd={isMobile && activeTab === 'reviews' ? handleSubmissionTabSwipeEnd : undefined}
                             onTouchCancel={isMobile && activeTab === 'reviews' ? handleSubmissionTabTouchCancel : undefined}>
-                            {resultCount === 0 ? <div role="status" className="flex min-h-40 flex-col items-center justify-center gap-2 p-4 text-sm text-muted-foreground"><p>{searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all' ? '조건에 맞는 항목이 없습니다.' : '조회된 항목이 없습니다.'}</p>{(searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all') && <Button variant="outline" size="sm" onClick={() => { changeSearch(''); setStatusFilter('all'); handleQueueReasonFilterChange('all'); }}>필터 초기화</Button>}</div> : <table className="admin-cms-table table-fixed"><thead className="sticky top-0 z-10 bg-card"><tr><th scope="col">{activeTab === 'reviews' ? '맛집 · 리뷰' : '맛집 · 주소'}</th><th scope="col" className="hidden w-28 sm:table-cell">작성자 · 접수일</th><th scope="col" className="w-24">처리 상태</th></tr></thead><tbody>
-                                {activeTab === 'reviews' ? displayedReviews.map(review => <tr key={review.id} data-admin-review-row={review.id} className={cn('cursor-pointer', selectedReview?.id === review.id && 'admin-cms-row-selected')} onClick={event => { rowTriggerRef.current = event.currentTarget.querySelector('button'); handleReviewAction('approve', review); }}>
-                                    <td><button type="button" aria-pressed={selectedReview?.id === review.id} aria-haspopup={inlineInspector ? undefined : 'dialog'} className={rowButtonClassName}>
-                                        <span className="block truncate text-sm font-medium">{review.restaurants?.name || '맛집 미확인'}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">{review.content || review.title || '내용 없음'}</span><span className="mt-1 block text-[11px] text-muted-foreground sm:hidden">{review.profiles?.nickname || '익명'} · {new Date(review.created_at).toLocaleDateString('ko-KR')}</span>
-                                    </button></td>
-                                    <td className="hidden text-muted-foreground sm:table-cell"><span className="block truncate">{review.profiles?.nickname || '익명'}</span><span className="mt-1 block text-[11px] tabular-nums">{new Date(review.created_at).toLocaleDateString('ko-KR')}</span></td>
-                                    <td><span className="flex flex-col items-start gap-1">{renderReviewStatusBadge(review)}{review.is_duplicate && <span className="text-[11px] text-destructive">중복 영수증</span>}</span></td>
-                                </tr>) : displayedSubmissions.map(submission => <tr key={submission.id} data-admin-submission-row={submission.id} className={cn('cursor-pointer', selectedSubmission?.id === submission.id && 'admin-cms-row-selected')} onClick={event => { rowTriggerRef.current = event.currentTarget.querySelector('button'); openSubmissionDetail(submission); }}>
-                                    <td><button type="button" aria-pressed={selectedSubmission?.id === submission.id} aria-haspopup={inlineInspector ? undefined : 'dialog'} className={rowButtonClassName}>
-                                        <span className="block truncate text-sm font-medium">{submission.restaurant_name}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">{submission.restaurant_address || '주소 없음'}</span><span className="mt-1 block text-[11px] text-muted-foreground sm:hidden">{submission.profiles?.nickname || '익명'} · {new Date(submission.created_at).toLocaleDateString('ko-KR')}</span>{renderSubmissionQueueSafetyBadges(submissionQueueSafetyById.get(submission.id), 'card')}
-                                    </button></td>
-                                    <td className="hidden text-muted-foreground sm:table-cell"><span className="block truncate">{submission.profiles?.nickname || '익명'}</span><span className="mt-1 block text-[11px] tabular-nums">{new Date(submission.created_at).toLocaleDateString('ko-KR')}</span></td>
-                                    <td>{getStatusBadge(submission.status)}</td>
-                                </tr>)}
+                            {resultCount === 0 ? <div role="status" className="admin-empty-state flex min-h-40 flex-col items-center justify-center gap-2 p-4 text-sm text-muted-foreground"><p>{searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all' ? '조건에 맞는 항목이 없습니다.' : '조회된 항목이 없습니다.'}</p>{(searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all') && <Button variant="outline" size="sm" onClick={() => { changeSearch(''); setStatusFilter('all'); handleQueueReasonFilterChange('all'); }}>필터 초기화</Button>}</div> : <table className="admin-cms-table admin-records-table table-fixed" data-admin-moderation-table={activeTab === 'reviews' ? 'reviews' : 'submissions'}><thead className="sticky top-0 z-10 bg-card"><tr><th scope="col" className="admin-records-identity">{activeTab === 'reviews' ? '맛집 · 리뷰' : '맛집 · 주소'}</th><th scope="col" className="admin-records-meta hidden w-40 lg:table-cell">검수 신호</th><th scope="col" className="admin-records-meta hidden w-32 sm:table-cell">작성자 · 접수</th><th scope="col" className="admin-records-status w-24">처리 상태</th><th scope="col" className="admin-records-actions w-10"><span className="sr-only">상세</span></th></tr></thead><tbody>
+                                {activeTab === 'reviews' ? displayedReviews.map(review => {
+                                    const photoCount = review.food_photos.length + (review.verification_photo ? 1 : 0);
+                                    return <tr key={review.id} data-admin-review-row={review.id} className={cn('cursor-pointer [&>td]:align-middle', selectedReview?.id === review.id && 'admin-cms-row-selected')} onClick={event => { rowTriggerRef.current = event.currentTarget.querySelector('button'); handleReviewAction('approve', review); }}>
+                                        <td className="admin-records-identity"><button type="button" aria-pressed={selectedReview?.id === review.id} aria-haspopup={inlineInspector ? undefined : 'dialog'} className={rowButtonClassName}>
+                                            <span className="block truncate text-sm font-semibold text-foreground">{review.restaurants?.name || '맛집 미확인'}</span>
+                                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{review.content || review.title || '내용 없음'}</span>
+                                            <span className="mt-1 block truncate text-[11px] text-muted-foreground sm:hidden">{review.profiles?.nickname || '익명'} · {formatModerationReceivedAt(review.created_at)}</span>
+                                            <span className="mt-1 flex flex-wrap gap-1 lg:hidden" aria-label="리뷰 검수 신호">
+                                                <span className="text-[11px] text-muted-foreground">사진 {photoCount}</span>
+                                                <span className="text-[11px] text-muted-foreground">{review.ocr_processed_at ? 'OCR 완료' : 'OCR 미처리'}</span>
+                                                {review.is_duplicate && <span className="text-[11px] font-medium text-destructive">중복 영수증</span>}
+                                            </span>
+                                        </button></td>
+                                        <td className="admin-records-meta hidden lg:table-cell"><div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px]"><span className="text-muted-foreground">사진 <strong className="font-medium tabular-nums text-foreground">{photoCount}</strong></span><span className="text-muted-foreground">{review.ocr_processed_at ? 'OCR 완료' : 'OCR 미처리'}</span>{review.is_duplicate && <span className="font-medium text-destructive">중복 영수증</span>}</div></td>
+                                        <td className="admin-records-meta hidden text-muted-foreground sm:table-cell"><span className="block truncate text-xs text-foreground">{review.profiles?.nickname || '익명'}</span><span className="mt-0.5 block text-[11px] tabular-nums">{formatModerationReceivedAt(review.created_at)}</span></td>
+                                        <td className="admin-records-status"><span className="flex flex-col items-start gap-1">{renderReviewStatusBadge(review)}</span></td>
+                                        <td className="admin-records-actions px-1" aria-hidden="true"><ChevronRight className="mx-auto h-4 w-4 text-muted-foreground" /></td>
+                                    </tr>;
+                                }) : displayedSubmissions.map(submission => {
+                                    const queueSafetySummary = submissionQueueSafetyById.get(submission.id);
+                                    return <tr key={submission.id} data-admin-submission-row={submission.id} className={cn('cursor-pointer [&>td]:align-middle', selectedSubmission?.id === submission.id && 'admin-cms-row-selected')} onClick={event => { rowTriggerRef.current = event.currentTarget.querySelector('button'); openSubmissionDetail(submission); }}>
+                                        <td className="admin-records-identity"><button type="button" aria-pressed={selectedSubmission?.id === submission.id} aria-haspopup={inlineInspector ? undefined : 'dialog'} className={rowButtonClassName}>
+                                            <span className="block truncate text-sm font-semibold text-foreground">{submission.restaurant_name}</span>
+                                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{submission.restaurant_address || '주소 없음'}</span>
+                                            <span className="mt-1 block truncate text-[11px] text-muted-foreground sm:hidden">{submission.profiles?.nickname || '익명'} · {formatModerationReceivedAt(submission.created_at)}</span>
+                                            <div className="mt-1 lg:hidden">{renderSubmissionQueueSafetyBadges(queueSafetySummary, 'card')}</div>
+                                        </button></td>
+                                        <td className="admin-records-meta hidden lg:table-cell"><div className="space-y-1">{submission.items.length > 0 && <span className="block text-[11px] text-muted-foreground">항목 <strong className="font-medium tabular-nums text-foreground">{submission.items.length}</strong></span>}{renderSubmissionQueueSafetyBadges(queueSafetySummary, 'card') || <span className="text-muted-foreground">—</span>}</div></td>
+                                        <td className="admin-records-meta hidden text-muted-foreground sm:table-cell"><span className="block truncate text-xs text-foreground">{submission.profiles?.nickname || '익명'}</span><span className="mt-0.5 block text-[11px] tabular-nums">{formatModerationReceivedAt(submission.created_at)}</span></td>
+                                        <td className="admin-records-status">{getStatusBadge(submission.status)}</td>
+                                        <td className="admin-records-actions px-1" aria-hidden="true"><ChevronRight className="mx-auto h-4 w-4 text-muted-foreground" /></td>
+                                    </tr>;
+                                })}
                             </tbody></table>}
                             <div ref={loadMoreSentinelRef} className="h-1" />
                             {hasMoreCards && <div className="p-2 text-center"><Button type="button" variant="outline" size="sm" disabled={isCurrentListLoading} onClick={handleLoadMoreCards}>더 보기</Button></div>}
@@ -2564,7 +2725,7 @@ export function SubmissionListView({
                     {inlineInspector && hasSelection ? (activeTab === 'reviews' ? renderReviewDetailPanel() : renderSubmissionDetailPanel()) : null}
                 </div>
                 <Sheet open={!inlineInspector && hasSelection} onOpenChange={open => { if (!open) closeInspector(); }}>
-                    <SheetContent data-admin-moderation-drawer className="flex w-full flex-col gap-2 p-2 pt-12 sm:max-w-2xl" onCloseAutoFocus={event => { event.preventDefault(); rowTriggerRef.current?.focus(); }}>
+                    <SheetContent data-admin-moderation-drawer className="flex w-full flex-col gap-2 p-2 pt-12 sm:max-w-2xl" onCloseAutoFocus={event => { event.preventDefault(); restoreRowTriggerFocus(); }}>
                         <SheetHeader className="sr-only"><SheetTitle>{activeTab === 'reviews' ? '리뷰 상세' : '제보 상세'}</SheetTitle><SheetDescription>선택한 항목의 검수와 처리</SheetDescription></SheetHeader>
                         {!inlineInspector && hasSelection ? (activeTab === 'reviews' ? renderReviewDetailPanel() : renderSubmissionDetailPanel()) : null}
                     </SheetContent>
