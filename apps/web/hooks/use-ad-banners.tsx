@@ -114,9 +114,24 @@ function requireAdBannerRow(value: unknown): AdBanner {
     return banner;
 }
 
+function coerceStoredBannerMedia(value: unknown): unknown {
+    if (!isAdBannerRow(value)) return value;
+    if (value.media_type === 'none' && value.image_url && !value.video_url) {
+        return { ...value, media_type: 'image' };
+    }
+    if (value.media_type === 'none' && value.video_url && !value.image_url) {
+        return { ...value, media_type: 'video' };
+    }
+    return value;
+}
+
 function mapAdBannerRows(rows: readonly unknown[] | null): AdBanner[] {
     if (!rows) return [];
-    return rows.map(requireAdBannerRow);
+    return rows.map((row) => requireAdBannerRow(coerceStoredBannerMedia(row)));
+}
+
+export function readStoredAdBannerRows(rows: readonly unknown[] | null): AdBanner[] {
+    return mapAdBannerRows(rows);
 }
 
 
