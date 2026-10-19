@@ -6065,6 +6065,22 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       ".admin-page-header .admin-restaurant-header-automation, .admin-page-header .admin-review-automation-controls { flex: 0 0 auto; min-width: max-content; flex-wrap: nowrap; }",
     );
     expect(adminUiSource).toContain(
+      '[data-admin-dashboard-card-title-row="single-line"] { flex-wrap: nowrap; align-items: center; gap: 0.5rem; }',
+    );
+    expect(adminUiSource).not.toContain("flex-basis: 100%");
+    expect(adminUiSource).toContain(
+      ".admin-cms-table tbody tr { background: transparent; }",
+    );
+    expect(adminUiSource).toContain(
+      ".admin-cms-table tbody tr:hover { background: var(--admin-accent-soft); }",
+    );
+    expect(source("components/admin/EvaluationTableNew.tsx")).toContain(
+      "bg-card hover:bg-primary/5",
+    );
+    expect(source("components/admin/EvaluationTableNew.tsx")).not.toContain(
+      "hover:bg-muted/40",
+    );
+    expect(adminUiSource).toContain(
       "@media (max-width: 1023px) {\n  .admin-restaurant-primary-header .admin-page-header-controls { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible; }",
     );
     expect(adminUiSource).toContain(

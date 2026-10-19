@@ -249,7 +249,7 @@ function UserTableSkeleton() {
       <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
         <table className="admin-cms-table w-full table-fixed text-left text-sm">
           <caption className="sr-only">관리자 사용자 목록 로딩</caption>
-          <thead className="sticky top-0 z-10 bg-muted text-xs text-muted-foreground">
+          <thead className="sticky top-0 z-10 bg-card text-xs text-muted-foreground">
             <tr>
               <th scope="col" className="w-[40%] px-3 py-2 font-semibold">사용자</th>
               <th scope="col" className="px-3 py-2 font-semibold">권한</th>
