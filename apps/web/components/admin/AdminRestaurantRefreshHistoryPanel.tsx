@@ -262,7 +262,7 @@ function RefreshCandidateList({ candidates, isLoading, selectedCandidateId, disa
         </button>
       </li>)}</ul>
       <table className="admin-cms-table hidden table-fixed md:table"><caption className="sr-only">최신화 후보 및 결정 이력</caption>
-        <thead className="sticky top-0 z-10 bg-muted"><tr><th scope="col" className="w-[40%]">맛집</th><th scope="col" className="w-[20%]">변경 항목</th><th scope="col" className="w-[20%]">상태</th><th scope="col" className="w-[20%]">적용 확인</th></tr></thead>
+        <thead className="sticky top-0 z-10 bg-card"><tr><th scope="col" className="w-[40%]">맛집</th><th scope="col" className="w-[20%]">변경 항목</th><th scope="col" className="w-[20%]">상태</th><th scope="col" className="w-[20%]">적용 확인</th></tr></thead>
         <tbody>{candidates.map(candidate => <tr key={candidate.id} className={cn(selectedCandidateId === candidate.id && "admin-cms-row-selected")} data-selected={selectedCandidateId === candidate.id}>
           <td><button type="button" className="block w-full min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-pressed={selectedCandidateId === candidate.id} aria-label={`${candidate.restaurant_name} 상세 보기`} disabled={disabled} onClick={event => onOpenReview(candidate, event.currentTarget)}><span className="block truncate text-sm font-medium">{candidate.restaurant_name}</span><span className="block truncate text-xs text-muted-foreground">{candidate.restaurant_address || "주소 없음"}</span></button></td>
           <td><span className="text-xs">{candidate.detected_change_types.map(changeTypeLabel).join(" · ") || "정보 변경"}</span></td>
