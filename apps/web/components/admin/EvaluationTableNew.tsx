@@ -347,14 +347,14 @@ const EvaluationTableRow = memo(forwardRef<HTMLTableRowElement, EvaluationTableR
     return (
       <TableRow
         ref={ref}
-        className={cn("group cursor-pointer bg-card hover:bg-muted/40", isExpanded && "admin-cms-row-selected bg-primary/5")}
+        className={cn("group cursor-pointer bg-card hover:bg-primary/5", isExpanded && "admin-cms-row-selected bg-primary/5")}
         onClick={onToggleExpand}
       >
         <TableCell
           className={cn(
             DESKTOP_TABLE_COLUMNS.expander,
             "sticky left-0 z-10 px-2",
-            isExpanded ? "bg-primary/5" : "bg-card group-hover:bg-muted/40"
+            isExpanded ? "bg-primary/5" : "bg-card group-hover:bg-primary/5"
           )}
         >
           <Button
@@ -380,7 +380,7 @@ const EvaluationTableRow = memo(forwardRef<HTMLTableRowElement, EvaluationTableR
           className={cn(
             DESKTOP_TABLE_COLUMNS.restaurant,
             "px-3 lg:sticky lg:left-12 lg:z-10",
-            isExpanded ? "lg:bg-primary/5" : "lg:bg-card lg:group-hover:bg-muted/40"
+            isExpanded ? "lg:bg-primary/5" : "lg:bg-card lg:group-hover:bg-primary/5"
           )}
         >
           <div className="min-w-0">
@@ -476,7 +476,7 @@ const EvaluationTableRow = memo(forwardRef<HTMLTableRowElement, EvaluationTableR
           className={cn(
             DESKTOP_TABLE_COLUMNS.status,
             "sticky right-[136px] z-10 px-2 text-center",
-            isExpanded ? "bg-primary/5" : "bg-card group-hover:bg-muted/40"
+            isExpanded ? "bg-primary/5" : "bg-card group-hover:bg-primary/5"
           )}
         >
           <div className="flex flex-col items-center gap-1">
@@ -489,7 +489,7 @@ const EvaluationTableRow = memo(forwardRef<HTMLTableRowElement, EvaluationTableR
           className={cn(
             DESKTOP_TABLE_COLUMNS.actions,
             "admin-record-actions sticky right-0 z-10 px-2",
-            isExpanded ? "bg-primary/5" : "bg-card group-hover:bg-muted/40"
+            isExpanded ? "bg-primary/5" : "bg-card group-hover:bg-primary/5"
           )}
         >
           <div className="flex flex-wrap justify-center gap-1">
@@ -1150,10 +1150,10 @@ export function EvaluationTable({
   ];
   const desktopLoadingRows = Array.from({ length: desktopSkeletonCount }).map((_, index) => (
     <TableRow key={`evaluation-loading-${index}`} aria-hidden="true">
-      <TableCell className={cn(DESKTOP_TABLE_COLUMNS.expander, "sticky left-0 z-10 bg-background px-2")}>
+      <TableCell className={cn(DESKTOP_TABLE_COLUMNS.expander, "sticky left-0 z-10 bg-card px-2")}>
         <Skeleton className="h-6 w-6 rounded-md motion-reduce:animate-none" aria-hidden="true" />
       </TableCell>
-      <TableCell className={cn(DESKTOP_TABLE_COLUMNS.restaurant, "px-3 lg:sticky lg:left-12 lg:z-10 lg:bg-background")}>
+      <TableCell className={cn(DESKTOP_TABLE_COLUMNS.restaurant, "px-3 lg:sticky lg:left-12 lg:z-10 lg:bg-card")}>
         <div className="space-y-1.5">
           <Skeleton className="h-3.5 w-4/5 rounded-full motion-reduce:animate-none" aria-hidden="true" />
           <div className="flex items-center gap-1.5">
@@ -1167,10 +1167,10 @@ export function EvaluationTable({
           <Skeleton className="mx-auto h-5 w-8 rounded-full motion-reduce:animate-none" aria-hidden="true" />
         </TableCell>
       ))}
-      <TableCell className={cn(DESKTOP_TABLE_COLUMNS.status, "sticky right-[136px] z-10 bg-background px-2 text-center")}>
+      <TableCell className={cn(DESKTOP_TABLE_COLUMNS.status, "sticky right-[136px] z-10 bg-card px-2 text-center")}>
         <Skeleton className="mx-auto h-6 w-14 rounded-full motion-reduce:animate-none" aria-hidden="true" />
       </TableCell>
-      <TableCell className={cn(DESKTOP_TABLE_COLUMNS.actions, "sticky right-0 z-10 bg-background px-2 text-center")}>
+      <TableCell className={cn(DESKTOP_TABLE_COLUMNS.actions, "sticky right-0 z-10 bg-card px-2 text-center")}>
         <Skeleton className="mx-auto h-7 w-20 rounded-md motion-reduce:animate-none" aria-hidden="true" />
       </TableCell>
     </TableRow>
@@ -1544,9 +1544,9 @@ export function EvaluationTable({
           <div className="admin-surface hidden min-h-0 flex-1 flex-col overflow-hidden lg:flex">
           <div className="min-h-0 flex-1 overflow-auto">
           <Table className="admin-records-table min-w-[1176px] table-fixed" allowHorizontalScroll horizontalScrollOwner="admin-evaluation-table">
-          <TableHeader className="sticky top-0 bg-background z-20">
+          <TableHeader className="sticky top-0 bg-card z-20">
             <TableRow className="hover:bg-transparent">
-              <TableHead className={cn(DESKTOP_TABLE_COLUMNS.expander, "sticky left-0 z-10 bg-background px-2")}>
+              <TableHead className={cn(DESKTOP_TABLE_COLUMNS.expander, "sticky left-0 z-10 bg-card px-2")}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -1569,7 +1569,7 @@ export function EvaluationTable({
                   </TooltipContent>
                 </Tooltip>
               </TableHead>
-              <TableHead className={cn(DESKTOP_TABLE_COLUMNS.restaurant, "px-3 lg:sticky lg:left-12 lg:z-10 lg:bg-background")}>
+              <TableHead className={cn(DESKTOP_TABLE_COLUMNS.restaurant, "px-3 lg:sticky lg:left-12 lg:z-10 lg:bg-card")}>
                 <span className="sr-only">식당 및 영상 근거</span>
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
@@ -1701,7 +1701,7 @@ export function EvaluationTable({
               </TableHead>
 
               {/* 고정 컬럼 */}
-              <TableHead className={cn(DESKTOP_TABLE_COLUMNS.status, "sticky right-[136px] z-10 bg-background !px-1 text-center")}>
+              <TableHead className={cn(DESKTOP_TABLE_COLUMNS.status, "sticky right-[136px] z-10 bg-card !px-1 text-center")}>
                 {/* 삭제 필터 활성화 시 드롭다운 숨김 */}
                 {isDeletedFilterActive ? (
                   <div className="text-sm font-medium">상태</div>
@@ -1714,7 +1714,7 @@ export function EvaluationTable({
                   )
                 )}
               </TableHead>
-              <TableHead className={cn(DESKTOP_TABLE_COLUMNS.actions, "admin-record-actions sticky right-0 z-10 bg-background px-2 text-center")}>액션</TableHead>
+              <TableHead className={cn(DESKTOP_TABLE_COLUMNS.actions, "admin-record-actions sticky right-0 z-10 bg-card px-2 text-center")}>액션</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
