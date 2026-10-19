@@ -6361,14 +6361,19 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     const reviewRouteSource = source(
       "app/api/admin/restaurant-requests/[requestId]/review/route.ts",
     );
+    const requestReadSource = source("app/api/admin/restaurant-requests/route.ts");
     const pendingCountsSource = source("app/api/admin/pending-counts/route.ts");
     const migrationSource = source(
       "supabase/migrations/20260702000100_restaurant_request_review_lifecycle.sql",
     );
 
     expect(detailSource).toContain("submission_type: 'new' | 'edit' | 'recommend'");
-    expect(adminEvaluationSource).toContain("ADMIN_RESTAURANT_REQUEST_SELECT");
-    expect(adminEvaluationSource).toContain(".from('restaurant_requests')");
+    expect(adminEvaluationSource).toContain("fetch('/api/admin/restaurant-requests'");
+    expect(adminEvaluationSource).not.toContain(".from('restaurant_requests')");
+    expect(requestReadSource).toContain('requireAdmin()');
+    expect(requestReadSource).toContain('from("restaurant_requests")');
+    expect(requestReadSource).toContain("origin_address");
+    expect(requestReadSource).toContain("road_address");
     expect(adminEvaluationSource).toContain("origin_address");
     expect(adminEvaluationSource).toContain("road_address");
     expect(adminEvaluationSource).toContain("submission_type: 'recommend' as const");
@@ -6381,8 +6386,8 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(adminEvaluationSource).toContain("recommendation_audit_id: request.review_audit_id ?? null");
     expect(adminEvaluationSource).toContain("invalidateRecordViews");
     expect(adminEvaluationSource).toContain("refreshRecordViews");
-    expect(adminEvaluationSource).toContain("ADMIN_RESTAURANT_REQUEST_LEGACY_SELECT");
-    expect(adminEvaluationSource).toContain("isMissingRestaurantRequestLifecycleError(requestsError)");
+    expect(requestReadSource).toContain("REQUEST_LEGACY_SELECT");
+    expect(requestReadSource).toContain('error?.code === "42703"');
     expect(adminEvaluationSource).toContain("recommendation.reject");
     expect(pendingCountsSource).toContain('.from("restaurant_requests")');
     expect(pendingCountsSource).toContain("recommendationRequests");
