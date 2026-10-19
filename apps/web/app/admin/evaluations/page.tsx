@@ -169,41 +169,6 @@ const ADMIN_SUBMISSION_ITEM_SELECT = [
   'rejection_reason',
   'created_at',
 ].join(', ');
-const ADMIN_RESTAURANT_REQUEST_SELECT = [
-  'id',
-  'user_id',
-  'restaurant_name',
-  'origin_address',
-  'road_address',
-  'jibun_address',
-  'english_address',
-  'phone',
-  'categories',
-  'recommendation_reason',
-  'youtube_link',
-  'status',
-  'reviewed_by_admin_id',
-  'reviewed_at',
-  'admin_note',
-  'rejection_reason',
-  'review_audit_id',
-  'created_at',
-  'updated_at',
-].join(', ');
-const ADMIN_RESTAURANT_REQUEST_LEGACY_SELECT = [
-  'id',
-  'user_id',
-  'restaurant_name',
-  'origin_address',
-  'road_address',
-  'jibun_address',
-  'english_address',
-  'phone',
-  'categories',
-  'recommendation_reason',
-  'youtube_link',
-  'created_at',
-].join(', ');
 const ADMIN_REVIEW_SELECT = [
   'id',
   'user_id',
@@ -540,14 +505,6 @@ function parseReview(value: unknown): Omit<Review, 'profiles' | 'restaurants'> |
     ...(receiptData === undefined ? {} : { receipt_data: receiptData }),
     ...(ocrProcessedAt === undefined ? {} : { ocr_processed_at: ocrProcessedAt }),
   };
-}
-
-type SupabaseQueryError = {
-  code?: string;
-};
-
-function isMissingRestaurantRequestLifecycleError(error: SupabaseQueryError | null | undefined) {
-  return error?.code === '42703';
 }
 
 type SubmissionOriginalRestaurantData = NonNullable<SubmissionRecord['original_restaurant_data']>;
@@ -1803,27 +1760,14 @@ function AdminEvaluationPage({
     queryFn: async () => {
       if (!user || !isAdmin) return [];
 
-      const { data: requestsData, error: requestsError } = await supabase
-        .from('restaurant_requests')
-        .select(ADMIN_RESTAURANT_REQUEST_SELECT)
-        .in('status', ['pending', 'approved', 'rejected'])
-        .order('created_at', { ascending: false })
-        .overrideTypes<Record<string, unknown>[], { merge: false }>();
-
-      let rawRequests = parseValidatedRows(requestsData ?? [], isRestaurantRequestListRow);
-
-      if (requestsError) {
-        if (!isMissingRestaurantRequestLifecycleError(requestsError)) throw requestsError;
-
-        const { data: legacyRequestsData, error: legacyRequestsError } = await supabase
-          .from('restaurant_requests')
-          .select(ADMIN_RESTAURANT_REQUEST_LEGACY_SELECT)
-          .order('created_at', { ascending: false })
-          .overrideTypes<Record<string, unknown>[], { merge: false }>();
-
-        if (legacyRequestsError) throw legacyRequestsError;
-        rawRequests = parseValidatedRows(legacyRequestsData ?? [], isRestaurantRequestListRow);
-      }
+      const response = await fetch('/api/admin/restaurant-requests', {
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('admin-restaurant-requests-failed');
+      const payload = await response.json().catch(() => null) as { requests?: unknown } | null;
+      if (!payload || !Array.isArray(payload.requests)) throw new Error('admin-restaurant-requests-invalid');
+      const rawRequests = parseValidatedRows(payload.requests, isRestaurantRequestListRow);
 
       if (!rawRequests.length) return [];
 
