@@ -8,6 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import {
     AD_BANNER_URL_VALIDATION_ERROR,
     resolveAdBannerMediaUrl,
+    resolveAdBannerDestinationUrl,
     resolveAdBannerPersistenceUrls,
 } from '@/lib/ad-banner-url';
 
@@ -134,6 +135,65 @@ export function readStoredAdBannerRows(rows: readonly unknown[] | null): AdBanne
     return mapAdBannerRows(rows);
 }
 
+function isOperatorVisibleDestination(value: unknown): value is string {
+    if (typeof value !== 'string' || !value || value !== value.trim()) return false;
+    try {
+        const url = new URL(value);
+        return url.protocol === 'https:' && !url.username && !url.password;
+    } catch {
+        return false;
+    }
+}
+
+function mapAdminBannerRow(value: unknown): AdBanner | null {
+    if (!isAdBannerRow(value)) return null;
+    const coerced = coerceStoredBannerMedia(value);
+    if (!isAdBannerRow(coerced)) return null;
+    const trustedDestination = resolveAdBannerDestinationUrl(coerced.link_url);
+    const destination = trustedDestination
+        ?? (isOperatorVisibleDestination(coerced.link_url) ? coerced.link_url : null);
+    if ((coerced.link_url != null && coerced.link_url !== '') && !destination) return null;
+
+    const media = resolveAdBannerPersistenceUrls({
+        image_url: coerced.image_url,
+        video_url: coerced.video_url,
+        media_type: coerced.media_type,
+        link_url: trustedDestination,
+    });
+    if (!media) return null;
+
+    const parsed = AdBannerSchema.safeParse({
+        ...coerced,
+        link_url: destination,
+    });
+    if (!parsed.success) return null;
+
+    return {
+        id: parsed.data.id,
+        title: parsed.data.title,
+        description: parsed.data.description,
+        image_url: media.image_url,
+        video_url: media.video_url,
+        media_type: media.media_type,
+        link_url: destination,
+        is_active: parsed.data.is_active,
+        priority: parsed.data.priority,
+        display_target: [...parsed.data.display_target],
+        created_at: parsed.data.created_at,
+        updated_at: parsed.data.updated_at,
+        created_by: parsed.data.created_by,
+    };
+}
+
+export function readAdminBannerRows(rows: readonly unknown[] | null): AdBanner[] {
+    if (!rows) return [];
+    return rows.map((row) => {
+        const banner = mapAdminBannerRow(row);
+        if (!banner) throw new Error(AD_BANNER_URL_VALIDATION_ERROR);
+        return banner;
+    });
+}
+
 
 async function getPersistedBannerUrls(id: string): Promise<AdBannerPersistenceRow> {
     const { data, error } = await supabase
@@ -245,7 +305,7 @@ export function useAdBannersAdmin(enabled = true) {
             if (!payload || !Array.isArray(payload.banners)) {
                 throw new Error('admin-banners-invalid-response');
             }
-            return mapAdBannerRows(payload.banners);
+            return readAdminBannerRows(payload.banners);
         },
         enabled: isAdmin && enabled,
         staleTime: 5 * 60 * 1000, // 5분

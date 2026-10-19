@@ -27,7 +27,7 @@ mock.module('@tanstack/react-query', () => ({
 const priorSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
 
-const { readStoredAdBannerRows } = await import('../hooks/use-ad-banners.tsx?stored-read');
+const { readStoredAdBannerRows, readAdminBannerRows } = await import('../hooks/use-ad-banners.tsx?stored-read');
 
 const base = {
     id: 'f3733e87-deeb-495d-ae3a-6de06d6e6d47',
@@ -60,6 +60,19 @@ describe('stored banner reads', () => {
         expect(rows[0]?.image_url).toBe(MEDIA_URL);
     });
 
+
+    test('shows an operator banner whose destination is a normal https site', () => {
+        const rows = readAdminBannerRows([{
+            ...base,
+            image_url: MEDIA_URL,
+            media_type: 'none',
+            link_url: 'https://gardens.it.kr/',
+        }]);
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0]?.media_type).toBe('image');
+        expect(rows[0]?.link_url).toBe('https://gardens.it.kr/');
+    });
     test('still rejects the list when a row has an untrusted media URL', () => {
         expect(() => readStoredAdBannerRows([
             {

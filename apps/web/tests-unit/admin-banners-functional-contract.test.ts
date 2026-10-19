@@ -182,7 +182,7 @@ test('admin banner query rejects malformed payloads and rows instead of hiding t
   const adminQuery = hookSource.slice(hookSource.indexOf('export function useAdBannersAdmin'), hookSource.indexOf('export function useActiveAdBanners'));
 
   expect(adminQuery).toContain("throw new Error('admin-banners-invalid-response')");
-  expect(adminQuery).toContain('return mapAdBannerRows(payload.banners);');
+  expect(adminQuery).toContain('return readAdminBannerRows(payload.banners);');
   expect(adminQuery).not.toContain('flatMap');
 });
 
