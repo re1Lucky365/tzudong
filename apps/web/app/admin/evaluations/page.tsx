@@ -2316,9 +2316,6 @@ function AdminEvaluationPage({
       {recordViewsInvalidated && <div role="alert" data-admin-record-views-invalidated className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2 text-xs text-destructive"><span>변경 후 최신 정보를 다시 확인해야 합니다.</span><Button size="sm" variant="outline" disabled={recordActions.busy || recordViewsRefreshing} onClick={() => void refreshRecordViews()}>{recordViewsRefreshing ? '조회 중…' : '새로 조회'}</Button></div>}
       <div className="flex-1 min-h-0 flex flex-col" data-admin-module-content={embedded ? "bounded" : undefined}>
         {!recordViewsInvalidated && !legacyEvaluationLoad && pageReadError && !showSubmissionView ? <div role="alert" data-admin-evaluation-page-error="true" className="flex shrink-0 items-center gap-2 border-b px-3 py-2 text-xs text-destructive"><span>검수 목록 조회 실패</span><Button size="sm" variant="outline" disabled={loading} onClick={() => void loadAllRecords()}>다시 조회</Button></div> : null}
-        {showSubmissionView && submissionInitialTab !== 'reviews' && <div className="admin-cms-toolbar">
-          <Button variant="outline" size="sm" disabled={recordActions.busy || recordViewsInvalidated || submissionsLoading || submissionsData.length === 0} onClick={() => setSubmissionEditorOpen(true)}>제보 수정</Button>
-        </div>}
         {showSubmissionView ? (
           /* 사용자 제보 목록 검수 뷰 */
           <SubmissionListView
@@ -2338,6 +2335,9 @@ function AdminEvaluationPage({
             onDeleteReview={handleDeleteReview}
             reviewsLoading={reviewsLoading || recordActions.busy || recordViewsInvalidated}
             initialTab={submissionInitialTab}
+            toolbarTrailingAction={submissionInitialTab !== 'reviews' ? (
+              <Button variant="outline" size="sm" disabled={recordActions.busy || recordViewsInvalidated || submissionsLoading || submissionsData.length === 0} onClick={() => setSubmissionEditorOpen(true)}>제보 수정</Button>
+            ) : undefined}
           />
         ) : isAlternateView ? (
           <EvaluationSlideView
