@@ -192,7 +192,8 @@ describe('PRIMARY_STATUS_FILTER_OPTIONS', () => {
     expect(tableSource).not.toContain('style={shouldRenderMobile ? { touchAction: \'pan-y\' } : undefined}');
     expect(tableSource).not.toContain('onPointerDown={handleMobileFilterPointerStart}');
     expect(tableSource).not.toContain('onTouchStart={handleMobileFilterTouchStart}');
-    expect(tableSource).toContain('sticky top-0 z-30 -mx-2 bg-background/95 px-2 pb-2 pt-1 backdrop-blur lg:hidden');
+    expect(tableSource).toContain('sticky top-0 z-30 bg-background pb-2 pt-1 lg:hidden');
+    expect(tableSource).not.toContain('sticky top-0 z-30 -mx-2');
     expect(tableSource).toContain('grid grid-cols-3 gap-1.5');
     expect(tableSource).toContain('<div className="min-w-0 truncate px-0.5 text-xs text-muted-foreground">');
     expect(tableSource).toContain('<span>검수 항목</span>');
@@ -204,7 +205,7 @@ describe('PRIMARY_STATUS_FILTER_OPTIONS', () => {
     expect(tableSource).toContain('aria-label="필터 초기화"');
     expect(tableSource).toContain('{hasActiveFilters && (');
     expect(tableSource).toContain('variant="ghost"');
-    expect(tableSource).toContain('h-8 min-w-0 rounded-full px-2 text-xs font-medium');
+    expect(tableSource).toContain('h-11 min-w-0 rounded-md px-2 text-xs font-medium');
     expect(tableSource).toContain('data-admin-evaluation-mobile-card="true"');
     expect(tableSource).toContain('data-layout-primitives="stack frame"');
     expect(tableSource).toContain('<article');
