@@ -114,6 +114,11 @@ MIGRATION_ORDER_OVERRIDES = {
     "20260417_prevent_active_restaurant_identity_duplicates.sql": 0,
     "20260417_harden_submission_identity_duplicate_checks.sql": 1,
 }
+# Same splice as generate_g014_catalog_contract_baseline.sh. Filename order
+# runs the registry before the grant restore; the registry then rejects the
+# revoked service_role EXECUTE grants.
+SERVICE_IDENTITY_PREDECESSOR = "20261003095444_restore_service_identity_helpers.sql"
+SERVICE_IDENTITY_SUCCESSOR = "20261003065736_g014_current_service_rpc_registry.sql"
 SEED_SOURCE = Path("backend/supabase/scripts/local-seed.sql")
 READBACK_SOURCE = Path("backend/supabase/scripts/local_catalog_readback.sql")
 EXPECTED_SERVICES = (
@@ -1232,7 +1237,20 @@ def migration_files(root: Path | None = None) -> list[Path]:
         result.append(path)
     if not result:
         raise LocalMigrationError("no_migrations")
-    return result
+    return _place_predecessor_immediately_before(
+        result, SERVICE_IDENTITY_PREDECESSOR, SERVICE_IDENTITY_SUCCESSOR,
+    )
+
+
+def _place_predecessor_immediately_before(files: list[Path], predecessor: str, successor: str) -> list[Path]:
+    names = [path.name for path in files]
+    if names.count(predecessor) != 1 or names.count(successor) != 1:
+        raise LocalMigrationError("migration_order_override_missing")
+    predecessor_index = names.index(predecessor)
+    moved = files.pop(predecessor_index)
+    names.pop(predecessor_index)
+    files.insert(names.index(successor), moved)
+    return files
 
 
 def expected_ledger_units() -> int:
