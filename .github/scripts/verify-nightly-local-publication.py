@@ -152,14 +152,14 @@ EXPECTED_IMAGES = {
 }
 EXPECTED_TYPEGEN_IMAGE = {
     "cli_version": "2.109.1",
-    "registry": "public.ecr.aws",
+    "registry": "ghcr.io",
     "image": "public.ecr.aws/supabase/postgres-meta:v0.96.6",
     "pull_reference": (
-        "public.ecr.aws/supabase/postgres-meta@sha256:"
+        "ghcr.io/supabase/postgres-meta@sha256:"
         "b9edad6fff2d4fb991ecd57837dbe3f21d2efa0f0ccb186f6ccf0e2d57192fed"
     ),
     "repo_digest": (
-        "public.ecr.aws/supabase/postgres-meta@sha256:"
+        "ghcr.io/supabase/postgres-meta@sha256:"
         "b9edad6fff2d4fb991ecd57837dbe3f21d2efa0f0ccb186f6ccf0e2d57192fed"
     ),
     "image_id": (
@@ -785,8 +785,8 @@ def verify_migration_summary(
         or set(section_counts) != set(READBACK_SECTIONS)
         or any(type(value) is not int or value < 0 for value in section_counts.values())
         or any(section_counts[section] < 1 for section in READBACK_SECTIONS)
-        or section_counts.get("review_media_functions") != 15
-        or section_counts.get("storage_policies") != 22
+        or section_counts.get("review_media_functions") != 17
+        or section_counts.get("storage_policies") != 23
         or section_counts.get("storage_buckets") != 7
         or section_counts.get("seed_buckets") != 7
         or payload.get("readback_row_count") != sum(section_counts.values())
