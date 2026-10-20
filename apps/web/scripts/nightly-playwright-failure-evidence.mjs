@@ -472,6 +472,7 @@ export function buildNightlyPlaywrightFailureEvidence(report, commandExitCode) {
   const failureClassCounts = fixedCountRecord(FAILURE_CLASSES);
   const failures = [];
   const timings = [];
+  const reportedTests = [];
   const nextIndexBySpec = new Map();
   const specs = collectSpecs(report.suites);
   let totalTestCount = 0;
@@ -502,6 +503,8 @@ export function buildNightlyPlaywrightFailureEvidence(report, commandExitCode) {
       fail('Playwright JSON report test bound exceeded.');
     }
     testStatusCounts[test.status] += 1;
+    reportedTests.push({ spec_id: specId, test_index: testIndex,
+      attempt_count: test.results.length });
 
     let resultErrorCount = 0;
     for (const [attemptIndex, result] of test.results.entries()) {
@@ -521,7 +524,7 @@ export function buildNightlyPlaywrightFailureEvidence(report, commandExitCode) {
           fail('Playwright JSON report duration bound exceeded.');
         }
         timings.push({ spec_id: specId, test_index: testIndex,
-          attempt_index: attemptIndex, duration_ms: Math.ceil(result.duration) });
+          attempt_index: attemptIndex, duration_ms: result.duration });
       }
       resultErrorCount += result.errors.length;
       if (resultErrorCount > MAX_REPORT_ERRORS) {
@@ -581,12 +584,15 @@ export function buildNightlyPlaywrightFailureEvidence(report, commandExitCode) {
     failure_class_counts: failureClassCounts,
     failures,
     ...(timings.length === 0 ? {} : {
-      slow_tests: timings.sort((left, right) => right.duration_ms - left.duration_ms).slice(0, 3),
+      reported_tests: reportedTests,
+      slow_tests: timings.sort((left, right) => right.duration_ms - left.duration_ms)
+        .slice(0, 3).map((timing) => ({ ...timing, duration_ms: Math.ceil(timing.duration_ms) })),
     }),
   };
   // Timing is optional and may never displace failure evidence or custody bounds.
   if (Buffer.byteLength(`${JSON.stringify(evidence)}\n`) > MAX_EVIDENCE_BYTES) {
     delete evidence.slow_tests;
+    delete evidence.reported_tests;
   }
   // Preserve every admitted failure/classification. Optional coordinates are
   // best effort within the existing byte bound; retain earlier sites first.
