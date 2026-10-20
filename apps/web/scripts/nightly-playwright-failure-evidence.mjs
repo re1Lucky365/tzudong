@@ -471,6 +471,7 @@ export function buildNightlyPlaywrightFailureEvidence(report, commandExitCode) {
   const resultStatusCounts = fixedCountRecord(RESULT_STATUSES);
   const failureClassCounts = fixedCountRecord(FAILURE_CLASSES);
   const failures = [];
+  const timings = [];
   const nextIndexBySpec = new Map();
   const specs = collectSpecs(report.suites);
   let totalTestCount = 0;
@@ -503,7 +504,7 @@ export function buildNightlyPlaywrightFailureEvidence(report, commandExitCode) {
     testStatusCounts[test.status] += 1;
 
     let resultErrorCount = 0;
-    for (const result of test.results) {
+    for (const [attemptIndex, result] of test.results.entries()) {
       if (
         !result
         || typeof result !== 'object'
@@ -514,6 +515,14 @@ export function buildNightlyPlaywrightFailureEvidence(report, commandExitCode) {
         fail('Playwright JSON report result contract mismatch.');
       }
       resultStatusCounts[result.status] += 1;
+      if (result.duration !== undefined) {
+        if (typeof result.duration !== 'number' || !Number.isFinite(result.duration)
+          || result.duration < 0 || result.duration > 600_000) {
+          fail('Playwright JSON report duration bound exceeded.');
+        }
+        timings.push({ spec_id: specId, test_index: testIndex,
+          attempt_index: attemptIndex, duration_ms: Math.ceil(result.duration) });
+      }
       resultErrorCount += result.errors.length;
       if (resultErrorCount > MAX_REPORT_ERRORS) {
         fail('Playwright JSON report result error bound exceeded.');
@@ -571,7 +580,14 @@ export function buildNightlyPlaywrightFailureEvidence(report, commandExitCode) {
     failure_count: failureCount,
     failure_class_counts: failureClassCounts,
     failures,
+    ...(timings.length === 0 ? {} : {
+      slow_tests: timings.sort((left, right) => right.duration_ms - left.duration_ms).slice(0, 3),
+    }),
   };
+  // Timing is optional and may never displace failure evidence or custody bounds.
+  if (Buffer.byteLength(`${JSON.stringify(evidence)}\n`) > MAX_EVIDENCE_BYTES) {
+    delete evidence.slow_tests;
+  }
   // Preserve every admitted failure/classification. Optional coordinates are
   // best effort within the existing byte bound; retain earlier sites first.
   for (let index = failures.length - 1;
