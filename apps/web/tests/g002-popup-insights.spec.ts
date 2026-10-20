@@ -195,3 +195,48 @@ test.describe('G002 popup and insights hardening', () => {
         await page.screenshot({ path: 'test-results/g002-insights-context.png', fullPage: true });
     });
 });
+
+test.describe('insights treemap tile detail access', () => {
+    test.use({ hasTouch: true });
+
+    test('mouse, keyboard and touch reach the same tile details without a tab stop per tile', async ({ page }) => {
+        await installFakeInsightsSession(page);
+        await page.route('**/api/insights/treemap*', async (route) => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TREEMAP_MOCK) });
+        });
+        await page.goto('/insights', { waitUntil: 'domcontentloaded' });
+        await expect(page.getByText('전체 2개')).toBeVisible({ timeout: 15000 });
+
+        const tiles = page.locator('[data-insights-treemap-tile-index]');
+        await expect(tiles).toHaveCount(2);
+        await expect(page.locator('[data-insights-treemap-tile-index][tabindex="0"]')).toHaveCount(0);
+
+        await tiles.nth(1).hover();
+        await expect(page.getByText('G002 샘플 중식')).toBeVisible();
+        await page.mouse.move(0, 0);
+
+        const navigator = page.getByRole('button', { name: '영상 탐색' });
+        await navigator.focus();
+        await navigator.press('ArrowRight');
+        await expect(page.getByRole('status').filter({ hasText: '2 / 2: G002 샘플 중식' })).toContainText('2 / 2: G002 샘플 중식');
+        await navigator.press('Enter');
+        const keyboardDetail = page.getByRole('dialog', { name: '영상 상세: G002 샘플 중식' });
+        await expect(keyboardDetail).toContainText('카테고리: 중식');
+        await expect(keyboardDetail).toContainText('조회수: 86,000개');
+        await expect(keyboardDetail).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(navigator).toBeFocused();
+
+        await tiles.nth(0).tap();
+        const touchDetail = page.getByRole('dialog', { name: '영상 상세: G002 샘플 한식' });
+        await expect(touchDetail).toContainText('카테고리: 한식');
+        await expect(touchDetail).toContainText('조회수: 120,000개');
+        await expect(touchDetail).toBeFocused();
+        await touchDetail.getByRole('button', { name: '다음' }).tap();
+        const nextDetail = page.getByRole('dialog', { name: '영상 상세: G002 샘플 중식' });
+        await expect(nextDetail).toContainText('조회수: 86,000개');
+        await nextDetail.getByRole('button', { name: '닫기' }).tap();
+        await expect(navigator).toBeFocused();
+    });
+
+});
