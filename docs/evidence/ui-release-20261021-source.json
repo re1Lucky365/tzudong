@@ -123,6 +123,11 @@
       "path": "apps/web/tsconfig.json",
       "bytes": 1368,
       "sha256": "cdbd2b57d55c77ea1ef2b81124b7007fec7df15d55cc917c8c9eca5704234c49"
+    },
+    {
+      "path": "apps/web/eslint.config.mjs",
+      "bytes": 3340,
+      "sha256": "405c9039f883d238a96e46d0764748a96b12ffbab8e49743cf820575097aebd4"
     }
   ],
   "historicalEvidence": {
@@ -135,5 +140,6 @@
     "physicalGPS": "unverified; synthetic browser fixtures only",
     "deployment": "pending protected promotion and live readback"
   },
-  "ciRepair": "Exclude frozen measurement fixture inputs from production app typecheck; retain original measured bytes and inspect production sources normally"
+  "ciRepair": "Exclude frozen measurement fixture inputs from production app typecheck; retain original measured bytes and inspect production sources normally",
+  "ciLintRepair": "Only the two frozen map fixture config exports keep their measured syntax; all other lint rules remain enabled."
 }
