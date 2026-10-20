@@ -118,6 +118,11 @@
       "path": "apps/web/tests/privacy-safeguards.spec.ts",
       "bytes": 9934,
       "sha256": "680cf33397c27fd2f0ab5cf7d958e3d673ac565b9372f9fa03c8d390e9bf1298"
+    },
+    {
+      "path": "apps/web/tsconfig.json",
+      "bytes": 1368,
+      "sha256": "cdbd2b57d55c77ea1ef2b81124b7007fec7df15d55cc917c8c9eca5704234c49"
     }
   ],
   "historicalEvidence": {
@@ -129,5 +134,6 @@
     "nightly": "separate from deployment; no new full Nightly run claimed",
     "physicalGPS": "unverified; synthetic browser fixtures only",
     "deployment": "pending protected promotion and live readback"
-  }
+  },
+  "ciRepair": "Exclude frozen measurement fixture inputs from production app typecheck; retain original measured bytes and inspect production sources normally"
 }
