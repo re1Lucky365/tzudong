@@ -63,6 +63,20 @@ const IMAGE_COMPRESSION_OPTIONS = {
     useWebWorker: true,
 };
 
+const listDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    hour12: false,
+});
+
+function formatListDateTime(value: string | null | undefined) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+
+    return listDateTimeFormatter.format(date);
+}
+
 function InlineCountSkeleton({ className }: { className?: string }) {
     return <span className={cn("inline-block h-3 w-6 rounded-full bg-muted/70 align-middle animate-pulse motion-reduce:animate-none", className)} aria-hidden="true" />;
 }
@@ -1107,7 +1121,10 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                                     <p className="min-w-0 truncate text-sm font-semibold text-foreground">{banner.title}</p>
                                                     <Badge variant="secondary" className={cn("shrink-0 rounded-full border-transparent text-2xs", banner.is_active ? "bg-emerald-50 text-emerald-800" : "bg-muted text-muted-foreground")}>{banner.is_active ? '활성' : '비활성'}</Badge>
                                                 </div>
-                                                <p className="mt-0.5 truncate text-xs text-muted-foreground">{banner.description || '설명 없음'} · 우선순위 {banner.priority}</p>
+                                                <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                                    <span className="min-w-0 truncate">{sortOrder === 'updated' ? `수정 ${formatListDateTime(banner.updated_at)}` : banner.description || '설명 없음'}</span>
+                                                    <span className="ml-auto shrink-0 tabular-nums">우선순위 {banner.priority}</span>
+                                                </p>
                                                 <div className="mt-1 flex min-w-0 flex-nowrap gap-1 overflow-x-auto scrollbar-hide [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
                                                     {banner.display_target.includes('sidebar') && <Badge variant="secondary" className="shrink-0 rounded-full text-2xs">데스크톱 배너</Badge>}
                                                     {banner.display_target.includes('mobile_popup') && <Badge variant="secondary" className="shrink-0 rounded-full text-2xs">모바일 팝업</Badge>}
@@ -1125,9 +1142,9 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                     const isSelected = editingBanner?.id === banner.id;
                                     const resolvedUrls = resolveAdBannerPersistenceUrls(banner);
                                     return <tr key={banner.id} data-selected={isSelected ? 'true' : 'false'} className={cn(isSelected && 'admin-cms-row-selected')}>
-                                        <td><button type="button" className="flex w-full min-w-0 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" disabled={isBusy || Boolean(pendingReadback)} aria-pressed={isSelected} aria-label={`${banner.title} 편집`} onClick={() => requestEditor(banner)}>
+                                        <td><button type="button" className="flex w-full min-w-0 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" disabled={isBusy || Boolean(pendingReadback)} aria-pressed={isSelected} aria-label={`${banner.title} 편집${sortOrder === 'updated' ? `, 최근 수정 ${formatListDateTime(banner.updated_at)}` : ''}`} onClick={() => requestEditor(banner)}>
                                             <span className="relative flex h-10 w-12 shrink-0 items-center justify-center overflow-hidden rounded border bg-muted/40">{resolvedUrls?.image_url ? <Image src={resolvedUrls.image_url} alt="" fill unoptimized sizes="48px" className="object-cover" /> : <Scroll className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}</span>
-                                            <span className="min-w-0"><span className="block truncate text-sm font-medium">{banner.title}</span><span className="block truncate text-xs text-muted-foreground">{banner.description || '설명 없음'}</span></span>
+                                            <span className="min-w-0"><span className="block truncate text-sm font-medium">{banner.title}</span><span className="block truncate text-xs text-muted-foreground">{sortOrder === 'updated' ? `수정 ${formatListDateTime(banner.updated_at)}` : banner.description || '설명 없음'}</span></span>
                                         </button></td>
                                         <td><Badge variant="secondary" className={cn("whitespace-nowrap rounded-full border-transparent text-2xs", banner.is_active ? "bg-emerald-50 text-emerald-800" : "bg-muted text-muted-foreground")}>{banner.is_active ? '활성' : '비활성'}</Badge></td>
                                         <td><div className="flex flex-wrap gap-1">{banner.display_target.includes('sidebar') && <Badge variant="secondary" className="whitespace-nowrap rounded-full text-2xs">데스크톱 배너</Badge>}{banner.display_target.includes('mobile_popup') && <Badge variant="secondary" className="whitespace-nowrap rounded-full text-2xs">모바일 팝업</Badge>}</div></td>

@@ -186,6 +186,20 @@ function formatDateTime(value: string | null) {
   }).format(date);
 }
 
+const listDateTimeFormatter = new Intl.DateTimeFormat("ko-KR", {
+  dateStyle: "short",
+  timeStyle: "short",
+  hour12: false,
+});
+
+function formatListDateTime(value: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return listDateTimeFormatter.format(date);
+}
+
 function getProfileForm(user: ManagedUser): EditableProfile {
   return {
     nickname: user.nickname,
@@ -845,13 +859,14 @@ export default function AdminUsersPanel({
                             <p className="truncate text-sm font-semibold text-foreground">{managedUser.nickname}</p>
                             <p className="mt-0.5 truncate text-xs text-muted-foreground">{managedUser.email || managedUser.id}</p>
                           </div>
-                          <Button type="button" variant={isSelected ? "default" : "outline"} size="sm" className="h-11 shrink-0 rounded-md md:h-8" onClick={() => requestIntent({ type: "select", id: managedUser.id })} aria-pressed={isSelected} disabled={isMutating || Boolean(pendingReadback)} aria-label={`${managedUser.nickname} 상세 보기`} data-admin-users-detail-button>
+                          <Button type="button" variant={isSelected ? "default" : "outline"} size="sm" className="h-11 shrink-0 rounded-md md:h-8" onClick={() => requestIntent({ type: "select", id: managedUser.id })} aria-pressed={isSelected} disabled={isMutating || Boolean(pendingReadback)} aria-label={`${managedUser.nickname} 상세 보기${sortOrder === "lastSignIn" ? `, 최근 로그인 ${formatListDateTime(managedUser.lastSignInAt)}` : ""}`} data-admin-users-detail-button>
                             {isSelected ? "선택됨" : "상세"}
                           </Button>
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1.5" aria-label="사용자 상태 요약">
                           <RoleBadge isAdmin={managedUser.isAdmin} />
                           <StatusBadge user={managedUser} />
+                          {sortOrder === "lastSignIn" && <span className="self-center whitespace-nowrap text-xs tabular-nums text-muted-foreground">로그인 {formatListDateTime(managedUser.lastSignInAt)}</span>}
                         </div>
                       </article>
                     );
@@ -880,10 +895,13 @@ export default function AdminUsersPanel({
                                 onClick={() => requestIntent({ type: "select", id: managedUser.id })}
                                 disabled={isMutating || Boolean(pendingReadback)}
                                 aria-pressed={isSelected}
-                                aria-label={`${managedUser.nickname} 상세 보기`}
+                                aria-label={`${managedUser.nickname} 상세 보기${sortOrder === "lastSignIn" ? `, 최근 로그인 ${formatListDateTime(managedUser.lastSignInAt)}` : ""}`}
                               >
                                 <span className="block truncate font-semibold text-foreground">{managedUser.nickname}</span>
-                                <span className="block truncate text-xs text-muted-foreground">{managedUser.email || managedUser.id}</span>
+                                <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                  <span className="min-w-0 truncate">{managedUser.email || managedUser.id}</span>
+                                  {sortOrder === "lastSignIn" && <span className="shrink-0 tabular-nums">· 로그인 {formatListDateTime(managedUser.lastSignInAt)}</span>}
+                                </span>
                               </button>
                             </td>
                             <td className="px-3 py-2 align-middle"><RoleBadge isAdmin={managedUser.isAdmin} /></td>
