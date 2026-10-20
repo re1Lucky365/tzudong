@@ -316,8 +316,11 @@ test('fake Windows broker requires READY, ACK, STARTED, COMPLETE, and control-ch
                         }
                     });
                     socket.setEncoding('utf8');
+                    let acknowledgement = '';
                     socket.on('data', (data) => {
-                        expect(data).toBe(`ACK ${options.env.TZUDONG_JOB_CONTROL_NONCE} ${options.env.TZUDONG_JOB_CONTROL_DEADLINE}\n`);
+                        acknowledgement += data;
+                        if (!acknowledgement.includes('\n')) return;
+                        expect(acknowledgement).toBe(`ACK ${options.env.TZUDONG_JOB_CONTROL_NONCE} ${options.env.TZUDONG_JOB_CONTROL_DEADLINE}\n`);
                         if (mode === 'missing-complete') return socket.end();
                         socket.write(`STARTED ${options.env.TZUDONG_JOB_CONTROL_NONCE} ${options.env.TZUDONG_JOB_CONTROL_DEADLINE}\n`);
                         socket.write(`COMPLETE ${options.env.TZUDONG_JOB_CONTROL_NONCE} ${options.env.TZUDONG_JOB_CONTROL_DEADLINE}\n`);
