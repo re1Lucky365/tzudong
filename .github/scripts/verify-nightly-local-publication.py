@@ -400,7 +400,7 @@ def verify_e2e_failure_evidence(
         reject_credential_fields(payload, "nightly E2E runner stage evidence")
         return
     if (
-        set(payload) != E2E_EVIDENCE_FIELDS
+        set(payload) not in (E2E_EVIDENCE_FIELDS, E2E_EVIDENCE_FIELDS | {"slow_tests"})
         or payload.get("schema") != "nightly-playwright-failure-evidence-v1"
         or payload.get("source") != "playwright-json-report-v2"
         or not _bounded_count(expected_exit_code, 255)
@@ -414,6 +414,28 @@ def verify_e2e_failure_evidence(
         fail("nightly E2E failure evidence contract mismatch")
 
     test_status_counts = payload.get("test_status_counts")
+    if "slow_tests" in payload:
+        timings = payload["slow_tests"]
+        if not isinstance(timings, list) or not 1 <= len(timings) <= 3:
+            fail("nightly E2E timing evidence bound mismatch")
+        timing_ids = set()
+        previous_duration = 600_000
+        for timing in timings:
+            if (
+                not isinstance(timing, dict)
+                or set(timing) != {"spec_id", "test_index", "attempt_index", "duration_ms"}
+                or not isinstance(timing.get("spec_id"), str)
+                or timing.get("spec_id") not in E2E_SPEC_IDS
+                or not _bounded_count(timing.get("test_index"), 127)
+                or not _bounded_count(timing.get("attempt_index"), 7)
+                or not _bounded_count(timing.get("duration_ms"), previous_duration)
+            ):
+                fail("nightly E2E timing evidence entry mismatch")
+            identity = (timing["spec_id"], timing["test_index"], timing["attempt_index"])
+            if identity in timing_ids:
+                fail("nightly E2E timing evidence identity mismatch")
+            timing_ids.add(identity)
+            previous_duration = timing["duration_ms"]
     result_status_counts = payload.get("result_status_counts")
     failure_class_counts = payload.get("failure_class_counts")
     failures = payload.get("failures")
@@ -440,6 +462,8 @@ def verify_e2e_failure_evidence(
     expected_test_failure_counts = {
         failure_class: 0 for failure_class in E2E_TEST_FAILURE_CLASSES
     }
+    if "slow_tests" in payload and len(payload["slow_tests"]) > sum(result_status_counts.values()):
+        fail("nightly E2E timing evidence count mismatch")
     identities: set[tuple[str, int]] = set()
     for failure in failures:
         if (

@@ -515,6 +515,30 @@ complete_lifecycle_stage
                 payload,
             )
 
+    def test_accepts_bounded_numeric_timings_and_rejects_free_form_or_incoherent_timings(self) -> None:
+        payload = self._e2e_failure_evidence()
+        payload["slow_tests"] = [
+            {"spec_id": "PW-NAV", "test_index": 2, "attempt_index": 0, "duration_ms": 30_001},
+            {"spec_id": "PW-SMOKE", "test_index": 0, "attempt_index": 0, "duration_ms": 10},
+        ]
+        verifier.verify_e2e_failure_evidence(payload, 1)
+        for field, value in (
+            ("spec_id", "PRIVATE_PROVIDER"), ("spec_id", []), ("test_index", 128),
+            ("attempt_index", 8), ("duration_ms", -1), ("duration_ms", 600_001),
+            ("duration_ms", 1.5), ("duration_ms", True),
+            ("duration_ms", "PRIVATE_DURATION"), ("title", "PRIVATE_TITLE"),
+        ):
+            invalid = copy.deepcopy(payload)
+            invalid["slow_tests"][0][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(SystemExit):
+                verifier.verify_e2e_failure_evidence(invalid, 1)
+        for timings in ([], payload["slow_tests"] * 2,
+                        [payload["slow_tests"][0]] * 2,
+                        list(reversed(payload["slow_tests"]))):
+            invalid = {**payload, "slow_tests": timings}
+            with self.assertRaises(SystemExit):
+                verifier.verify_e2e_failure_evidence(invalid, 1)
+
     def test_rejects_unbounded_or_free_form_e2e_failure_evidence(self) -> None:
         payload = self._e2e_failure_evidence()
         payload["title"] = "PRIVATE_FREE_FORM_MARKER"
