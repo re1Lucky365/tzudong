@@ -309,7 +309,9 @@ describe("nightly Playwright failure evidence", () => {
 
   test("round-trips located and legacy sanitizer output through the strict Python verifier", () => {
     const verifier = resolve(import.meta.dir, "../../../.github/scripts/verify-nightly-local-publication.py");
-    for (const report of [adminFailureReport(), privateFailureReport()]) {
+    const timed = privateFailureReport();
+    Object.assign(timed.suites[0].specs[0].tests[0].results[0], { duration: 12.3 });
+    for (const report of [adminFailureReport(), privateFailureReport(), timed]) {
       const evidence = buildNightlyPlaywrightFailureEvidence(report, 1);
       const verified = spawnSync("python3", ["-B", "-c", [
         "import json, runpy, sys",
@@ -319,6 +321,24 @@ describe("nightly Playwright failure evidence", () => {
       expect(verified.status).toBe(0);
       expect(verified.stdout).toBe("");
       expect(verified.stderr).toBe("");
+    }
+  });
+
+  test("retains only bounded source IDs and numeric durations for the three slowest attempts", () => {
+    const report = privateFailureReport();
+    for (const [index, duration] of [5, 18.5, 12].entries()) {
+      Object.assign(report.suites[index].specs[0].tests[0].results[0], { duration });
+    }
+    const evidence = buildNightlyPlaywrightFailureEvidence(report, 1);
+    expect(evidence.slow_tests).toEqual([
+      { spec_id: "PW-NAV", test_index: 0, attempt_index: 0, duration_ms: 19 },
+      { spec_id: "PW-MAP", test_index: 0, attempt_index: 0, duration_ms: 12 },
+      { spec_id: "PW-SMOKE", test_index: 0, attempt_index: 0, duration_ms: 5 },
+    ]);
+    expect(JSON.stringify(evidence)).not.toContain("PRIVATE_");
+    for (const duration of [-1, 600_001, NaN, Infinity, "PRIVATE_DURATION"]) {
+      Object.assign(report.suites[0].specs[0].tests[0].results[0], { duration });
+      expect(() => buildNightlyPlaywrightFailureEvidence(report, 1)).toThrow("duration bound exceeded");
     }
   });
 
