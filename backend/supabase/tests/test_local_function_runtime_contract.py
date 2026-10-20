@@ -82,7 +82,8 @@ class LocalFunctionRuntimeContractTests(unittest.TestCase):
 
     def test_admission_accepts_exact_current_source_replay_dispositions(self):
         snapshot, bindings = self._migration_admission_fixture()
-        self.assertEqual(len(snapshot["ledger"]), 140)
+        migrate = self.scanner._load_local_contract_module("local-migrate.py", "scanner_replay_test_authority")
+        self.assertEqual(len(snapshot["ledger"]), migrate.expected_ledger_units())
         self.assertEqual([row["status"] for row in snapshot["ledger"] if row["replayProof"]],
                          ["verified-existing", "verified-existing", "legacy-contract-preserved",
                           "verified-existing"])

@@ -126,7 +126,6 @@ STACK_SERVICES = {
     "supavisor",
     "vector",
 }
-EXPECTED_LEDGER_UNITS = 140
 SEQUENCE_MARKERS = (
     "prerequisite",
     "migration",
@@ -640,13 +639,16 @@ def load_source_module(name: str, path: Path) -> object:
 
 
 def verify_manifest(payload: dict[str, object]) -> None:
+    count = load_source_module(
+        "nightly_publication_local_migrate", LOCAL_MIGRATE_PATH,
+    ).expected_ledger_units()
     source = payload.get("source")
     exclusions = payload.get("exclusions")
     if (
         not isinstance(source, dict)
         or set(source) != {"root", "migrationCount", "chainSha256", "files"}
         or source.get("root") != "backend/supabase/migrations"
-        or source.get("migrationCount") != EXPECTED_LEDGER_UNITS
+        or source.get("migrationCount") != count
         or not isinstance(source.get("chainSha256"), str)
         or SHA256.fullmatch(source["chainSha256"]) is None
         or exclusions != [
@@ -658,7 +660,7 @@ def verify_manifest(payload: dict[str, object]) -> None:
     ):
         fail("local migration manifest contract mismatch")
     files = source.get("files")
-    if not isinstance(files, list) or len(files) != EXPECTED_LEDGER_UNITS:
+    if not isinstance(files, list) or len(files) != count:
         fail("local migration manifest unit count mismatch")
     for ordinal, item in enumerate(files, 1):
         if not isinstance(item, dict) or set(item) != {
@@ -735,10 +737,13 @@ def verify_migration_summary(
         fail("local migration publication summary contract mismatch")
 
     files = source.get("files")
+    count = load_source_module(
+        "nightly_publication_local_migrate", LOCAL_MIGRATE_PATH,
+    ).expected_ledger_units()
     if (
         not isinstance(files, list)
         or payload.get("ledger_count") != len(files)
-        or payload.get("ledger_count") != EXPECTED_LEDGER_UNITS
+        or payload.get("ledger_count") != count
     ):
         fail("local migration publication ledger count mismatch")
 
