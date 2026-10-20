@@ -6,6 +6,7 @@ import copy
 import hashlib
 import re
 import unittest
+from unittest import mock
 
 from backend.supabase.tests.test_local_seed_receipt_contract import (
     ROOT, _receipt_rows, local_migrate,
@@ -32,15 +33,23 @@ FINISH_SIGNATURE = "public.finish_review_media_cleanup()"
 HISTORICAL_FINISH_HASH = "f6c4e71988ed2b789b887484af5fdf2e482bde98f1d1c5b5d4e7ad124c314bd1"
 FINAL_FINISH_HASH = "a6b4211b2d8486d482f0758ce249eec157249e1a5176be286b76af7e7a775ee9"
 IMMUTABLE_FORWARD = ROOT / "backend/supabase/migrations/20261013190200_review_verification_immutable_key_fence.sql"
+IMMUTABLE_FORWARD_SHA256 = "0a060ca537d3558779fd0cb1b780e7965189eb129f5018987f157c1cb5f2cd3d"
 IMMUTABLE_GUARDS = {
     "review_media_private.guard_verification_object_delete()": True,
     "review_media_private.reject_verification_object_update()": False,
 }
 
 
+def immutable_forward_source():
+    source = IMMUTABLE_FORWARD.read_bytes()
+    if hashlib.sha256(source).hexdigest() != IMMUTABLE_FORWARD_SHA256:
+        raise AssertionError("immutable forward migration bytes drift")
+    return source.decode("utf-8")
+
+
 def immutable_guard_rows():
     """Derive the later guard binding from its immutable migration, not a DB."""
-    source = IMMUTABLE_FORWARD.read_text()
+    source = immutable_forward_source()
     rows = {}
     for signature, definer in IMMUTABLE_GUARDS.items():
         match = re.search(
@@ -49,7 +58,22 @@ def immutable_guard_rows():
         )
         if match is None or ("SECURITY DEFINER" in match[1]) != definer:
             raise AssertionError("immutable guard source metadata drift")
-        rows[signature] = [signature, "privacy_workflow_owner", "trigger", definer, "v",
+        role_changes = re.findall(r"(?m)^(SET LOCAL ROLE ([a-z_]+);|RESET ROLE;)$", source[:match.start()])
+        owner = role_changes[-1][1] if role_changes else None
+        settings = re.findall(r"(?m)^SET ([a-z_]+) = (.*)$", match[1])
+        volatility = re.findall(r"\b(IMMUTABLE|STABLE|VOLATILE)\b", match[1])
+        if owner != "privacy_workflow_owner" or settings != [('search_path', "''")]:
+            raise AssertionError("immutable guard owner or configuration drift")
+        if len(volatility) > 1:
+            raise AssertionError("immutable guard volatility drift")
+        for statement in (
+            f"REVOKE ALL ON FUNCTION {signature}\n  FROM PUBLIC, anon, authenticated, service_role, supabase_storage_admin;",
+            f"REVOKE EXECUTE ON FUNCTION {signature}\n  FROM postgres;",
+        ):
+            if source.count(statement) != 1:
+                raise AssertionError("immutable guard privilege drift")
+        rows[signature] = [signature, owner, "trigger", definer,
+                           {'IMMUTABLE': 'i', 'STABLE': 's', 'VOLATILE': 'v'}[volatility[0] if volatility else 'VOLATILE'],
                            ['search_path=""'], hashlib.sha256(match[3].encode()).hexdigest(),
                            False, False, False, []]
     return rows
@@ -61,6 +85,23 @@ def immutable_guard_sql_rows():
 
 
 class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
+    def test_forward_binding_rejects_metadata_and_policy_source_drift(self):
+        source = IMMUTABLE_FORWARD.read_bytes()
+        for before, after in (
+            (b"SET search_path = ''", b"SET search_path = 'public'"),
+            (b"LANGUAGE plpgsql\nSECURITY INVOKER", b"LANGUAGE plpgsql\nSTABLE\nSECURITY INVOKER"),
+            (b"SET LOCAL ROLE privacy_workflow_owner;", b"SET LOCAL ROLE postgres;"),
+            (b"FROM PUBLIC, anon, authenticated, service_role, supabase_storage_admin;", b"FROM PUBLIC;"),
+            (b"AS RESTRICTIVE\n  FOR UPDATE", b"AS PERMISSIVE\n  FOR SELECT"),
+            (b"TO authenticated\n  USING", b"TO anon\n  USING"),
+            (b"WITH CHECK (bucket_id <> 'review-verifications')", b"WITH CHECK (true)"),
+        ):
+            self.assertIn(before, source)
+            with self.subTest(before=before), mock.patch.object(
+                type(IMMUTABLE_FORWARD), 'read_bytes', return_value=source.replace(before, after, 1)
+            ), self.assertRaisesRegex(AssertionError, 'immutable forward migration bytes drift'):
+                immutable_guard_rows()
+
     def test_early_sql_storage_inventory_admits_the_complete_canonical_receipt(self):
         source = (ROOT / 'backend/supabase/scripts/local_catalog_readback.sql').read_text()
         inventory = re.search(r'IF policy_count <> (\d+) OR policy_names IS DISTINCT FROM ARRAY\[(.*?)\]::text\[\] THEN', source, re.S)
@@ -166,7 +207,10 @@ class ReviewMediaCatalogIntegrationTests(unittest.TestCase):
         current = current.replace(new_count, old_count, 1)
         policy = "      ('review_verifications_immutable_update','w',false,'authenticated','(bucket_id <> ''review-verifications''::text)','(bucket_id <> ''review-verifications''::text)'),\n"
         self.assertEqual(current.count(policy), 1)
-        self.assertIn("CREATE POLICY review_verifications_immutable_update", IMMUTABLE_FORWARD.read_text())
+        policy_ddl = re.search(r"CREATE POLICY review_verifications_immutable_update\b.*?;",
+                               immutable_forward_source(), re.S).group()
+        self.assertEqual(' '.join(policy_ddl.split()),
+                         "CREATE POLICY review_verifications_immutable_update ON storage.objects AS RESTRICTIVE FOR UPDATE TO authenticated USING (bucket_id <> 'review-verifications') WITH CHECK (bucket_id <> 'review-verifications');")
         self.assertEqual(local_migrate.REVIEW_MEDIA_STORAGE_POLICIES['review_verifications_immutable_update'],
                          ('UPDATE', ['authenticated'], "(bucket_id <> 'review-verifications'::text)",
                           "(bucket_id <> 'review-verifications'::text)", False))
