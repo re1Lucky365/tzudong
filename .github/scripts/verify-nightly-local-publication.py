@@ -152,14 +152,14 @@ EXPECTED_IMAGES = {
 }
 EXPECTED_TYPEGEN_IMAGE = {
     "cli_version": "2.109.1",
-    "registry": "public.ecr.aws",
+    "registry": "ghcr.io",
     "image": "public.ecr.aws/supabase/postgres-meta:v0.96.6",
     "pull_reference": (
-        "public.ecr.aws/supabase/postgres-meta@sha256:"
+        "ghcr.io/supabase/postgres-meta@sha256:"
         "b9edad6fff2d4fb991ecd57837dbe3f21d2efa0f0ccb186f6ccf0e2d57192fed"
     ),
     "repo_digest": (
-        "public.ecr.aws/supabase/postgres-meta@sha256:"
+        "ghcr.io/supabase/postgres-meta@sha256:"
         "b9edad6fff2d4fb991ecd57837dbe3f21d2efa0f0ccb186f6ccf0e2d57192fed"
     ),
     "image_id": (

@@ -1,6 +1,7 @@
 import importlib.util
 import inspect
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -263,6 +264,19 @@ def _receipt_ndjson(rows) -> bytes:
 
 
 class LocalSeedReceiptContractTests(unittest.TestCase):
+    def test_seed_bucket_admission_matches_final_receipt_catalog(self) -> None:
+        source = (ROOT / "backend/supabase/scripts/local-seed.sql").read_text(encoding="utf-8")
+        guard = source.split("SELECT 1 FROM storage.buckets", 1)[1].split(
+            "RAISE EXCEPTION 'local_seed_unexpected_storage_bucket'", 1
+        )[0]
+        allowed = set(re.findall(r"'([^']+)'", guard.split("]::text[])", 1)[0]))
+        expected = {row[1] for row in _receipt_rows() if row[0] == "seed_buckets"}
+        self.assertEqual(allowed, expected)
+        self.assertIn("NOT IN (6, 7)", guard)
+        self.assertIn("id = 'review-verifications' AND name = 'review-verifications'", guard)
+        self.assertIn("public = false AND file_size_limit = 5242880", guard)
+        self.assertIn("ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/avif']::text[]", guard)
+
     def test_receipt_v1_has_fixed_fields_and_canonical_order(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             raw = _write_deterministic_receipt(Path(directory))
