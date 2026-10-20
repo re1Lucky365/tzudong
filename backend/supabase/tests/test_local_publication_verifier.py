@@ -517,8 +517,13 @@ complete_lifecycle_stage
 
     def test_accepts_bounded_numeric_timings_and_rejects_free_form_or_incoherent_timings(self) -> None:
         payload = self._e2e_failure_evidence()
+        payload["failures"][0]["test_index"] = 0
+        payload["reported_tests"] = [
+            {"spec_id": "PW-NAV", "test_index": 0, "attempt_count": 1},
+            {"spec_id": "PW-SMOKE", "test_index": 0, "attempt_count": 1},
+        ]
         payload["slow_tests"] = [
-            {"spec_id": "PW-NAV", "test_index": 2, "attempt_index": 0, "duration_ms": 30_001},
+            {"spec_id": "PW-NAV", "test_index": 0, "attempt_index": 0, "duration_ms": 30_001},
             {"spec_id": "PW-SMOKE", "test_index": 0, "attempt_index": 0, "duration_ms": 10},
         ]
         verifier.verify_e2e_failure_evidence(payload, 1)
@@ -531,6 +536,29 @@ complete_lifecycle_stage
             invalid = copy.deepcopy(payload)
             invalid["slow_tests"][0][field] = value
             with self.subTest(field=field, value=value), self.assertRaises(SystemExit):
+                verifier.verify_e2e_failure_evidence(invalid, 1)
+
+        for field, value in (
+            ("spec_id", "PW-ADMIN"), ("test_index", 127), ("attempt_index", 7),
+        ):
+            invalid = copy.deepcopy(payload)
+            invalid["slow_tests"][0][field] = value
+            with self.subTest(orphan=field), self.assertRaises(SystemExit):
+                verifier.verify_e2e_failure_evidence(invalid, 1)
+        for registry in (
+            [], payload["reported_tests"] * 2,
+            [payload["reported_tests"][0]] * 2,
+            [{**payload["reported_tests"][0], "attempt_count": 0}, payload["reported_tests"][1]],
+            [{**payload["reported_tests"][0], "attempt_count": 2}, payload["reported_tests"][1]],
+            [{**payload["reported_tests"][0], "test_index": 127}, payload["reported_tests"][1]],
+            [{**payload["reported_tests"][0], "title": "PRIVATE_TITLE"}, payload["reported_tests"][1]],
+        ):
+            with self.subTest(registry=registry), self.assertRaises(SystemExit):
+                verifier.verify_e2e_failure_evidence({**payload, "reported_tests": registry}, 1)
+        for field in ("slow_tests", "reported_tests"):
+            invalid = copy.deepcopy(payload)
+            del invalid[field]
+            with self.subTest(missing=field), self.assertRaises(SystemExit):
                 verifier.verify_e2e_failure_evidence(invalid, 1)
         for timings in ([], payload["slow_tests"] * 2,
                         [payload["slow_tests"][0]] * 2,
