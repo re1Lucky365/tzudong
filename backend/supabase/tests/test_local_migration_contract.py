@@ -29,7 +29,7 @@ local_migrate = _load_module()
 
 
 class LocalMigrationContractTests(unittest.TestCase):
-    def test_psql_capture_role_does_not_change_migration_actor(self) -> None:
+    def test_psql_roles_are_explicit_and_do_not_leak_between_commands(self) -> None:
         executor = local_migrate.PsqlExecutor("docker", "fixture-db", "postgres")
         calls = []
         def command_run(command, **kwargs):
@@ -44,9 +44,17 @@ class LocalMigrationContractTests(unittest.TestCase):
             executor.capture(b"SELECT 1;", role="postgres")
             executor.run(b"SELECT 2;")
             executor.capture(b"SELECT 3;")
+            executor.run(b"SELECT 4;", role="postgres")
+            executor.run(b"SELECT 5;")
             with self.assertRaisesRegex(local_migrate.LocalMigrationError, "psql_role_denied"):
-                executor.capture(b"SELECT 4;", role="service_role")
-        self.assertEqual(calls, [("postgres", b"SELECT 1;"), ("supabase_admin", b"SELECT 2;"), ("supabase_admin", b"SELECT 3;")])
+                executor.capture(b"SELECT 6;", role="service_role")
+            with self.assertRaisesRegex(local_migrate.LocalMigrationError, "psql_role_denied"):
+                executor.run(b"SELECT 7;", role="service_role")
+        self.assertEqual(calls, [
+            ("postgres", b"SELECT 1;"), ("supabase_admin", b"SELECT 2;"),
+            ("supabase_admin", b"SELECT 3;"), ("postgres", b"SELECT 4;"),
+            ("supabase_admin", b"SELECT 5;"),
+        ])
 
     def test_function_source_evidence_binds_both_exact_edge_functions(self) -> None:
         functions = {

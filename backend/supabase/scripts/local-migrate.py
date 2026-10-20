@@ -2024,11 +2024,11 @@ class PsqlExecutor:
     def _admit_container(self) -> None:
         self._inspect()
 
-    def run(self, sql: bytes, variables: Mapping[str, str] | None = None) -> None:
+    def run(self, sql: bytes, variables: Mapping[str, str] | None = None, *, role: str = "supabase_admin") -> None:
         self._admit_container()
         try:
             result = subprocess.run(
-                self._base(), input=_psql_stdin(sql, variables), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                self._base(role=role), input=_psql_stdin(sql, variables), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 timeout=self.timeout, env=self._docker_env(),
             )
         except subprocess.TimeoutExpired as error:
@@ -4521,7 +4521,7 @@ def _capture_replay_proofs(executor: PsqlExecutor) -> dict[str, Any]:
 
 def _capture_replay_sql(executor: PsqlExecutor, migration_path: str, sql: bytes) -> bytes:
     # This pinned catalog-only verifier requires the postgres login identity.
-    # Source migrations and ledger operations retain their supabase_admin actor.
+    # Ledger and platform operations retain their supabase_admin actor.
     if migration_path in {
         "backend/supabase/migrations/20260906064252_g014_pg17_workflow_owner_contract.sql",
         "backend/supabase/applied-receipts/owner-recovery-20261004/20261004115554_g014_pg17_owner_final_verifier.sql",
@@ -4856,7 +4856,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     if migration_id in _load_replay_contract().supported_sources():
                         _apply_replay_verification(executor, item, sql)
                         continue
-                    executor.run(sql)
+                    # Match the canonical catalog replay's login identity. Source
+                    # SQL verifies postgres ownership, ACL grantors and, for
+                    # guarded registrations, session_user as well as current_user.
+                    executor.run(sql, role="postgres")
                     evidence_sha256 = _unit_readback(executor, item)
                     _mark_applied(executor, migration_id, evidence_sha256)
                     _verify_applied_readback(executor, item, evidence_sha256)
@@ -4864,6 +4867,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     _record_keyboard_interrupt(executor, migration_id)
                     raise
                 except LocalMigrationError as error:
+                    # Repository identity and a fixed error code only. Keep SQL,
+                    # database rows, credentials and provider diagnostics private.
+                    print("local migration failure: " + json.dumps({
+                        "migration_id": migration_id,
+                        "error_code": error.code,
+                    }, ensure_ascii=True, sort_keys=True), file=sys.stderr)
                     # The executor cannot distinguish a failed migration from a
                     # ledger update that was lost after the database accepted it.
                     # Preserve the only safe classification until a fresh reset.
