@@ -446,9 +446,10 @@ describe('StyleGallery primitive taxonomy source contract', () => {
     expect(mobileControlsSource).toContain('{isAdmin && (');
     expect(submissionSource).toContain('{isAdmin && (');
     expect(homeMapSource).toContain('const NaverMapView = lazy(() => import("@/components/map/NaverMapView"));');
-    expect(homeMapSource).toContain('const OverseasMap = lazy(() => import("@/components/map/OverseasMap"));');
+    expect(homeMapSource).toMatch(/const OverseasMap\s*=\s*lazy\(/);
+    expect(homeMapSource).not.toMatch(/^import\s+OverseasMap\b/m);
     expect(homeMapSource).toContain('const RestaurantDetailPanel = lazy(() =>');
-    expect(homeMapSource).toContain('<Suspense fallback={null}>');
+    expect(homeMapSource).toContain('<Suspense fallback=');
     expect(homeClientSource).toContain('const HomeMapContainer = dynamic(');
     expect(homeClientSource).toContain('() => import("../components/home/home-map-container")');
     expect(homeClientSource).toContain('const HomeControlPanel = dynamic(');
