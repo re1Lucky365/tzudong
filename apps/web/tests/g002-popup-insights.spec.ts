@@ -133,9 +133,14 @@ test.describe('G002 popup and insights hardening', () => {
         await page.screenshot({ path: 'test-results/g002-mypage-no-popup.png', fullPage: true });
     });
 
-    test('direct /insights load shows treemap context without popup helpers', async ({ page }) => {
+    test('direct /insights load keeps treemap guidance keyboard accessible without popup helpers', async ({ page }) => {
         await installFakeInsightsSession(page);
+        let releaseTreemap!: () => void;
+        const responseGate = new Promise<void>((resolve) => { releaseTreemap = resolve; });
+        let treemapRequests = 0;
         await page.route('**/api/insights/treemap*', async (route) => {
+            treemapRequests += 1;
+            await responseGate;
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -145,10 +150,45 @@ test.describe('G002 popup and insights hardening', () => {
 
         await page.goto('/insights', { waitUntil: 'domcontentloaded' });
 
+        const chart = page.getByRole('img', { name: /트리맵 기준: 조회수 · 전체 기간 · 2개 영상 · 비율 · 개별 영상/ });
+        try {
+            await expect.poll(() => treemapRequests).toBeGreaterThan(0);
+            await expect(chart).toHaveCount(0);
+        } finally {
+            releaseTreemap();
+        }
         await expect(page.getByText('전체 2개')).toBeVisible({ timeout: 15000 });
-        await expect(page.getByText(/트리맵 기준: 조회수 · 전체 기간 · 2개 영상 · 비율 · 개별 영상/)).toBeVisible();
-        await expect(page.getByText(/색상 범례: 전체 조회수 비중이 높을수록 밝은 초록색입니다\./)).toBeVisible();
-        await expect(page.getByText(/작은 칸 안내: 공간이 좁으면 지표나 …만 표시되고/)).toBeVisible();
+        await expect(chart).toHaveAttribute('aria-describedby', 'insights-treemap-legend insights-treemap-small-cell-guidance');
+        for (const width of [360, 1280]) {
+            await page.setViewportSize({ width, height: 800 });
+            await expect.poll(() => chart.evaluate((element) => {
+                const area = element.closest('[data-slot="card-content"]');
+                const card = element.closest('[data-slot="card"]');
+                if (!area || !card) return Number.POSITIVE_INFINITY;
+                const chartRect = element.getBoundingClientRect();
+                return Math.max(
+                    Math.abs(chartRect.height - area.getBoundingClientRect().height),
+                    Math.abs(card.getBoundingClientRect().bottom - chartRect.bottom),
+                );
+            }), { timeout: 10000 }).toBeLessThanOrEqual(2);
+        }
+        await expect(page.locator('[data-insights-treemap-context="true"]')).toHaveCount(0);
+        const helpButton = page.getByRole('button', { name: '트리맵 읽는 법' });
+        await helpButton.focus();
+        await helpButton.press('Enter');
+        const helpDialog = page.getByRole('dialog', { name: '트리맵 읽는 법' });
+        await expect(helpDialog).toBeVisible();
+        await expect(helpButton).toHaveAttribute('aria-expanded', 'true');
+        const helpDialogId = await helpDialog.getAttribute('id');
+        expect(helpDialogId).toBeTruthy();
+        await expect(helpButton).toHaveAttribute('aria-controls', helpDialogId!);
+        await expect(helpButton).toBeFocused();
+        await expect(helpDialog).toContainText('전체 조회수 비중');
+        await helpButton.press('Escape');
+        await page.getByRole('button', { name: '증감률' }).click();
+        await page.getByRole('button', { name: '좋아요' }).click();
+        await helpButton.click();
+        await expect(page.getByRole('dialog', { name: '트리맵 읽는 법' })).toContainText('좋아요 증감률');
         await expect(page.locator('[data-popup-overlay="true"]')).toHaveCount(0);
         await page.waitForTimeout(1200);
         await expect(page.locator('[data-popup-overlay="true"]')).toHaveCount(0);

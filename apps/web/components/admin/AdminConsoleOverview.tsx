@@ -3424,9 +3424,15 @@ function AdminDashboardViewToggle({
             value === view && "bg-background text-foreground shadow-none",
           )}
           aria-pressed={value === view}
+          aria-label={`${label} ${view === "chart" ? "그래프" : "표"} 보기`}
           onClick={() => onChange(view)}
         >
-          {view === "chart" ? "그래프" : "표"}
+          {view === "chart" ? (
+            <BarChart2 className="hidden h-3.5 w-3.5" aria-hidden="true" data-admin-dashboard-view-icon="true" />
+          ) : (
+            <LayoutList className="hidden h-3.5 w-3.5" aria-hidden="true" data-admin-dashboard-view-icon="true" />
+          )}
+          <span data-admin-dashboard-view-label="true">{view === "chart" ? "그래프" : "표"}</span>
         </button>
       ))}
     </div>
@@ -3493,6 +3499,7 @@ function AdminDashboardSeriesToggle<Key extends string>({
     key: Key;
     label: string;
     dotClassName: string;
+    compactLabel?: string;
   }>;
   visibility: AdminDashboardSeriesVisibility<Key>;
   onToggle: (key: Key) => void;
@@ -3529,6 +3536,8 @@ function AdminDashboardSeriesToggle<Key extends string>({
             )}
             aria-pressed={isVisible}
             aria-label={`${option.label} ${isVisible ? "숨기기" : "보이기"}`}
+            data-admin-dashboard-series-compact={option.compactLabel ? "true" : undefined}
+            title={option.label}
             disabled={isLastVisible}
             onClick={() => onToggle(option.key)}
           >
@@ -3539,7 +3548,12 @@ function AdminDashboardSeriesToggle<Key extends string>({
               )}
               aria-hidden="true"
             />
-            {option.label}
+            <span data-admin-dashboard-series-label="true">{option.label}</span>
+            {option.compactLabel ? (
+              <span className="hidden" data-admin-dashboard-series-compact-label="true" aria-hidden="true">
+                {option.compactLabel}
+              </span>
+            ) : null}
           </button>
         );
       })}
@@ -4117,16 +4131,19 @@ function AdminDashboardManagementSkeleton() {
                     {
                       key: "views",
                       label: "조회수",
+                      compactLabel: "조회",
                       dotClassName: "bg-teal-500",
                     },
                     {
                       key: "engagement",
                       label: "참여",
+                      compactLabel: "참여",
                       dotClassName: "bg-muted-foreground/45",
                     },
                     {
                       key: "engagementRate",
                       label: "참여율",
+                      compactLabel: "비율",
                       dotClassName: "bg-amber-500",
                     },
                   ]}
@@ -7684,6 +7701,7 @@ function AdminDashboardManagementPanel({
             title="상위 영상 영향도"
             metric={impactMetricLabel}
             infoLines={[
+              `요약: ${impactMetricLabel}.`,
               hasPeriodGrowthComparison
                 ? "설명: 선택 기간 업로드 영상 안에서 오른쪽으로 갈수록 조회 증가가 크고, 위로 갈수록 좋아요와 댓글 증가가 큽니다."
                 : "설명: 선택 기간 업로드 영상 안에서 오른쪽으로 갈수록 조회수가 크고, 위로 갈수록 좋아요와 댓글 합계가 큽니다.",
@@ -7691,6 +7709,7 @@ function AdminDashboardManagementPanel({
                 ? `표시: 그래프는 상위 ${formatNumber(impactDisplayedVideoCount)}/${formatNumber(dashboardUploadVideoBasisCount)}개, 표는 전체 ${formatNumber(dashboardUploadVideoBasisCount)}개.`
                 : `표시: 그래프와 표 모두 전체 ${formatNumber(dashboardUploadVideoBasisCount)}개.`,
               "읽는 법: 원이 클수록 조회수와 반응을 합친 영향도가 큰 영상입니다. 색은 순위 구분입니다.",
+              "색상 범례: 진한 청록부터 옅은 회색까지 상위 1~5위 순입니다.",
               "계산식: 참여 = 좋아요 + 댓글.",
               hasPeriodGrowthComparison
                 ? "기간 비교 때는 현재값에서 이전값을 뺀 증가량으로 위치를 잡습니다."
@@ -7807,7 +7826,9 @@ function AdminDashboardManagementPanel({
             title="영상별 성과 분포"
             metric={trendMetricLabel}
             infoLines={[
+              `요약: ${trendMetricLabel}.`,
               "설명: 선택 기간 업로드 영상을 게시일 순서로 놓고 조회수, 참여, 참여율을 비교합니다.",
+              "지표 범례: 청록은 조회수, 회색은 참여, 주황은 참여율입니다. 제목 옆 버튼으로 각 지표를 숨기거나 표시합니다.",
               `표시: 그래프와 표 모두 전체 ${formatNumber(dashboardUploadVideoBasisCount)}개.`,
               "읽는 법: 조회·반응(좋아요+댓글)·반응률을 각각 100점 기준으로 맞춰 같은 눈금에서 비교합니다.",
               "참고: 참여는 좋아요와 댓글을 더한 값이고, 참여율은 조회수 대비 참여 비중입니다.",
@@ -7825,16 +7846,19 @@ function AdminDashboardManagementPanel({
                     {
                       key: "views",
                       label: "조회수",
+                      compactLabel: "조회",
                       dotClassName: "bg-teal-500",
                     },
                     {
                       key: "engagement",
                       label: "참여",
+                      compactLabel: "참여",
                       dotClassName: "bg-muted-foreground/45",
                     },
                     {
                       key: "engagementRate",
                       label: "참여율",
+                      compactLabel: "비율",
                       dotClassName: "bg-amber-500",
                     },
                   ]}

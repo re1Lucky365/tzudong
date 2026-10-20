@@ -4,11 +4,12 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEven
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { hierarchy, treemap, treemapResquarify, type HierarchyRectangularNode } from 'd3-hierarchy';
-import { AlertTriangle, Lightbulb } from 'lucide-react';
+import { AlertTriangle, Info, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AdminEmbeddedModuleShell } from '@/components/admin/AdminEmbeddedModuleShell';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/contexts/AuthContext';
 import type { InsightTreemapPeriod, InsightTreemapResponse, InsightTreemapVideoRow } from '@/lib/public-insights/treemap';
 import { useDeviceType } from '@/hooks/useDeviceType';
@@ -832,6 +833,7 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
         placeholderData: (previousData) => previousData,
         retry: 1,
     });
+    const canRender = Boolean(treemapQuery.data);
 
     const periodOptionsForView = useMemo(() => {
         if (viewMode === 'change') {
@@ -933,6 +935,7 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
         [isMobile, isTablet],
     );
     useEffect(() => {
+        if (!canRender) return undefined;
         const chartArea = chartAreaRef.current;
         if (!chartArea) return undefined;
 
@@ -1031,7 +1034,7 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
                 layoutRafRef.current = null;
             }
         };
-    }, [chartConstraints]);
+    }, [chartConstraints, canRender]);
 
     useEffect(() => {
         setChartSize((prev) => {
@@ -1243,9 +1246,8 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
     const treemapLegendText = viewMode === 'change'
         ? `색상 범례: ${periodLabel} 대비 ${metricLabel} 증감률이 높을수록 밝은 초록색입니다.`
         : `색상 범례: 전체 ${metricLabel} 비중이 높을수록 밝은 초록색입니다.`;
-    const treemapSmallCellGuidance = '작은 칸 안내: 공간이 좁으면 지표나 …만 표시되고, 마우스를 올리면 제목과 상세 지표를 확인할 수 있습니다.';
+    const treemapSmallCellGuidance = '작은 칸은 지표나 …만 보일 수 있습니다. 칸에 마우스를 올리면 제목과 상세 지표가 나타납니다.';
 
-    const canRender = Boolean(treemapQuery.data);
     const isWaitingForAuthorizedQuery = !embedded && (
         isAuthLoading || (!!user && !canRender && !treemapQuery.isError)
     );
@@ -1442,6 +1444,17 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
 
                                 <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0 self-center order-99">
                                     <span className="text-2xs text-muted-foreground">색상</span>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button type="button" size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="트리맵 읽는 법">
+                                                <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent aria-label="트리맵 읽는 법" side="bottom" align="end" className="w-64 max-w-[calc(100vw-1rem)] p-2 text-xs" onOpenAutoFocus={(event) => event.preventDefault()}>
+                                            <p>{treemapLegendText}</p>
+                                            <p className="mt-1">{treemapSmallCellGuidance}</p>
+                                        </PopoverContent>
+                                    </Popover>
                                     <div className="inline-flex overflow-hidden rounded-md border border-border shrink-0">
                                         <div
                                             className="flex items-center justify-center h-6 px-2 text-2xs font-normal"
@@ -1487,13 +1500,8 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
                                 </div>
                             </div>
                         </div>
-                        <div
-                            id="insights-treemap-context"
-                            data-insights-treemap-context="true"
-                            className="flex flex-col gap-0.5 border-t border-border/60 pt-2 text-2xs leading-snug text-muted-foreground md:flex-row md:flex-wrap md:items-center md:gap-x-3"
-                        >
-                            <p className="font-medium text-foreground/80">{treemapContextText}</p>
-                            <p>{treemapLegendText}</p>
+                        <div className="sr-only">
+                            <p id="insights-treemap-legend">{treemapLegendText}</p>
                             <p id="insights-treemap-small-cell-guidance">{treemapSmallCellGuidance}</p>
                         </div>
                     </div>
@@ -1508,7 +1516,7 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
                             style={{ width: renderWidth, height: chartHeight }}
                             role="img"
                             aria-label={treemapContextText}
-                            aria-describedby="insights-treemap-context insights-treemap-small-cell-guidance"
+                            aria-describedby="insights-treemap-legend insights-treemap-small-cell-guidance"
                         >
                             {treeData.length === 0 ? (
                                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">대상 데이터가 없습니다.</div>
