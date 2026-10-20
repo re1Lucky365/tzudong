@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import inspect
 import json
 import re
@@ -264,6 +265,27 @@ def _receipt_ndjson(rows) -> bytes:
 
 
 class LocalSeedReceiptContractTests(unittest.TestCase):
+    def test_immutable_verification_guards_bind_canonical_source_bodies(self) -> None:
+        source = (ROOT / "backend/supabase/migrations/20261013190200_review_verification_immutable_key_fence.sql").read_text()
+        expected = {row[0]: row for row in local_migrate.REVIEW_MEDIA_FUNCTIONS}
+        for name in ("reject_verification_object_update", "guard_verification_object_delete"):
+            body = re.search(
+                rf"CREATE FUNCTION review_media_private\.{name}\(\).*?AS (\$[a-zA-Z_]*\$)(.*?)\1;",
+                source, re.DOTALL,
+            ).group(2)
+            self.assertEqual(expected[f"review_media_private.{name}()"][6], hashlib.sha256(body.encode()).hexdigest())
+
+    def test_seed_receipt_rejects_weakened_immutable_verification_policy(self) -> None:
+        for field, replacement in ((4, "SELECT"), (5, ["anon"]), (6, "true"), (7, "true"), (8, True)):
+            rows = _receipt_rows()
+            policy = next(row for row in rows if row[0] == "storage_policies"
+                          and row[3] == "review_verifications_immutable_update")
+            policy[field] = replacement
+            with self.subTest(field=field), self.assertRaisesRegex(
+                local_migrate.LocalMigrationError, "receipt_review_media_storage_policy"
+            ):
+                local_migrate.parse_readback(_receipt_ndjson(rows))
+
     def test_seed_bucket_admission_matches_final_receipt_catalog(self) -> None:
         source = (ROOT / "backend/supabase/scripts/local-seed.sql").read_text(encoding="utf-8")
         guard = source.split("SELECT 1 FROM storage.buckets", 1)[1].split(
