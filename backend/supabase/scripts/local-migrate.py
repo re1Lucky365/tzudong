@@ -116,7 +116,6 @@ MIGRATION_ORDER_OVERRIDES = {
 }
 SEED_SOURCE = Path("backend/supabase/scripts/local-seed.sql")
 READBACK_SOURCE = Path("backend/supabase/scripts/local_catalog_readback.sql")
-EXPECTED_LEDGER_UNITS = 140
 EXPECTED_SERVICES = (
     "analytics", "auth", "db", "functions", "imgproxy", "kong", "mail",
     "meta", "realtime", "rest", "storage", "studio", "supavisor", "vector",
@@ -1234,6 +1233,10 @@ def migration_files(root: Path | None = None) -> list[Path]:
     if not result:
         raise LocalMigrationError("no_migrations")
     return result
+
+
+def expected_ledger_units() -> int:
+    return len(migration_files())
 
 
 def transaction_control(sql: str | bytes) -> dict[str, Any]:
@@ -3429,7 +3432,7 @@ def _expected_unit_evidence(item: Mapping[str, Any]) -> str:
 
 def _expected_ledger_records(manifest: Mapping[str, Any]) -> list[list[Any]]:
     files = manifest["source"]["files"]
-    if len(files) != EXPECTED_LEDGER_UNITS:
+    if len(files) != expected_ledger_units():
         raise LocalMigrationError("receipt_ledger_state")
     return [
         [
@@ -4121,7 +4124,7 @@ def build_receipt(executor: PsqlExecutor) -> dict[str, Any]:
         raise LocalMigrationError("receipt_ledger_empty")
     manifest = verify_manifest()
     expected_files = manifest["source"]["files"]
-    if len(ledger_rows) != EXPECTED_LEDGER_UNITS or len(expected_files) != EXPECTED_LEDGER_UNITS:
+    if len(ledger_rows) != expected_ledger_units() or len(expected_files) != expected_ledger_units():
         raise LocalMigrationError("receipt_ledger_state")
     ledger_records: list[list[Any]] = []
     for expected, row in zip(expected_files, ledger_rows):
@@ -4282,7 +4285,7 @@ def _load_receipt_file(path: Path) -> dict[str, Any]:
     records, ledger_records, service_records = _parse_receipt_payloads(value)
     manifest = verify_manifest()
     _validate_replay_proofs(manifest, value.get("replay_proofs"))
-    if len(ledger_records) != EXPECTED_LEDGER_UNITS:
+    if len(ledger_records) != expected_ledger_units():
         raise LocalMigrationError("receipt_ledger_state")
     payload_digests = _receipt_payload_digests(records, ledger_records, service_records, manifest)
     sequence = value.get("sequence")
