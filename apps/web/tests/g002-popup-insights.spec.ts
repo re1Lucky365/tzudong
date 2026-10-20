@@ -1,7 +1,24 @@
 import { expect, test, type Page } from '@playwright/test';
+import { createServerClient } from '@supabase/ssr';
+import { assertLocalWebOrigin, loadLocalSupabaseEnvironment } from '../scripts/local-supabase-runtime.mjs';
 
-const SUPABASE_PROJECT_REF = 'aqlcofblfxdrjhhdmarw';
-const SUPABASE_AUTH_COOKIE_NAME = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+function admittedLocalRuntime() {
+    const local = loadLocalSupabaseEnvironment();
+    const appUrl = new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000');
+    if (appUrl.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(appUrl.hostname)
+        || appUrl.pathname !== '/' || appUrl.search || appUrl.hash || appUrl.username || appUrl.password
+        || !local.values.ADDITIONAL_REDIRECT_URLS.split(',').includes(appUrl.origin)) {
+        throw new Error('g002_local_app_origin_invalid');
+    }
+    assertLocalWebOrigin(local, Number(appUrl.port));
+    if ((process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== local.supabaseOrigin)
+        || (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== local.values.ANON_KEY)
+        || process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === '1'
+        || (process.env.PLAYWRIGHT_WEB_SERVER_COMMAND && process.env.PLAYWRIGHT_WEB_SERVER_COMMAND !== 'bun run dev:playwright')) {
+        throw new Error('g002_local_runtime_mismatch');
+    }
+    return { local, appUrl };
+}
 
 type InsightTreemapResponse = {
     asOf: string;
@@ -59,68 +76,71 @@ const TREEMAP_MOCK: InsightTreemapResponse = {
     ],
 };
 
-async function installFakeInsightsSession(page: Page) {
-    const fakeUser = {
-        id: '00000000-0000-4000-8000-000000000002',
-        aud: 'authenticated',
-        role: 'authenticated',
-        email: 'g002@example.test',
-        app_metadata: { provider: 'email', providers: ['email'] },
-        user_metadata: { nickname: 'G002' },
-    };
-    const fakeSession = {
-        access_token: 'g002-fake-access-token',
-        refresh_token: 'g002-fake-refresh-token',
-        token_type: 'bearer',
-        expires_in: 3600,
-        expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
-        user: fakeUser,
-    };
-    const encodedSession = Buffer.from(JSON.stringify(fakeSession), 'utf8')
-        .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/g, '');
-
-    await page.context().addCookies([{
-        name: SUPABASE_AUTH_COOKIE_NAME,
-        value: `base64-${encodedSession}`,
-        domain: 'localhost',
-        path: '/',
-        expires: Math.floor(Date.now() / 1000) + 60 * 60,
-        httpOnly: false,
-        secure: false,
-        sameSite: 'Lax',
-    }]);
-
-    await page.route('**/auth/v1/user', async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify(fakeUser),
-        });
+async function installLocalInsightsSession(page: Page) {
+    const { local, appUrl } = admittedLocalRuntime();
+    const cookieJar = new Map<string, string>();
+    const supabase = createServerClient(local.supabaseOrigin, local.values.ANON_KEY, {
+        cookies: {
+            getAll: () => [...cookieJar].map(([name, value]) => ({ name, value })),
+            setAll: (cookies) => {
+                for (const { name, value } of cookies) {
+                    if (value) cookieJar.set(name, value);
+                    else cookieJar.delete(name);
+                }
+            },
+        },
     });
-    await page.route('**/rest/v1/**', async (route) => {
-        const url = new URL(route.request().url());
-        if (url.pathname.endsWith('/rest/v1/user_roles')) {
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({ role: 'user' }),
-            });
-            return;
-        }
-        if (url.pathname.endsWith('/rest/v1/profiles')) {
-            await route.abort('blockedbyclient');
-            return;
-        }
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify([]),
+    let signedIn = false;
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: local.values.NIGHTLY_ADMIN_EMAIL,
+            password: local.values.NIGHTLY_ADMIN_PASSWORD,
         });
-    });
+        signedIn = !error && Boolean(data.session?.user?.id);
+    } catch {
+        // Provider details and generated local credentials must not reach test output.
+    }
+    if (!signedIn) throw new Error('g002_local_auth_failed');
+
+    const key = `sb-${new URL(local.supabaseOrigin).hostname.split('.')[0]}-auth-token`;
+    const cookies = [...cookieJar]
+        .filter(([name, value]) => value && (name === key || (name.startsWith(`${key}.`) && /^\d+$/.test(name.slice(key.length + 1)))))
+        .map(([name, value]) => ({
+            name, value, domain: appUrl.hostname, path: '/',
+            httpOnly: false, secure: false, sameSite: 'Lax' as const,
+        }));
+    if (cookies.length === 0) throw new Error('g002_local_auth_cookie_missing');
+    await page.context().addCookies(cookies);
 }
+
+test.use({ serviceWorkers: 'block' });
+
+test.beforeEach(async ({ page }) => {
+    const { local, appUrl } = admittedLocalRuntime();
+    const allowedOrigins = new Set([appUrl.origin, local.supabaseOrigin]);
+    const allowedBrowserUrl = (rawUrl: string) => {
+        try {
+            const url = new URL(rawUrl);
+            if (url.protocol === 'ws:') url.protocol = 'http:';
+            if (url.protocol === 'wss:') url.protocol = 'https:';
+            return allowedOrigins.has(url.origin);
+        } catch {
+            return false;
+        }
+    };
+    await page.context().route('**/*', (route) => {
+        const request = route.request();
+        if (!allowedBrowserUrl(request.url())
+            || (new URL(request.url()).origin === appUrl.origin && !['GET', 'HEAD'].includes(request.method()))) {
+            return route.abort('blockedbyclient');
+        }
+        return route.continue();
+    });
+    await page.context().routeWebSocket('**/*', (route) => {
+        if (!allowedBrowserUrl(route.url())) return route.close();
+        route.connectToServer();
+    });
+});
 
 test.describe('G002 popup and insights hardening', () => {
     test('direct /mypage load does not mount popup overlays', async ({ page }) => {
@@ -134,7 +154,7 @@ test.describe('G002 popup and insights hardening', () => {
     });
 
     test('direct /insights load keeps treemap guidance keyboard accessible without popup helpers', async ({ page }) => {
-        await installFakeInsightsSession(page);
+        await installLocalInsightsSession(page);
         let releaseTreemap!: () => void;
         const responseGate = new Promise<void>((resolve) => { releaseTreemap = resolve; });
         let treemapRequests = 0;
@@ -200,7 +220,7 @@ test.describe('insights treemap tile detail access', () => {
     test.use({ hasTouch: true });
 
     test('mouse, keyboard and touch reach the same tile details without a tab stop per tile', async ({ page }) => {
-        await installFakeInsightsSession(page);
+        await installLocalInsightsSession(page);
         await page.route('**/api/insights/treemap*', async (route) => {
             await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TREEMAP_MOCK) });
         });
