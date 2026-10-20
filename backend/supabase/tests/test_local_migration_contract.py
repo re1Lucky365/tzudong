@@ -1,5 +1,6 @@
 import hashlib
 import importlib.util
+import io
 import json
 import re
 import stat
@@ -8,6 +9,7 @@ import tempfile
 from types import SimpleNamespace
 from unittest.mock import patch
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 
 
@@ -29,6 +31,18 @@ local_migrate = _load_module()
 
 
 class LocalMigrationContractTests(unittest.TestCase):
+    def test_psql_failure_exposes_only_fixed_sqlstate_and_actor(self) -> None:
+        executor = local_migrate.PsqlExecutor("docker", "fixture-db", "postgres")
+        output = io.StringIO()
+        with patch.object(local_migrate.PsqlExecutor, "_admit_container"), \
+             patch.object(local_migrate.PsqlExecutor, "_base", return_value=["psql"]), \
+             patch.object(local_migrate.PsqlExecutor, "_docker_env", return_value={}), \
+             patch.object(local_migrate.subprocess, "run", return_value=SimpleNamespace(returncode=3, stderr=b"ERROR: 42501\nprivate-canary", stdout=b"")), \
+             redirect_stderr(output):
+            with self.assertRaisesRegex(local_migrate.LocalMigrationError, "psql_failed"):
+                executor.run(b"private-sql-canary", role="postgres")
+        self.assertEqual(output.getvalue(), 'local psql failure: {"actor": "postgres", "sqlstate": "42501"}\n')
+
     def test_psql_roles_are_explicit_and_do_not_leak_between_commands(self) -> None:
         executor = local_migrate.PsqlExecutor("docker", "fixture-db", "postgres")
         calls = []
@@ -171,6 +185,35 @@ class LocalMigrationContractTests(unittest.TestCase):
         self.assertEqual(manifest, json.loads((ROOT / local_migrate.PREREQUISITE_MANIFEST).read_text()))
         self.assertEqual(output.count(local_migrate.LOCAL_CREATOR_DEFAULT_ACL_SQL.encode()), 1)
         self.assertEqual(manifest["transformVersion"], "local-application-prerequisite-v2")
+
+    def test_prerequisite_roles_preserve_pinned_source_and_platform_acl_authority(self) -> None:
+        data = (ROOT / local_migrate.PREREQUISITE_OUTPUT).read_bytes()
+        sql = local_migrate._prerequisite_execution_sql(data)
+        acl = local_migrate.LOCAL_CREATOR_DEFAULT_ACL_SQL.encode()
+        self.assertIn(b"RESET ROLE;\n" + acl + b"SET LOCAL ROLE postgres;\n", sql)
+        self.assertEqual(sql.count(b"SET LOCAL ROLE postgres;\n"), 2)
+        self.assertEqual(
+            sql.replace(b"SET LOCAL ROLE postgres;\n", b"").replace(b"RESET ROLE;\n", b""),
+            b"BEGIN;\n" + data + b"\nCOMMIT;\n",
+        )
+        for bad in (data.replace(acl, b""), data + acl):
+            with self.assertRaisesRegex(local_migrate.LocalMigrationError, "prerequisite_manifest_mismatch"):
+                local_migrate._prerequisite_execution_sql(bad)
+
+    def test_source_adapters_match_existing_catalog_replay_hashes_and_reject_drift(self) -> None:
+        bundle = json.loads((ROOT / "backend/supabase/baselines/historical/pre-20260214-application/G026_RECONSTRUCTION_BUNDLE.v4.json").read_text())
+        bodies = local_migrate._canonical_source_replay_bodies()
+        for family in ("roleManagementReplayTransform", "replayMembershipWindows"):
+            for binding in bundle[family]["files"]:
+                path = "backend/supabase/migrations/" + binding["filename"]
+                original, transformed = bodies[path]
+                self.assertEqual(hashlib.sha256(original).hexdigest(), binding["sourceSha256"])
+                self.assertEqual(hashlib.sha256(transformed).hexdigest(), binding["transformedSha256"])
+        item = next(row for row in local_migrate.build_manifest()["source"]["files"]
+                    if row["path"] in bodies)
+        with patch.object(local_migrate, "_verified_migration_bytes", return_value=b"changed source"):
+            with self.assertRaisesRegex(local_migrate.LocalMigrationError, "migration_source_mismatch"):
+                local_migrate._execution_body(item)
 
     def test_ddl_prerequisite_is_ddl_only_and_localizes_extensions(self) -> None:
         sql = b"CREATE EXTENSION IF NOT EXISTS vector;\nCREATE TABLE sample(id integer);\n"
