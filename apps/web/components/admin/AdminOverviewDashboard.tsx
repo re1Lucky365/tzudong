@@ -1004,12 +1004,12 @@ function AdminMapOverviewCanvas({
               <div className="admin-empty-state pointer-events-auto min-h-0 max-w-sm items-start rounded-md bg-card p-3 text-left shadow-none">
                 <p className="text-sm font-bold text-foreground">
                   {hasError
-                    ? "지도는 유지하고 실데이터만 재확인합니다"
+                    ? "좌표 맛집 목록을 불러오지 못했습니다."
                     : "표시할 좌표 맛집이 없습니다"}
                 </p>
                 <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
                   {hasError
-                    ? "요약 API가 실패하면 임의 수치를 만들지 않습니다. 네이버 지도 프레임은 유지한 채 맛집 관리에서 좌표 상태를 확인하세요."
+                    ? "지도는 기본 위치로 유지합니다. 목록을 다시 읽기 전에는 맛집 수와 동선을 확정하지 않습니다."
                     : "운영 콘솔에서는 빈 실데이터 상태를 목업으로 대체하지 않습니다. 지도는 기본 위치로 유지하고 좌표가 있는 맛집만 표시합니다."}
                 </p>
                 <Button
@@ -1128,8 +1128,10 @@ function AdminMapInfoPanel({
   const routeModeOption = ADMIN_ROUTE_MODE_OPTIONS.find(
     (option) => option.id === routeMode,
   );
-  const routeStatusLabel =
-    directionsStatus === "ready"
+  const restaurantListUnknown = hasError && coordinateRestaurantCount === 0;
+  const routeStatusLabel = restaurantListUnknown
+    ? "동선 미확인"
+    : directionsStatus === "ready"
       ? "실제 도로 경로"
       : directionsStatus === "loading"
         ? "경로 계산 중"
@@ -1494,11 +1496,11 @@ function AdminMapInfoPanel({
         >
           <div>
             <p className="font-bold text-foreground">좌표 맛집</p>
-            <p>{adminNumberFormatter.format(coordinateRestaurantCount)}곳</p>
+            <p>{restaurantListUnknown ? "미확인" : `${adminNumberFormatter.format(coordinateRestaurantCount)}곳`}</p>
           </div>
           <div>
             <p className="font-bold text-foreground">추천 지점</p>
-            <p>{routeStops.length}/{routeStopLimit}곳</p>
+            <p>{restaurantListUnknown ? "미확인" : `${routeStops.length}/${routeStopLimit}곳`}</p>
           </div>
           <div>
             <p className="font-bold text-foreground">이동수단</p>
@@ -1506,7 +1508,7 @@ function AdminMapInfoPanel({
           </div>
           <div>
             <p className="font-bold text-foreground">도로 경로</p>
-            <p>{directionsStatus === "ready" ? "확보" : "로컬 후보"}</p>
+            <p>{restaurantListUnknown ? "미확인" : directionsStatus === "ready" ? "확보" : "로컬 후보"}</p>
           </div>
           <div>
             <p className="font-bold text-foreground">후보 출처</p>
@@ -1600,11 +1602,13 @@ function AdminMapInfoPanel({
             </p>
           )}
           <p className="mt-2 text-2xs leading-4 text-muted-foreground">
-            {directionsStatus === "ready"
-              ? "네이버 Directions 5 기준 실제 도로 주행 경로를 지도에 표시합니다."
-              : routeMode === "driving"
-                ? "도로 경로 계산 전이나 실패 시에는 같은 영상·카테고리·직선거리 기반 후보를 먼저 표시합니다."
-                : "네이버 Directions 5는 자동차만 지원하므로 도보·혼합은 근거리 촬영 초안으로 표시합니다."}
+            {restaurantListUnknown
+              ? "좌표 맛집 목록을 확인하기 전에는 동선을 만들지 않습니다."
+              : directionsStatus === "ready"
+                ? "네이버 Directions 5 기준 실제 도로 주행 경로를 지도에 표시합니다."
+                : routeMode === "driving"
+                  ? "도로 경로 계산 전이나 실패 시에는 같은 영상·카테고리·직선거리 기반 후보를 먼저 표시합니다."
+                  : "네이버 Directions 5는 자동차만 지원하므로 도보·혼합은 근거리 촬영 초안으로 표시합니다."}
           </p>
           {routeCandidateReadback ? (
           <div
