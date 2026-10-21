@@ -822,13 +822,13 @@ function VersionHistory({ projectId, revision, disabled, onRestore }: {
   useEffect(() => {
     const controller = new AbortController();
     async function load() {
-      setLoading(true); setError(null); setPreview(null); setConfirmed(false);
+      setLoading(true); setPreview(null); setConfirmed(false);
       try {
         const query = target ? `&targetRevision=${encodeURIComponent(target)}` : "";
         const parsed = versionsSchema.safeParse(await json(`${API}/${projectId}?versions=1${query}`, controller.signal));
         if (!parsed.success || (target && (!parsed.data.preview || parsed.data.preview.projectId !== projectId
           || parsed.data.preview.revision !== Number(target)))) throw new UiError("invalid_response");
-        if (!controller.signal.aborted) { setVersions(parsed.data.versions); setPreview(parsed.data.preview); }
+        if (!controller.signal.aborted) { setVersions(parsed.data.versions); setPreview(parsed.data.preview); setError(null); }
       } catch (cause) { if (!controller.signal.aborted) setError(failure(cause)); }
       finally { if (!controller.signal.aborted) setLoading(false); }
     }
@@ -840,7 +840,7 @@ function VersionHistory({ projectId, revision, disabled, onRestore }: {
     onBlur={(event) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) hadFocusRef.current = false; }}>
     <h3 id="local-version-title" className="font-semibold">과거 버전 복원</h3>
     <p className="mt-1 text-sm text-muted-foreground">저장된 이력부터 복원할 수 있습니다. 복원 전 상태도 새 이력으로 남습니다.</p>
-    {loading && <p role="status" className="mt-2 text-sm">버전 불러오는 중…</p>}
+    {loading && !error && <p role="status" className="mt-2 text-sm">버전 불러오는 중…</p>}
     {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
     <button ref={refreshButtonRef} type="button" className={`${buttonClass} mt-2`} aria-disabled={loading} aria-busy={loading}
       onClick={() => { if (!loading) setRefresh((value) => value + 1); }}>버전 목록 새로고침</button>

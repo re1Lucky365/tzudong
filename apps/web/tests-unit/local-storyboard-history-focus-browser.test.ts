@@ -29,7 +29,7 @@ const project = { id: A, revision: 3, status: 'partial', createdAt: now, updated
     providers: { externalAI: true, text: { id: 'gemini-api', model: STORYBOARD_GEMINI_TEXT_MODEL }, image: { id: 'gemini-api', model: STORYBOARD_GEMINI_DEFAULT_IMAGE_MODEL } } },
   document: doc(3) };
 const workers = [{ id: 'fixture-gemini-worker', online: true, lastHeartbeat: now, models: storyboardGeminiDeclaredModels() }];
-const state = window.storyboardHistoryFixture = { failPreview: '1', restores: 0 };
+const state = window.storyboardHistoryFixture = { failPreview: '1', restores: 0, holdVersions: false, failVersions: false, release() {}, versionReads: 0 };
 crypto.randomUUID ??= () => '22222222-2222-4222-8222-222222222222';
 const reply = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 window.fetch = async (url, init = {}) => {
@@ -38,6 +38,9 @@ window.fetch = async (url, init = {}) => {
     projects: [{ id: A, revision: project.revision, status: 'partial', title: 'Project A', createdAt: now, updatedAt: now }] });
   if (parsed.pathname !== '/api/admin/storyboard/production/' + A) throw new Error('Unexpected fixture request');
   if (method === 'GET' && parsed.searchParams.get('versions') === '1') {
+    state.versionReads += 1;
+    if (state.holdVersions) await new Promise(resolve => { state.release = resolve; });
+    if (state.failVersions) return reply({ ok: false }, 503);
     const target = parsed.searchParams.get('targetRevision');
     if (target && target === state.failPreview) throw new TypeError('Fixture offline');
     const versions = Array.from({ length: project.revision }, (_, i) => ({ revision: i + 1, createdAt: now, title: 'Project A v' + (i + 1), sceneCount: 5 }));
@@ -69,7 +72,7 @@ createRoot(document.getElementById('root')).render(<LocalStoryboardWorkspace />)
 });
 afterAll(async () => { await browser?.close(); });
 
-declare global { interface Window { storyboardHistoryFixture: { failPreview: string | null; restores: number } } }
+declare global { interface Window { storyboardHistoryFixture: { failPreview: string | null; restores: number; holdVersions: boolean; failVersions: boolean; release: () => void; versionReads: number } } }
 
 localTest('version history keeps keyboard focus when picking, failing a preview and restoring', async () => {
   if (!browser) throw new Error('Local Chrome prerequisite missing');
@@ -112,6 +115,53 @@ localTest('version history keeps keyboard focus when picking, failing a preview 
       await playwrightExpect(page.getByRole('button', { name: '버전 목록 새로고침' })).toBeFocused();
       expect(await page.evaluate(() => window.storyboardHistoryFixture.restores)).toBe(1);
       expect(errors).toEqual([]); expect(blocked).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  }
+}, 40_000);
+
+localTest('failed version history stays visible while the list refresh is in flight', async () => {
+  if (!browser) throw new Error('Local Chrome prerequisite missing');
+  const failure = '요청 상태를 확인하지 못했습니다. 새로고침하여 저장 여부를 확인하세요. 자동 재전송하지 않습니다.';
+  for (const width of [1280, 390]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(8_000);
+    const errors: string[] = [], blocked: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/*', route => {
+      if (route.request().isNavigationRequest() && route.request().url().startsWith('http://storyboard.fixture.test/')) {
+        return route.fulfill({ contentType: 'text/html', body: '<div id="root"></div>' });
+      }
+      blocked.push(route.request().url()); return route.abort();
+    });
+    try {
+      await page.goto(`http://storyboard.fixture.test/admin?module=storyboard&storyboardProject=${A}`);
+      await page.addScriptTag({ content: script });
+      await page.getByRole('button', { name: '버전 이력' }).click();
+      await playwrightExpect(page.locator('#local-history-version')).toBeVisible();
+      await page.evaluate(() => { window.storyboardHistoryFixture.failVersions = true; });
+      const refresh = page.getByRole('button', { name: '버전 목록 새로고침' });
+      await refresh.click();
+      const versionAlert = page.locator('section[aria-labelledby="local-version-title"] [role="alert"]');
+      await playwrightExpect(versionAlert).toHaveText(failure);
+      const reads = await page.evaluate(() => window.storyboardHistoryFixture.versionReads);
+      await page.evaluate(() => { window.storyboardHistoryFixture.holdVersions = true; });
+      await refresh.focus();
+      await page.keyboard.press('Enter');
+      await playwrightExpect(refresh).toHaveAttribute('aria-busy', 'true');
+      await playwrightExpect(refresh).toBeFocused();
+      await playwrightExpect(refresh).not.toHaveAttribute('disabled');
+      await playwrightExpect(versionAlert).toHaveText(failure);
+      await playwrightExpect(page.getByText('버전 불러오는 중…')).toHaveCount(0);
+      await playwrightExpect(page.locator('#local-history-version')).toBeVisible();
+      expect(await page.evaluate(() => window.storyboardHistoryFixture.versionReads)).toBe(reads + 1);
+      await page.evaluate(() => window.storyboardHistoryFixture.release());
+      await playwrightExpect(versionAlert).toHaveText(failure);
+      await playwrightExpect(refresh).toBeFocused();
+      expect(errors).toEqual([]);
+      expect(blocked).toEqual([]);
     } finally {
       await context.close();
     }
