@@ -649,7 +649,7 @@ function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureC
         </div>
       </div>
       <div aria-live="polite" role="status" className="mt-3 text-sm">
-        {loading && !view ? "저장된 결과 확인 중…" : view ? STATUSES[view.project.status] : "아직 저장 결과를 확인하지 못했습니다."}
+        {loading && !view && !readError ? "저장된 결과 확인 중…" : view ? STATUSES[view.project.status] : "아직 저장 결과를 확인하지 못했습니다."}
         {busy && " · 요청 처리 중…"}{notice && <p className="mt-1">{notice}</p>}
       </div>
       {readError && <p role="alert" className="mt-2 text-sm text-destructive">{readError}</p>}

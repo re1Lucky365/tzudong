@@ -26,6 +26,7 @@ const summary = { id: A, revision: 1, status: 'partial', title: 'Project A', cre
 const workers = [{ id: 'fixture-gemini-worker', online: true, lastHeartbeat: now, models: storyboardGeminiDeclaredModels() }];
 const waiters = [];
 const fixture = { reads: 0, hold: false, release() { const pending = waiters.splice(0); for (const resolve of pending) resolve(); } };
+const failProject = new URL(location.href).searchParams.has('failProject');
 window.storyboardProjectRefresh = fixture;
 const reply = value => new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
 window.fetch = async url => {
@@ -34,6 +35,7 @@ window.fetch = async url => {
   if (path !== '/api/admin/storyboard/production/' + A) throw new Error('Unexpected fixture request');
   fixture.reads += 1;
   if (fixture.hold && fixture.reads > 1) await new Promise(resolve => { waiters.push(resolve); });
+  if (failProject) return new Response('', { status: 503 });
   return reply({ ok: true, project, job: null, events: [] });
 };
 createRoot(document.getElementById('root')).render(<LocalStoryboardWorkspace />);
@@ -86,6 +88,47 @@ localTest('storyboard project refresh keeps keyboard focus while the saved proje
       await playwrightExpect(refresh).toBeFocused();
       await playwrightExpect(workspace.getByRole('status')).toContainText('일부 결과 저장됨');
       expect(errors).toEqual([]); expect(blocked).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  }
+}, 60_000);
+
+localTest('a failed storyboard project read stays unread while refreshing', async () => {
+  if (!browser) throw new Error('Local Chrome prerequisite missing');
+  for (const width of [1280, 390]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(8_000);
+    const errors: string[] = [], blocked: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/*', route => {
+      if (route.request().isNavigationRequest() && route.request().url().startsWith('http://storyboard.fixture.test/')) {
+        return route.fulfill({ contentType: 'text/html', body: '<div id="root"></div>' });
+      }
+      blocked.push(route.request().url()); return route.abort();
+    });
+    try {
+      await page.goto(`http://storyboard.fixture.test/admin?module=storyboard&storyboardProject=${A}&failProject=1`);
+      await page.addScriptTag({ content: script });
+      const workspace = page.getByLabel('저장된 스토리보드');
+      const status = workspace.getByRole('status');
+      await playwrightExpect(status).toHaveText('아직 저장 결과를 확인하지 못했습니다.');
+      await playwrightExpect(workspace.getByRole('alert')).toContainText('요청 상태를 확인하지 못했습니다.');
+      const refresh = workspace.getByRole('button', { name: '새로고침' });
+      await page.evaluate(() => { window.storyboardProjectRefresh.hold = true; });
+      await refresh.focus();
+      await page.keyboard.press('Enter');
+      await playwrightExpect(refresh).toHaveAttribute('aria-busy', 'true');
+      await playwrightExpect(refresh).toBeFocused();
+      await playwrightExpect(status).toHaveText('아직 저장 결과를 확인하지 못했습니다.');
+      await playwrightExpect(page.getByText('저장된 결과 확인 중…')).toHaveCount(0);
+      await playwrightExpect(workspace.getByRole('alert')).toContainText('요청 상태를 확인하지 못했습니다.');
+      await page.evaluate(() => window.storyboardProjectRefresh.release());
+      await playwrightExpect(status).toHaveText('아직 저장 결과를 확인하지 못했습니다.');
+      await playwrightExpect(refresh).toBeFocused();
+      expect(errors).toEqual([]);
+      expect(blocked).toEqual([]);
     } finally {
       await context.close();
     }
