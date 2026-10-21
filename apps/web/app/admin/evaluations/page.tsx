@@ -1833,15 +1833,15 @@ function AdminEvaluationPage({
         .order('created_at', { ascending: false })
         .overrideTypes<Record<string, unknown>[], { merge: false }>();
 
-      if (reviewsError) throw reviewsError;
-      const typedReviewsData = (reviewsData ?? [])
+      if (reviewsError || !Array.isArray(reviewsData)) throw new Error('admin-review-read-failed');
+      const typedReviewsData = reviewsData
         .map(parseReview)
         .filter((review): review is Omit<Review, 'profiles' | 'restaurants'> => review !== null);
       if (!typedReviewsData.length) return [];
       const userIds = [...new Set(typedReviewsData.map(r => r.user_id))];
       const restaurantIds = [...new Set(typedReviewsData.map(r => r.restaurant_id))];
 
-      const [profilesLookup, { data: restaurantsData }] = await Promise.all([
+      const [profilesLookup, restaurantsResult] = await Promise.all([
         fetchAdminProfileSummariesLookup(userIds),
         supabase
           .from('restaurants')
@@ -1850,7 +1850,8 @@ function AdminEvaluationPage({
           .overrideTypes<Record<string, unknown>[], { merge: false }>(),
       ]);
 
-      const typedRestaurantsData = parseValidatedRows(restaurantsData ?? [], isReviewRestaurantRow);
+      if (restaurantsResult.error || !Array.isArray(restaurantsResult.data)) throw new Error('admin-review-read-failed');
+      const typedRestaurantsData = parseValidatedRows(restaurantsResult.data, isReviewRestaurantRow);
 
       const restaurantsMap = new Map(typedRestaurantsData.map(r => [r.id, { name: r.approved_name || '이름 없음', address: r.road_address || r.jibun_address || '' }]));
 
@@ -2254,11 +2255,13 @@ function AdminEvaluationPage({
               invalidateAdminPendingCounts();
             }}
             loading={submissionsLoading || recommendationRequestsLoading || recordActions.busy || recordViewsInvalidated}
-            reviews={recordViewsInvalidated ? [] : reviewsData}
+            reviews={recordViewsInvalidated || reviewsQuery.isError ? [] : reviewsData}
             onApproveReview={handleApproveReview}
             onRejectReview={handleRejectReview}
             onDeleteReview={handleDeleteReview}
-            reviewsLoading={reviewsLoading || recordActions.busy || recordViewsInvalidated}
+            reviewsLoading={reviewsLoading || (reviewsQuery.isError && reviewsQuery.isFetching) || recordActions.busy || recordViewsInvalidated}
+            reviewsError={!recordViewsInvalidated && reviewsQuery.isError}
+            onRetryReviews={() => void reviewsQuery.refetch()}
             initialTab={submissionInitialTab}
             toolbarTrailingAction={submissionInitialTab !== 'reviews' ? (
               <Button variant="outline" size="sm" disabled={recordActions.busy || recordViewsInvalidated || submissionsLoading || submissionsData.length === 0} onClick={() => setSubmissionEditorOpen(true)}>제보 수정</Button>

@@ -1,7 +1,7 @@
 'use client';
 
 import { formatTzuyangReviewForDisplay } from '@/lib/tzuyang-review-display';
-import { useState, useCallback, useMemo, useEffect, useRef, memo, type ReactNode } from 'react';
+import { useState, useCallback, useMemo, useEffect, useLayoutEffect, useRef, memo, type ReactNode } from 'react';
 import { useFilledSkeletonCount } from '@/lib/use-filled-skeleton-count';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -336,6 +336,8 @@ interface SubmissionListViewProps {
     onRejectReview?: (review: Review, adminNote: string) => void;
     onDeleteReview?: (review: Review) => void;
     reviewsLoading?: boolean;
+    reviewsError?: boolean;
+    onRetryReviews?: () => void;
     // 초기 탭 설정
     initialTab?: SubmissionAdminTab;
 }
@@ -357,6 +359,8 @@ export function SubmissionListView({
     onRejectReview,
     onDeleteReview,
     reviewsLoading = false,
+    reviewsError = false,
+    onRetryReviews,
     initialTab = 'new',
 }: SubmissionListViewProps) {
     // 탭 상태 (초기 탭 지정 가능)
@@ -365,6 +369,17 @@ export function SubmissionListView({
     const isMobile = useIsMobile();
     const [inlineInspector, setInlineInspector] = useState(false);
     const rowTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const reviewRetryButtonRef = useRef<HTMLButtonElement | null>(null);
+    const reviewSearchInputRef = useRef<HTMLInputElement | null>(null);
+    const reviewFocusWasInRemovedContentRef = useRef(false);
+    useEffect(() => {
+        const trackReviewFocus = (event: FocusEvent) => {
+            reviewFocusWasInRemovedContentRef.current = event.target instanceof Element
+                && event.target.closest('[data-admin-review-row], [data-admin-moderation-inspector="true"], [data-admin-moderation-drawer]') !== null;
+        };
+        document.addEventListener('focusin', trackReviewFocus, true);
+        return () => document.removeEventListener('focusin', trackReviewFocus, true);
+    }, []);
     const restoreRowTriggerFocus = useCallback(() => {
         if (shouldRestoreModerationRowFocus(document.activeElement)
             && rowTriggerRef.current?.isConnected && !rowTriggerRef.current.disabled) {
@@ -1896,6 +1911,10 @@ export function SubmissionListView({
         scheduleInlineInspectorFocusRestore();
     }, [scheduleInlineInspectorFocusRestore]);
 
+    useEffect(() => {
+        if (reviewsError && selectedReview) closeReviewDetail();
+    }, [reviewsError, selectedReview, closeReviewDetail]);
+
     const handleReviewAction = useCallback((action: 'approve' | 'reject', review: Review) => {
         setSelectedReview(review);
         setReviewDeleteTarget(null);
@@ -2612,7 +2631,13 @@ export function SubmissionListView({
         </section>
     );
 
-    const hasSelection = activeTab === 'reviews' ? !!selectedReview : !!selectedSubmission;
+    const hasSelection = activeTab === 'reviews' ? !reviewsError && !!selectedReview : !!selectedSubmission;
+    const reviewReadFailed = activeTab === 'reviews' && reviewsError && !reviewsLoading;
+    useLayoutEffect(() => {
+        if (!reviewReadFailed) return;
+        if (reviewFocusWasInRemovedContentRef.current) reviewRetryButtonRef.current?.focus({ preventScroll: true });
+        reviewFocusWasInRemovedContentRef.current = false;
+    }, [reviewReadFailed]);
     const resultCount = activeTab === 'reviews' ? orderedReviews.length : filteredSubmissions.length;
     const displayedCount = activeTab === 'reviews' ? displayedReviews.length : displayedSubmissions.length;
     const closeInspector = () => {
@@ -2639,7 +2664,7 @@ export function SubmissionListView({
                 <div data-admin-moderation-toolbar className="admin-toolbar admin-cms-toolbar shrink-0">
                     <div className="relative min-w-[180px] flex-1">
                         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input type="search" aria-label={activeTab === 'reviews' ? '리뷰 검색' : '제보 검색'} placeholder={activeTab === 'reviews' ? '맛집·리뷰·작성자 검색' : '맛집·주소·제보자 검색'} value={searchValue} onChange={event => changeSearch(event.target.value)} className="h-11 pl-8 pr-8 text-sm md:h-8" />
+                        <Input ref={activeTab === 'reviews' ? reviewSearchInputRef : undefined} type="search" aria-label={activeTab === 'reviews' ? '리뷰 검색' : '제보 검색'} placeholder={activeTab === 'reviews' ? '맛집·리뷰·작성자 검색' : '맛집·주소·제보자 검색'} value={searchValue} onChange={event => changeSearch(event.target.value)} className="h-11 pl-8 pr-8 text-sm md:h-8" />
                         {searchValue && <button type="button" aria-label="검색 지우기" onClick={() => changeSearch('')} className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md hover:bg-muted"><X className="h-3.5 w-3.5" /></button>}
                     </div>
                     <select aria-label="처리 상태" value={statusFilter} onChange={event => { setStatusFilter(event.target.value as AdminModerationFilter); resetVisibleCountByTab(activeTab); }} className={filterClassName}>
@@ -2662,7 +2687,7 @@ export function SubmissionListView({
                     {toolbarTrailingAction}
                 </div>
                 <div className="flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-2 px-1 text-xs text-muted-foreground" aria-live="polite">
-                    <span><strong className="font-semibold text-foreground">{currentTabSummary.label}</strong> · {resultCount}건</span>
+                    <span><strong className="font-semibold text-foreground">{currentTabSummary.label}</strong> · {activeTab === 'reviews' && reviewsLoading ? '조회 중' : reviewReadFailed ? '조회 실패' : `${resultCount}건`}</span>
                     <span>{searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all' ? '필터 적용 중' : '전체 조회'}</span>
                 </div>
                 {activeTab !== 'reviews' && <div className="flex shrink-0 flex-wrap gap-1" data-admin-submission-queue-reason-filter="true" aria-label="제보 큐 검수 사유 필터">
@@ -2672,7 +2697,7 @@ export function SubmissionListView({
                 </div>}
                 <div className={cn('grid min-h-0 flex-1 gap-2 overflow-hidden', inlineInspector && hasSelection && 'xl:grid-cols-[minmax(0,1fr)_360px]')}>
                     <section data-admin-moderation-list className="admin-surface flex min-h-0 min-w-0 flex-col overflow-hidden" aria-label={activeTab === 'reviews' ? '리뷰 목록' : '제보 목록'}>
-                        {(activeTab === 'reviews' ? reviewsLoading : loading && !submissions.length) ? renderListSkeletonCards(currentTabSummary.label) : <div ref={listScrollRef} className={listBodyClassName}
+                        {(activeTab === 'reviews' ? reviewsLoading : loading && !submissions.length) ? renderListSkeletonCards(currentTabSummary.label) : reviewReadFailed ? <div role="alert" data-admin-moderation-read-error="reviews" className="admin-empty-state flex min-h-40 flex-1 flex-col items-center justify-center gap-2 p-4 text-sm text-destructive"><p>리뷰 목록을 불러오지 못했습니다.</p>{onRetryReviews && <Button ref={reviewRetryButtonRef} type="button" variant="outline" size="sm" onClick={event => { if (document.activeElement === event.currentTarget) reviewSearchInputRef.current?.focus({ preventScroll: true }); onRetryReviews(); }}>다시 조회</Button>}</div> : <div ref={listScrollRef} className={listBodyClassName}
                             style={isMobile && activeTab === 'reviews' ? { touchAction: 'pan-y' } : undefined}
                             onPointerDown={isMobile && activeTab === 'reviews' ? handleSubmissionTabPointerDown : undefined}
                             onPointerMove={isMobile && activeTab === 'reviews' ? handleSubmissionTabPointerMove : undefined}
@@ -2723,7 +2748,7 @@ export function SubmissionListView({
                             <div ref={loadMoreSentinelRef} className="h-1" />
                             {hasMoreCards && <div className="p-2 text-center"><Button type="button" variant="outline" size="sm" disabled={isCurrentListLoading} onClick={handleLoadMoreCards}>더 보기</Button></div>}
                         </div>}
-                        <div className="admin-cms-footer shrink-0 justify-between"><span role="status">{isCurrentListLoading ? '조회 중' : `${displayedCount} / ${resultCount}건`}</span><span>조회된 목록 기준</span></div>
+                        <div className="admin-cms-footer shrink-0 justify-between"><span role="status">{isCurrentListLoading ? '조회 중' : reviewReadFailed ? '조회 실패' : `${displayedCount} / ${resultCount}건`}</span><span>{reviewReadFailed ? '다시 조회 필요' : '조회된 목록 기준'}</span></div>
                     </section>
                     {inlineInspector && hasSelection ? (activeTab === 'reviews' ? renderReviewDetailPanel() : renderSubmissionDetailPanel()) : null}
                 </div>
