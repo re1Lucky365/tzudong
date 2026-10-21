@@ -1613,9 +1613,9 @@ function useAdminOverviewStats(isAdmin: boolean): {
       dashboardVideos: dashboardSummaryQuery.data?.videos ?? null,
     },
     isLoading:
-      pendingCountsQuery.isLoading ||
-      dashboardSummaryQuery.isLoading ||
-      bannersQuery.isLoading,
+      (pendingCountsQuery.isLoading && !adminQueryLastReadFailed(pendingCountsQuery)) ||
+      (dashboardSummaryQuery.isLoading && !adminQueryLastReadFailed(dashboardSummaryQuery)) ||
+      (bannersQuery.isLoading && !adminQueryLastReadFailed(bannersQuery)),
     hasError: statsQueries.some(adminQueryLastReadFailed),
     isRetrying: statsQueries.some(
       (query) => adminQueryLastReadFailed(query) && query.isFetching,

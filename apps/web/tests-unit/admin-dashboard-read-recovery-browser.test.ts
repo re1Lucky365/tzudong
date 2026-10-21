@@ -13,7 +13,7 @@ async function bundle() {
     import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
     import { AdminConsoleOverview } from './components/admin/AdminConsoleOverview';
     import { buildAdminPendingCountsResponse } from './lib/admin/pending-counts';
-    const fixture = { summaryOk: false, summaryDelayMs: 0, requests: [] };
+    const fixture = { summaryOk: false, summaryDelayMs: 0, holdSummary: false, releaseSummary() {}, requests: [] };
     globalThis.__dashboardFixture = fixture;
     const json = value => new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
     const asOf = '2026-10-21T00:00:00Z';
@@ -23,7 +23,10 @@ async function bundle() {
       if (url === '/api/admin/pending-counts') return json(buildAdminPendingCountsResponse({ restaurantSubmissions: 2, restaurantRecommendationRequests: 1, reviews: 3, recommendationRequestsLifecycleReady: true, asOf }));
       if (url === '/api/admin/banners') return json({ banners: [] });
       if (url.startsWith('/api/admin/youtube-kpis?')) return json({ asOf, period: '1M', totalVideos: 0, videos: [] });
-      if (url === '/api/dashboard/summary') await new Promise(resolve => setTimeout(resolve, fixture.summaryDelayMs));
+      if (url === '/api/dashboard/summary') {
+        if (fixture.holdSummary) await new Promise(resolve => { fixture.releaseSummary = resolve; });
+        else await new Promise(resolve => setTimeout(resolve, fixture.summaryDelayMs));
+      }
       if (url === '/api/dashboard/summary' && fixture.summaryOk) return json({ asOf, totals: { restaurants: 12, videos: 34, withCoordinates: 10 }, topCategories: [], videos: [] });
       return new Response('', { status: 503 });
     };
@@ -59,7 +62,7 @@ async function bundle() {
   return built.outputs.find(output => output.path.endsWith('.js'))!.text();
 }
 
-type Fixture = { summaryOk: boolean; summaryDelayMs: number; requests: string[] };
+type Fixture = { summaryOk: boolean; summaryDelayMs: number; holdSummary?: boolean; releaseSummary?: () => void; requests: string[] };
 const fixture = (page: Page) => page.evaluate(() => ({ ...(globalThis as unknown as { __dashboardFixture: Fixture }).__dashboardFixture }));
 const requestCount = async (page: Page, path: string) => (await fixture(page)).requests.filter(url => url === path).length;
 
@@ -91,11 +94,17 @@ const requestCount = async (page: Page, path: string) => (await fixture(page)).r
     const pendingBefore = await requestCount(page, '/api/admin/pending-counts');
     const bannersBefore = await requestCount(page, '/api/admin/banners');
 
-    await page.evaluate(() => { (globalThis as unknown as { __dashboardFixture: Fixture }).__dashboardFixture.summaryDelayMs = 600; });
+    await page.evaluate(() => { (globalThis as unknown as { __dashboardFixture: Fixture }).__dashboardFixture.holdSummary = true; });
     await retry.focus();
     await page.keyboard.press('Enter');
     await playwrightExpect(error.getByRole('button', { name: '조회 중…' })).toBeFocused();
     await playwrightExpect(page.locator('[data-admin-module-summary]')).not.toContainText('KPI 데이터 조회 중');
+    await playwrightExpect(page.locator('[data-admin-dashboard-widget-card="ops"] [data-admin-dashboard-dynamic-skeleton]')).toHaveCount(0);
+    await page.evaluate(() => {
+      const fixture = (globalThis as unknown as { __dashboardFixture: Fixture }).__dashboardFixture;
+      fixture.holdSummary = false;
+      fixture.releaseSummary?.();
+    });
     await playwrightExpect(error.getByRole('button', { name: '다시 조회' })).toBeFocused();
     expect(await requestCount(page, '/api/dashboard/summary')).toBe(2);
 
