@@ -11,12 +11,17 @@ async function bundle() {
     import React from 'react';
     import { createRoot } from 'react-dom/client';
     import AdminUsersPanel from './components/admin/AdminUsersPanel';
-    const fixture = { hold: false, release: () => {}, reads: 0 };
+    const fixture = { hold: false, release: () => {}, reads: 0, pages: false };
     globalThis.__usersRead = fixture;
+    const user = page => ({ id: 'user-' + page, email: 'user@example.test', username: 'user' + page, nickname: '사용자 ' + page, avatarUrl: null, profileRole: 'user', isAdmin: false, isDisabled: false, bannedUntil: null, createdAt: '2026-10-21T00:00:00Z', lastSignInAt: null, emailConfirmedAt: '2026-10-21T00:00:00Z', statusLabel: '활성', roleLabel: '사용자' });
     globalThis.fetch = async input => {
       if (!String(input).startsWith('/api/admin/users')) throw new Error('OFFLINE_ONLY');
       fixture.reads += 1;
       if (fixture.hold) await new Promise(resolve => { fixture.release = resolve; });
+      if (fixture.pages) {
+        const page = Number(new URL(String(input), 'https://users-read.test').searchParams.get('page') ?? '1');
+        return new Response(JSON.stringify({ users: [user(page)], summary: { loadedUsers: 1, adminUsers: 0, disabledUsers: 0, unconfirmedUsers: 0 }, page, perPage: 120, total: 240, sourceTotal: 240, isPartial: false, hasPreviousPage: page > 1, hasNextPage: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
       return new Response(JSON.stringify({ error: '사용자 목록을 불러오지 못했습니다.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     };
     createRoot(document.body.appendChild(document.createElement('div'))).render(<main style={{ height: '100vh' }}><AdminUsersPanel /></main>);
@@ -82,6 +87,49 @@ declare global { interface Window { __usersRead: { hold: boolean; release: () =>
         await page.evaluate(() => window.__usersRead.release());
         await playwrightExpect(retry).toBeFocused();
         await playwrightExpect(metric('전체 사용자')).toHaveText('미확인');
+        expect(pageErrors).toEqual([]);
+        expect(externalRequests).toBe(0);
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+}, 60_000);
+
+(existsSync(chrome) ? test : test.skip)('the next user page keeps keyboard focus while that page is loading', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle().then(source => source.replace('pages: false', 'pages: true'));
+    for (const width of [1280, 390]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      const page = await context.newPage();
+      page.setDefaultTimeout(8_000);
+      const pageErrors: string[] = [];
+      let externalRequests = 0;
+      page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
+      await page.route('**/*', route => {
+        if (route.request().url() === 'https://users-read.test/') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
+        if (!route.request().url().startsWith('https://users-read.test/')) externalRequests++;
+        return route.abort();
+      });
+      await page.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
+      try {
+        await page.goto('https://users-read.test/');
+        await page.addScriptTag({ content: script });
+        await playwrightExpect(page.getByText('사용자 1', { exact: true }).first()).toBeVisible();
+        const next = page.getByRole('button', { name: '다음 사용자 페이지' });
+        await page.evaluate(() => { window.__usersRead.hold = true; });
+        await next.focus();
+        await page.keyboard.press('Enter');
+        await playwrightExpect(next).toHaveAttribute('aria-busy', 'true');
+        await playwrightExpect(next).toBeFocused();
+        await playwrightExpect(next).not.toHaveAttribute('disabled');
+        await playwrightExpect(page.getByText('사용자 1', { exact: true }).first()).toBeVisible();
+        await page.evaluate(() => window.__usersRead.release());
+        await playwrightExpect(page.getByText('사용자 2', { exact: true }).first()).toBeVisible();
+        await playwrightExpect(next).toBeFocused();
         expect(pageErrors).toEqual([]);
         expect(externalRequests).toBe(0);
       } finally {
