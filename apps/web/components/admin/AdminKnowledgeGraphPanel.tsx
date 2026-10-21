@@ -65,6 +65,8 @@ export function AdminKnowledgeGraphPanel() {
   }, [data?.nodes, canvasSize]);
   const resetPage = () => { setCursors([null]); setEdgeCursors([null]); };
   const reload = () => { if (cursor === null && edgeCursor === null) void query.refetch(); else resetPage(); };
+  const cursorStale = query.error?.message === 'knowledge_cursor_stale';
+  const retryFailedRead = () => { if (cursorStale) resetPage(); else if (!query.isFetching) void query.refetch(); };
   const selectNode = (id: string) => { if (searchPending || query.isPlaceholderData) return; setSelected(id); setDetailOpen(true); setListOpen(false); };
   const changeQuery = (value: string, field: 'search' | 'kind') => {
     if (field === 'search') setSearch(value); else { setKind(value); setQ(search); resetPage(); }
@@ -80,7 +82,7 @@ export function AdminKnowledgeGraphPanel() {
       <select aria-label="지식 종류" value={kind} onChange={event => changeQuery(event.target.value, 'kind')} className="h-8 rounded-md border bg-background px-2 text-xs"><option value="">전체</option>{KNOWLEDGE_KINDS.map(value => <option key={value} value={value}>{labels[value]}</option>)}</select>
       {data ? <span className="text-xs tabular-nums text-muted-foreground">{number.format(data.totalNodes)}개 · 연결 {number.format(data.totalEdges)}</span> : null}
     </div>
-    {query.isError ? <div role="alert" className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive">{query.error.message === 'knowledge_cursor_stale' ? '그래프가 변경되었습니다. 첫 페이지부터 새로고침하세요.' : '지식 그래프를 불러오지 못했습니다.'}<Button size="sm" variant="outline" onClick={reload}>새로고침</Button></div> : null}
+    {query.isError ? <div role="alert" className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive">{cursorStale ? '그래프가 변경되었습니다. 첫 페이지부터 새로고침하세요.' : '지식 그래프를 불러오지 못했습니다.'}<Button size="sm" variant="outline" aria-busy={query.isFetching} onClick={retryFailedRead}>{cursorStale ? '첫 페이지부터 새로고침' : query.isFetching ? '조회 중…' : '다시 시도'}</Button></div> : null}
     <div ref={canvas} className="relative min-h-[320px] min-w-0 flex-1 overflow-hidden rounded-lg border bg-muted/20" data-knowledge-canvas>
       <div className="absolute right-2 top-2 z-10 flex gap-1"><Button size="sm" variant="outline" aria-label="그래프 축소" disabled={scale <= .5} onClick={() => setScale(value => Math.max(.5, value - .25))}>−</Button><Button size="sm" variant="outline" aria-label="그래프 확대" disabled={scale >= 2} onClick={() => setScale(value => Math.min(2, value + .25))}>+</Button></div>
       <div className="absolute inset-0 overflow-auto p-2" data-allow-horizontal-scroll="true" data-horizontal-scroll-owner="knowledge-graph-canvas">
