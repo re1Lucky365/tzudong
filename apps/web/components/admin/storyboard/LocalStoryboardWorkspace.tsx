@@ -202,6 +202,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
   const departure = useRef<DepartureState>(EMPTY_DEPARTURE);
   const acceptedLocation = useRef<{ href: string; state: unknown } | null>(null);
   const createController = useRef<AbortController | null>(null);
+  const catalogAbort = useRef<AbortController | null>(null);
   const onDepartureChange = useCallback((state: DepartureState) => { departure.current = state; }, []);
   const mayLeave = useCallback(() => {
     if (departure.current.busy) {
@@ -268,19 +269,30 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
     };
   }, [mayLeave]);
 
-  useEffect(() => {
+  const refreshCatalog = useCallback((visible: boolean) => {
+    if (!visible && catalogAbort.current) return;
+    catalogAbort.current?.abort();
     const controller = new AbortController();
-    setCatalogBusy(true);
+    catalogAbort.current = controller;
+    if (visible) setCatalogBusy(true);
     void json(API, controller.signal).then((body) => {
       const parsed = catalogSchema.safeParse(body);
       if (!parsed.success) throw new UiError("invalid_response");
       if (!controller.signal.aborted) { setCatalog(parsed.data); setCatalogLoaded(true); setCatalogError(null); }
     }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setCatalogError(error instanceof UiError && error.code === "unauthorized"
+      if (controller.signal.aborted || !visible) return;
+      setCatalogError(error instanceof UiError && error.code === "unauthorized"
         ? failure(error) : "프로젝트 목록을 불러오지 못했습니다. 목록을 다시 불러와 확인하세요.");
-    }).finally(() => { if (!controller.signal.aborted) setCatalogBusy(false); });
-    return () => controller.abort();
-  }, [catalogTick]);
+    }).finally(() => {
+      if (catalogAbort.current === controller) catalogAbort.current = null;
+      if (!controller.signal.aborted && visible) setCatalogBusy(false);
+    });
+  }, []);
+  const refreshWorkers = useCallback(() => { refreshCatalog(false); }, [refreshCatalog]);
+  useEffect(() => {
+    refreshCatalog(true);
+    return () => { catalogAbort.current?.abort(); };
+  }, [catalogTick, refreshCatalog]);
 
   const selectProject = useCallback((id: string | null) => {
     if (id === projectId || !mayLeave()) return;
@@ -444,7 +456,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
         </section>}
       </aside>}
       {projectId && <div className="order-1 min-w-0"><SavedProjectWorkspace key={projectId} projectId={projectId} featureHeld={actionsHeld}
-        onProject={updateSummary} onDepartureChange={onDepartureChange} /></div>}
+        onProject={updateSummary} onDepartureChange={onDepartureChange} onActivePoll={refreshWorkers} /></div>}
     </div>
     </div>
     {archive}
@@ -452,9 +464,10 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
   </section>;
 }
 
-function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureChange }: {
+function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureChange, onActivePoll }: {
   projectId: string; featureHeld: boolean;
   onProject: (project: Project) => void; onDepartureChange: (state: DepartureState) => void;
+  onActivePoll: () => void;
 }) {
   const [view, setView] = useState<View | null>(null);
   const [workspaceView, setWorkspaceView] = useState<"scenes" | "history">("scenes");
@@ -517,7 +530,7 @@ function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureC
         setView(next); onProject(next.project); setReadError(null); setNeedsReadback(false);
         const pending = pendingEdit.current;
         if (pending && confirmsEdit(next, pending)) acceptEdit(next, pending);
-        if (isActive(next)) timer.current = setTimeout(() => { void load(); }, POLL_MS);
+        if (isActive(next)) timer.current = setTimeout(() => { onActivePoll(); void load(); }, POLL_MS);
       } catch (error) {
         if (!controller.signal.aborted) setReadError(failure(error));
         // A failed read stops polling; an explicit refresh resumes it.
@@ -525,7 +538,7 @@ function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureC
     }
     void load();
     return stopReading;
-  }, [endpoint, projectId, readTick, onProject, stopReading, acceptEdit]);
+  }, [endpoint, projectId, readTick, onProject, stopReading, acceptEdit, onActivePoll]);
   useEffect(() => () => writeController.current?.abort(), []);
   const loadedId = view?.project.id;
   useEffect(() => { if (loadedId) heading.current?.focus({ preventScroll: true }); }, [loadedId]);
