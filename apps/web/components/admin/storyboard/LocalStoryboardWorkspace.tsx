@@ -664,7 +664,7 @@ function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureC
             className={`min-h-11 rounded-md px-3 py-2 text-sm ${workspaceView === id ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-background hover:text-foreground"}`}
             onClick={() => setWorkspaceView(id)}>{label}</button>)}
       </nav>
-      {workspaceView === "history" && <VersionHistory key={`${projectId}:${view.project.revision}`} projectId={projectId}
+      {workspaceView === "history" && <VersionHistory key={projectId} projectId={projectId}
         revision={view.project.revision} disabled={locked || !!editing || !view.project.document || archived} onRestore={mutate} />}
       {workspaceView === "scenes" && (view.project.document ? <section aria-labelledby="local-scenes-title" className="min-w-0 space-y-3">
         <div className="px-1">
@@ -761,46 +761,61 @@ function VersionHistory({ projectId, revision, disabled, onRestore }: {
   projectId: string; revision: number; disabled: boolean;
   onRestore: (body: Record<string, unknown>) => Promise<boolean>;
 }) {
-  const [history, setHistory] = useState<z.infer<typeof versionsSchema> | null>(null);
+  const [versions, setVersions] = useState<z.infer<typeof versionsSchema>["versions"] | null>(null);
+  const [preview, setPreview] = useState<z.infer<typeof versionsSchema>["preview"]>(null);
   const [target, setTarget] = useState("");
   const [sceneNo, setSceneNo] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
+  const [loadedRevision, setLoadedRevision] = useState(revision);
+  const versionSelectRef = useRef<HTMLSelectElement>(null);
+  const refreshButtonRef = useRef<HTMLButtonElement>(null);
+  const hadFocusRef = useRef(false);
+  if (loadedRevision !== revision) {
+    setLoadedRevision(revision); setTarget(""); setSceneNo(""); setConfirmed(false); setPreview(null);
+  }
+  useLayoutEffect(() => {
+    if (!hadFocusRef.current || document.activeElement !== document.body) return;
+    versionSelectRef.current?.focus();
+    if (document.activeElement === document.body) refreshButtonRef.current?.focus();
+  });
   useEffect(() => {
     const controller = new AbortController();
     async function load() {
-      setLoading(true); setError(null); setHistory(null); setConfirmed(false);
+      setLoading(true); setError(null); setPreview(null); setConfirmed(false);
       try {
         const query = target ? `&targetRevision=${encodeURIComponent(target)}` : "";
         const parsed = versionsSchema.safeParse(await json(`${API}/${projectId}?versions=1${query}`, controller.signal));
         if (!parsed.success || (target && (!parsed.data.preview || parsed.data.preview.projectId !== projectId
           || parsed.data.preview.revision !== Number(target)))) throw new UiError("invalid_response");
-        if (!controller.signal.aborted) setHistory(parsed.data);
+        if (!controller.signal.aborted) { setVersions(parsed.data.versions); setPreview(parsed.data.preview); }
       } catch (cause) { if (!controller.signal.aborted) setError(failure(cause)); }
       finally { if (!controller.signal.aborted) setLoading(false); }
     }
     void load();
     return () => controller.abort();
-  }, [projectId, target, refresh]);
-  const preview = history?.preview;
-  return <section className={panelClass} aria-labelledby="local-version-title">
+  }, [projectId, target, refresh, revision]);
+  return <section className={panelClass} aria-labelledby="local-version-title"
+    onFocus={() => { hadFocusRef.current = true; }}
+    onBlur={(event) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) hadFocusRef.current = false; }}>
     <h3 id="local-version-title" className="font-semibold">과거 버전 복원</h3>
     <p className="mt-1 text-sm text-muted-foreground">저장된 이력부터 복원할 수 있습니다. 복원 전 상태도 새 이력으로 남습니다.</p>
     {loading && <p role="status" className="mt-2 text-sm">버전 불러오는 중…</p>}
     {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
-    <button type="button" className={`${buttonClass} mt-2`} disabled={loading} onClick={() => setRefresh((value) => value + 1)}>버전 목록 새로고침</button>
-    {history && <>
+    <button ref={refreshButtonRef} type="button" className={`${buttonClass} mt-2`} aria-disabled={loading} aria-busy={loading}
+      onClick={() => { if (!loading) setRefresh((value) => value + 1); }}>버전 목록 새로고침</button>
+    {versions && <>
       <label htmlFor="local-history-version" className="mt-3 block text-sm">저장된 버전</label>
-      <select id="local-history-version" className={inputClass} value={target} disabled={disabled || loading}
-        onChange={(event) => { setTarget(event.target.value); setSceneNo(""); setConfirmed(false); setHistory(null); }}>
+      <select ref={versionSelectRef} id="local-history-version" className={inputClass} value={target} disabled={disabled}
+        onChange={(event) => { setTarget(event.target.value); setSceneNo(""); setConfirmed(false); setPreview(null); }}>
         <option value="">복원할 버전 선택</option>
-        {history.versions.map((version) => <option key={version.revision} value={version.revision} disabled={version.revision >= revision}>
+        {versions.map((version) => <option key={version.revision} value={version.revision} disabled={version.revision >= revision}>
           v{version.revision} · {version.title} · {version.sceneCount}장면 · {when(version.createdAt)}
         </option>)}
       </select>
-      {!history.versions.some((version) => version.revision < revision) && <p className="mt-2 text-sm text-muted-foreground">아직 이전에 저장된 버전이 없습니다.</p>}
+      {!versions.some((version) => version.revision < revision) && <p className="mt-2 text-sm text-muted-foreground">아직 이전에 저장된 버전이 없습니다.</p>}
     </>}
     {preview && <>
       <h4 className="mt-3 font-medium">v{target} 미리보기 · {preview.title}</h4>
