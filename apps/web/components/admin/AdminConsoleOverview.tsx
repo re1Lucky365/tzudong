@@ -6835,15 +6835,14 @@ function AdminDashboardManagementPanel({
       ),
     [videosByPublishedAt],
   );
+  const insightFailedWithoutData = adminQueryLastReadFailed(insightQuery) && !insightQuery.data;
+  const growthFailedWithoutData = adminQueryLastReadFailed(growthInsightQuery) && !growthInsightQuery.data;
   const isInsightDynamicLoading =
-    insightQuery.isLoading ||
-    growthInsightQuery.isLoading ||
+    (insightQuery.isLoading && !insightFailedWithoutData) ||
+    (growthInsightQuery.isLoading && !growthFailedWithoutData) ||
     pendingSkeletonPeriod === period;
   const isChartLoading = isInsightDynamicLoading;
-  const metricReadFailedWithoutData =
-    !isChartLoading &&
-    ((adminQueryLastReadFailed(insightQuery) && !insightQuery.data) ||
-      (adminQueryLastReadFailed(growthInsightQuery) && !growthInsightQuery.data));
+  const metricReadFailedWithoutData = !isChartLoading && (insightFailedWithoutData || growthFailedWithoutData);
   const isMetricValueHidden = isChartLoading || metricReadFailedWithoutData;
   const formatMetricNumber = useCallback(
     (value: number) => (isMetricValueHidden ? "—" : formatNumber(value)),
