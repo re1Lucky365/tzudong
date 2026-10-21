@@ -3,7 +3,7 @@
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQueries } from '@tanstack/react-query';
 import { ArrowUpRight, Bot, RefreshCw, Search, X } from 'lucide-react';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { restoreAdminDetailFocus } from '@/lib/admin/detail-focus';
+import { adminQueryLastReadFailed } from '@/lib/admin/query-read-state';
 import { readOperationsSource } from '@/lib/admin/operations-source';
 import {
   OPERATIONS_SOURCES,
@@ -36,6 +37,8 @@ export function AdminOperationsPanel() {
   const rowRef = useRef<HTMLButtonElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const detailRef = useRef<HTMLElement | null>(null);
+  const detailRetryRef = useRef<HTMLButtonElement | null>(null);
+  const detailRetryHadFocusRef = useRef(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const detailShownRef = useRef(false);
   useEffect(() => {
@@ -54,7 +57,7 @@ export function AdminOperationsPanel() {
   const snapshots: Partial<Record<OperationsSourceId, OperationsSnapshot>> = {};
   queries.forEach((query, index) => {
     const sourceId = OPERATIONS_SOURCES[index];
-    if (query.isError) snapshots[sourceId] = operationsUnavailable(sourceId, 'unavailable');
+    if (adminQueryLastReadFailed(query) && !query.data) snapshots[sourceId] = operationsUnavailable(sourceId, 'unavailable');
     else if (query.data) snapshots[sourceId] = query.data;
   });
   const model = buildOperationsViewModel(snapshots);
@@ -65,6 +68,14 @@ export function AdminOperationsPanel() {
   const busy = queries.some(query => query.isFetching);
   const refresh = () => { void Promise.all(queries.map(query => query.refetch())); };
   const selectedQuery = selected ? queries[OPERATIONS_SOURCES.indexOf(selected.sourceId)] : null;
+  useLayoutEffect(() => {
+    if (!detailRetryHadFocusRef.current) return;
+    if (selectedQuery?.isFetching && (document.activeElement === document.body || document.activeElement === detailRef.current)) {
+      detailRetryRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (!selectedQuery?.isFetching) detailRetryHadFocusRef.current = false;
+  });
   const selectedRowId = selected?.id ?? null;
   useEffect(() => {
     if (selectedRowId) { detailShownRef.current = true; return; }
@@ -89,7 +100,7 @@ export function AdminOperationsPanel() {
       {selected.details.map(item => <div key={item.label}><dt className="text-muted-foreground">{item.label}</dt><dd className="break-words">{item.value}</dd></div>)}
     </dl>
     <div className="mt-4 flex flex-wrap gap-2"><Button asChild size="sm" variant="outline"><Link href={selected.href}>관리 화면 열기<ArrowUpRight className="ml-1 h-3.5 w-3.5" aria-hidden="true" /></Link></Button>
-      {selected.state !== 'loading' && selected.state !== 'ready' ? <Button size="sm" variant="outline" disabled={selectedQuery?.isFetching} onClick={() => { void selectedQuery?.refetch(); }}>다시 조회</Button> : null}
+      {selected.state !== 'loading' && selected.state !== 'ready' ? <Button ref={detailRetryRef} size="sm" variant="outline" aria-disabled={selectedQuery?.isFetching || undefined} aria-busy={selectedQuery?.isFetching || undefined} onClick={(event) => { detailRetryHadFocusRef.current = event.currentTarget === document.activeElement || detailRetryHadFocusRef.current; if (selectedQuery?.isFetching) return; void selectedQuery?.refetch(); }}>다시 조회</Button> : null}
     </div>
   </aside> : null;
 

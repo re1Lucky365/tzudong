@@ -86,3 +86,46 @@ declare global { interface Window { __operationsRefresh: { hold: boolean; releas
     await browser.close();
   }
 }, 60_000);
+
+(existsSync(chrome) ? test : test.skip)('an operations detail retry keeps keyboard focus while that source reloads', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle();
+    for (const width of [1280, 390]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      const page = await context.newPage();
+      page.setDefaultTimeout(8_000);
+      const pageErrors: string[] = [];
+      let externalRequests = 0;
+      page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
+      await page.route('**/*', route => {
+        if (route.request().url() === 'https://operations-refresh.test/') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
+        if (!route.request().url().startsWith('https://operations-refresh.test/')) externalRequests++;
+        return route.abort();
+      });
+      await page.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
+      try {
+        await page.goto('https://operations-refresh.test/');
+        await page.addScriptTag({ content: script });
+        await page.getByRole('button', { name: /맛집 제보/ }).click();
+        const retry = page.getByRole('button', { name: '다시 조회' });
+        await playwrightExpect(retry).toBeVisible();
+        await page.evaluate(() => { window.__operationsRefresh.hold = true; });
+        await retry.focus();
+        await page.keyboard.press('Enter');
+        await playwrightExpect(retry).toHaveAttribute('aria-busy', 'true');
+        await playwrightExpect(retry).toBeFocused();
+        await playwrightExpect(retry).not.toHaveAttribute('disabled');
+        await playwrightExpect(page.getByRole('heading', { name: '맛집 제보' })).toBeVisible();
+        await page.evaluate(() => window.__operationsRefresh.release());
+        await playwrightExpect(retry).toBeFocused();
+        expect(pageErrors).toEqual([]);
+        expect(externalRequests).toBe(0);
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+}, 60_000);
