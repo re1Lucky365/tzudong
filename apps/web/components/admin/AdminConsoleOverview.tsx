@@ -5838,17 +5838,26 @@ function AdminDashboardCollectionLogPopover({
   const latestJobs = logs?.workflow.latestJobs.slice(0, 3) ?? [];
   const snapshot = logs?.snapshot;
   const hasSavedSnapshot = Boolean(snapshot?.available);
+  const readFailed = !isLoading && !logs;
+  const snapshotReadFailed = snapshot?.error === "SNAPSHOT_QUERY_FAILED";
+  const workflowAccessDenied = /^github-runs-(401|403|404)$/.test(
+    logs?.workflow.error ?? "",
+  );
   const isWorkflowHealthy = latestRun
     ? latestRun.status !== "completed" || latestRun.conclusion === "success"
     : logs?.workflow.available;
   const collectionStatusLabel = hasSavedSnapshot
     ? "수집 정상"
-    : "저장 확인 필요";
+    : snapshotReadFailed
+      ? "저장 확인 실패"
+      : "저장 확인 필요";
   const collectionStatusClassName = hasSavedSnapshot
     ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-950/40 dark:text-emerald-300"
     : "border-border bg-secondary text-foreground";
   const workflowStatusLabel = !logs?.workflow.available
-    ? "로그 권한 필요"
+    ? workflowAccessDenied
+      ? "로그 권한 필요"
+      : "로그 확인 실패"
     : latestRun
       ? getCollectionLogStatusLabel(latestRun.status, latestRun.conclusion)
       : "실행 없음";
@@ -5897,8 +5906,11 @@ function AdminDashboardCollectionLogPopover({
             variant="ghost"
             size="sm"
             className="h-11 min-h-11 min-w-[44px] shrink-0 rounded-full px-2 text-2xs font-bold md:h-7 md:min-h-0 md:min-w-0"
-            disabled={isFetching}
-            onClick={onRefresh}
+            aria-disabled={isFetching || undefined}
+            aria-busy={isFetching || undefined}
+            onClick={() => {
+              if (!isFetching) onRefresh();
+            }}
           >
             <RefreshCw
               className={cn("mr-1 h-3.5 w-3.5", isFetching && "animate-spin")}
@@ -5916,7 +5928,15 @@ function AdminDashboardCollectionLogPopover({
             </div>
           ) : null}
 
-          {!isLoading ? (
+          {readFailed ? (
+            <p
+              role="alert"
+              className="rounded-2xl border border-destructive/30 bg-destructive/5 p-3 text-xs font-semibold leading-5 text-destructive"
+              data-admin-dashboard-kpi-collection-log-read-failed="true"
+            >
+              수집 상태를 불러오지 못했습니다. 갱신을 눌러 다시 확인해 주세요.
+            </p>
+          ) : !isLoading ? (
             <>
               <div className="rounded-2xl border border-border/70 bg-muted/20 p-3">
                 <div className="flex items-start justify-between gap-3">
@@ -5935,12 +5955,16 @@ function AdminDashboardCollectionLogPopover({
                       )}
                       {hasSavedSnapshot
                         ? "최근 스냅샷 저장됨"
-                        : "저장된 스냅샷 없음"}
+                        : snapshotReadFailed
+                          ? "스냅샷 조회 실패"
+                          : "저장된 스냅샷 없음"}
                     </p>
                     <p className="mt-1 text-2xs leading-5 text-muted-foreground">
                       {hasSavedSnapshot
                         ? `마지막 저장: ${formatDashboardDateTime(snapshot?.fetchedAt)}`
-                        : "수집 결과가 아직 저장되지 않았습니다."}
+                        : snapshotReadFailed
+                          ? "저장된 스냅샷을 조회하지 못했습니다. 잠시 후 갱신해 주세요."
+                          : "수집 결과가 아직 저장되지 않았습니다."}
                     </p>
                   </div>
                   <Badge
@@ -6001,7 +6025,9 @@ function AdminDashboardCollectionLogPopover({
                         ? latestRun
                           ? `최근 실행: #${latestRun.runNumber ?? "—"} · ${formatDashboardDateTime(latestRun.startedAt ?? latestRun.createdAt)}`
                           : "워크플로는 찾았지만 실행 기록은 아직 없습니다."
-                        : "수집 실패가 아니라, 이 서버가 GitHub 실행 로그를 읽을 권한이 없는 상태입니다."}
+                        : workflowAccessDenied
+                          ? "수집 실패가 아니라, 이 서버가 GitHub 실행 로그를 읽을 권한이 없는 상태입니다."
+                          : "GitHub 실행 로그를 읽지 못해 수집 실행 결과를 아직 확인할 수 없습니다. 잠시 후 갱신해 주세요."}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
@@ -6031,7 +6057,7 @@ function AdminDashboardCollectionLogPopover({
                   </div>
                 </div>
 
-                {!logs?.workflow.available ? (
+                {!logs?.workflow.available && workflowAccessDenied ? (
                   <p className="mt-2 rounded-xl bg-muted/40 px-2 py-1.5 text-2xs leading-4 text-muted-foreground">
                     서버 환경 변수에 GitHub 읽기 토큰이 없거나 권한이
                     부족합니다. GITHUB_ACTIONS_TOKEN 또는 GH_TOKEN을 설정하면
@@ -6791,6 +6817,20 @@ function AdminDashboardManagementPanel({
     growthInsightQuery.isLoading ||
     pendingSkeletonPeriod === period;
   const isChartLoading = isInsightDynamicLoading;
+  const metricReadFailedWithoutData =
+    !isChartLoading &&
+    ((adminQueryLastReadFailed(insightQuery) && !insightQuery.data) ||
+      (adminQueryLastReadFailed(growthInsightQuery) && !growthInsightQuery.data));
+  const isMetricValueHidden = isChartLoading || metricReadFailedWithoutData;
+  const formatMetricNumber = useCallback(
+    (value: number) => (isMetricValueHidden ? "—" : formatNumber(value)),
+    [isMetricValueHidden],
+  );
+  const metricReadFailedPanelBody = (
+    <p className="admin-empty-state p-6 text-center text-sm text-muted-foreground" data-admin-dashboard-metric-read-failed="true">
+      지표를 불러오지 못했습니다. 머리글의 다시 조회로 확인하세요.
+    </p>
+  );
   const dashboardDataErrorKind =
     adminQueryLastReadFailed(insightQuery) || adminQueryLastReadFailed(growthInsightQuery)
       ? "metrics"
@@ -6877,11 +6917,11 @@ function AdminDashboardManagementPanel({
   const trendDisplayedPointCount = trendPoints.length;
   const impactMetricLabel =
     getDashboardCardView("impact") === "table"
-      ? `${dashboardViewMetricLabel} · 전체 ${formatNumber(dashboardUploadVideoBasisCount)}개`
+      ? `${dashboardViewMetricLabel} · 전체 ${formatMetricNumber(dashboardUploadVideoBasisCount)}개`
       : impactDisplayedVideoCount < dashboardUploadVideoBasisCount
         ? `${dashboardViewMetricLabel} · 상위 ${formatNumber(impactDisplayedVideoCount)}/${formatNumber(dashboardUploadVideoBasisCount)}개`
-        : `${dashboardViewMetricLabel} · 전체 ${formatNumber(dashboardUploadVideoBasisCount)}개`;
-  const trendMetricLabel = `${dashboardViewMetricLabel} · 전체 ${formatNumber(trendDisplayedPointCount)}개`;
+        : `${dashboardViewMetricLabel} · 전체 ${formatMetricNumber(dashboardUploadVideoBasisCount)}개`;
+  const trendMetricLabel = `${dashboardViewMetricLabel} · 전체 ${formatMetricNumber(trendDisplayedPointCount)}개`;
   const selectedPeriodLabel =
     ADMIN_DASHBOARD_PERIOD_OPTIONS.find((option) => option.value === period)
       ?.label ?? "선택 기간";
@@ -6960,8 +7000,8 @@ function AdminDashboardManagementPanel({
   );
   const topContentComparisonCount = topContentVideosByInsightScore.length;
   const topContentCardMetric = hasPeriodGrowthComparison
-    ? `업로드 영상 ${formatNumber(topContentComparisonCount)}개`
-    : `선택 영상 ${formatNumber(topContentComparisonCount)}개`;
+    ? `업로드 영상 ${formatMetricNumber(topContentComparisonCount)}개`
+    : `선택 영상 ${formatMetricNumber(topContentComparisonCount)}개`;
   const uploadCountCohortChange = calculateDashboardUploadCountChange(
     growthVideos,
     period,
@@ -7344,22 +7384,22 @@ function AdminDashboardManagementPanel({
       },
       {
         label: viewCardTitle,
-        value: isChartLoading ? "—" : formatNumber(periodViewDisplayValue),
-        caption: `${periodMetricCaption} · 현재 전체 누적 ${formatNumber(cumulativeViewValue)}`,
+        value: isMetricValueHidden ? "—" : formatNumber(periodViewDisplayValue),
+        caption: `${periodMetricCaption} · 현재 전체 누적 ${formatMetricNumber(cumulativeViewValue)}`,
       },
       {
         label: likeCardTitle,
-        value: isChartLoading ? "—" : formatNumber(periodLikeDisplayValue),
-        caption: `${periodMetricCaption} · 현재 전체 누적 ${formatNumber(cumulativeLikeValue)}`,
+        value: isMetricValueHidden ? "—" : formatNumber(periodLikeDisplayValue),
+        caption: `${periodMetricCaption} · 현재 전체 누적 ${formatMetricNumber(cumulativeLikeValue)}`,
       },
       {
         label: commentCardTitle,
-        value: isChartLoading ? "—" : formatNumber(periodCommentDisplayValue),
-        caption: `${periodMetricCaption} · 현재 전체 누적 ${formatNumber(cumulativeCommentValue)}`,
+        value: isMetricValueHidden ? "—" : formatNumber(periodCommentDisplayValue),
+        caption: `${periodMetricCaption} · 현재 전체 누적 ${formatMetricNumber(cumulativeCommentValue)}`,
       },
       {
         label: "업로드 영상 수",
-        value: isChartLoading ? "—" : formatNumber(periodUploadVideoValue),
+        value: isMetricValueHidden ? "—" : formatNumber(periodUploadVideoValue),
         caption: periodVideoCaption,
       },
     ];
@@ -7392,7 +7432,8 @@ function AdminDashboardManagementPanel({
     cumulativeLikeValue,
     cumulativeViewValue,
     dashboardViewMetricLabel,
-    isChartLoading,
+    formatMetricNumber,
+    isMetricValueHidden,
     likeCardTitle,
     periodCommentDisplayValue,
     periodLikeDisplayValue,
@@ -7618,8 +7659,8 @@ function AdminDashboardManagementPanel({
           )}
           style={getDashboardCardOrderStyle("views")}
           reorderProps={getDashboardCardReorderProps("views")}
-          value={isChartLoading ? "—" : formatNumber(viewCardValue)}
-          caption={`${videoPeriodDeltasAreFlat ? `${selectedPeriodLabel} · 채널 조회 순증` : periodMetricCaption} · 현재 전체 누적 ${formatNumber(channelStats?.viewCount ?? cumulativeViewValue)}`}
+          value={isMetricValueHidden ? "—" : formatNumber(viewCardValue)}
+          caption={`${videoPeriodDeltasAreFlat ? `${selectedPeriodLabel} · 채널 조회 순증` : periodMetricCaption} · 현재 전체 누적 ${channelStats?.viewCount != null ? formatNumber(channelStats.viewCount) : formatMetricNumber(cumulativeViewValue)}`}
           delta={formatDashboardChangeLabel(viewCardChange)}
           deltaLabel="기간 대비"
           progress={getDashboardChangeProgress(viewCardChange)}
@@ -7646,11 +7687,11 @@ function AdminDashboardManagementPanel({
           )}
           style={getDashboardCardOrderStyle("likes")}
           reorderProps={getDashboardCardReorderProps("likes")}
-          value={isChartLoading ? "—" : formatNumber(periodLikeDisplayValue)}
+          value={isMetricValueHidden ? "—" : formatNumber(periodLikeDisplayValue)}
           caption={
             likeRate == null
-              ? `${periodMetricCaption} · 현재 전체 누적 ${formatNumber(cumulativeLikeValue)}`
-              : `${periodRatioCaptionPrefix} ${formatDashboardPercent(likeRate)} · 현재 전체 누적 ${formatNumber(cumulativeLikeValue)}`
+              ? `${periodMetricCaption} · 현재 전체 누적 ${formatMetricNumber(cumulativeLikeValue)}`
+              : `${periodRatioCaptionPrefix} ${formatDashboardPercent(likeRate)} · 현재 전체 누적 ${formatMetricNumber(cumulativeLikeValue)}`
           }
           delta={formatDashboardChangeLabel(likeChange)}
           deltaLabel="기간 대비"
@@ -7678,11 +7719,11 @@ function AdminDashboardManagementPanel({
           )}
           style={getDashboardCardOrderStyle("comments")}
           reorderProps={getDashboardCardReorderProps("comments")}
-          value={isChartLoading ? "—" : formatNumber(periodCommentDisplayValue)}
+          value={isMetricValueHidden ? "—" : formatNumber(periodCommentDisplayValue)}
           caption={
             commentRate == null
-              ? `${periodMetricCaption} · 현재 전체 누적 ${formatNumber(cumulativeCommentValue)}`
-              : `${periodRatioCaptionPrefix} ${formatDashboardPercent(commentRate)} · 현재 전체 누적 ${formatNumber(cumulativeCommentValue)}`
+              ? `${periodMetricCaption} · 현재 전체 누적 ${formatMetricNumber(cumulativeCommentValue)}`
+              : `${periodRatioCaptionPrefix} ${formatDashboardPercent(commentRate)} · 현재 전체 누적 ${formatMetricNumber(cumulativeCommentValue)}`
           }
           delta={formatDashboardChangeLabel(commentChange)}
           deltaLabel="기간 대비"
@@ -7710,7 +7751,7 @@ function AdminDashboardManagementPanel({
           )}
           style={getDashboardCardOrderStyle("videos")}
           reorderProps={getDashboardCardReorderProps("videos")}
-          value={isChartLoading ? "—" : formatNumber(periodUploadVideoValue)}
+          value={isMetricValueHidden ? "—" : formatNumber(periodUploadVideoValue)}
           caption={periodVideoCaption}
           delta={formatDashboardChangeLabel(videoCountChange)}
           deltaLabel="기간 대비"
@@ -7792,6 +7833,8 @@ function AdminDashboardManagementPanel({
                     : "bubble"
                 }
               />
+            ) : metricReadFailedWithoutData ? (
+              metricReadFailedPanelBody
             ) : getDashboardCardView("impact") === "table" ? (
               <AdminDashboardScrollTable
                 rows={progressiveImpactTableRows}
@@ -7935,6 +7978,8 @@ function AdminDashboardManagementPanel({
                   getDashboardCardView("trend") === "table" ? "table" : "line"
                 }
               />
+            ) : metricReadFailedWithoutData ? (
+              metricReadFailedPanelBody
             ) : getDashboardCardView("trend") === "table" ? (
               <AdminDashboardScrollTable
                 rows={progressiveTrendTableRows}
@@ -8077,6 +8122,8 @@ function AdminDashboardManagementPanel({
                     : "stacked"
                 }
               />
+            ) : metricReadFailedWithoutData ? (
+              metricReadFailedPanelBody
             ) : getDashboardCardView("topContent") === "table" ? (
               <AdminDashboardScrollTable
                 rows={progressiveTopContentTableRows}
@@ -8107,7 +8154,7 @@ function AdminDashboardManagementPanel({
         >
           <AdminDashboardCardTitle
             title="성과 진단"
-            metric={`진단 신호 ${formatNumber(topContentInsights.length)}개 · ${topContentCardMetric}`}
+            metric={`진단 신호 ${formatMetricNumber(topContentInsights.length)}개 · ${topContentCardMetric}`}
             infoLines={[
               "설명: 지금 확인할 만한 영상 성과 신호를 요약한 카드입니다.",
               "읽는 법: 성과 기여, 참여율, 초반 반응, 재상승 후보를 작은 카드로 분류합니다.",
@@ -8149,6 +8196,8 @@ function AdminDashboardManagementPanel({
                     : "diagnosis"
                 }
               />
+            ) : metricReadFailedWithoutData ? (
+              metricReadFailedPanelBody
             ) : getDashboardCardView("engagementRate") === "table" ? (
               <AdminDashboardScrollTable
                 rows={diagnosisTableRows}

@@ -746,7 +746,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       'className="mt-1.5 rounded-xl bg-primary/5 p-1.5"',
     );
     expect(overviewSource).toContain(
-      'className="mt-1.5 grid grid-cols-2 gap-1.5 rounded-xl bg-background/70 p-1.5 text-2xs text-muted-foreground"',
+      'className="mt-1.5 grid grid-cols-2 gap-1.5 rounded-xl bg-background/70 p-1.5 text-2xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"',
     );
     expect(overviewSource).not.toContain(
       'className="rounded-xl border border-border bg-card p-2.5 shadow-sm lg:min-h-0 lg:flex-1 lg:overflow-y-auto"',
@@ -1851,7 +1851,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     );
     expect(consoleSource).toContain("displayLimit={impactChartVideoLimit}");
     expect(consoleSource).toContain(
-      "전체 ${formatNumber(trendDisplayedPointCount)}개",
+      "전체 ${formatMetricNumber(trendDisplayedPointCount)}개",
     );
     expect(consoleSource).toContain(
       "표시: 그래프는 상위 ${formatNumber(impactDisplayedVideoCount)}/${formatNumber(dashboardUploadVideoBasisCount)}개, 표는 전체 ${formatNumber(dashboardUploadVideoBasisCount)}개.",
@@ -1872,7 +1872,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     );
     expect(consoleSource).toContain("metric={topContentCardMetric}");
     expect(consoleSource).toContain(
-      "metric={`진단 신호 ${formatNumber(topContentInsights.length)}개 · ${topContentCardMetric}`}",
+      "metric={`진단 신호 ${formatMetricNumber(topContentInsights.length)}개 · ${topContentCardMetric}`}",
     );
     expect(consoleSource).not.toContain("engagementChange");
     expect(consoleSource).toContain("const visibleRows = rows.slice(0, 5)");
@@ -2118,10 +2118,10 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       "while (insights.length < ADMIN_DASHBOARD_CONTENT_INSIGHT_TARGET_COUNT)",
     );
     expect(consoleSource).toContain(
-      "`${periodRatioCaptionPrefix} ${formatDashboardPercent(likeRate)} · 현재 전체 누적 ${formatNumber(cumulativeLikeValue)}`",
+      "`${periodRatioCaptionPrefix} ${formatDashboardPercent(likeRate)} · 현재 전체 누적 ${formatMetricNumber(cumulativeLikeValue)}`",
     );
     expect(consoleSource).toContain(
-      "`${periodRatioCaptionPrefix} ${formatDashboardPercent(commentRate)} · 현재 전체 누적 ${formatNumber(cumulativeCommentValue)}`",
+      "`${periodRatioCaptionPrefix} ${formatDashboardPercent(commentRate)} · 현재 전체 누적 ${formatMetricNumber(cumulativeCommentValue)}`",
     );
     expect(consoleSource).toContain("cumulativeViewValue");
     expect(consoleSource).toContain("cumulativeVideoTotal");
