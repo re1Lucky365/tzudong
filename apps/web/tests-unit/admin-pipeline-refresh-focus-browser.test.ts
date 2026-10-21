@@ -71,6 +71,10 @@ declare global { interface Window { __pipelineRefresh: { hold: boolean; release:
         await playwrightExpect(refresh).toHaveAttribute('aria-busy', 'true');
         await playwrightExpect(refresh).toBeFocused();
         await playwrightExpect(refresh).not.toHaveAttribute('disabled');
+        await playwrightExpect(page.getByText('실행 조회 실패', { exact: true })).toBeVisible();
+        await playwrightExpect(page.getByText('마지막 배치 · 기록 조회 실패')).toBeVisible();
+        await playwrightExpect(page.getByText('실행 조회 중')).toHaveCount(0);
+        await playwrightExpect(page.getByText('기록 조회 중')).toHaveCount(0);
         await page.evaluate(() => window.__pipelineRefresh.release());
         await playwrightExpect(refresh).toBeFocused();
         await playwrightExpect(page.getByText('실행 조회 실패', { exact: true })).toBeVisible();
