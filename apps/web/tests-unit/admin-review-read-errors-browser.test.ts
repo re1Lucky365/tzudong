@@ -30,7 +30,7 @@ const reviewEntry = `
       };
       return <main>
         <SubmissionListView submissions={[]} reviews={state === 'success' ? [review] : []}
-          initialTab="reviews" reviewsLoading={state === 'loading'} reviewsError={state === 'error'}
+          initialTab="reviews" reviewsLoading={state === 'loading'} reviewsError={state !== 'success'}
           onApprove={() => {}} onReject={() => {}} onDelete={() => {}}
           onRetryReviews={() => setState('loading')} />
       </main>;
@@ -97,7 +97,7 @@ async function bundle(entry: string) {
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
   try {
     const script = await bundle(reviewEntry);
-    for (const width of [1280, 1021]) {
+    for (const width of [1280, 1021, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 800 } });
     try {
     const page = await context.newPage();
@@ -117,7 +117,9 @@ async function bundle(entry: string) {
     const search = page.getByRole('searchbox', { name: '리뷰 검색' });
     await error.getByRole('button', { name: '다시 조회' }).click();
     await playwrightExpect(search).toBeFocused();
-    await playwrightExpect(page.locator('[aria-label="리뷰 목록 로딩 중"]')).toHaveCount(1);
+    await playwrightExpect(error).toContainText('리뷰 목록을 불러오지 못했습니다.');
+    await playwrightExpect(page.locator('[aria-label="리뷰 목록 로딩 중"]')).toHaveCount(0);
+    await playwrightExpect(page.getByText('조회된 항목이 없습니다.')).toHaveCount(0);
     await playwrightExpect(page.locator('[data-admin-review-row]')).toHaveCount(0);
     await page.evaluate(() => (window as unknown as { __reviewFixture: { success(): void } }).__reviewFixture.success());
     await playwrightExpect(page.locator('[data-admin-review-row="review-fixture"]')).toBeVisible();
@@ -134,7 +136,7 @@ async function bundle(entry: string) {
     await row.click();
     const detail = page.locator('[data-admin-moderation-inspector="true"]');
     await playwrightExpect(detail).toBeVisible();
-    await playwrightExpect(page.locator('[data-admin-moderation-drawer]')).toHaveCount(width === 1021 ? 1 : 0);
+    await playwrightExpect(page.locator('[data-admin-moderation-drawer]')).toHaveCount(width < 1280 ? 1 : 0);
     await playwrightExpect(detail).toBeFocused();
     await page.evaluate(() => (window as unknown as { __reviewFixture: { fail(): void } }).__reviewFixture.fail());
     await playwrightExpect(error).toBeVisible();
@@ -155,7 +157,7 @@ async function bundle(entry: string) {
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
   try {
     const script = await bundle(submissionEntry);
-    for (const width of [1280, 1021]) {
+    for (const width of [1280, 1021, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 800 } });
     try {
     const page = await context.newPage();
@@ -185,7 +187,11 @@ async function bundle(entry: string) {
     const search = page.getByRole('searchbox', { name: '제보 검색' });
     await error.getByRole('button', { name: '다시 조회' }).click();
     await playwrightExpect(search).toBeFocused();
-    await playwrightExpect(page.locator('[aria-label="신규 목록 로딩 중"]')).toHaveCount(1);
+    await playwrightExpect(error).toContainText('신규 제보 목록을 불러오지 못했습니다.');
+    await playwrightExpect(page.locator('[aria-label="신규 목록 로딩 중"]')).toHaveCount(0);
+    await playwrightExpect(page.getByText('조회된 항목이 없습니다.')).toHaveCount(0);
+    await playwrightExpect(page.locator('[aria-live="polite"]')).toContainText('조회 실패');
+    await playwrightExpect(page.locator('[aria-live="polite"]')).not.toContainText('조회 중');
     await fixture('success');
     await playwrightExpect(page.locator('[data-admin-submission-row="submission-fixture"]')).toBeVisible();
     await playwrightExpect(error).toHaveCount(0);
@@ -194,7 +200,7 @@ async function bundle(entry: string) {
     await page.locator('[data-admin-submission-row="submission-fixture"] button').first().click();
     const detail = page.locator('[data-admin-moderation-inspector="true"]');
     await playwrightExpect(detail).toBeVisible();
-    await playwrightExpect(page.locator('[data-admin-moderation-drawer]')).toHaveCount(width === 1021 ? 1 : 0);
+    await playwrightExpect(page.locator('[data-admin-moderation-drawer]')).toHaveCount(width < 1280 ? 1 : 0);
     await fixture('fail');
     await playwrightExpect(error).toBeVisible();
     await playwrightExpect(detail).toHaveCount(0);

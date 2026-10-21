@@ -2658,8 +2658,12 @@ export function SubmissionListView({
     );
 
     const hasSelection = activeTab === 'reviews' ? !reviewsError && !!selectedReview : !submissionTabReadError && !!selectedSubmission;
-    const listRetrying = activeTab === 'reviews' ? reviewsLoading : loading && (!submissions.length || submissionTabReadError);
-    const listReadFailed = !listRetrying && (activeTab === 'reviews' ? reviewsError : submissionTabReadError);
+    const failedEmptyList = activeTab === 'reviews'
+        ? reviewsError && reviews.length === 0
+        : Boolean(submissionTabReadError) && filteredSubmissions.length === 0;
+    const listRetrying = !failedEmptyList && (activeTab === 'reviews' ? reviewsLoading : loading && (!submissions.length || Boolean(submissionTabReadError)));
+    const listReadFailed = failedEmptyList || (!listRetrying && (activeTab === 'reviews' ? reviewsError : Boolean(submissionTabReadError)));
+    const retryBusy = activeTab === 'reviews' ? reviewsLoading : loading;
     const retryListRead = activeTab === 'reviews' ? onRetryReviews : onRetrySubmissions;
     useLayoutEffect(() => {
         if (!listReadFailed) return;
@@ -2725,7 +2729,7 @@ export function SubmissionListView({
                 </div>}
                 <div className={cn('grid min-h-0 flex-1 gap-2 overflow-hidden', inlineInspector && hasSelection && 'xl:grid-cols-[minmax(0,1fr)_360px]')}>
                     <section data-admin-moderation-list className="admin-surface flex min-h-0 min-w-0 flex-col overflow-hidden" aria-label={activeTab === 'reviews' ? '리뷰 목록' : '제보 목록'}>
-                        {listRetrying ? renderListSkeletonCards(currentTabSummary.label) : listReadFailed ? <div role="alert" data-admin-moderation-read-error={activeTab} className="admin-empty-state flex min-h-40 flex-1 flex-col items-center justify-center gap-2 p-4 text-sm text-destructive"><p>{tabs.find(tab => tab.id === activeTab)?.label} 목록을 불러오지 못했습니다.</p>{retryListRead && <Button ref={listRetryButtonRef} type="button" variant="outline" size="sm" onClick={event => { if (document.activeElement === event.currentTarget) listSearchInputRef.current?.focus({ preventScroll: true }); retryListRead(); }}>다시 조회</Button>}</div> : <div ref={listScrollRef} className={listBodyClassName}
+                        {listRetrying ? renderListSkeletonCards(currentTabSummary.label) : listReadFailed ? <div role="alert" data-admin-moderation-read-error={activeTab} className="admin-empty-state flex min-h-40 flex-1 flex-col items-center justify-center gap-2 p-4 text-sm text-destructive"><p>{tabs.find(tab => tab.id === activeTab)?.label} 목록을 불러오지 못했습니다.</p>{retryListRead && <Button ref={listRetryButtonRef} type="button" variant="outline" size="sm" aria-disabled={retryBusy || undefined} aria-busy={retryBusy || undefined} onClick={event => { if (retryBusy) return; if (document.activeElement === event.currentTarget) listSearchInputRef.current?.focus({ preventScroll: true }); retryListRead(); }}>다시 조회</Button>}</div> : <div ref={listScrollRef} className={listBodyClassName}
                             style={isMobile && activeTab === 'reviews' ? { touchAction: 'pan-y' } : undefined}
                             onPointerDown={isMobile && activeTab === 'reviews' ? handleSubmissionTabPointerDown : undefined}
                             onPointerMove={isMobile && activeTab === 'reviews' ? handleSubmissionTabPointerMove : undefined}
@@ -2776,7 +2780,7 @@ export function SubmissionListView({
                             <div ref={loadMoreSentinelRef} className="h-1" />
                             {hasMoreCards && <div className="p-2 text-center"><Button type="button" variant="outline" size="sm" disabled={isCurrentListLoading} onClick={handleLoadMoreCards}>더 보기</Button></div>}
                         </div>}
-                        <div className="admin-cms-footer shrink-0 justify-between"><span role="status">{isCurrentListLoading ? '조회 중' : listReadFailed ? '조회 실패' : `${displayedCount} / ${resultCount}건`}</span><span>{listReadFailed ? '다시 조회 필요' : '조회된 목록 기준'}</span></div>
+                        <div className="admin-cms-footer shrink-0 justify-between"><span role="status">{listReadFailed ? '조회 실패' : isCurrentListLoading ? '조회 중' : `${displayedCount} / ${resultCount}건`}</span><span>{listReadFailed ? '다시 조회 필요' : '조회된 목록 기준'}</span></div>
                     </section>
                     {inlineInspector && hasSelection ? (activeTab === 'reviews' ? renderReviewDetailPanel() : renderSubmissionDetailPanel()) : null}
                 </div>

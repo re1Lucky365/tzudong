@@ -1880,6 +1880,7 @@ function AdminEvaluationPage({
     enabled: !!user && isAdmin && !recordViewsInvalidated,
     refetchInterval: recordViewsInvalidated ? false : 30000,
   });
+  const reviewsReadFailed = adminQueryLastReadFailed(reviewsQuery);
   const { data: reviewsData = [], isLoading: reviewsLoading } = reviewsQuery;
 
   const pendingCountsQuery = useQuery({
@@ -2285,12 +2286,12 @@ function AdminEvaluationPage({
               if (submissionsReadFailed) void submissionsQuery.refetch();
               if (recommendationsReadFailed) void recommendationRequestsQuery.refetch();
             }}
-            reviews={recordViewsInvalidated || reviewsQuery.isError ? [] : reviewsData}
+            reviews={recordViewsInvalidated || reviewsReadFailed ? [] : reviewsData}
             onApproveReview={handleApproveReview}
             onRejectReview={handleRejectReview}
             onDeleteReview={handleDeleteReview}
-            reviewsLoading={reviewsLoading || (reviewsQuery.isError && reviewsQuery.isFetching) || recordActions.busy || recordViewsInvalidated}
-            reviewsError={!recordViewsInvalidated && reviewsQuery.isError}
+            reviewsLoading={reviewsLoading || (reviewsReadFailed && reviewsQuery.isFetching) || recordActions.busy || recordViewsInvalidated}
+            reviewsError={!recordViewsInvalidated && reviewsReadFailed}
             onRetryReviews={() => void reviewsQuery.refetch()}
             initialTab={submissionInitialTab}
             toolbarTrailingAction={submissionInitialTab !== 'reviews' ? (

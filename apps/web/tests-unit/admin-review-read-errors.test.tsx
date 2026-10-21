@@ -133,4 +133,8 @@ test('moderation list renders loading, error and genuine empty review states sep
   expect(failed).toContain('다시 조회');
   expect(failed).not.toContain('조회된 항목이 없습니다.');
   expect(failed).not.toContain('data-admin-review-row="review-fixture"');
+  const retrying = render({ reviewsLoading: true, reviewsError: true, onRetryReviews() {} });
+  expect(retrying).toContain('리뷰 목록을 불러오지 못했습니다.');
+  expect(retrying).not.toContain('리뷰 목록 로딩 중');
+  expect(retrying).not.toContain('조회된 항목이 없습니다.');
 });
