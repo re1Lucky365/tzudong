@@ -124,8 +124,11 @@ declare global { interface Window { __sentryRead: { hold: boolean; release: () =
         await playwrightExpect(next).not.toHaveAttribute('disabled');
         await playwrightExpect(page.getByText('오류 1', { exact: true })).toBeVisible();
         await playwrightExpect(page.getByRole('status', { name: '오류 목록 조회 중' })).toHaveCount(0);
+        await playwrightExpect(page.locator('.admin-cms-footer')).toContainText('1페이지');
+        await playwrightExpect(page.locator('.admin-cms-footer')).not.toContainText('2페이지');
         await page.evaluate(() => window.__sentryRead.release());
         await playwrightExpect(page.getByText('오류 2', { exact: true })).toBeVisible();
+        await playwrightExpect(page.locator('.admin-cms-footer')).toContainText('2페이지');
         await playwrightExpect(next).toBeFocused();
         expect(pageErrors).toEqual([]);
         expect(externalRequests).toBe(0);
