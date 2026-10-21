@@ -13,8 +13,10 @@ const entry = `
   import { AdminKnowledgeGraphPanel } from './components/admin/AdminKnowledgeGraphPanel';
   const coverage = { inventoryCount: null, eligibleCount: null, analyzedCount: 0, pendingCount: null, failedCount: 0, excludedShortsCount: null, asOf: null };
   const graphPage = n => ({ revision: 'a'.repeat(64), generatedAt: '2026-10-21T00:00:00Z', coverage,
-    nodes: [{ id: 'node-' + n, label: '페이지 ' + n + ' 노드', kind: 'hub', summary: '', evidence: [] }], edges: [], selected: null,
-    totalNodes: 3, totalEdges: 0, filteredTotal: 3, omittedEdges: 0, nextCursor: n < 3 ? 'cursor-' + (n + 1) : null });
+    nodes: [{ id: 'node-' + n, label: '페이지 ' + n + ' 노드', kind: 'hub', summary: '', evidence: [] }],
+    edges: [{ id: 'edge-' + n, source: 'node-' + n, target: 'node-' + n, relation: 'references' }], selected: null,
+    totalNodes: 3, totalEdges: 2, filteredTotal: 3, omittedEdges: 1, edgePageTotal: 2,
+    nextEdgeCursor: n < 2 ? 'edge-' + (n + 1) : null, nextCursor: n < 3 ? 'cursor-' + (n + 1) : null });
   const fixture = { fail: null, cursors: [], hold: false, release() {} };
   globalThis.__knowledgeFixture = fixture;
   globalThis.fetch = async input => {
@@ -130,6 +132,48 @@ const setFail = (page: Page, fail: string | null) => page.evaluate(value => { (g
         await page.evaluate(() => { (globalThis as unknown as { __knowledgeFixture: { hold: boolean; release: () => void } }).__knowledgeFixture.hold = false; (globalThis as unknown as { __knowledgeFixture: { release: () => void } }).__knowledgeFixture.release(); });
         await playwrightExpect(node(2)).toBeVisible();
         await playwrightExpect(next).toBeFocused();
+        expect(externalRequests).toBe(0);
+        expect(pageErrors).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+}, 60_000);
+
+(existsSync(chrome) ? test : test.skip)('the next knowledge edge page keeps the visible page number until that page arrives', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle();
+    for (const width of [1280, 390]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      try {
+        const page = await context.newPage();
+        page.setDefaultTimeout(8_000);
+        const pageErrors: string[] = [];
+        let externalRequests = 0;
+        page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
+        await page.route('**/*', route => {
+          if (route.request().url() === 'https://knowledge.test/admin') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
+          externalRequests++;
+          return route.abort();
+        });
+        await page.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
+        await page.goto('https://knowledge.test/admin');
+        await page.addScriptTag({ content: script });
+        const footer = page.locator('.admin-cms-footer');
+        await playwrightExpect(footer).toContainText('· 1페이지');
+        await page.waitForTimeout(400);
+        const next = page.getByRole('button', { name: '다음 연결 페이지' });
+        await page.evaluate(() => { (globalThis as unknown as { __knowledgeFixture: { hold: boolean } }).__knowledgeFixture.hold = true; });
+        await next.press('Enter');
+        await playwrightExpect(next).toHaveAttribute('aria-busy', 'true');
+        await playwrightExpect(footer).toContainText('· 1페이지');
+        await playwrightExpect(footer).not.toContainText('· 2페이지');
+        await page.evaluate(() => { (globalThis as unknown as { __knowledgeFixture: { hold: boolean; release: () => void } }).__knowledgeFixture.hold = false; (globalThis as unknown as { __knowledgeFixture: { release: () => void } }).__knowledgeFixture.release(); });
+        await playwrightExpect(footer).toContainText('· 2페이지');
         expect(externalRequests).toBe(0);
         expect(pageErrors).toEqual([]);
       } finally {
