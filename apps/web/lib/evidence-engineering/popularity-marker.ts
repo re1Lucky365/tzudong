@@ -12,7 +12,7 @@ export const POPULARITY_MARKER_CSS = `
   transform: scale(1);
   animation: tz-popularity-pulse 1.8s ease-in-out infinite;
 }
-.tz-popularity-marker[data-popularity-tier="fire"]::before { border: 2px solid #ff6a00; }
+.tz-popularity-marker[data-popularity-tier="fire"]::before { border: 2px solid #ff7b43; }
 .tz-popularity-marker[data-popularity-tier="rainbow"]::before { border: 2px solid #7c5cff; }
 @keyframes tz-popularity-pulse {
   50% { transform: scale(1.12); opacity: 1; }
@@ -34,7 +34,7 @@ export function publicPopularityTier(value: unknown): "fire" | "rainbow" | "stan
 
 export function wrapMarkerWithPopularityTier(innerHtml: string, tier: "fire" | "rainbow" | "standard" | null | undefined): string {
   const safeTier = publicPopularityTier(tier);
-  const flame = safeTier === "fire" ? '<svg class="tz-popularity-flame" viewBox="0 0 32 42" aria-hidden="true" focusable="false"><path fill="#f97316" stroke="#fff7ed" stroke-width="1.4" d="M17 1c3 12-7 14-6 22 3-2 5-5 5-8 12 9 17 26 0 26C-3 41-3 24 6 15c0 6 1 8 3 9C6 15 19 12 17 1Z"/><path fill="#fde047" d="M17 24c1 6-5 7-4 11 5 4 12-2 4-11Z"/></svg>' : '';
+  const flame = safeTier === "fire" ? '<svg class="tz-popularity-flame" viewBox="0 0 32 42" aria-hidden="true" focusable="false"><path fill="#f85c00" stroke="#fff7ed" stroke-width="1.4" d="M17 1c3 12-7 14-6 22 3-2 5-5 5-8 12 9 17 26 0 26C-3 41-3 24 6 15c0 6 1 8 3 9C6 15 19 12 17 1Z"/><path fill="#fde047" d="M17 24c1 6-5 7-4 11 5 4 12-2 4-11Z"/></svg>' : '';
   return `<style>${POPULARITY_MARKER_CSS}</style><div class="tz-popularity-marker" data-popularity-tier="${safeTier}">${innerHtml}${flame}</div>`;
 }
 

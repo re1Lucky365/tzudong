@@ -109,7 +109,7 @@ export function PopularityBadge({
   return (
     <section
       aria-label="인기 맛집 배지"
-      className="tz-popularity-badge flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-muted/40 px-3 py-2"
+      className={`tz-popularity-badge flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2 ${tier === "fire" ? "border-brand-tangerine/40 bg-brand-tangerine-tint" : "border-border bg-brand-cream"}`}
       title="연결된 쯔양 영상 조회수 기준 · 맛 평가가 아니에요"
     >
       <style>{`
@@ -130,14 +130,15 @@ export function PopularityBadge({
         className="h-10 w-10 shrink-0"
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold">{tier === "fire" ? "영상 조회수 최상위 맛집" : "영상 조회수 상위권 맛집"}</p>
+        <p className="text-2xs font-bold tracking-wide text-brand-garden">쯔양 영상 인기 맛집</p>
+        <p className="text-sm font-black tracking-tight">{tier === "fire" ? "영상 조회수 최상위 맛집" : "영상 조회수 상위권 맛집"}</p>
         <p className="text-xs text-muted-foreground">2026년 6–7월 수집 기준 · 맛 평가가 아니에요</p>
       </div>
       {phase !== "off" ? (
         <button
           ref={openerRef}
           type="button"
-          className="shrink-0 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium"
+          className="shrink-0 rounded-full bg-brand-ink px-3 py-1 text-xs font-bold text-white"
           aria-haspopup="dialog"
           aria-expanded={phase === "open"}
           hidden={phase === "open"}
