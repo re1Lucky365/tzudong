@@ -172,6 +172,7 @@ export default function AdminReviewPanel({ isOpen, onClose, onToggleCollapse, is
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
     const [adminNote, setAdminNote] = useState("");
+    const [reloadingReviews, setReloadingReviews] = useState(false);
 
     const {
         data: reviewsPages,
@@ -376,6 +377,7 @@ export default function AdminReviewPanel({ isOpen, onClose, onToggleCollapse, is
         );
     };
 
+    const countsUnknown = reviews.length === 0 && (reloadingReviews || (isError && !isFetchNextPageError));
     const pendingReviews = reviews.filter(r => !r.is_verified && !r.admin_note?.startsWith('거부: '));
     const approvedReviews = reviews.filter(r => r.is_verified);
     const rejectedReviews = reviews.filter(r => !r.is_verified && r.admin_note?.startsWith('거부: '));
@@ -416,7 +418,7 @@ export default function AdminReviewPanel({ isOpen, onClose, onToggleCollapse, is
             {/* 헤더 */}
             <MapPanelHeader
                 title="리뷰관리"
-                description={`불러온 리뷰 ${reviews.length}건`}
+                description={countsUnknown ? "불러온 리뷰 미확인" : `불러온 리뷰 ${reviews.length}건`}
                 onClose={onClose}
                 closeLabel="리뷰관리 패널 닫기"
             />
@@ -425,24 +427,28 @@ export default function AdminReviewPanel({ isOpen, onClose, onToggleCollapse, is
             <div aria-label="불러온 리뷰 상태" className="grid grid-cols-3 gap-2 p-3 border-b border-border">
                 <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded">
                     <p className="text-xs text-muted-foreground">대기</p>
-                    <p className="text-lg font-bold">{pendingReviews.length}</p>
+                    <p className="text-lg font-bold">{countsUnknown ? "미확인" : pendingReviews.length}</p>
                 </div>
                 <div className="text-center p-2 bg-green-50 dark:bg-green-950/20 rounded">
                     <p className="text-xs text-muted-foreground">승인</p>
-                    <p className="text-lg font-bold">{approvedReviews.length}</p>
+                    <p className="text-lg font-bold">{countsUnknown ? "미확인" : approvedReviews.length}</p>
                 </div>
                 <div className="text-center p-2 bg-red-50 dark:bg-red-950/20 rounded">
                     <p className="text-xs text-muted-foreground">거부</p>
-                    <p className="text-lg font-bold">{rejectedReviews.length}</p>
+                    <p className="text-lg font-bold">{countsUnknown ? "미확인" : rejectedReviews.length}</p>
                 </div>
             </div>
 
             {/* 대기 중인 리뷰 목록 */}
             <div className="flex-1 overflow-auto p-3 space-y-2">
-                {isError && !isFetchNextPageError ? (
+                {(isError && !isFetchNextPageError) || reloadingReviews ? (
                     <div role="alert" className="space-y-2 p-3 text-sm">
                         <p>리뷰를 불러오지 못했습니다.</p>
-                        <Button variant="outline" size="sm" onClick={() => void refetch()}>다시 불러오기</Button>
+                        <Button variant="outline" size="sm" aria-busy={reloadingReviews} aria-disabled={reloadingReviews || undefined} onClick={() => {
+                            if (reloadingReviews) return;
+                            setReloadingReviews(true);
+                            void Promise.resolve(refetch()).finally(() => setReloadingReviews(false));
+                        }}>다시 불러오기</Button>
                     </div>
                 ) : isLoading ? (
                     <div className="space-y-2">
