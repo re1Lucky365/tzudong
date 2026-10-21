@@ -202,8 +202,10 @@ export function TrendProposalQueue() {
     queryFn: () => fetchTrendProposalPreview(selectedProposal?.id ?? ""),
     enabled: Boolean(selectedProposal?.id),
     staleTime: 30 * 1000,
+    retry: false,
     refetchOnWindowFocus: false,
   });
+  const previewReadFailed = adminQueryLastReadFailed(previewQuery) && !previewQuery.data;
   const rejectMutation = useMutation({
     mutationFn: rejectTrendProposal,
     onSuccess: () => {
@@ -318,7 +320,7 @@ export function TrendProposalQueue() {
                 data-trend-proposal-preview="true"
               >
                 <p className="text-xs font-bold text-primary">미리보기 해시</p>
-                {previewQuery.isFetching ? (
+                {previewQuery.isFetching && !previewReadFailed ? (
                   <p className="mt-1 text-2xs text-muted-foreground">오버레이 미리보기를 계산하는 중입니다.</p>
                 ) : previewQuery.data ? (
                   <dl className="mt-1 space-y-1 text-2xs text-muted-foreground">
@@ -331,6 +333,21 @@ export function TrendProposalQueue() {
                       <dd className="break-all font-mono">{previewQuery.data.confirmation.payloadHash}</dd>
                     </div>
                   </dl>
+                ) : previewReadFailed ? (
+                  <div className="mt-1 space-y-2">
+                    <p role="alert" className="text-2xs text-destructive">오버레이 미리보기를 만들지 못했습니다.</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                      aria-disabled={previewQuery.isFetching || undefined}
+                      aria-busy={previewQuery.isFetching || undefined}
+                      onClick={() => { if (!previewQuery.isFetching) void previewQuery.refetch(); }}
+                    >
+                      다시 계산
+                    </Button>
+                  </div>
                 ) : (
                   <p className="mt-1 text-2xs text-muted-foreground">미리보기 생성 실패 시 승인하지 않습니다.</p>
                 )}
