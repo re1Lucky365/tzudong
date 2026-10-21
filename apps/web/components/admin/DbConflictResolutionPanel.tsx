@@ -1,6 +1,6 @@
 import { formatTzuyangReviewForDisplay } from '@/lib/tzuyang-review-display';
 import { useRecordAction } from '@/lib/admin/use-record-action';
-import { isRecordActionCancelled, recordActionErrorMessage } from '@/lib/admin/record-action-client';
+import { shouldNotifyRecordActionError, recordActionErrorMessage } from '@/lib/admin/record-action-client';
 import { type RecordActionReceipt, type RestaurantRecordChanges } from '@/lib/admin/record-action-contract';
 import { buildEvaluationConflictInfo, getEvaluationConflictTargetId, isEvaluationRecordStatus, normalizeEvaluationRecord, withAdminEvaluationDisplayName } from '@/lib/admin/normalize-evaluation-record';
 import { useEffect, useState } from 'react';
@@ -106,7 +106,7 @@ function DbConflictEditor({ record: incomingRecord, open, onOpenChange, onSucces
       const payload = { mergeTargetId: existing.id, incomingChanges };
       await refreshAfterAction(await recordActions.run({ action: 'restaurant.merge', targetIds: [existing.id, record.id], payload }));
     } catch (error) {
-      if (!isRecordActionCancelled(error)) toast({ variant: 'destructive', title: '병합 실패', description: recordActionErrorMessage(error) });
+      if (shouldNotifyRecordActionError(error)) toast({ variant: 'destructive', title: '병합 실패', description: recordActionErrorMessage(error) });
     } finally { setLoading(false); }
   };
 
@@ -116,7 +116,7 @@ function DbConflictEditor({ record: incomingRecord, open, onOpenChange, onSucces
     try {
       await refreshAfterAction(await recordActions.run({ action: 'restaurant.hold', targetIds: [record.id], payload: { reason: holdReason.trim() } }));
     } catch (error) {
-      if (!isRecordActionCancelled(error)) toast({ variant: 'destructive', title: '보류 실패', description: recordActionErrorMessage(error) });
+      if (shouldNotifyRecordActionError(error)) toast({ variant: 'destructive', title: '보류 실패', description: recordActionErrorMessage(error) });
     } finally { setLoading(false); }
   };
 

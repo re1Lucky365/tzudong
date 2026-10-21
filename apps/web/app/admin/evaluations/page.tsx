@@ -44,7 +44,7 @@ import { getAddressConsistencyStatus, hasUnconfirmedPublicMapLocation } from '@/
 import { needsEvaluationRerun } from '@/lib/admin-evaluation-completeness';
 import { buildCanonicalAdminEvaluationsHref, type AdminConsoleRouteModuleId } from '@/lib/admin/admin-module-routing';
 import { useRecordAction } from '@/lib/admin/use-record-action';
-import { isRecordActionCancelled, recordActionErrorMessage, recordActionMediaNotice, RECORD_VIEWS_INVALIDATED_EVENT, RECORD_ACTION_APPLIED_EVENT } from '@/lib/admin/record-action-client';
+import { shouldNotifyRecordActionError, recordActionErrorMessage, recordActionMediaNotice, RECORD_VIEWS_INVALIDATED_EVENT, RECORD_ACTION_APPLIED_EVENT } from '@/lib/admin/record-action-client';
 import { submissionApprovalInput, submissionEditInput } from '@/lib/admin/evaluation-record-actions';
 import type { RecordActionReceipt } from '@/lib/admin/record-action-contract';
 import { fetchAdminProfileSummariesLookup, resolveAdminReviewerDisplay } from '@/lib/admin/profile-summaries';
@@ -1982,7 +1982,7 @@ function AdminEvaluationPage({
   }, [invalidateRecordViews, refreshRecordViews, createRestaurantOpen]);
 
   const notifyRecordActionError = (error: unknown) => {
-    if (!isRecordActionCancelled(error)) toast({ variant: 'destructive', title: '변경 확인 필요', description: recordActionErrorMessage(error) });
+    if (shouldNotifyRecordActionError(error)) toast({ variant: 'destructive', title: '변경 확인 필요', description: recordActionErrorMessage(error) });
   };
   const onRecordApplied = async (receipt: RecordActionReceipt) => {
     toast({ title: '변경 확인 완료', description: [recordActionMediaNotice(receipt), `감사 ID: ${receipt.auditId}`].filter(Boolean).join(' ') });

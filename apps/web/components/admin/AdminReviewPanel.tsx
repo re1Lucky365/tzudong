@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/no-toast";
 import { useRecordAction } from "@/lib/admin/use-record-action";
-import { isRecordActionCancelled, recordActionErrorMessage, recordActionMediaNotice, RECORD_VIEWS_INVALIDATED_EVENT } from "@/lib/admin/record-action-client";
+import { shouldNotifyRecordActionError, recordActionErrorMessage, recordActionMediaNotice, RECORD_VIEWS_INVALIDATED_EVENT } from "@/lib/admin/record-action-client";
 import type { RecordActionReceipt } from "@/lib/admin/record-action-contract";
 import { ADMIN_PENDING_COUNTS_QUERY_KEY } from "@/lib/admin/pending-counts";
 import { invalidateRestaurantDiscoveryQueries } from "@/lib/restaurant-discovery-cache";
@@ -311,7 +311,7 @@ export default function AdminReviewPanel({ isOpen, onClose, onToggleCollapse, is
     };
     const recordActions = useRecordAction(receipt => { void onRecordApplied(receipt); }, { recover: isOpen && isAdmin });
     const notifyRecordActionError = (error: unknown) => {
-        if (!isRecordActionCancelled(error)) toast.error(recordActionErrorMessage(error));
+        if (shouldNotifyRecordActionError(error)) toast.error(recordActionErrorMessage(error));
     };
     type ModerationInput = { review: Review; note: string };
     const afterModeration = async (receipt: RecordActionReceipt, { review, note }: ModerationInput) => {
