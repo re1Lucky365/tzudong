@@ -644,7 +644,7 @@ function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureC
           <p className="mt-1 text-xs text-muted-foreground">{view && `버전 ${view.project.revision} · ${when(view.project.updatedAt)} 저장`}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={buttonClass} disabled={busy || loading} onClick={() => setReadTick((value) => value + 1)}>새로고침</button>
+          <button type="button" className={`${buttonClass} aria-disabled:cursor-not-allowed aria-disabled:opacity-50`} disabled={busy || undefined} aria-disabled={busy || loading || undefined} aria-busy={loading || undefined} onClick={() => { if (busy || loading) return; setReadTick((value) => value + 1); }}>새로고침</button>
           {view && <button type="button" className={buttonClass} disabled={busy || !view.project.document} onClick={() => { void download(); }}>내보내기</button>}
         </div>
       </div>
