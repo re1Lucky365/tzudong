@@ -374,7 +374,6 @@ export default function DesktopLeftPanelMapHome({
           >
           <div className="mb-2 flex items-end justify-between gap-2">
             <BrandSectionHeading
-              eyebrow="지금 많이 찾는"
               title="인기 검색 맛집"
               emoji="🔥"
               description="처음 방문해도 바로 눌러볼 만한 맛집 5곳"
@@ -467,7 +466,6 @@ export default function DesktopLeftPanelMapHome({
         >
           <div className="mb-2 flex items-center justify-between gap-2">
             <BrandSectionHeading
-              eyebrow="새로 지도에 올라온"
               title="최근 추가된 맛집"
               emoji="🌱"
               description="먼저 3곳을 보여주고 스크롤하면 이어서 불러와요"
