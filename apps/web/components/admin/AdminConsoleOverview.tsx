@@ -9348,7 +9348,7 @@ function AuditPlaceholder() {
   const coverageBadgeLabel =
     isAuditAuthUnavailable
       ? "세션 확인 필요"
-      : unavailable || auditReadFailed
+      : unavailable || (auditReadFailed && events.length === 0)
         ? "읽기 확인 필요"
         : hasTruthfulCoverage
           ? `부분 감사 · ${events.length}개`
