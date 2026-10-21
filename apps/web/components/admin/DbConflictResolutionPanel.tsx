@@ -32,14 +32,14 @@ export function DbConflictResolutionPanel(props: DbConflictResolutionPanelProps)
 function DbConflictEditor({ record: incomingRecord, open, onOpenChange, onSuccess }: DbConflictResolutionPanelProps) {
   const [record] = useState(incomingRecord);
   const [conflictInfo, setConflictInfo] = useState<DbConflictInfo | null>(null);
-  const [targetRead, setTargetRead] = useState<'loading' | 'failed' | 'ready'>('loading');
+  const [targetRead, setTargetRead] = useState<'loading' | 'retrying' | 'failed' | 'ready'>('loading');
   const [readAttempt, setReadAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     const targetId = record ? getEvaluationConflictTargetId(record) : null;
     setConflictInfo(null);
     if (!record || !targetId) { setTargetRead('failed'); return () => controller.abort(); }
-    setTargetRead('loading');
+    setTargetRead(current => current === 'failed' || current === 'retrying' ? 'retrying' : 'loading');
     void (async () => {
       try {
         const response = await fetch(`/api/admin/evaluations/${encodeURIComponent(targetId)}`, { cache: 'no-store', signal: controller.signal });
@@ -137,7 +137,7 @@ function DbConflictEditor({ record: incomingRecord, open, onOpenChange, onSucces
         <div className="space-y-4 py-4">
           {targetRead !== 'ready' || !existing || !newInfo ? <div role="status" className="space-y-3 rounded-md border p-4 text-sm">
             <p>{targetRead === 'loading' ? '충돌 대상의 현재 정보를 확인하고 있습니다.' : '충돌 대상을 확인하지 못했습니다. 목록에서 후보를 다시 확인하거나 조회를 재시도하세요.'}</p>
-            {targetRead === 'failed' && <Button variant="outline" disabled={loading} onClick={() => setReadAttempt(value => value + 1)}>충돌 정보 다시 불러오기</Button>}
+            {(targetRead === 'failed' || targetRead === 'retrying') && <Button variant="outline" aria-busy={targetRead === 'retrying'} aria-disabled={targetRead === 'retrying' || loading || undefined} disabled={loading || undefined} onClick={() => { if (targetRead === 'retrying' || loading) return; setReadAttempt(value => value + 1); }}>충돌 정보 다시 불러오기</Button>}
           </div> : <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* 기존 레스토랑 */}
