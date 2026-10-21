@@ -697,7 +697,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(overviewSource).not.toContain("ADMIN_MAP_MOCK_RESTAURANTS");
     expect(overviewSource).not.toContain("목업 데이터");
     expect(overviewSource).toContain("표시할 좌표 맛집이 없습니다");
-    expect(overviewSource).toContain("지도는 유지하고 실데이터만 재확인합니다");
+    expect(overviewSource).toContain("좌표 맛집 목록을 불러오지 못했습니다.");
     expect(overviewSource).not.toContain("overflow-y-auto lg:overflow-hidden");
     expect(overviewSource).not.toContain(
       "overflow-visible md:grid-cols-2 lg:grid-rows-2 lg:overflow-hidden",
@@ -5894,7 +5894,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(overviewSource).toContain("AdminMapOverviewCanvas");
     expect(overviewSource).toContain("AdminMapInfoPanel");
     expect(overviewSource).toContain(
-      "네이버 지도 프레임은 유지한 채 맛집 관리에서 좌표 상태를 확인하세요.",
+      "지도는 기본 위치로 유지합니다. 목록을 다시 읽기 전에는 맛집 수와 동선을 확정하지 않습니다.",
     );
     expect(overviewSource).toContain("restaurants={realRestaurants}");
     expect(overviewSource).toContain(
@@ -6191,7 +6191,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
       "xl:grid-cols-[minmax(0,1fr)_360px]",
     );
     expect(bannersSource).toContain(
-      "bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(sortedBanners.length, '개')",
+      "bannerListUnsettled ? <InlineCountSkeleton /> : formatBannerCount(sortedBanners.length, '개')",
     );
     expect(bannersSource).toContain('aria-label="배너 목록 로딩 중"');
     expect(bannersSource).toContain("function BannerListItemSkeleton");
