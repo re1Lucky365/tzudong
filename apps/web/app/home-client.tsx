@@ -56,6 +56,7 @@ import {
   type HomeRestoreCompactRestaurant,
   type HomeRestoreSnapshotV1,
 } from "@/lib/home-detail-route-state";
+import { findOverseasRegionKeyForRestaurant } from "@/lib/overseas-region-matching";
 
 function HomeMapContainerPendingShell() {
   return (
@@ -609,6 +610,10 @@ export default function HomeClient() {
       }
 
       const detailMapMode = options?.mapMode ?? mapMode;
+      if (detailMapMode === "overseas") {
+        const regionKey = findOverseasRegionKeyForRestaurant(restaurant);
+        if (regionKey) setSelectedCountry(regionKey);
+      }
       if (typeof window !== "undefined") {
         const restoreKey =
           isHomeDetailHistoryState(window.history.state) &&
@@ -651,7 +656,7 @@ export default function HomeClient() {
         }
       }
     },
-    [createHomeRestoreSnapshot, mapMode, openRestaurantDetailSelection],
+    [createHomeRestoreSnapshot, mapMode, openRestaurantDetailSelection, setSelectedCountry],
   );
   useEffect(() => {
     openDetailPanelRef.current = openDetailPanel;
