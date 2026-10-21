@@ -6499,11 +6499,16 @@ export function AdminYoutubeThumbnailGenerator() {
       </div>
     );
   }
+  const historyRecordLabel = historyStatus === "error" || (historyStatus === "loading" && Boolean(historyError) && historyRuns.length === 0)
+    ? "확인 실패"
+    : historyStatus === "idle" || historyStatus === "loading"
+      ? "확인 중"
+      : `${historyRuns.length}개`;
   const thumbnailModuleSummary = isGenerating
     ? `이미지 생성 중 · ${thumbnailImageApiRouterView.label}`
     : isChatAgentStreaming
       ? "도우미 응답 중 · 캔버스 편집 맥락 반영"
-      : `상태 ${thumbnailChatStatusLabel} · 기록 ${historyStatus === "error" ? "확인 실패" : historyStatus === "idle" || historyStatus === "loading" ? "확인 중" : `${historyRuns.length}개`} · ${thumbnailImageApiRouterView.label}`;
+      : `상태 ${thumbnailChatStatusLabel} · 기록 ${historyRecordLabel} · ${thumbnailImageApiRouterView.label}`;
 
 
   return (
