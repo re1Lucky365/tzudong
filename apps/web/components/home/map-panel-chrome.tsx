@@ -52,7 +52,7 @@ export function MapPanelHeader({
     <header className={cn("min-h-14 shrink-0 border-b border-border bg-background px-3 py-3", isPage && "sm:px-5 sm:py-4")} data-layout-primitives="stack" data-map-panel-header="true" data-header-variant={variant}>
       <div className={isPage ? "flex flex-wrap items-start justify-between gap-3" : "flex min-h-8 items-center gap-2"}>
         <div className={cn("min-w-0 flex-1", isPage && "basis-[min(11rem,100%)]")}>
-          {eyebrow ? <p className="mb-0.5 text-2xs font-bold tracking-wide text-brand-garden xs:text-xs">{eyebrow}</p> : null}
+          {eyebrow ? <p className="mb-0.5 text-2xs font-bold tracking-wide text-brand-garden-text xs:text-xs">{eyebrow}</p> : null}
           <div className={cn("flex min-w-0 items-center gap-x-2", isPage ? "flex-wrap gap-y-1" : "flex-nowrap")}>
             <TitleTag id={titleId} className={isPage ? pageHeaderTitleClass : "flex min-w-0 items-center gap-2 text-sm font-semibold leading-5 text-foreground"}>
               {titleIcon ? <span className={cn("shrink-0", isPage ? "text-brand-tangerine-ink" : "text-primary", isPage ? "[&_svg]:size-5 sm:[&_svg]:size-6" : "[&_svg]:size-4")} aria-hidden="true">{titleIcon}</span> : null}

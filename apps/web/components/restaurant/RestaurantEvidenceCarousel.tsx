@@ -73,7 +73,7 @@ export function RestaurantEvidenceCarousel({ frames }: { frames: readonly Restau
   if (visible.length === 0) return null;
   return (
     <section className="py-2 pb-[env(safe-area-inset-bottom)]" aria-label="쯔양 영상 근거와 방문 장면">
-      <p className="text-2xs font-bold tracking-wide text-brand-garden">쯔양 영상 속 그 장면</p>
+      <p className="text-2xs font-bold tracking-wide text-brand-garden-text">쯔양 영상 속 그 장면</p>
       <h3 className="mb-2 text-sm font-black tracking-tight">영상에서 확인한 간판·방문 장면 📸</h3>
       {visible.some((frame) => !isLevel1SourceObserved(frame)) && (
         <p className="mb-2 text-xs text-muted-foreground">현장 장면은 영상의 맥락을 보여주며, 매장 신원을 확인하는 간판·매장 안내와 구분해요.</p>
