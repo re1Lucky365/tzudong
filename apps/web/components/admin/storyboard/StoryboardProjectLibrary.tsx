@@ -40,8 +40,8 @@ export function StoryboardProjectLibrary({ projects, selectedId, statusLabels, b
   return <section id="local-storyboard-project-library" aria-labelledby="local-library-title" className="admin-detail-section min-w-0 bg-card text-card-foreground">
     <div className="flex items-center justify-between gap-2 px-3 pt-3">
       <h3 id="local-library-title" className="admin-section-title text-sm font-semibold">저장된 프로젝트 <span className="ml-1 font-normal tabular-nums text-muted-foreground">{countUnknown ? '미확인' : projects.length}</span></h3>
-      <button type="button" className={`${controlClass} inline-flex shrink-0 items-center justify-center !px-2 hover:bg-muted disabled:opacity-50`}
-        aria-label="프로젝트 목록 다시 불러오기" disabled={busy} onClick={onRefresh}>
+      <button type="button" className={`${controlClass} inline-flex shrink-0 items-center justify-center !px-2 hover:bg-muted aria-disabled:cursor-not-allowed aria-disabled:opacity-50`}
+        aria-label="프로젝트 목록 다시 불러오기" aria-disabled={busy || undefined} aria-busy={busy || undefined} onClick={() => { if (!busy) onRefresh(); }}>
         {busy ? <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" /> : <RefreshCw aria-hidden="true" className="size-4" />}
       </button>
     </div>

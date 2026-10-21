@@ -383,7 +383,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
     {featureHeld && <p role="status" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{message('feature_database_held')}</p>}
     {catalogError && projectId && !showLibrary && <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 text-sm text-destructive">
       <span>{catalogError}</span>
-      <button type="button" className={buttonClass} disabled={catalogBusy} onClick={() => setCatalogTick((value) => value + 1)}>목록 다시 불러오기</button>
+      <button type="button" className={`${buttonClass} aria-disabled:cursor-not-allowed aria-disabled:opacity-50`} aria-disabled={catalogBusy || undefined} aria-busy={catalogBusy || undefined} onClick={() => { if (!catalogBusy) setCatalogTick((value) => value + 1); }}>목록 다시 불러오기</button>
     </div>}
     <div className={`grid min-w-0 items-start gap-4 ${!projectId || showLibrary ? "lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:!grid-cols-[minmax(0,1fr)_minmax(240px,300px)]" : ""}`}>
       <div className="order-2 min-w-0" hidden={!!projectId && !showLibrary}>
@@ -441,7 +441,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
         {showSetup && <section className={panelClass} aria-labelledby="local-workers-title">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 id="local-workers-title" className="font-semibold">제작 연결</h3>
-            <button type="button" className={buttonClass} disabled={catalogBusy} onClick={() => setCatalogTick((value) => value + 1)}>목록 새로고침</button>
+            <button type="button" className={`${buttonClass} aria-disabled:cursor-not-allowed aria-disabled:opacity-50`} aria-disabled={catalogBusy || undefined} aria-busy={catalogBusy || undefined} onClick={() => { if (!catalogBusy) setCatalogTick((value) => value + 1); }}>목록 새로고침</button>
           </div>
           {catalogBusy && <p role="status" className="mt-2 text-sm">목록 확인 중…</p>}
           {catalogError && <p role="alert" className="mt-2 text-sm text-destructive">{catalogError}</p>}
