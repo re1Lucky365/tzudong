@@ -394,7 +394,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
     const inactiveBannerCount = sortedBanners.length - activeBannerCount;
     const sidebarTargetCount = sortedBanners.filter((banner) => banner.display_target.includes('sidebar')).length;
     const mobileTargetCount = sortedBanners.filter((banner) => banner.display_target.includes('mobile_popup')).length;
-    const hasReliableBannerCounts = !bannerReadFailed;
+    const hasReliableBannerCounts = banners.length > 0 || !bannerReadFailed;
     const formatBannerCount = (count: number, suffix = '') => hasReliableBannerCounts ? `${count}${suffix}` : '미확인';
 
     if (!embedded && authLoading) {
