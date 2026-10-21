@@ -10,11 +10,13 @@ import {
   Fragment,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
   type DragEventHandler,
+  type MouseEvent as ReactMouseEvent,
   type ReactElement,
   type ReactNode,
   type TouchEventHandler,
@@ -118,6 +120,7 @@ import { readBrowserStorageString, writeBrowserStorageString } from "@/lib/brows
 import { resolveGitHubActionsRunUrl } from "@/lib/open-external-url";
 import { buildScopedBrowserTitle } from "@/lib/seo";
 import type { DashboardSummaryResponse } from "@/types/dashboard";
+import { adminQueryLastReadFailed } from "@/lib/admin/query-read-state";
 import type {
   InsightTreemapPeriod,
   InsightTreemapDataQualityStatus,
@@ -1532,6 +1535,8 @@ function useAdminOverviewStats(isAdmin: boolean): {
   stats: AdminOverviewStats;
   isLoading: boolean;
   hasError: boolean;
+  isRetrying: boolean;
+  retryFailed: () => void;
 } {
   const pendingCountsQuery = useQuery({
     queryKey: ADMIN_PENDING_COUNTS_QUERY_KEY,
@@ -1549,6 +1554,7 @@ function useAdminOverviewStats(isAdmin: boolean): {
   });
 
   const bannersQuery = useAdBannersAdmin(isAdmin);
+  const statsQueries = [pendingCountsQuery, dashboardSummaryQuery, bannersQuery];
   const banners = bannersQuery.data ?? [];
   const pendingCounts = pendingCountsQuery.data ?? null;
 
@@ -1582,10 +1588,15 @@ function useAdminOverviewStats(isAdmin: boolean): {
       pendingCountsQuery.isLoading ||
       dashboardSummaryQuery.isLoading ||
       bannersQuery.isLoading,
-    hasError:
-      pendingCountsQuery.isError ||
-      dashboardSummaryQuery.isError ||
-      bannersQuery.isError,
+    hasError: statsQueries.some(adminQueryLastReadFailed),
+    isRetrying: statsQueries.some(
+      (query) => adminQueryLastReadFailed(query) && query.isFetching,
+    ),
+    retryFailed: () => {
+      for (const query of statsQueries) {
+        if (adminQueryLastReadFailed(query)) void query.refetch();
+      }
+    },
   };
 }
 
@@ -6069,17 +6080,23 @@ function AdminDashboardManagementPanel({
   stats,
   isLoading,
   hasError,
+  isRetrying,
+  onRetry,
   isAdmin,
 }: {
   stats: AdminOverviewStats;
   isLoading: boolean;
   hasError: boolean;
+  isRetrying: boolean;
+  onRetry: () => void;
   isAdmin: boolean;
 }) {
   const { toast } = useToast();
   const lastDashboardDataErrorKindRef = useRef<
     "metrics" | "operations" | null
   >(null);
+  const dashboardRetryHadFocusRef = useRef(false);
+  const dashboardSummaryRef = useRef<HTMLSpanElement | null>(null);
   const [period, setPeriod] = useState<AdminDashboardPeriod>("1M");
   const [pendingSkeletonPeriod, setPendingSkeletonPeriod] =
     useState<AdminDashboardPeriod | null>(null);
@@ -6775,7 +6792,7 @@ function AdminDashboardManagementPanel({
     pendingSkeletonPeriod === period;
   const isChartLoading = isInsightDynamicLoading;
   const dashboardDataErrorKind =
-    insightQuery.isError || growthInsightQuery.isError
+    adminQueryLastReadFailed(insightQuery) || adminQueryLastReadFailed(growthInsightQuery)
       ? "metrics"
       : hasError
         ? "operations"
@@ -7410,11 +7427,41 @@ function AdminDashboardManagementPanel({
   }, [pdfReportData]);
   const shouldShowMobileDashboardLoadingPrompt =
     isDashboardMobileViewport && (isLoading || isSubscriberLoading || isChartLoading);
-  const dashboardHeaderSummary = isLoading
-    ? "KPI 데이터 조회 중"
-    : hasError
-      ? "일부 운영 데이터 확인 필요"
-      : `대기 ${formatNumber(stats.pendingTotal)}건 · 맛집 ${formatNumber(stats.totalRestaurants)}곳 · 영상 ${formatNumber(stats.totalVideos)}개`;
+  const isDashboardRetrying =
+    isRetrying ||
+    [insightQuery, growthInsightQuery].some(
+      (query) => adminQueryLastReadFailed(query) && query.isFetching,
+    );
+  const retryDashboardData = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    dashboardRetryHadFocusRef.current = document.activeElement === event.currentTarget;
+    onRetry();
+    for (const query of [insightQuery, growthInsightQuery]) {
+      if (adminQueryLastReadFailed(query)) void query.refetch();
+    }
+  };
+  useLayoutEffect(() => {
+    if (isDashboardRetrying || !dashboardRetryHadFocusRef.current) return;
+    dashboardRetryHadFocusRef.current = false;
+    if (!dashboardDataErrorKind && document.activeElement === document.body) {
+      dashboardSummaryRef.current?.focus({ preventScroll: true });
+    }
+  }, [dashboardDataErrorKind, isDashboardRetrying]);
+  const dashboardHeaderSummary = dashboardDataErrorKind
+    ? (
+      <span className="inline-flex flex-wrap items-center gap-2" role="alert" data-admin-dashboard-read-error={dashboardDataErrorKind}>
+        <span>{dashboardDataErrorKind === "metrics" ? "지표 데이터 확인 필요" : "일부 운영 데이터 확인 필요"}</span>
+        <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" aria-busy={isDashboardRetrying} onClick={retryDashboardData}>
+          {isDashboardRetrying ? "조회 중…" : "다시 조회"}
+        </Button>
+      </span>
+    )
+    : (
+      <span ref={dashboardSummaryRef} tabIndex={-1} className="focus-visible:outline-none">
+        {isLoading
+          ? "KPI 데이터 조회 중"
+          : `대기 ${formatNumber(stats.pendingTotal)}건 · 맛집 ${formatNumber(stats.totalRestaurants)}곳 · 영상 ${formatNumber(stats.totalVideos)}개`}
+      </span>
+    );
 
   return (
     <section
@@ -10391,6 +10438,8 @@ export function AdminConsoleOverview({
     stats,
     isLoading: statsLoading,
     hasError: statsHasError,
+    isRetrying: statsRetrying,
+    retryFailed: retryFailedStats,
   } = useAdminOverviewStats(canLoadAdminConsoleData);
   const [activeModuleId, setActiveModuleId] =
     useState<AdminModuleId>(requestedModuleId);
@@ -11026,6 +11075,8 @@ export function AdminConsoleOverview({
                 stats={stats}
                 isLoading={statsLoading}
                 hasError={statsHasError}
+                isRetrying={statsRetrying}
+                onRetry={retryFailedStats}
                 isAdmin={canLoadAdminConsoleData}
               />
             </AdminEmbeddedModuleShell>
