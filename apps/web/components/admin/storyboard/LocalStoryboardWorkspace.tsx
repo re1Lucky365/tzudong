@@ -344,7 +344,14 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
   return <section aria-labelledby="local-storyboard-title" data-local-storyboard-workspace="true"
     className="h-full min-h-0 min-w-0 overflow-y-auto bg-background text-foreground">
     <AdminPageHeader title={getAdminModuleTitle("storyboard")} titleId="local-storyboard-title" icon={Clapperboard}
-      actions={projectId ? <button type="button" className={`${buttonClass} !border-primary !bg-primary !text-primary-foreground`} onClick={() => selectProject(null)}>새 프로젝트</button> : undefined}
+      actions={projectId ? <button type="button" className={`${buttonClass} !border-primary !bg-primary !text-primary-foreground`} onClick={() => {
+        selectProject(null);
+        requestAnimationFrame(() => {
+          if ((document.getElementById("local-project-select") as HTMLSelectElement | null)?.value === "") {
+            document.getElementById("local-storyboard-prompt")?.focus();
+          }
+        });
+      }}>새 프로젝트</button> : undefined}
     />
     <div className="admin-cms-toolbar admin-toolbar shrink-0" data-admin-storyboard-toolbar="true">
       <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
@@ -369,7 +376,15 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
     <div className={`grid min-w-0 items-start gap-4 ${!projectId || showLibrary ? "lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:!grid-cols-[minmax(0,1fr)_minmax(240px,300px)]" : ""}`}>
       <div className="order-2 min-w-0" hidden={!!projectId && !showLibrary}>
         <StoryboardProjectLibrary projects={catalog.projects} selectedId={projectId} statusLabels={STATUSES}
-          busy={catalogBusy} error={catalogError} onRefresh={() => setCatalogTick((value) => value + 1)} onSelect={selectProject}
+          busy={catalogBusy} error={catalogError} onRefresh={() => setCatalogTick((value) => value + 1)} onSelect={(id) => {
+            selectProject(id);
+            if (!id) return;
+            requestAnimationFrame(() => {
+              const active = document.activeElement;
+              const hidden = active instanceof HTMLElement && Boolean(active.closest("[hidden]"));
+              if (active === document.body || hidden) document.getElementById("local-project-select")?.focus();
+            });
+          }}
           onStart={() => {
             selectProject(null);
             requestAnimationFrame(() => document.getElementById("local-storyboard-prompt")?.focus());
@@ -459,6 +474,12 @@ function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureC
   const writeController = useRef<AbortController | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heading = useRef<HTMLHeadingElement | null>(null);
+  const returnCancelFocusRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!returnCancelFocusRef.current || document.activeElement !== document.body) return;
+    returnCancelFocusRef.current = false;
+    heading.current?.focus();
+  });
   const editReturnFocus = useRef<{ sceneNo: number; waiting: boolean } | null>(null);
   const endpoint = `${API}/${encodeURIComponent(projectId)}`;
 
@@ -634,7 +655,11 @@ function SavedProjectWorkspace({ projectId, featureHeld, onProject, onDepartureC
         </details>
         <div className="mt-3 flex flex-wrap gap-2">
           {active && <button type="button" className={buttonClass} disabled={busy || !view.job || needsReadback || !!readError}
-            onClick={() => { if (view.job) void mutate({ action: "cancel", revision: view.project.revision, jobId: view.job.id }); }}>작업 취소</button>}
+            onClick={() => {
+              if (!view.job) return;
+              returnCancelFocusRef.current = true;
+              void mutate({ action: "cancel", revision: view.project.revision, jobId: view.job.id });
+            }}>작업 취소</button>}
           {!scenesComplete && <button type="button" className={buttonClass}
             disabled={locked || retryBlocked || scenesComplete
               || !["failed", "cancelled", "partial", "waiting_worker"].includes(view.project.status)}
