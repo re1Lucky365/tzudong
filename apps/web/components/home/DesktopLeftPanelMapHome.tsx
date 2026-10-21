@@ -77,7 +77,7 @@ function getPopularRankTrendBadge(trend?: PopularRankTrend | null) {
     label: `${isUp ? '▲' : '▼'}${Math.abs(trend.rankDelta)}`,
     title: `이전 인기 검색 스냅샷 대비 ${Math.abs(trend.rankDelta)}위 ${isUp ? '상승' : '하락'}`,
     className: isUp
-      ? 'bg-brand-garden-tint text-brand-garden'
+      ? 'bg-brand-garden-tint text-brand-garden-text'
       : 'bg-muted text-muted-foreground',
   };
 }

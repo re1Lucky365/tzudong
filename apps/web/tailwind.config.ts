@@ -89,6 +89,7 @@ const config: Config = {
           "tangerine-ink": "hsl(var(--brand-tangerine-ink))",
           "tangerine-tint": "hsl(var(--brand-tangerine-tint))",
           garden: "hsl(var(--brand-garden))",
+          "garden-text": "hsl(var(--brand-garden-text))",
           "garden-tint": "hsl(var(--brand-garden-tint))",
           cream: "hsl(var(--brand-cream))",
         },
