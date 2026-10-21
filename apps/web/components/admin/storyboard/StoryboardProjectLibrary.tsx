@@ -36,6 +36,7 @@ export function StoryboardProjectLibrary({ projects, selectedId, statusLabels, b
     && project.title.normalize("NFKC").toLocaleLowerCase("ko-KR").includes(normalizedQuery),
   ).sort((left, right) => (Date.parse(right.updatedAt) || 0) - (Date.parse(left.updatedAt) || 0) || left.id.localeCompare(right.id));
   const hasFilter = normalizedQuery.length > 0 || status !== "all";
+  const initialRead = busy && !error && projects.length === 0 && countUnknown;
 
   return <section id="local-storyboard-project-library" aria-labelledby="local-library-title" className="admin-detail-section min-w-0 bg-card text-card-foreground">
     <div className="flex items-center justify-between gap-2 px-3 pt-3">
@@ -60,7 +61,7 @@ export function StoryboardProjectLibrary({ projects, selectedId, statusLabels, b
       </label>
     </div>
     <div role="status" aria-live="polite" className="px-3 pb-2 text-xs text-muted-foreground">
-      {busy && !error ? "프로젝트 목록 확인 중…" : error ? "목록을 다시 확인해 주세요." : hasFilter ? `${projects.length}개 중 ${filtered.length}개` : "최근 수정 순"}
+      {initialRead ? "프로젝트 목록 확인 중…" : error ? "목록을 다시 확인해 주세요." : hasFilter ? `${projects.length}개 중 ${filtered.length}개` : "최근 수정 순"}
     </div>
     {error && <p role="alert" className="mx-3 mb-3 break-words text-sm text-destructive">{error}</p>}
     <ul aria-label="저장된 프로젝트 목록" aria-busy={busy} className="max-h-72 space-y-1 overflow-y-auto overscroll-contain bg-muted/20 p-1 lg:max-h-[min(60vh,36rem)]">
@@ -75,7 +76,7 @@ export function StoryboardProjectLibrary({ projects, selectedId, statusLabels, b
         </button>
       </li>)}
     </ul>
-    {!busy && !error && filtered.length === 0 && <div className="admin-empty-state space-y-2 p-3 text-sm">
+    {!initialRead && !error && filtered.length === 0 && <div className="admin-empty-state space-y-2 p-3 text-sm">
       <p className="text-muted-foreground">{hasFilter ? "검색 조건에 맞는 프로젝트가 없습니다." : "저장된 프로젝트가 없습니다."}</p>
       <button type="button" className={`${controlClass} hover:bg-muted`} onClick={hasFilter ? () => { setQuery(""); setStatus("all"); } : onStart}>
         {hasFilter ? "검색 조건 초기화" : "새 제작 요청 작성"}
