@@ -2702,7 +2702,7 @@ export function SubmissionListView({
                     <select aria-label="목록 정렬" value={sortOrder} onChange={event => setSortOrder(event.target.value as AdminModerationSort)} className={filterClassName}>
                         <option value="priority">대기 우선</option><option value="newest">최근 접수순</option><option value="oldest">오래된 접수순</option><option value="name">맛집 이름순</option>
                     </select>
-                    {onRefresh && activeTab !== 'reviews' && <Button type="button" variant="outline" size="icon" className="h-11 w-11 md:h-8 md:w-8" aria-label="목록 새로고침" onClick={onRefresh} disabled={loading}><RefreshCw className="h-3.5 w-3.5" /></Button>}
+                    {onRefresh && activeTab !== 'reviews' && <Button type="button" variant="outline" size="icon" className="h-11 w-11 md:h-8 md:w-8" aria-label="목록 새로고침" aria-disabled={loading || undefined} aria-busy={loading || undefined} onClick={() => { if (!loading) onRefresh(); }}><RefreshCw className="h-3.5 w-3.5" /></Button>}
                     {activeTab === 'reviews' && <details className="relative text-xs">
                         <summary className="flex h-11 cursor-pointer items-center gap-1 rounded-md border px-2 md:h-8"><ScanSearch className="h-3.5 w-3.5" />OCR 관리</summary>
                         <div data-ui="moderation-ocr-popover" className="absolute right-0 top-10 z-20 w-64 space-y-3 rounded-lg border bg-popover p-3 shadow-md">
