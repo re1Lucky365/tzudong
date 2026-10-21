@@ -483,6 +483,14 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
         else applyEditor(banner);
     };
 
+    const editorHasFocus = () => Boolean(editorRef.current?.contains(document.activeElement));
+    const keepEditorFocus = (hadFocus: boolean) => {
+        if (!hadFocus || isNarrow) return;
+        requestAnimationFrame(() => {
+            if (document.activeElement === document.body) editorRef.current?.focus();
+        });
+    };
+
     const closeEditor = () => {
         if (isBusy || pendingReadback) return;
         if (isDirty) setPendingEditor({ banner: null, close: true });
@@ -684,6 +692,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
         }
 
         const uploadedPaths: string[] = [];
+        const hadEditorFocus = editorHasFocus();
         try {
             setIsUploading(true);
             setPendingEditor(null);
@@ -786,6 +795,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             }
         } finally {
             setIsUploading(false);
+            keepEditorFocus(hadEditorFocus);
         }
     };
 
@@ -794,6 +804,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
         if (!bannerToDelete) return;
         if (deleteConfirmation !== '배너삭제' || bannerToDelete.id !== editingBanner?.id || isBusy || bannersError || Boolean(pendingReadback) || hasRefreshConflict) return;
         const target = bannerToDelete;
+        const hadEditorFocus = editorHasFocus();
 
         try {
             setIsUploading(true);
@@ -853,10 +864,20 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             }
         } finally {
             setIsUploading(false);
+            keepEditorFocus(hadEditorFocus);
         }
     };
 
     const refreshBannerList = async () => {
+        const hadEditorFocus = editorHasFocus();
+        try {
+            await applyBannerRefresh();
+        } finally {
+            keepEditorFocus(hadEditorFocus);
+        }
+    };
+
+    const applyBannerRefresh = async () => {
         const { result, current, editorChangedDuringRefresh } = await readBannerRefresh(
             refetchBanners,
             () => liveEditorSnapshotRef.current,

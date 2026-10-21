@@ -16,7 +16,7 @@ const entry = `
     id: '11111111-1111-4111-8111-111111111111', title, description: null, image_url: null, video_url: null, media_type: 'none',
     link_url: null, is_active: true, priority: 0, display_target: ['sidebar'], created_at: '2026-10-20T00:00:00Z', updated_at: updatedAt, created_by: null,
   });
-  const fixture = { patch: 'conflict', listAfterPatch: true, patched: false };
+  const fixture = { patch: 'conflict', listAfterPatch: true, patched: false, deleted: false };
   globalThis.__fixture = fixture;
   const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
   globalThis.fetch = async (input, init = {}) => {
@@ -26,7 +26,14 @@ const entry = `
       if (fixture.patch === 'conflict') return json({ code: 'banner_revision_conflict', banner: row('다른 관리자 제목', '2026-10-21T01:00:00Z') }, 409);
       return json({ banner: row('수정한 제목', '2026-10-21T02:00:00Z') });
     }
-    if (url === '/api/admin/banners') return json({ banners: fixture.patched && !fixture.listAfterPatch ? [] : [row('봄 배너', '2026-10-21T00:00:00Z')] });
+    if (url === '/api/admin/banners' && init.method === 'DELETE') {
+      fixture.deleted = true;
+      return json({ deletedBanner: row('봄 배너', '2026-10-21T00:00:00Z') });
+    }
+    if (url === '/api/admin/banners') {
+      if (fixture.deleted || (fixture.patched && !fixture.listAfterPatch)) return json({ banners: [] });
+      return json({ banners: [fixture.patched ? row('수정한 제목', '2026-10-21T02:00:00Z') : row('봄 배너', '2026-10-21T00:00:00Z')] });
+    }
     return new Response('', { status: 503 });
   };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
@@ -62,6 +69,22 @@ async function bundle() {
 const setFixture = (page: Page, patch: Record<string, unknown>) =>
   page.evaluate(next => Object.assign((globalThis as unknown as { __fixture: object }).__fixture, next), patch);
 
+async function openPage(context: import('@playwright/test').BrowserContext, script: string) {
+  const page = await context.newPage();
+  const pageErrors: string[] = [];
+  const external = { count: 0 };
+  page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
+  await page.route('**/*', route => {
+    if (route.request().url() === 'https://banners.test/admin') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
+    if (!route.request().url().startsWith('https://banners.test/')) external.count++;
+    return route.abort();
+  });
+  await page.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
+  await page.goto('https://banners.test/admin');
+  await page.addScriptTag({ content: script });
+  return { page, pageErrors, external };
+}
+
 (existsSync(chrome) ? test : test.skip)('a banner save reports its outcome once, without a contradicting hook toast', async () => {
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
   try {
@@ -74,18 +97,7 @@ const setFixture = (page: Page, patch: Record<string, unknown>) =>
     for (const scenario of cases) {
       const context = await browser.newContext({ viewport: { width: scenario.width, height: 900 } });
       try {
-        const page = await context.newPage();
-        const pageErrors: string[] = [];
-        let externalRequests = 0;
-        page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
-        await page.route('**/*', route => {
-          if (route.request().url() === 'https://banners.test/admin') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
-          if (!route.request().url().startsWith('https://banners.test/')) externalRequests++;
-          return route.abort();
-        });
-        await page.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
-        await page.goto('https://banners.test/admin');
-        await page.addScriptTag({ content: script });
+        const { page, pageErrors, external } = await openPage(context, script);
         await setFixture(page, { patch: scenario.patch, listAfterPatch: scenario.listAfterPatch });
 
         await page.getByRole('button', { name: /^봄 배너 편집/ }).click();
@@ -97,7 +109,7 @@ const setFixture = (page: Page, patch: Record<string, unknown>) =>
         await playwrightExpect(page.getByText('배너 수정 실패')).toHaveCount(0);
         await playwrightExpect(page.getByText('배너 수정 완료')).toHaveCount(0);
         await playwrightExpect(page.getByText('처리 결과를 확인할 수 없습니다. 목록을 새로고침해 확인해 주세요.')).toHaveCount(0);
-        expect(externalRequests).toBe(0);
+        expect(external.count).toBe(0);
         expect(pageErrors).toEqual([]);
       } finally {
         await context.close();
@@ -107,3 +119,35 @@ const setFixture = (page: Page, patch: Record<string, unknown>) =>
     await browser.close();
   }
 }, 90_000);
+
+(existsSync(chrome) ? test : test.skip)('on wide screens a confirmed banner save or delete keeps keyboard focus in the editor pane', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle();
+    const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+    try {
+      const { page, pageErrors, external } = await openPage(context, script);
+      const editor = page.locator('section[aria-labelledby="banner-editor-title"]');
+      await setFixture(page, { patch: 'saved', listAfterPatch: true });
+      await page.getByRole('button', { name: /^봄 배너 편집/ }).click();
+      await page.locator('#title').fill('수정한 제목');
+      await page.getByRole('button', { name: '수정 저장' }).focus();
+      await page.keyboard.press('Enter');
+      await playwrightExpect(page.getByText('저장한 배너 상태를 목록에서 다시 확인했습니다.')).toBeVisible();
+      await playwrightExpect(editor).toBeFocused();
+
+      await page.getByLabel('배너 삭제 확인 문구').fill('배너삭제');
+      await page.getByRole('button', { name: '삭제', exact: true }).focus();
+      await page.keyboard.press('Enter');
+      await playwrightExpect(page.getByText('배너가 목록에서 삭제된 것을 확인했습니다.')).toBeVisible();
+      await playwrightExpect(editor).toBeFocused();
+      await playwrightExpect(editor).toContainText('배너를 선택하면 내용과 노출 설정을 편집할 수 있습니다.');
+      expect(external.count).toBe(0);
+      expect(pageErrors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  } finally {
+    await browser.close();
+  }
+}, 60_000);
