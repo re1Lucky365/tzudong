@@ -6379,7 +6379,7 @@ export function AdminYoutubeThumbnailGenerator() {
               <History className="h-3.5 w-3.5" />
               <span>생성 히스토리</span>
               <Badge variant="secondary" className="px-1.5 text-2xs">
-                {historyStatus === "loading" && !historyError ? "불러오는 중" : historyStatus === "error" || historyError ? "확인 실패" : `${historyRuns.length}건`}
+                {historyStatus === "loading" && !historyError && historyRuns.length === 0 ? "불러오는 중" : historyStatus === "error" || historyError ? "확인 실패" : `${historyRuns.length}건`}
               </Badge>
               <Badge variant="outline" className="px-1.5 text-2xs" data-thumbnail-history-source-label="true">
                 {getThumbnailInitialPreviewSourceLabel(initialPreviewSource)}
@@ -6501,7 +6501,7 @@ export function AdminYoutubeThumbnailGenerator() {
   }
   const historyRecordLabel = historyStatus === "error" || (historyStatus === "loading" && Boolean(historyError))
     ? "확인 실패"
-    : historyStatus === "idle" || historyStatus === "loading"
+    : historyStatus === "idle" || (historyStatus === "loading" && historyRuns.length === 0)
       ? "확인 중"
       : `${historyRuns.length}개`;
   const thumbnailModuleSummary = isGenerating
