@@ -1659,7 +1659,6 @@ function AdminMapInfoPanel({
 }
 
 export function AdminOverviewDashboard({
-  isLoading,
   hasError,
   onSelectModule,
 }: {
@@ -1822,7 +1821,7 @@ export function AdminOverviewDashboard({
     [routeRequestPoints],
   );
   const mapRestaurantsReadFailed = adminQueryLastReadFailed(mapRestaurantsQuery);
-  const isMapLoading = isLoading || (mapRestaurantsQuery.isLoading && !mapRestaurantsReadFailed);
+  const isMapLoading = mapRestaurantsQuery.isLoading && !mapRestaurantsReadFailed;
   const hasMapError = hasError || mapRestaurantsReadFailed;
 
   useEffect(() => {
