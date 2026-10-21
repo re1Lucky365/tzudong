@@ -533,6 +533,10 @@ function AdminNaverMapSurface({
     isLoading: isNaverLoading,
     load: loadNaverMaps,
   } = useNaverMaps({ autoLoad: false, strategy: "lazyOnload" });
+  const [retainedMapError, setRetainedMapError] = useState<Error | null>(null);
+  if (loadError && retainedMapError !== loadError) setRetainedMapError(loadError);
+  if (isLoaded && retainedMapError) setRetainedMapError(null);
+  const visibleMapError = isLoaded ? null : loadError ?? retainedMapError;
 
   const scheduleViewportRefresh = useCallback(() => {
     if (viewportRefreshTimerRef.current != null) return;
@@ -890,10 +894,10 @@ function AdminNaverMapSurface({
         aria-label="네이버 지도 맛집 마커와 클러스터"
       />
 
-      {isMapPreparing && <AdminMapLoadingSkeleton />}
+      {isMapPreparing && !visibleMapError && <AdminMapLoadingSkeleton />}
 
-      {loadError && !isMapPreparing && (
-        <AdminMapLoadErrorState onRetry={loadNaverMaps} />
+      {visibleMapError && (
+        <AdminMapLoadErrorState onRetry={loadNaverMaps} isRetrying={isNaverLoading} />
       )}
     </div>
   );

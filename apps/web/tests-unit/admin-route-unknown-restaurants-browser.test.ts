@@ -40,7 +40,7 @@ const routeEntry = `
     <QueryClientProvider client={client}><main style={{ height: '100vh' }}><AdminOverviewDashboard stats={stats} isLoading={false} hasError={false} onSelectModule={() => {}} /></main></QueryClientProvider>);
 `;
 
-async function bundle(entry: string) {
+async function bundle(entry: string, naverSource = "const state = { isLoaded: true, loadError: null, isLoading: false, load() {} }; export const useNaverMaps = () => state;") {
   const built = await Bun.build({
     entrypoints: ['dashboard-fixture'], target: 'browser', format: 'iife', write: false,
     define: { 'process.env.NODE_ENV': '"test"' },
@@ -59,7 +59,7 @@ async function bundle(entry: string) {
       builder.onLoad({ filter: /.*/, namespace: 'inert' }, args => ({ loader: 'tsx', contents: {
         auth: "const value = { user: { id: 'admin-self' }, isAdmin: true, isLoading: false, profileNickname: '관리자' }; export const useAuth = () => value; export const AuthProvider = ({ children }) => children;",
         client: "export const supabase = { channel() { return { on() { return this; }, subscribe() { return this; } }; }, removeChannel() {}, from() { throw new Error('OFFLINE_ONLY'); }, auth: { getSession: async () => ({ data: { session: null } }) } };",
-        naver: "const state = { isLoaded: true, loadError: null, isLoading: false, load() {} }; export const useNaverMaps = () => state;",
+        naver: naverSource,
         navigation: "const params = new URLSearchParams('module=overview'); const router = { push() {}, replace() {}, refresh() {}, prefetch() {} }; export const useRouter = () => router; export const usePathname = () => '/admin'; export const useSearchParams = () => params;",
         image: "import React from 'react'; export default function Image(props) { return <img alt={props.alt || ''} />; }",
         link: "import React from 'react'; export default function Link({ href, children, prefetch, ...props }) { return <a href={typeof href === 'string' ? href : '#'} {...props}>{children}</a>; }",
@@ -121,6 +121,58 @@ async function bundle(entry: string) {
           fixture.release();
         });
         await playwrightExpect(overlay).toContainText('좌표 맛집 목록을 불러오지 못했습니다.');
+        expect(pageErrors).toEqual([]);
+        expect(externalRequests).toBe(0);
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+}, 90_000);
+
+const mapSdkNaver = `
+  import { useSyncExternalStore } from 'react';
+  const listeners = new Set();
+  let snapshot = { isLoaded: false, loadError: new Error('map-failed'), isLoading: false };
+  const emit = patch => { snapshot = { ...snapshot, ...patch }; listeners.forEach(listener => listener()); };
+  export function useNaverMaps() {
+    const current = useSyncExternalStore(listener => { listeners.add(listener); return () => listeners.delete(listener); }, () => snapshot, () => snapshot);
+    return { ...current, load() { emit({ loadError: null, isLoading: true }); } };
+  }
+`;
+
+(existsSync(chrome) ? test : test.skip)('a failed admin map sdk load stays failed while retrying', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle(routeEntry, mapSdkNaver);
+    for (const width of [1280, 390]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      const page = await context.newPage();
+      page.setDefaultTimeout(8_000);
+      const pageErrors: string[] = [];
+      let externalRequests = 0;
+      page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
+      await page.route('**/*', route => {
+        if (route.request().url() === 'https://routes.test/admin') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
+        if (!route.request().url().startsWith('https://routes.test/')) externalRequests++;
+        return route.abort();
+      });
+      await page.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
+      try {
+        await page.goto('https://routes.test/admin');
+        await page.addScriptTag({ content: script });
+        const alert = page.getByRole('alert').filter({ hasText: '네이버 지도를 불러오지 못했습니다' });
+        const retry = alert.getByRole('button', { name: '다시 시도' });
+        await playwrightExpect(alert).toBeVisible();
+        await retry.focus();
+        await page.keyboard.press('Enter');
+        await playwrightExpect(retry).toHaveAttribute('aria-busy', 'true');
+        await playwrightExpect(retry).toBeFocused();
+        await playwrightExpect(retry).not.toHaveAttribute('disabled');
+        await playwrightExpect(alert).toBeVisible();
+        await playwrightExpect(page.getByRole('status', { name: '관리자 네이버 지도 로딩' })).toHaveCount(0);
         expect(pageErrors).toEqual([]);
         expect(externalRequests).toBe(0);
       } finally {
