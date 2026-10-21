@@ -15,13 +15,14 @@ const entry = `
   const graphPage = n => ({ revision: 'a'.repeat(64), generatedAt: '2026-10-21T00:00:00Z', coverage,
     nodes: [{ id: 'node-' + n, label: '페이지 ' + n + ' 노드', kind: 'hub', summary: '', evidence: [] }], edges: [], selected: null,
     totalNodes: 3, totalEdges: 0, filteredTotal: 3, omittedEdges: 0, nextCursor: n < 3 ? 'cursor-' + (n + 1) : null });
-  const fixture = { fail: null, cursors: [] };
+  const fixture = { fail: null, cursors: [], hold: false, release() {} };
   globalThis.__knowledgeFixture = fixture;
   globalThis.fetch = async input => {
     const url = new URL(String(input), location.href);
     if (url.pathname !== '/api/admin/knowledge-graph') throw new Error('OFFLINE_ONLY');
     const cursor = url.searchParams.get('cursor');
     fixture.cursors.push(cursor);
+    if (fixture.hold) await new Promise(resolve => { fixture.release = resolve; });
     if (cursor && cursor === fixture.fail) return new Response('', { status: 503 });
     return new Response(JSON.stringify(graphPage(cursor ? Number(cursor.slice(7)) : 1)), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
@@ -45,7 +46,7 @@ async function bundle() {
   return built.outputs.find(output => output.path.endsWith('.js'))!.text();
 }
 
-type Fixture = { fail: string | null; cursors: Array<string | null> };
+type Fixture = { fail: string | null; cursors: Array<string | null>; hold: boolean; release: () => void };
 const fixture = (page: Page) => page.evaluate(() => (globalThis as unknown as { __knowledgeFixture: Fixture }).__knowledgeFixture);
 const press = async (target: ReturnType<Page['locator']>) => { await target.focus(); await target.press('Enter'); };
 const setFail = (page: Page, fail: string | null) => page.evaluate(value => { (globalThis as unknown as { __knowledgeFixture: Fixture }).__knowledgeFixture.fail = value; }, fail);
@@ -85,6 +86,50 @@ const setFail = (page: Page, fail: string | null) => page.evaluate(value => { (g
         await playwrightExpect(node(3)).toBeVisible();
         await playwrightExpect(alert).toHaveCount(0);
         expect((await fixture(page)).cursors).toEqual([null, 'cursor-2', 'cursor-3', 'cursor-3']);
+        expect(externalRequests).toBe(0);
+        expect(pageErrors).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+}, 60_000);
+
+(existsSync(chrome) ? test : test.skip)('the next knowledge page keeps keyboard focus while that page is loading', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle();
+    for (const width of [1280, 390]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      try {
+        const page = await context.newPage();
+        page.setDefaultTimeout(5_000);
+        const pageErrors: string[] = [];
+        let externalRequests = 0;
+        page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
+        await page.route('**/*', route => {
+          if (route.request().url() === 'https://knowledge.test/admin') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
+          externalRequests++;
+          return route.abort();
+        });
+        await page.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
+        await page.goto('https://knowledge.test/admin');
+        await page.addScriptTag({ content: script });
+        const node = (n: number) => page.locator(`[data-knowledge-node="node-${n}"]`);
+        await playwrightExpect(node(1)).toBeVisible();
+        const next = page.getByRole('button', { name: '다음 지식 페이지' });
+        await page.evaluate(() => { (globalThis as unknown as { __knowledgeFixture: { hold: boolean } }).__knowledgeFixture.hold = true; });
+        await next.focus();
+        await page.keyboard.press('Enter');
+        await playwrightExpect(next).toBeFocused();
+        await playwrightExpect(next).not.toHaveAttribute('disabled');
+        await playwrightExpect(next).toHaveAttribute('aria-disabled', 'true');
+        await playwrightExpect(node(1)).toBeVisible();
+        await page.evaluate(() => { (globalThis as unknown as { __knowledgeFixture: { hold: boolean; release: () => void } }).__knowledgeFixture.hold = false; (globalThis as unknown as { __knowledgeFixture: { release: () => void } }).__knowledgeFixture.release(); });
+        await playwrightExpect(node(2)).toBeVisible();
+        await playwrightExpect(next).toBeFocused();
         expect(externalRequests).toBe(0);
         expect(pageErrors).toEqual([]);
       } finally {
