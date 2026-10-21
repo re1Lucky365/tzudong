@@ -90,6 +90,10 @@ const setFixture = (page: Page, patch: Record<string, unknown>) =>
         await page.waitForTimeout(300);
         await playwrightExpect(page.getByText('데이터 로드 실패')).toHaveCount(0);
         await playwrightExpect(page.getByText('표시할 데이터가 없습니다', { exact: false })).toHaveCount(0);
+        const failedCount = page.locator('[data-admin-evaluation-mobile-filter-actions], .admin-cms-footer').filter({ visible: true });
+        await playwrightExpect(failedCount).toHaveCount(1);
+        await playwrightExpect(failedCount).toContainText('미확인');
+        await playwrightExpect(failedCount).not.toContainText('0개');
 
         await setFixture(page, { page: 'slow-fail' });
         await retry.focus();
@@ -107,6 +111,10 @@ const setFixture = (page: Page, patch: Record<string, unknown>) =>
         await playwrightExpect(alert).toHaveCount(0);
         await playwrightExpect(page.locator('[data-admin-module-content]')).toBeFocused();
         await playwrightExpect(page.getByText('표시할 데이터가 없습니다').filter({ visible: true })).toHaveCount(1);
+        const emptyCount = page.locator('[data-admin-evaluation-mobile-filter-actions], .admin-cms-footer').filter({ visible: true });
+        await playwrightExpect(emptyCount).toHaveCount(1);
+        await playwrightExpect(emptyCount).toContainText('0개');
+        await playwrightExpect(emptyCount).not.toContainText('미확인');
         expect(external.count).toBe(0);
         expect(pageErrors).toEqual([]);
       } finally {

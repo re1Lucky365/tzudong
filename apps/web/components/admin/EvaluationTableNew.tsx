@@ -1006,6 +1006,8 @@ export function EvaluationTable({
             <span>검수 항목</span>
             {loading && records.length === 0 ? (
               <span className="ml-1 font-medium">집계 중</span>
+            ) : readFailed && records.length === 0 ? (
+              <strong className="ml-1 text-sm font-bold text-foreground">미확인</strong>
             ) : (
               <strong className="ml-1 text-sm font-bold text-foreground">{records.length}개</strong>
             )}
@@ -1791,7 +1793,7 @@ export function EvaluationTable({
         </Table>
         <div className="h-8" /> {/* 마지막 레코드가 잘리지 않도록 충분한 하단 여백 */}
           </div>
-          <div className="admin-cms-footer shrink-0 justify-between"><span>{records.length}개 표시</span><span>{activeFilterCount > 0 ? `필터 ${activeFilterCount}개 적용` : '전체 조건'}</span></div>
+          <div className="admin-cms-footer shrink-0 justify-between"><span>{readFailed && records.length === 0 ? '미확인' : `${records.length}개 표시`}</span><span>{activeFilterCount > 0 ? `필터 ${activeFilterCount}개 적용` : '전체 조건'}</span></div>
           </div>
         )}
         {loadMoreSentinel}
