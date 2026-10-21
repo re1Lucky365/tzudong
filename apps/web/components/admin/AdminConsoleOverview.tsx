@@ -7590,9 +7590,9 @@ function AdminDashboardManagementPanel({
             <AdminDashboardCollectionLogPopover
               open={isCollectionLogsOpen}
               logs={collectionLogsQuery.data}
-              isLoading={collectionLogsQuery.isLoading}
+              isLoading={collectionLogsQuery.isLoading && !adminQueryLastReadFailed(collectionLogsQuery)}
               isFetching={collectionLogsQuery.isFetching}
-              isError={collectionLogsQuery.isError}
+              isError={adminQueryLastReadFailed(collectionLogsQuery)}
               onOpenChange={setIsCollectionLogsOpen}
               onRefresh={() => void collectionLogsQuery.refetch()}
             />

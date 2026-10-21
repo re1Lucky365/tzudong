@@ -21,7 +21,7 @@ const overviewEntry = `
   import { AdminConsoleOverview } from './components/admin/AdminConsoleOverview';
   import { buildAdminPendingCountsResponse } from './lib/admin/pending-counts';
   ${shared}
-  const fixture = { logs: null, requests: [] };
+  const fixture = { logs: null, requests: [], holdLogs: false, releaseLogs() {} };
   globalThis.__fixture = fixture;
   globalThis.fetch = async input => {
     const url = String(input).split('?')[0];
@@ -29,7 +29,10 @@ const overviewEntry = `
     if (url === '/api/admin/pending-counts') return json(buildAdminPendingCountsResponse({ restaurantSubmissions: 0, restaurantRecommendationRequests: 0, reviews: 0, recommendationRequestsLifecycleReady: true, asOf }));
     if (url === '/api/admin/banners') return json({ banners: [] });
     if (url === '/api/dashboard/summary') return json({ asOf, totals: { restaurants: 12, videos: 34, withCoordinates: 10 }, topCategories: [], videos: [] });
-    if (url === '/api/admin/youtube-kpi-collection-logs' && fixture.logs) return json(fixture.logs);
+    if (url === '/api/admin/youtube-kpi-collection-logs') {
+      if (fixture.holdLogs) await new Promise(resolve => { fixture.releaseLogs = resolve; });
+      if (fixture.logs) return json(fixture.logs);
+    }
     return unavailable();
   };
   createRoot(document.body.appendChild(document.createElement('div'))).render(
@@ -107,7 +110,7 @@ async function bundle(entry: string) {
   return built.outputs.find(output => output.path.endsWith('.js'))!.text();
 }
 
-type Fixture = { requests: string[]; logs?: unknown; candidatesOk?: boolean; candidatesDelayMs?: number };
+type Fixture = { requests: string[]; logs?: unknown; holdLogs?: boolean; releaseLogs?: () => void; candidatesOk?: boolean; candidatesDelayMs?: number };
 const setFixture = (page: Page, patch: Partial<Fixture>) =>
   page.evaluate(next => Object.assign((globalThis as unknown as { __fixture: Fixture }).__fixture, next), patch);
 const requestCount = async (page: Page, path: string) =>
@@ -162,13 +165,22 @@ browserTest('failed dashboard metric and collection-log reads are not shown as z
         await playwrightExpect(popover).not.toContainText('권한');
         await playwrightExpect(popover).not.toContainText('저장된 스냅샷 없음');
 
-        await setFixture(page, { logs: {
+        const refresh = popover.getByRole('button', { name: '갱신' });
+        await setFixture(page, { holdLogs: true });
+        await refresh.focus();
+        await page.keyboard.press('Enter');
+        await playwrightExpect(refresh).toHaveAttribute('aria-busy', 'true');
+        await playwrightExpect(refresh).toBeFocused();
+        await playwrightExpect(refresh).not.toHaveAttribute('disabled');
+        await playwrightExpect(popover.locator('[data-admin-dashboard-kpi-collection-log-read-failed]')).toHaveText(
+          '수집 상태를 불러오지 못했습니다. 갱신을 눌러 다시 확인해 주세요.');
+
+        await setFixture(page, { holdLogs: false, logs: {
           asOf: '2026-10-21T00:00:00Z',
           workflow: { available: false, repository: 'twoimo/tzudong', workflowId: 'youtube-kpi-snapshot.yml', runs: [], latestJobs: [], error: 'github-runs-502' },
           snapshot: { available: false, error: 'SNAPSHOT_QUERY_FAILED' },
         } });
-        const refresh = popover.getByRole('button', { name: '갱신' });
-        await refresh.click();
+        await page.evaluate(() => (globalThis as unknown as { __fixture: { releaseLogs: () => void } }).__fixture.releaseLogs());
         await playwrightExpect(popover).toContainText('로그 확인 실패');
         await playwrightExpect(popover).toContainText('스냅샷 조회 실패');
         await playwrightExpect(popover).not.toContainText('권한');
