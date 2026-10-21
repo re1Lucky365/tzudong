@@ -12,9 +12,13 @@ async function bundle() {
     import { createRoot } from 'react-dom/client';
     import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
     import { AdminKnowledgeGraphPanel } from './components/admin/AdminKnowledgeGraphPanel';
+    const fixture = { requests: 0, hold: false, waiters: [], release() { const pending = this.waiters.splice(0); for (const resolve of pending) resolve(); } };
+    globalThis.__knowledgeCoverage = fixture;
     globalThis.fetch = async input => {
       const url = new URL(String(input), location.href);
       if (url.pathname !== '/api/admin/knowledge-graph') throw new Error('OFFLINE_ONLY');
+      fixture.requests += 1;
+      if (fixture.hold && fixture.requests > 1) await new Promise(resolve => { fixture.waiters.push(resolve); });
       return new Response('', { status: 503 });
     };
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
@@ -65,6 +69,21 @@ async function bundle() {
         await playwrightExpect(dialog).toContainText('대기 수 미확인');
         await playwrightExpect(dialog.getByText('조회 중', { exact: true })).toHaveCount(0);
         await playwrightExpect(dialog.getByText('대기 수 확인 중')).toHaveCount(0);
+        await page.keyboard.press('Escape');
+        await playwrightExpect(dialog).toHaveCount(0);
+
+        await page.evaluate(() => { (globalThis as unknown as { __knowledgeCoverage: { hold: boolean } }).__knowledgeCoverage.hold = true; });
+        const retry = page.getByRole('alert').getByRole('button', { name: '다시 시도' });
+        await retry.focus();
+        await page.keyboard.press('Enter');
+        await playwrightExpect(retry).toBeFocused();
+        await playwrightExpect(retry).toHaveAttribute('aria-busy', 'true');
+        await playwrightExpect(page.getByRole('alert')).toContainText('지식 그래프를 불러오지 못했습니다.');
+        await playwrightExpect(page.getByText('그래프 조회 중')).toHaveCount(0);
+        await playwrightExpect(page.locator('[data-knowledge-canvas]')).toContainText('지식 그래프를 불러오지 못했습니다.');
+        await page.evaluate(() => (globalThis as unknown as { __knowledgeCoverage: { release: () => void } }).__knowledgeCoverage.release());
+        await playwrightExpect(retry).toBeFocused();
+        await playwrightExpect(page.getByRole('alert')).toContainText('지식 그래프를 불러오지 못했습니다.');
         expect(externalRequests).toBe(0);
         expect(pageErrors).toEqual([]);
       } finally {
