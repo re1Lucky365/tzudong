@@ -60,7 +60,7 @@ export function StoryboardProjectLibrary({ projects, selectedId, statusLabels, b
       </label>
     </div>
     <div role="status" aria-live="polite" className="px-3 pb-2 text-xs text-muted-foreground">
-      {busy ? "프로젝트 목록 확인 중…" : error ? "목록을 다시 확인해 주세요." : hasFilter ? `${projects.length}개 중 ${filtered.length}개` : "최근 수정 순"}
+      {busy && !error ? "프로젝트 목록 확인 중…" : error ? "목록을 다시 확인해 주세요." : hasFilter ? `${projects.length}개 중 ${filtered.length}개` : "최근 수정 순"}
     </div>
     {error && <p role="alert" className="mx-3 mb-3 break-words text-sm text-destructive">{error}</p>}
     <ul aria-label="저장된 프로젝트 목록" aria-busy={busy} className="max-h-72 space-y-1 overflow-y-auto overscroll-contain bg-muted/20 p-1 lg:max-h-[min(60vh,36rem)]">

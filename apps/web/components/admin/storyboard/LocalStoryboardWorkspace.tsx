@@ -443,7 +443,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
             <h3 id="local-workers-title" className="font-semibold">제작 연결</h3>
             <button type="button" className={`${buttonClass} aria-disabled:cursor-not-allowed aria-disabled:opacity-50`} aria-disabled={catalogBusy || undefined} aria-busy={catalogBusy || undefined} onClick={() => { if (!catalogBusy) setCatalogTick((value) => value + 1); }}>목록 새로고침</button>
           </div>
-          {catalogBusy && <p role="status" className="mt-2 text-sm">목록 확인 중…</p>}
+          {catalogBusy && !catalogError && <p role="status" className="mt-2 text-sm">목록 확인 중…</p>}
           {catalogError && <p role="alert" className="mt-2 text-sm text-destructive">{catalogError}</p>}
           {!catalogBusy && !catalogError && geminiWorkers.length === 0 && <p className="mt-2 text-sm text-muted-foreground">지원되는 Gemini 제작 워커가 없습니다. 연결 후 대기 중인 요청이 시작됩니다.</p>}
           {geminiWorkers.map((worker) => <div key={worker.id} className="mt-3 break-words text-sm [overflow-wrap:anywhere]">
