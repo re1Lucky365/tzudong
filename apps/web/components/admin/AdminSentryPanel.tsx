@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { restoreAdminDetailFocus } from '@/lib/admin/detail-focus';
+import { adminQueryLastReadFailed } from '@/lib/admin/query-read-state';
 import { isAdminSentryResponse, type AdminSentryResponse, type SentryIssueStatus } from '@/types/admin-sentry';
 
 const statusLabels: Record<SentryIssueStatus, string> = { unresolved: '미해결', resolved: '해결됨', ignored: '보류' };
@@ -56,8 +57,9 @@ export function AdminSentryPanel() {
     refetchOnWindowFocus: false,
     retry: false,
   });
-  const data = query.isError ? undefined : query.data;
-  const available = data?.state === 'connected' && !query.isError;
+  const readFailed = adminQueryLastReadFailed(query);
+  const data = readFailed ? undefined : query.data;
+  const available = data?.state === 'connected' && !readFailed;
 
   useEffect(() => { listRef.current?.scrollTo({ top: 0 }); }, [search, status, sort, cursor]);
   const normalizedSearch = search.normalize('NFKC').trim().toLocaleLowerCase('ko-KR');
@@ -67,7 +69,7 @@ export function AdminSentryPanel() {
     return delta || (aTime === null ? (bTime === null ? 0 : 1) : bTime === null ? -1 : bTime - aTime) || a.id.localeCompare(b.id);
   }) : [];
   const selected = issues.find(issue => issue.id === selectedId) ?? null;
-  const connectionLabel = query.isPending && !reloading ? '조회 중' : query.isError ? '조회 실패' : data?.state === 'connected' ? '연결됨' : data?.state === 'not_configured' ? '연결 미설정' : '조회 불가';
+  const connectionLabel = readFailed ? '조회 실패' : query.isPending && !reloading ? '조회 중' : data?.state === 'connected' ? '연결됨' : data?.state === 'not_configured' ? '연결 미설정' : '조회 불가';
   const reload = () => {
     if (reloading || query.isFetching) return;
     setReloading(true);
@@ -89,7 +91,7 @@ export function AdminSentryPanel() {
     <Button className="mt-4" size="sm" variant="outline" asChild><a href={selected.href} target="_blank" rel="noopener noreferrer">Sentry에서 상세 열기<ExternalLink className="ml-1 h-3.5 w-3.5" aria-hidden="true" /></a></Button>
   </aside> : null;
 
-  return <div className="admin-surface flex h-full min-h-[320px] min-w-0 flex-col overflow-hidden" data-admin-sentry-panel data-admin-sentry-state={query.isPending ? "loading" : query.isError ? "unavailable" : data?.state ?? "unavailable"}>
+  return <div className="admin-surface flex h-full min-h-[320px] min-w-0 flex-col overflow-hidden" data-admin-sentry-panel data-admin-sentry-state={readFailed ? "unavailable" : query.isPending ? "loading" : data?.state ?? "unavailable"}>
     <AdminPageHeader title={getAdminModuleTitle("sentry")} icon={Bug} summary={connectionLabel}
       actions={<><Button size="sm" variant="ghost" onClick={reload} aria-disabled={reloading || query.isFetching || undefined} aria-busy={reloading || query.isFetching || undefined} aria-label="오류 목록 새로고침"><RefreshCw className={`h-3.5 w-3.5 ${query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden="true" /></Button>{data?.dashboardUrl ? <Button size="sm" variant="outline" asChild><a href={data.dashboardUrl} target="_blank" rel="noopener noreferrer">Sentry 열기<ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" /></a></Button> : null}</>}
     />

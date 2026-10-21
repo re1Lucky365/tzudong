@@ -72,6 +72,9 @@ declare global { interface Window { __sentryRead: { hold: boolean; release: () =
         await playwrightExpect(retry).toHaveAttribute('aria-busy', 'true');
         await playwrightExpect(retry).toBeFocused();
         await playwrightExpect(page.getByRole('button', { name: '오류 목록 새로고침' })).not.toHaveAttribute('disabled');
+        await playwrightExpect(page.getByText('조회 실패', { exact: true })).toHaveCount(2);
+        await playwrightExpect(page.getByText('조회 불가', { exact: true })).toHaveCount(0);
+        await playwrightExpect(page.getByText('조회 중', { exact: true })).toHaveCount(0);
         await page.evaluate(() => window.__sentryRead.release());
         await playwrightExpect(retry).toBeFocused();
         await playwrightExpect(page.getByRole('heading', { name: '오류 목록 조회 실패' })).toBeVisible();
