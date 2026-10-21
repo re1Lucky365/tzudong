@@ -53,7 +53,7 @@ export function MapPanelHeader({
       <div className={isPage ? "flex flex-wrap items-start justify-between gap-3" : "flex min-h-8 items-center gap-2"}>
         <div className={cn("min-w-0 flex-1", isPage && "basis-[min(11rem,100%)]")}>
           {eyebrow ? <p className="mb-0.5 text-2xs font-bold tracking-wide text-brand-garden xs:text-xs">{eyebrow}</p> : null}
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <div className={cn("flex min-w-0 items-center gap-x-2", isPage ? "flex-wrap gap-y-1" : "flex-nowrap")}>
             <TitleTag id={titleId} className={isPage ? pageHeaderTitleClass : "flex min-w-0 items-center gap-2 text-sm font-semibold leading-5 text-foreground"}>
               {titleIcon ? <span className={cn("shrink-0", isPage ? "text-brand-tangerine-ink" : "text-primary", isPage ? "[&_svg]:size-5 sm:[&_svg]:size-6" : "[&_svg]:size-4")} aria-hidden="true">{titleIcon}</span> : null}
               <span className="min-w-0 truncate" title={title}>{title}</span>
