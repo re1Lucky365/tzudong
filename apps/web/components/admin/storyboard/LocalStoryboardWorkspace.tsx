@@ -188,6 +188,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
   const [catalog, setCatalog] = useState<Catalog>({ ok: true, projects: [], workers: [], readiness: FEATURE_DATABASE_HELD });
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogBusy, setCatalogBusy] = useState(true);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [catalogTick, setCatalogTick] = useState(0);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -273,7 +274,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
     void json(API, controller.signal).then((body) => {
       const parsed = catalogSchema.safeParse(body);
       if (!parsed.success) throw new UiError("invalid_response");
-      if (!controller.signal.aborted) { setCatalog(parsed.data); setCatalogError(null); }
+      if (!controller.signal.aborted) { setCatalog(parsed.data); setCatalogLoaded(true); setCatalogError(null); }
     }).catch((error: unknown) => {
       if (!controller.signal.aborted) setCatalogError(error instanceof UiError && error.code === "unauthorized"
         ? failure(error) : "프로젝트 목록을 불러오지 못했습니다. 목록을 다시 불러와 확인하세요.");
@@ -303,13 +304,16 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
   const selectedModelsAvailable = storyboardWorkerSupportsPair(
     catalog.workers, textProvider.model, imageProvider.model,
   );
-  const featureHeld = catalog.readiness.status !== 'ready';
+  const featureHeld = catalogLoaded && catalog.readiness.status !== 'ready';
+  // Readiness is unknown until a catalog read succeeds, so actions stay locked without claiming a database hold.
+  const actionsHeld = featureHeld || !catalogLoaded;
+  const readinessUnknownMessage = "제작 가능 여부를 확인하지 못했습니다. 목록을 다시 불러온 뒤 만들 수 있습니다.";
 
   async function create(event: FormEvent) {
     event.preventDefault();
     if (createController.current) return;
     setCreateError(null);
-    if (featureHeld) { setCreateError(message('feature_database_held')); return; }
+    if (actionsHeld) { setCreateError(featureHeld ? message('feature_database_held') : readinessUnknownMessage); return; }
     if (!selectedModelsAvailable) { setCreateError('선택한 모델을 사용할 수 없습니다.'); return; }
     const [imageWidth, imageHeight] = dimensions.split("x").map(Number);
     const fields = { workflow: STORYBOARD_WORKFLOW, prompt, sceneCount, providers: { externalAI: true as const, text: textProvider, image: imageProvider },
@@ -375,7 +379,8 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
       {(!projectId || showSetup) && <aside className={`min-w-0 space-y-4 ${projectId ? "order-2" : "order-1 w-full"}`} aria-label="프로젝트 설정과 기록">
         {!projectId && <form className={panelClass} onSubmit={create} aria-labelledby="local-request-title">
           <h3 id="local-request-title" className="font-semibold">새 제작 요청</h3>
-          <fieldset disabled={creating || featureHeld} className="mt-3 min-w-0 space-y-3">
+          {!catalogLoaded && catalogError && <p role="status" className="mt-2 text-sm text-muted-foreground">{readinessUnknownMessage}</p>}
+          <fieldset disabled={creating || actionsHeld} className="mt-3 min-w-0 space-y-3">
             <div className="text-sm">
               <label className="block" htmlFor="local-storyboard-prompt">제작 요청</label>
               <textarea id="local-storyboard-prompt" className={`${inputClass} break-keep`} rows={4} required maxLength={8000}
@@ -400,7 +405,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
               <ProviderField kind="text" value={textProvider} models={textModels} onChange={setTextProvider} />
               <ProviderField kind="image" value={imageProvider} models={imageModels} onChange={setImageProvider} />
             </div>
-            <button className={`${buttonClass} w-full !border-primary !bg-primary !text-primary-foreground sm:w-auto sm:min-w-48`} type="submit" disabled={creating || featureHeld || !selectedModelsAvailable}>
+            <button className={`${buttonClass} w-full !border-primary !bg-primary !text-primary-foreground sm:w-auto sm:min-w-48`} type="submit" disabled={creating || actionsHeld || !selectedModelsAvailable}>
               {creating ? "저장 요청 중…" : "프로젝트 만들기"}
             </button>
           </fieldset>
@@ -423,7 +428,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
           </div>)}
         </section>}
       </aside>}
-      {projectId && <div className="order-1 min-w-0"><SavedProjectWorkspace key={projectId} projectId={projectId} featureHeld={featureHeld}
+      {projectId && <div className="order-1 min-w-0"><SavedProjectWorkspace key={projectId} projectId={projectId} featureHeld={actionsHeld}
         onProject={updateSummary} onDepartureChange={onDepartureChange} /></div>}
     </div>
     </div>
