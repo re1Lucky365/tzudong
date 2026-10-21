@@ -739,6 +739,20 @@ export function AdminRestaurantRefreshHistoryPanel({
     },
   ];
 
+  const showReadbackAlert = Boolean(pendingReadback) && !isSavingDecision;
+  const readbackAlertHadFocusRef = useRef(false);
+  const readbackRetryRef = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    const hadFocus = readbackAlertHadFocusRef.current;
+    if (!showReadbackAlert) readbackAlertHadFocusRef.current = false;
+    if (document.activeElement !== document.body) return;
+    if (showReadbackAlert) readbackRetryRef.current?.focus();
+    else if (hadFocus) {
+      const heading = document.getElementById("refresh-detail-heading");
+      if (heading) heading.focus(); else restoreListFocus();
+    }
+  }, [showReadbackAlert, restoreListFocus]);
+
   const detail = <RefreshCandidateDetailPanel
     selectedCandidate={selectedCandidate}
     checklist={selectedCandidateChecklist}
@@ -754,9 +768,11 @@ export function AdminRestaurantRefreshHistoryPanel({
     onClose={() => requestSelection(null)}
     onRefresh={() => void loadHistory()}
     notice={<>
-      {pendingReadback && !isSavingDecision && <div role="alert" className="shrink-0 space-y-2 border-b bg-amber-50 p-3 text-xs text-amber-950 dark:bg-amber-950 dark:text-amber-100">
+      {showReadbackAlert && <div role="alert" className="shrink-0 space-y-2 border-b bg-amber-50 p-3 text-xs text-amber-950 dark:bg-amber-950 dark:text-amber-100"
+        onFocus={() => { readbackAlertHadFocusRef.current = true; }}
+        onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) readbackAlertHadFocusRef.current = false; }}>
         <p>{readbackConflict ? "요청한 결정과 다른 상태가 확인되었습니다. 충돌을 확인해야 하며 다시 저장할 수 없습니다." : "저장 결과 확인이 필요합니다. 같은 후보의 결정·적용 상태가 확인될 때까지 저장과 후보 이동을 잠급니다."}</p>
-        <Button type="button" size="sm" variant="outline" disabled={isLoading} onClick={() => void loadHistory()}>{isLoading ? "확인 중…" : "결정 상태 다시 확인"}</Button>
+        <Button ref={readbackRetryRef} type="button" size="sm" variant="outline" aria-disabled={isLoading} aria-busy={isLoading} onClick={() => { if (!isLoading) void loadHistory(); }}>{isLoading ? "확인 중…" : "결정 상태 다시 확인"}</Button>
       </div>}
       {pendingSelection && <div id="refresh-unsaved-changes" tabIndex={-1} role="alert" className="shrink-0 space-y-2 border-b bg-amber-50 p-3 text-xs text-amber-950 outline-none dark:bg-amber-950 dark:text-amber-100">
         <p>저장하지 않은 결정이나 메모가 있습니다.</p>
