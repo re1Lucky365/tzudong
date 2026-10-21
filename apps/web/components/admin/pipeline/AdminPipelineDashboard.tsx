@@ -79,7 +79,11 @@ export function AdminPipelineDashboard() {
   const [grafanaAllowed, setGrafanaAllowed] = useState(false);
   useEffect(() => setGrafanaAllowed(allowLoopbackGrafanaIframe()), []);
   useEffect(() => { if (preview) previewPanel.current?.focus(); }, [preview]);
-  const refresh = async () => { await Promise.allSettled([query.refetch(), manifestQuery.refetch()]); };
+  const refreshing = query.isFetching || manifestQuery.isFetching;
+  const refresh = async () => {
+    if (refreshing) return;
+    await Promise.allSettled([query.refetch(), manifestQuery.refetch()]);
+  };
   const prepare = async (input: PipelineActionInput) => {
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true); setMessage(null); setPreview(null); setConfirmationText(""); setLiveConfirmationText("");
@@ -128,7 +132,7 @@ export function AdminPipelineDashboard() {
         data-admin-module-header="compact" data-admin-module-header-module="pipeline"
         summary={<span role="status" className="text-xs text-muted-foreground">{statusLabel}</span>}
         actions={<>
-          <button type="button" aria-label="새로고침" title="새로고침" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border disabled:opacity-50" disabled={query.isFetching || manifestQuery.isFetching} onClick={() => void refresh()}><RefreshCw size={13} className={query.isFetching || manifestQuery.isFetching ? "animate-spin" : ""} /></button>
+          <button type="button" aria-label="새로고침" title="새로고침" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border aria-disabled:opacity-50" aria-disabled={refreshing || undefined} aria-busy={refreshing || undefined} onClick={() => void refresh()}><RefreshCw size={13} className={refreshing ? "animate-spin" : ""} /></button>
           <SheetTrigger asChild><button type="button" data-pipeline-open-controls className={buttonClass}><SlidersHorizontal size={13} />실행 관리</button></SheetTrigger>
         </>}
       />
