@@ -387,13 +387,13 @@ export default function AdminUsersPanel({
   const canReactivateAction = accountConfirmation === "재활성화";
   const isProfileDirty = Boolean(selectedUser && JSON.stringify(profileForm) !== JSON.stringify(getProfileForm(selectedUser)));
   const visibleUsers = users;
+  const countsUnknown = Boolean(errorMessage) && users.length === 0;
 
   const loadUsers = useCallback(async (signal?: AbortSignal) => {
     const generation = ++usersReadGeneration.current;
     const pendingAtReadStart = pendingReadbackRef.current;
     let readbackUsers: ManagedUser[] | null = null;
     setIsLoading(true);
-    setErrorMessage("");
 
     try {
       if (pendingAtReadStart) {
@@ -444,6 +444,7 @@ export default function AdminUsersPanel({
         throw new Error("사용자 목록 페이지 응답을 확인하지 못했습니다.");
       }
       if (generation !== usersReadGeneration.current || signal?.aborted) return null;
+      setErrorMessage("");
       const nextUsers = payload.users;
       const nextSummary = "summary" in (payload ?? {}) ? (payload as AdminUsersResponse).summary : DEFAULT_SUMMARY;
       setUsers(nextUsers);
@@ -775,11 +776,11 @@ export default function AdminUsersPanel({
       <AdminPageHeader title={getAdminModuleTitle("users")} titleId="admin-users-title" icon={UsersRound} className="admin-cms-page-header"
         data-admin-module-header="compact" data-admin-module-header-module="users"
         summary={<div className="flex flex-wrap gap-1" data-admin-users-summary data-admin-module-summary="true">
-            <SummaryMetric label="전체 사용자" value={pagination.sourceTotal} isLoading={isLoading && users.length === 0} />
-            <SummaryMetric label="조건 일치" value={pagination.total} isLoading={isLoading && users.length === 0} />
-            <SummaryMetric label="현재 페이지" value={summary.loadedUsers} isLoading={isLoading && users.length === 0} />
+            <SummaryMetric label="전체 사용자" value={countsUnknown ? "미확인" : pagination.sourceTotal} isLoading={isLoading && users.length === 0} />
+            <SummaryMetric label="조건 일치" value={countsUnknown ? "미확인" : pagination.total} isLoading={isLoading && users.length === 0} />
+            <SummaryMetric label="현재 페이지" value={countsUnknown ? "미확인" : summary.loadedUsers} isLoading={isLoading && users.length === 0} />
           </div>}
-        actions={<Button type="button" variant="ghost" size="sm" aria-label="사용자 목록 새로고침" onClick={() => requestIntent({ type: "refresh" })} disabled={isLoading || isMutating || Boolean(pendingReadback)} data-admin-users-refresh>
+        actions={<Button type="button" variant="ghost" size="sm" aria-label="사용자 목록 새로고침" onClick={() => { if (isLoading || isMutating || pendingReadback) return; requestIntent({ type: "refresh" }); }} disabled={isMutating || Boolean(pendingReadback)} aria-disabled={isLoading || isMutating || Boolean(pendingReadback)} aria-busy={isLoading} data-admin-users-refresh>
           <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />새로고침
         </Button>}
       />
@@ -820,7 +821,7 @@ export default function AdminUsersPanel({
             {errorMessage && (
               <div className="flex w-full flex-wrap items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
                 <span className="flex-1">{errorMessage}{users.length > 0 && " 이전 목록을 표시합니다."}</span>
-                <Button type="button" variant="outline" size="sm" disabled={isLoading || isMutating} onClick={() => requestIntent({ type: "refresh" })}>다시 시도</Button>
+                <Button type="button" variant="outline" size="sm" aria-disabled={isLoading || isMutating} aria-busy={isLoading} onClick={() => { if (isLoading || isMutating) return; requestIntent({ type: "refresh" }); }}>다시 시도</Button>
               </div>
             )}
             {pagination.isPartial && !errorMessage && (
@@ -921,7 +922,7 @@ export default function AdminUsersPanel({
             )}
           </CardContent>
           <div className="admin-cms-footer shrink-0 justify-between gap-2" aria-live="polite">
-            <span className="tabular-nums">{visibleUsers.length}명 · 조건 일치 {pagination.total.toLocaleString()}명 · 전체 {pagination.sourceTotal.toLocaleString()}명</span>
+            <span className="tabular-nums">{countsUnknown ? "조회 실패" : `${visibleUsers.length}명 · 조건 일치 ${pagination.total.toLocaleString()}명 · 전체 ${pagination.sourceTotal.toLocaleString()}명`}</span>
             <div className="flex items-center gap-1">
               <Button type="button" variant="outline" size="sm" className="h-11 px-2 md:h-8" aria-label="이전 사용자 페이지" disabled={!pagination.hasPreviousPage || isLoading || isMutating || Boolean(pendingReadback)} onClick={() => requestIntent({ type: "page", page: Math.max(1, page - 1) })}><ChevronLeft className="h-4 w-4" aria-hidden="true" />이전</Button>
               <span className="min-w-14 text-center tabular-nums">{pagination.page} / {Math.max(1, Math.ceil(pagination.total / pagination.perPage))}</span>
