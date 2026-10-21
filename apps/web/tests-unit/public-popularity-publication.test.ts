@@ -168,15 +168,18 @@ describe('operator-published public popularity', () => {
         expect(exports.render({ id: 'public-a' }).key).toBe('public-a:fire');
     });
 
-    test('published endpoint returns only the bundled reviewed shape, stable ETag and no active cohort by default', async () => {
+    test('published endpoint returns the reviewed public snapshot and stable ETag without raw scores', async () => {
         const response = GET();
         const body = await response.text();
         expect(response.status).toBe(200);
         expect(JSON.parse(body)).toEqual(publicPopularityPublication);
         expect(response.headers.get('etag')).toBe(`"${createHash('sha256').update(body).digest('hex')}"`);
         expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
-        expect(publicPopularityPublication.entries).toEqual([]);
-        expect(publicPopularityPublication.publicationVersion).toBe('unpublished');
+        expect(publicPopularityPublication.entries.length).toBeGreaterThan(0);
+        expect(publicPopularityPublication.publicationVersion).not.toBe('unpublished');
+        for (const entry of publicPopularityPublication.entries) {
+            for (const id of entry.memberRestaurantIds) expect(createPublishedPopularityLookup(publicPopularityPublication)(id)).toBe(entry.tier);
+        }
         expect(createPublishedPopularityLookup(publicPopularityPublication)('missing')).toBe('standard');
     });
 });
