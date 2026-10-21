@@ -1905,7 +1905,7 @@ export function AdminOverviewDashboard({
           directionsRoute={directionsRoute}
           overlays={adminMapOverlays}
           showAdminMapOverlays={showAdminMapOverlays}
-          isOverlayLoading={adminMapOverlaysQuery.isFetching && !adminQueryLastReadFailed(adminMapOverlaysQuery)}
+          isOverlayLoading={adminMapOverlaysQuery.isFetching && adminMapOverlaysQuery.data === undefined && !adminQueryLastReadFailed(adminMapOverlaysQuery)}
           hasOverlayError={adminQueryLastReadFailed(adminMapOverlaysQuery)}
           isLoading={isMapLoading}
           hasError={hasMapError}
