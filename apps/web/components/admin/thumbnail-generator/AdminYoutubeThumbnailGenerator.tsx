@@ -2138,7 +2138,7 @@ function formatThumbnailBackendAgentStatus(status: ThumbnailReadiness["backendAg
 }
 
 function formatThumbnailHistoryStatus(status: ThumbnailHistoryStatus, runs: ThumbnailHistoryRun[], error: string | null) {
-  if (status === "error") return `불러오기 실패 · ${error ?? "다시 시도해 주세요"}`;
+  if (status === "error" || (status === "loading" && error && runs.length === 0)) return `불러오기 실패 · ${error ?? "다시 시도해 주세요"}`;
   if (status === "loading") return `불러오는 중 · ${runs.length}건 확인됨`;
   return `저장된 결과 ${runs.length}건`;
 }
@@ -3361,7 +3361,6 @@ export function AdminYoutubeThumbnailGenerator() {
     thumbnailHistoryRequestIdRef.current = requestId;
     if (!options.silent) {
       setHistoryStatus("loading");
-      setHistoryError(null);
     }
 
     try {
@@ -6380,7 +6379,7 @@ export function AdminYoutubeThumbnailGenerator() {
               <History className="h-3.5 w-3.5" />
               <span>생성 히스토리</span>
               <Badge variant="secondary" className="px-1.5 text-2xs">
-                {historyStatus === "loading" ? "불러오는 중" : historyStatus === "error" ? "확인 실패" : `${historyRuns.length}건`}
+                {historyStatus === "loading" && !(historyError && historyRuns.length === 0) ? "불러오는 중" : historyStatus === "error" || (historyError && historyRuns.length === 0) ? "확인 실패" : `${historyRuns.length}건`}
               </Badge>
               <Badge variant="outline" className="px-1.5 text-2xs" data-thumbnail-history-source-label="true">
                 {getThumbnailInitialPreviewSourceLabel(initialPreviewSource)}
@@ -6418,7 +6417,7 @@ export function AdminYoutubeThumbnailGenerator() {
           </div>
         </div>
 
-        {historyStatus === "error" ? (
+        {historyStatus === "error" || (historyStatus === "loading" && historyError && historyRuns.length === 0) ? (
           <div className="admin-empty-state !min-h-0 !items-start !justify-start bg-destructive/10 px-2.5 py-2 !text-left text-2xs text-destructive" data-thumbnail-history-error="true">
             히스토리를 불러오지 못했습니다. {historyError ?? "API 상태를 확인하세요."}
           </div>

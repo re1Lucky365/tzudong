@@ -85,6 +85,9 @@ declare global { interface Window { __thumbnailHistory: { hold: boolean; release
         await playwrightExpect(refresh).toHaveAttribute('aria-busy', 'true');
         await playwrightExpect(refresh).toBeFocused();
         await playwrightExpect(refresh).not.toHaveAttribute('disabled');
+        await playwrightExpect(panel.locator('[data-thumbnail-history-error]')).toContainText('히스토리를 불러오지 못했습니다.');
+        await playwrightExpect(panel.getByText('확인 실패', { exact: true })).toBeVisible();
+        await playwrightExpect(panel.getByText('불러오는 중', { exact: true })).toHaveCount(0);
         await page.evaluate(() => window.__thumbnailHistory.release());
         await playwrightExpect(refresh).toBeFocused();
         await playwrightExpect(panel).not.toContainText('history_api_failed');
