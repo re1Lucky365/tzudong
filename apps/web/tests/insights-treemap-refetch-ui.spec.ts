@@ -139,5 +139,12 @@ test('same-filter refetch keeps the selected tile aligned and closes a removed t
     await navigator.focus();
     await navigator.press('Enter');
     await expect(page.getByRole('dialog', { name: '영상 상세: 합성 영상 01 · 한식 골목' })).toBeVisible();
+
+    response = { ...BASELINE, videos: [], totalVideos: 0 };
+    await refetch();
+    await expect(page.getByText('전체 0개')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: /영상 상세:/ })).toHaveCount(0);
+    await expect(navigator).toBeDisabled();
+    await expect(page.getByRole('button', { name: '트리맵 읽는 법' })).toBeFocused();
     expect((await page.pageErrors()).map((error) => error.message)).toEqual([]);
 });

@@ -853,6 +853,7 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
     const layoutRafRef = useRef<number | null>(null);
     const chartAreaRef = useRef<HTMLDivElement>(null);
     const tileNavigatorRef = useRef<HTMLButtonElement>(null);
+    const treemapHelpRef = useRef<HTMLButtonElement>(null);
     const tileDetailPanelRef = useRef<HTMLDivElement>(null);
     const treemapQuery = useQuery({
         queryKey: ['insight-treemap', viewMode, period, metricMode],
@@ -1546,6 +1547,12 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
                                                 event.preventDefault();
                                                 tileDetailPanelRef.current?.focus();
                                             }}
+                                            onCloseAutoFocus={(event) => {
+                                                if (tileNavigatorRef.current?.disabled && treemapHelpRef.current?.isConnected) {
+                                                    event.preventDefault();
+                                                    treemapHelpRef.current.focus();
+                                                }
+                                            }}
                                         >
                                             {selectedTile ? (
                                                 <>
@@ -1573,7 +1580,7 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
                                     <span className="text-2xs text-muted-foreground">색상</span>
                                     <Popover>
                                         <PopoverTrigger asChild>
-                                            <Button type="button" size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="트리맵 읽는 법">
+                                            <Button ref={treemapHelpRef} type="button" size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="트리맵 읽는 법">
                                                 <Info className="h-3.5 w-3.5" aria-hidden="true" />
                                             </Button>
                                         </PopoverTrigger>

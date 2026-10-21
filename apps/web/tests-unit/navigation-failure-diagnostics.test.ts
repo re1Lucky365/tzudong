@@ -119,6 +119,32 @@ describe('bounded Nightly navigation diagnostics', () => {
         expect(JSON.stringify(journal.snapshot())).not.toContain(PRIVATE_SENTINEL);
     });
 
+    test('distinguishes CDP policy blocks from confirmed client blocks', () => {
+        const journal = new NavigationFailureJournal();
+        for (const reason of ['csp', 'mixed-content', 'corp-not-same-origin', 'coep-frame-resource-needs-coep-header', 'integrity']) {
+            journal.recordRscFailure(false, PRIVATE_SENTINEL, reason, 'admin');
+        }
+        journal.recordRscFailure(false, 'net::ERR_BLOCKED_BY_CLIENT', 'csp', 'admin');
+        journal.recordRscFailure(false, PRIVATE_SENTINEL, 'inspector', 'admin');
+        journal.recordRscFailure(false, 'net::ERR_BLOCKED_BY_CLIENT', undefined, 'admin');
+        expect(journal.snapshot().events.map((event) => event.kind === 'rsc-failed' && event.class)).toEqual([
+            'blocked-by-policy', 'blocked-by-policy', 'blocked-by-policy', 'blocked-by-policy',
+            'blocked-by-policy', 'blocked-by-policy', 'blocked-by-client', 'blocked-by-client',
+        ]);
+        expect(JSON.stringify(journal.snapshot())).not.toContain(PRIVATE_SENTINEL);
+    });
+
+    test('keeps unknown block reasons non-attributive without retaining their contents', () => {
+        const journal = new NavigationFailureJournal();
+        for (const reason of [PRIVATE_SENTINEL, 'other', '', null, undefined, { private: PRIVATE_SENTINEL }]) {
+            journal.recordRscFailure(false, PRIVATE_SENTINEL, reason, 'home');
+        }
+        expect(journal.snapshot().events).toEqual(Array.from({ length: 6 }, () => ({
+            kind: 'rsc-failed', canceled: false, class: 'other', scope: 'home',
+        })));
+        expect(JSON.stringify(journal.snapshot())).not.toContain(PRIVATE_SENTINEL);
+    });
+
     test('collects tracked RSC failure and client full reload, then detaches actual listeners', async () => {
         const session = new EventEmitter() as EventEmitter & {
             detached?: boolean;

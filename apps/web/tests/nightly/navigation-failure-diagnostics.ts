@@ -3,6 +3,15 @@ import type { CDPSession, Page } from '@playwright/test';
 
 const MAX_EVENTS = 32;
 const MAX_HMR_FRAME_BYTES = 16_384;
+const RSC_POLICY_BLOCK_REASONS = new Set([
+    'csp', 'mixed-content', 'origin', 'integrity', 'subresource-filter', 'content-type',
+    'coep-frame-resource-needs-coep-header',
+    'coop-sandboxed-iframe-cannot-navigate-to-coop-page',
+    'corp-not-same-origin', 'corp-not-same-origin-after-defaulted-to-same-origin-by-coep',
+    'corp-not-same-origin-after-defaulted-to-same-origin-by-dip',
+    'corp-not-same-origin-after-defaulted-to-same-origin-by-coep-and-dip',
+    'corp-not-same-site', 'sri-message-signature-mismatch',
+]);
 const NAVIGATION_REASONS = new Set([
     'anchorClick', 'formSubmissionGet', 'formSubmissionPost', 'httpHeaderRefresh',
     'initialFrameNavigation', 'metaTagRefresh', 'other', 'pageBlockInterstitial',
@@ -21,7 +30,7 @@ type InitiatorClass = 'hmr-perform-full-reload' | 'hmr-handle-message'
     | 'hmr-handle-disconnect' | 'router-fallback' | 'app-recovery' | 'other';
 type MimeClass = 'rsc' | 'html' | 'other';
 type RscScope = 'home' | 'admin' | 'other';
-type RscFailureClass = 'blocked-by-client' | 'aborted' | 'connection' | 'other';
+type RscFailureClass = 'blocked-by-client' | 'blocked-by-policy' | 'aborted' | 'connection' | 'other';
 type NavigationEvent =
     | { kind: 'frame-navigation'; reason: string }
     | { kind: 'document-request'; initiator: InitiatorClass }
@@ -94,7 +103,11 @@ function mimeClass(value: unknown): MimeClass {
 }
 
 function rscFailureClass(errorText: unknown, blockedReason: unknown): RscFailureClass {
-    if (errorText === 'net::ERR_BLOCKED_BY_CLIENT' || typeof blockedReason === 'string') {
+    // A specific CDP policy reason takes precedence over a generic blocking error.
+    if (typeof blockedReason === 'string' && RSC_POLICY_BLOCK_REASONS.has(blockedReason)) {
+        return 'blocked-by-policy';
+    }
+    if (errorText === 'net::ERR_BLOCKED_BY_CLIENT' || blockedReason === 'inspector') {
         return 'blocked-by-client';
     }
     if (errorText === 'net::ERR_ABORTED') return 'aborted';
