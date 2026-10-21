@@ -147,11 +147,11 @@ describe('operator-published public popularity', () => {
         const file = ts.createSourceFile('panel.tsx', source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
         let node: ts.JsxSelfClosingElement | undefined;
         const visit = (part: ts.Node) => {
-            if (ts.isJsxSelfClosingElement(part) && part.tagName.getText(file) === 'PopularityBadge') node = part;
+            if (ts.isJsxSelfClosingElement(part) && part.tagName.getText(file) === 'PopularityMention') node = part;
             ts.forEachChild(part, visit);
         };
         visit(file);
-        if (!node) throw new Error('SHARED_PANEL_BADGE_BINDING_MISSING');
+        if (!node) throw new Error('SHARED_PANEL_MENTION_BINDING_MISSING');
         const expression = ts.createPrinter().printNode(ts.EmitHint.Unspecified, node, file);
         const compiled = ts.transpileModule(`exports.render = (restaurant) => (${expression});`, {
             compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
@@ -159,7 +159,7 @@ describe('operator-published public popularity', () => {
         const data = snapshot(); data.entries[0].memberRestaurantIds.push('public-z');
         const lookup = createPublishedPopularityLookup(data);
         const exports = {} as { render: (r: { id: string; popularity_tier?: string }) => { key: string; props: { tier: string } } };
-        vm.runInNewContext(compiled, { exports, PopularityBadge: () => null,
+        vm.runInNewContext(compiled, { exports, PopularityMention: () => null,
             resolvePublishedPopularityTier: (restaurant: Restaurant) => resolvePublishedPopularityTier(restaurant, lookup),
             require: (name: string) => { if (name === 'react/jsx-runtime') return jsxRuntime; throw new Error('UNEXPECTED_BINDING_IMPORT'); } });
         expect(exports.render({ id: 'public-a' }).props.tier).toBe('fire');

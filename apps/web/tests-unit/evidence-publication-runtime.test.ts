@@ -75,7 +75,9 @@ describe('actual public popularity cohort', () => {
     const domestic = wrapMarkerWithPopularityTier('<span>pin</span>', fire.tier as 'fire');
     const overseas = buildOverseasMarkerHtml({ imagePath: '/images/maker-images/webp/asian.webp', name: 'actual cohort marker', popularityTier: fire.tier });
     for (const html of [domestic, overseas]) {
-      expect(html).toContain('class="tz-popularity-flame"');
+      expect(html).toContain('data-flame-count="3"');
+      expect(html.match(/class="tz-popularity-flame"/g)).toHaveLength(3);
+      expect(html).not.toContain('tz-popularity-pulse');
       expect(html).toContain('data-popularity-tier="fire"');
       expect(html).not.toContain('<canvas');
     }
