@@ -2781,7 +2781,7 @@ export function SubmissionListView({
                             <div ref={loadMoreSentinelRef} className="h-1" />
                             {hasMoreCards && <div className="p-2 text-center"><Button type="button" variant="outline" size="sm" disabled={isCurrentListLoading} onClick={handleLoadMoreCards}>더 보기</Button></div>}
                         </div>}
-                        <div className="admin-cms-footer shrink-0 justify-between"><span role="status">{listReadFailed ? '조회 실패' : isCurrentListLoading ? '조회 중' : `${displayedCount} / ${resultCount}건`}</span><span>{listReadFailed ? '다시 조회 필요' : '조회된 목록 기준'}</span></div>
+                        <div className="admin-cms-footer shrink-0 justify-between"><span role="status">{listReadFailed ? '조회 실패' : listRetrying ? '조회 중' : `${displayedCount} / ${resultCount}건`}</span><span>{listReadFailed ? '다시 조회 필요' : '조회된 목록 기준'}</span></div>
                     </section>
                     {inlineInspector && hasSelection ? (activeTab === 'reviews' ? renderReviewDetailPanel() : renderSubmissionDetailPanel()) : null}
                 </div>
