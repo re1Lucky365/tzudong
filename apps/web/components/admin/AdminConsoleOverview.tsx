@@ -6150,6 +6150,7 @@ function AdminDashboardManagementPanel({
   const [dashboardOrderMessage, setDashboardOrderMessage] = useState(
     "카드 순서는 관리자 계정별로 저장됩니다.",
   );
+  const [pdfReportMessage, setPdfReportMessage] = useState<string | null>(null);
   const [isDashboardMobileViewport, setIsDashboardMobileViewport] = useState(
     () => getIsAdminDashboardMobileViewport(),
   );
@@ -7456,15 +7457,11 @@ function AdminDashboardManagementPanel({
       generatedAtLabel: formatAdminDashboardReportGeneratedAt(),
     });
 
-    if (!opened) {
-      setDashboardOrderMessage(
-        "PDF 보고서 창을 열지 못했습니다. 브라우저 팝업 허용 상태를 확인해 주세요.",
-      );
-    } else {
-      setDashboardOrderMessage(
-        "PDF 보고서 창을 열었습니다. 새 창에서 PDF로 저장/인쇄 버튼이나 브라우저 인쇄 대화상자를 확인해 주세요.",
-      );
-    }
+    setPdfReportMessage(
+      opened
+        ? "PDF 보고서 창을 열었습니다. 새 창에서 PDF로 저장/인쇄 버튼이나 브라우저 인쇄 대화상자를 확인해 주세요."
+        : "PDF 보고서 창을 열지 못했습니다. 브라우저 팝업 허용 상태를 확인해 주세요.",
+    );
   }, [pdfReportData]);
   const shouldShowMobileDashboardLoadingPrompt =
     isDashboardMobileViewport && (isLoading || isSubscriberLoading || isChartLoading);
@@ -7604,6 +7601,15 @@ function AdminDashboardManagementPanel({
           data-admin-dashboard-order-live-status="true"
         >
           {dashboardOrderMessage}
+        </p>
+      ) : null}
+      {pdfReportMessage ? (
+        <p
+          role="status"
+          className="admin-detail-section mb-2 shrink-0 px-3 py-2 text-xs font-medium text-muted-foreground"
+          data-admin-dashboard-pdf-report-status="true"
+        >
+          {pdfReportMessage}
         </p>
       ) : null}
 
