@@ -1317,7 +1317,8 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
 
     const selectedCount = treemapQuery.data?.totalVideos ?? 0;
     const metricLabel = getMetricLabel(metricMode);
-    const periodLabel = period === 'ALL' ? '전체 기간' : getPeriodLabel(period);
+    const visiblePeriod = treemapQuery.data?.period ?? period;
+    const periodLabel = visiblePeriod === 'ALL' ? '전체 기간' : getPeriodLabel(visiblePeriod);
     const modeLabel = viewMode === 'change' ? '증감률' : '비율';
     const clusterContextText = clusterStep === null
         ? '개별 영상'
@@ -1603,7 +1604,7 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
                                                         <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setSelectedTileId(null)}>닫기</Button>
                                                     </div>
                                                     <div role="status" aria-live="polite" className="space-y-1">
-                                                        <TreemapDetailContent leaf={selectedTile} viewMode={viewMode} period={period} metricMode={metricMode} />
+                                                        <TreemapDetailContent leaf={selectedTile} viewMode={viewMode} period={visiblePeriod} metricMode={metricMode} />
                                                     </div>
                                                 </>
                                             ) : null}
@@ -1723,7 +1724,7 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
                                     className="pointer-events-none fixed z-20 rounded-md border border-border bg-card p-2 text-xs text-card-foreground shadow-lg"
                                     style={{ left: tooltip.x, top: tooltip.y }}
                                 >
-                                    <TreemapDetailContent leaf={tooltip.leaf} viewMode={viewMode} period={period} metricMode={metricMode} />
+                                    <TreemapDetailContent leaf={tooltip.leaf} viewMode={viewMode} period={visiblePeriod} metricMode={metricMode} />
                                 </div>
                             ) : null}
                         </div>
