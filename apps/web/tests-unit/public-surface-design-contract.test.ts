@@ -177,6 +177,7 @@ const LIGHT_TOKEN_LITERALS = [
   '--radius: 0.75rem',
   '--brand-tangerine: 18 100% 63%',
   '--brand-garden: 146 58% 30%',
+  '--brand-garden-text: 146 58% 30%',
   '--brand-cream: 35 41% 94%',
   '--app-header-height: 56px',
   '--mobile-bottom-nav-height: 60px',
@@ -445,6 +446,9 @@ describe('public surface design contract', () => {
     }
 
     expect(readApp('app/app-globals.css')).toContain('--primary: 18 100% 63%');
+    expect(readApp('app/app-globals.css')).toContain('--brand-garden-text: 146 42% 68%');
+    expect(readApp('app/app-globals.css')).toContain('--brand-cream: 32 14% 18%');
+    expect(readApp('app/globals.css')).toContain('--brand-garden-text: 146 42% 68%');
     expect(readApp('app/app-globals.css')).toContain('--admin-sidebar-expanded-width: calc(8.75rem * var(--phi))');
   });
 

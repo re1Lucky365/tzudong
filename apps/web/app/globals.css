@@ -38,6 +38,11 @@
   --muted-foreground: 220 12% 70%;
   --accent: 220 14% 18%;
   --accent-foreground: 220 20% 96%;
+  --brand-cream: 32 14% 18%;
+  --brand-tangerine-tint: 18 32% 18%;
+  --brand-tangerine-ink: 18 100% 74%;
+  --brand-garden-tint: 146 18% 16%;
+  --brand-garden-text: 146 42% 68%;
 }
 
 @supports (height: 100dvh) {

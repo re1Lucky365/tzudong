@@ -1595,7 +1595,7 @@ export function RestaurantDetailPanel({
                                                 isMobile ? "rounded-lg" : "rounded-xl"
                                             )}
                                         >
-                                            <Navigation className="h-4 w-4 shrink-0 text-brand-tangerine" aria-hidden="true" />
+                                            <Navigation className="h-4 w-4 shrink-0 text-brand-tangerine dark:text-brand-ink" aria-hidden="true" />
                                             <span>길찾기</span>
                                         </Button>
                                     ) : null}
