@@ -11,13 +11,14 @@ async function bundle() {
     import React from 'react';
     import { createRoot } from 'react-dom/client';
     import { AdminRestaurantRefreshHistoryPanel } from './components/admin/AdminRestaurantRefreshHistoryPanel';
-    const fixture = { ok: false, delayMs: 0, reads: 0 };
+    const fixture = { ok: false, delayMs: 0, hold: false, reads: 0, waiters: [], release() { const pending = this.waiters.splice(0); for (const resolve of pending) resolve(); } };
     globalThis.__historyFixture = fixture;
     globalThis.fetch = async input => {
       const url = String(input);
       if (!url.startsWith('/api/admin/restaurant-refresh-history?')) throw new Error('OFFLINE_ONLY');
       fixture.reads++;
-      await new Promise(resolve => setTimeout(resolve, fixture.delayMs));
+      if (fixture.hold && fixture.reads > 1) await new Promise(resolve => { fixture.waiters.push(resolve); });
+      else await new Promise(resolve => setTimeout(resolve, fixture.delayMs));
       if (!fixture.ok) return new Response('', { status: 503 });
       return new Response(JSON.stringify({ candidates: [], summary: { approved_restaurants_total: 40, needs_review: 3, approved: 2, applied: 1, rejected: 4, last_checked_at: null } }),
         { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -38,7 +39,7 @@ async function bundle() {
   return built.outputs.find(output => output.path.endsWith('.js'))!.text();
 }
 
-type Fixture = { ok: boolean; delayMs: number; reads: number };
+type Fixture = { ok: boolean; delayMs: number; hold: boolean; reads: number; release: () => void };
 const setFixture = (page: Page, changes: Partial<Fixture>) => page.evaluate(next => {
   Object.assign((globalThis as unknown as { __historyFixture: Fixture }).__historyFixture, next);
 }, changes);
@@ -72,17 +73,21 @@ const reads = (page: Page) => page.evaluate(() => (globalThis as unknown as { __
     await playwrightExpect(page.getByText('조회 실패', { exact: true })).toBeVisible();
     await playwrightExpect(page.locator('[data-admin-module-summary] [data-admin-module-summary]')).toContainText('검토 필요 —');
 
-    await setFixture(page, { delayMs: 600 });
+    await setFixture(page, { hold: true });
     const retry = banner.getByRole('button');
     await retry.focus();
     await page.keyboard.press('Enter');
     await playwrightExpect(retry).toHaveText('불러오는 중…');
     await playwrightExpect(retry).toBeFocused();
+    await playwrightExpect(page.locator('[data-admin-restaurant-refresh-read-failed]')).toHaveText('최신화 이력을 확인하지 못했습니다.');
+    await playwrightExpect(page.getByText('조회 실패', { exact: true })).toBeVisible();
+    await playwrightExpect(page.locator('.admin-cms-footer')).not.toContainText('불러오는 중');
+    await page.evaluate(() => (globalThis as unknown as { __historyFixture: { release: () => void } }).__historyFixture.release());
     await playwrightExpect(retry).toHaveText('다시 시도');
     await playwrightExpect(retry).toBeFocused();
     expect(await reads(page)).toBe(2);
 
-    await setFixture(page, { ok: true });
+    await setFixture(page, { ok: true, hold: false });
     await page.keyboard.press('Enter');
     await playwrightExpect(banner).toHaveCount(0);
     await playwrightExpect(page.getByText('최신화 이력이 없습니다.')).toBeVisible();
