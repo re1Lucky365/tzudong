@@ -1,8 +1,8 @@
 export const POPULARITY_MARKER_CSS = `
 .tz-popularity-marker { position: relative; width: 100%; height: 100%; isolation: isolate; }
 .tz-popularity-flame { position: absolute; width: 20px; height: 26px; left: 50%; bottom: calc(100% - 2px); z-index: 300; pointer-events: none; transform: translateX(-50%); animation: tz-popularity-flame 1.4s ease-in-out infinite; }
-.tz-popularity-marker[data-popularity-tier="fire"] .tz-popularity-flame-outer { fill: #f85c00; }
-.tz-popularity-marker[data-popularity-tier="fire"] .tz-popularity-flame-core { fill: #fde047; }
+.tz-popularity-marker[data-popularity-tier="fire"] .tz-popularity-flame-outer { fill: #e10600; }
+.tz-popularity-marker[data-popularity-tier="fire"] .tz-popularity-flame-core { fill: #ffd23a; }
 .tz-popularity-marker[data-popularity-tier="rainbow"] .tz-popularity-flame-outer { fill: #d4a017; }
 .tz-popularity-marker[data-popularity-tier="rainbow"] .tz-popularity-flame-core { fill: #fff3c4; }
 @keyframes tz-popularity-flame {
