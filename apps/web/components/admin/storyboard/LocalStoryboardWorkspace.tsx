@@ -388,7 +388,7 @@ export function LocalStoryboardWorkspace({ archive }: { archive?: ReactNode } = 
     <div className={`grid min-w-0 items-start gap-4 ${!projectId || showLibrary ? "lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:!grid-cols-[minmax(0,1fr)_minmax(240px,300px)]" : ""}`}>
       <div className="order-2 min-w-0" hidden={!!projectId && !showLibrary}>
         <StoryboardProjectLibrary projects={catalog.projects} selectedId={projectId} statusLabels={STATUSES}
-          busy={catalogBusy} error={catalogError} onRefresh={() => setCatalogTick((value) => value + 1)} onSelect={(id) => {
+          busy={catalogBusy} error={catalogError} countUnknown={!catalogLoaded} onRefresh={() => setCatalogTick((value) => value + 1)} onSelect={(id) => {
             selectProject(id);
             if (!id) return;
             requestAnimationFrame(() => {

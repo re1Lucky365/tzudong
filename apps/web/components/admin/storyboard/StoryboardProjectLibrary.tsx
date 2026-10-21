@@ -16,6 +16,7 @@ type Props = {
   onRefresh: () => void;
   onSelect: (id: string) => void;
   onStart: () => void;
+  countUnknown?: boolean;
 };
 const controlClass = "min-h-11 min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:min-h-9 sm:py-1.5";
 
@@ -26,7 +27,7 @@ function updatedLabel(value: string): string {
     : "날짜 없음";
 }
 
-export function StoryboardProjectLibrary({ projects, selectedId, statusLabels, busy, error, onRefresh, onSelect, onStart }: Props) {
+export function StoryboardProjectLibrary({ projects, selectedId, statusLabels, busy, error, onRefresh, onSelect, onStart, countUnknown = false }: Props) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ProjectStatus | "all">("all");
   const normalizedQuery = query.trim().normalize("NFKC").toLocaleLowerCase("ko-KR");
@@ -38,7 +39,7 @@ export function StoryboardProjectLibrary({ projects, selectedId, statusLabels, b
 
   return <section id="local-storyboard-project-library" aria-labelledby="local-library-title" className="admin-detail-section min-w-0 bg-card text-card-foreground">
     <div className="flex items-center justify-between gap-2 px-3 pt-3">
-      <h3 id="local-library-title" className="admin-section-title text-sm font-semibold">저장된 프로젝트 <span className="ml-1 font-normal tabular-nums text-muted-foreground">{projects.length}</span></h3>
+      <h3 id="local-library-title" className="admin-section-title text-sm font-semibold">저장된 프로젝트 <span className="ml-1 font-normal tabular-nums text-muted-foreground">{countUnknown ? '미확인' : projects.length}</span></h3>
       <button type="button" className={`${controlClass} inline-flex shrink-0 items-center justify-center !px-2 hover:bg-muted disabled:opacity-50`}
         aria-label="프로젝트 목록 다시 불러오기" disabled={busy} onClick={onRefresh}>
         {busy ? <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" /> : <RefreshCw aria-hidden="true" className="size-4" />}
