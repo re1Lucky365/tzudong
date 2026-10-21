@@ -6984,8 +6984,9 @@ function AdminDashboardManagementPanel({
       ),
     [channelStats?.previousSubscriberCount, channelStats?.subscriberCount],
   );
+  const channelReadFailedWithoutData = adminQueryLastReadFailed(youtubeChannelQuery) && !youtubeChannelQuery.data;
   const isSubscriberLoading =
-    youtubeChannelQuery.isLoading || pendingSkeletonPeriod === period;
+    (youtubeChannelQuery.isLoading && !channelReadFailedWithoutData) || pendingSkeletonPeriod === period;
   const hasSubscriberCount = channelStats?.subscriberCount != null;
   const cumulativeVideoTotal = channelStats?.videoCount ?? stats.totalVideos;
   const hasSnapshotVideoCountComparison =
@@ -7488,13 +7489,13 @@ function AdminDashboardManagementPanel({
     isDashboardMobileViewport && (isLoading || isSubscriberLoading || isChartLoading);
   const isDashboardRetrying =
     isRetrying ||
-    [insightQuery, growthInsightQuery].some(
+    [insightQuery, growthInsightQuery, youtubeChannelQuery].some(
       (query) => adminQueryLastReadFailed(query) && query.isFetching,
     );
   const retryDashboardData = (event: ReactMouseEvent<HTMLButtonElement>) => {
     dashboardRetryHadFocusRef.current = document.activeElement === event.currentTarget;
     onRetry();
-    for (const query of [insightQuery, growthInsightQuery]) {
+    for (const query of [insightQuery, growthInsightQuery, youtubeChannelQuery]) {
       if (adminQueryLastReadFailed(query)) void query.refetch();
     }
   };

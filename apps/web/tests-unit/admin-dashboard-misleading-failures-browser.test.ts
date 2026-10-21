@@ -29,7 +29,7 @@ const overviewEntry = `
     if (url === '/api/admin/pending-counts') return json(buildAdminPendingCountsResponse({ restaurantSubmissions: 0, restaurantRecommendationRequests: 0, reviews: 0, recommendationRequestsLifecycleReady: true, asOf }));
     if (url === '/api/admin/banners') return json({ banners: [] });
     if (url === '/api/dashboard/summary') return json({ asOf, totals: { restaurants: 12, videos: 34, withCoordinates: 10 }, topCategories: [], videos: [] });
-    if (url === '/api/admin/youtube-kpis' || url === '/api/insights/treemap') {
+    if (url === '/api/admin/youtube-kpis' || url === '/api/insights/treemap' || url === '/api/admin/youtube-channel') {
       if (fixture.holdInsights) await new Promise(resolve => { fixture.insightWaiters.push(resolve); });
     }
     if (url === '/api/admin/youtube-kpi-collection-logs') {
@@ -169,6 +169,10 @@ browserTest('failed dashboard metric and collection-log reads are not shown as z
         await playwrightExpect(impact.locator('[data-admin-dashboard-metric-read-failed]')).toBeVisible();
         await playwrightExpect(impact.locator('[data-admin-dashboard-dynamic-skeleton]')).toHaveCount(0);
         await playwrightExpect(page.getByText('표시할 영상 영향도 데이터가 없습니다.')).toHaveCount(0);
+        const subscribers = page.locator('[data-admin-dashboard-widget-card="subscribers"]');
+        await playwrightExpect(subscribers.locator('[data-admin-dashboard-kpi-caption]')).toHaveText('채널 통계 확인 필요');
+        await playwrightExpect(subscribers.locator('[data-admin-dashboard-dynamic-skeleton="kpi"]')).toHaveCount(0);
+        await playwrightExpect(subscribers.getByText('채널 통계 불러오는 중')).toHaveCount(0);
         await setFixture(page, { holdInsights: false });
         await page.evaluate(() => (globalThis as unknown as { __fixture: { releaseInsights: () => void } }).__fixture.releaseInsights());
         await page.locator('[data-admin-dashboard-kpi-collection-log-trigger]').scrollIntoViewIfNeeded();

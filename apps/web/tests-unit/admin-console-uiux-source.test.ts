@@ -2207,7 +2207,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).toContain("isLoading={isChartLoading}");
     expect(consoleSource).toContain("isLoading={isSubscriberLoading}");
     expect(consoleSource).toContain(
-      "youtubeChannelQuery.isLoading || pendingSkeletonPeriod === period",
+      "youtubeChannelQuery.isLoading && !channelReadFailedWithoutData",
     );
     expect(consoleSource).toContain("youtubeChannelQuery.isFetching");
     expect(consoleSource).toContain("AdminDashboardInfoTooltip");
