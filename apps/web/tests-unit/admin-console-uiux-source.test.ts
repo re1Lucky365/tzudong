@@ -2615,8 +2615,9 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
     expect(consoleSource).toContain(
       'data-admin-dashboard-ops-summary-visual="progress-bars"',
     );
-    expect(consoleSource).toContain("rawValue: stats.totalRestaurants ?? 0");
-    expect(consoleSource).toContain("rawValue: missingCoordinates ?? 0");
+    expect(consoleSource).toContain("rawValue: stats.totalRestaurants");
+    expect(consoleSource).toContain("rawValue: missingCoordinates");
+    expect(consoleSource).toContain("sumKnownNumbers");
     expect(consoleSource).toContain("const maxRawValue = Math.max");
     expect(consoleSource).toContain("const rowPercent = clampDashboardPercent");
     expect(consoleSource).toContain(

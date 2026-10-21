@@ -108,6 +108,7 @@ import {
 } from "@/lib/admin/sidebar-order";
 import { getMobileScrollNavVisibilityAction } from "@/lib/mobile-scroll-nav-visibility";
 import {
+  ADMIN_PENDING_COUNT_DOMAIN_IDS,
   ADMIN_PENDING_COUNTS_QUERY_KEY,
   getAdminPendingCountsTotal,
   getAdminPendingReviewCount,
@@ -1242,6 +1243,27 @@ function formatNumber(value: number | null | undefined) {
     : "—";
 }
 
+function sumKnownNumbers(values: Array<number | null | undefined>): number | null {
+  let sum = 0;
+  for (const value of values) {
+    if (typeof value !== "number" || !Number.isFinite(value)) return null;
+    sum += value;
+  }
+  return sum;
+}
+
+function pendingCountsOmitADomainCount(payload: unknown) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
+  const domains = (payload as { domains?: unknown }).domains;
+  if (!domains || typeof domains !== "object" || Array.isArray(domains)) return false;
+  return ADMIN_PENDING_COUNT_DOMAIN_IDS.some((id) => {
+    const domain = (domains as Record<string, unknown>)[id];
+    if (!domain || typeof domain !== "object" || Array.isArray(domain)) return false;
+    const count = (domain as { count?: unknown }).count;
+    return typeof count !== "number" || !Number.isFinite(count);
+  });
+}
+
 function formatSignedNumber(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
   if (value === 0) return "0";
@@ -1439,7 +1461,13 @@ async function fetchAdminPendingCounts(): Promise<AdminPendingCountsResponse> {
     throw new Error("admin-pending-counts-failed");
   }
 
-  return normalizeAdminPendingCountsResponse(await response.json());
+  const payload: unknown = await response.json();
+  // A domain object without a numeric count is not a confirmed zero.
+  if (pendingCountsOmitADomainCount(payload)) {
+    throw new Error("admin-pending-counts-failed");
+  }
+
+  return normalizeAdminPendingCountsResponse(payload);
 }
 
 async function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
@@ -4616,14 +4644,8 @@ function AdminDashboardOpsSummaryCard({
       rawValue: row.rawValue,
     })),
   );
-  const riskTotal = sections.reduce(
-    (sum, section) =>
-      section.title === "검수 리스크"
-        ? sum +
-          section.rows.reduce((rowSum, row) => rowSum + (row.rawValue ?? 0), 0)
-        : sum,
-    0,
-  );
+  const riskRows = sections.find((section) => section.title === "검수 리스크")?.rows;
+  const riskTotal = riskRows ? sumKnownNumbers(riskRows.map((row) => row.rawValue)) : null;
 
   return (
     <div
@@ -7062,22 +7084,22 @@ function AdminDashboardManagementPanel({
     {
       label: "영상 수",
       value: formatNumber(visibleVideoTotal),
-      rawValue: visibleVideoTotal ?? 0,
+      rawValue: visibleVideoTotal ?? null,
     },
     {
       label: "맛집 데이터",
       value: formatNumber(stats.totalRestaurants),
-      rawValue: stats.totalRestaurants ?? 0,
+      rawValue: stats.totalRestaurants,
     },
     {
       label: "좌표 완료",
       value: formatNumber(stats.withCoordinates),
-      rawValue: stats.withCoordinates ?? 0,
+      rawValue: stats.withCoordinates,
     },
     {
       label: "영상 연결",
       value: formatNumber(stats.totalVideos),
-      rawValue: stats.totalVideos ?? 0,
+      rawValue: stats.totalVideos,
     },
   ];
   const operationalLiabilities = [
@@ -7099,12 +7121,12 @@ function AdminDashboardManagementPanel({
     {
       label: "좌표 미완료",
       value: formatNumber(missingCoordinates),
-      rawValue: missingCoordinates ?? 0,
+      rawValue: missingCoordinates,
     },
     {
       label: "비활성 배너",
       value: formatNumber(stats.inactiveBanners),
-      rawValue: stats.inactiveBanners ?? 0,
+      rawValue: stats.inactiveBanners,
     },
   ];
   const impactTableRows = useMemo(
@@ -8012,9 +8034,11 @@ function AdminDashboardManagementPanel({
               rows: operationalAssets,
               totalLabel: "합계",
               totalValue: formatNumber(
-                (stats.totalRestaurants ?? 0) +
-                  (stats.totalVideos ?? 0) +
-                  (stats.activeBanners ?? 0),
+                sumKnownNumbers([
+                  stats.totalRestaurants,
+                  stats.totalVideos,
+                  stats.activeBanners,
+                ]),
               ),
             },
             {
@@ -8022,11 +8046,11 @@ function AdminDashboardManagementPanel({
               rows: operationalLiabilities,
               totalLabel: "합계",
               totalValue: formatNumber(
-                pendingTotal === null
-                  ? null
-                  : pendingTotal +
-                      (missingCoordinates ?? 0) +
-                      (stats.inactiveBanners ?? 0),
+                sumKnownNumbers([
+                  pendingTotal,
+                  missingCoordinates,
+                  stats.inactiveBanners,
+                ]),
               ),
             },
           ]}
