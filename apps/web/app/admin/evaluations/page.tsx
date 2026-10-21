@@ -48,6 +48,7 @@ import { isRecordActionCancelled, recordActionErrorMessage, recordActionMediaNot
 import { submissionApprovalInput, submissionEditInput } from '@/lib/admin/evaluation-record-actions';
 import type { RecordActionReceipt } from '@/lib/admin/record-action-contract';
 import { fetchAdminProfileSummariesLookup, resolveAdminReviewerDisplay } from '@/lib/admin/profile-summaries';
+import { adminQueryLastReadFailed } from '@/lib/admin/query-read-state';
 import {
   compareAdminEvaluationsByLatestDesc,
   isAdminEvaluationRecordMissing,
@@ -1815,6 +1816,8 @@ function AdminEvaluationPage({
     refetchOnWindowFocus: true,
   });
   const { data: recommendationRequestsData = [], isLoading: recommendationRequestsLoading } = recommendationRequestsQuery;
+  const submissionsReadFailed = adminQueryLastReadFailed(submissionsQuery);
+  const recommendationsReadFailed = adminQueryLastReadFailed(recommendationRequestsQuery);
 
   const allSubmissionRecords = useMemo(
     () => [...submissionsData, ...recommendationRequestsData],
@@ -2255,12 +2258,12 @@ function AdminEvaluationPage({
               queryClient.invalidateQueries({ queryKey: ['admin-restaurant-requests-inline'] });
               invalidateAdminPendingCounts();
             }}
-            loading={submissionsLoading || recommendationRequestsLoading || (submissionsQuery.isError && submissionsQuery.isFetching) || (recommendationRequestsQuery.isError && recommendationRequestsQuery.isFetching) || recordActions.busy || recordViewsInvalidated}
-            submissionsError={!recordViewsInvalidated && submissionsQuery.isError}
-            recommendationsError={!recordViewsInvalidated && recommendationRequestsQuery.isError}
+            loading={submissionsLoading || recommendationRequestsLoading || (submissionsReadFailed && submissionsQuery.isFetching) || (recommendationsReadFailed && recommendationRequestsQuery.isFetching) || recordActions.busy || recordViewsInvalidated}
+            submissionsError={!recordViewsInvalidated && submissionsReadFailed}
+            recommendationsError={!recordViewsInvalidated && recommendationsReadFailed}
             onRetrySubmissions={() => {
-              if (submissionsQuery.isError) void submissionsQuery.refetch();
-              if (recommendationRequestsQuery.isError) void recommendationRequestsQuery.refetch();
+              if (submissionsReadFailed) void submissionsQuery.refetch();
+              if (recommendationsReadFailed) void recommendationRequestsQuery.refetch();
             }}
             reviews={recordViewsInvalidated || reviewsQuery.isError ? [] : reviewsData}
             onApproveReview={handleApproveReview}
