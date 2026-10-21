@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { restoreAdminDetailFocus } from '@/lib/admin/detail-focus';
 import { isAdminSentryResponse, type AdminSentryResponse, type SentryIssueStatus } from '@/types/admin-sentry';
 
 const statusLabels: Record<SentryIssueStatus, string> = { unresolved: '미해결', resolved: '해결됨', ignored: '보류' };
@@ -29,6 +30,8 @@ export function AdminSentryPanel() {
   const rowRef = useRef<HTMLButtonElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const detailRef = useRef<HTMLElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const detailShownRef = useRef(false);
   useEffect(() => {
     const media = window.matchMedia('(min-width: 1024px)');
     const update = () => setInlineInspector(media.matches);
@@ -64,8 +67,15 @@ export function AdminSentryPanel() {
   }) : [];
   const selected = issues.find(issue => issue.id === selectedId) ?? null;
   const connectionLabel = query.isPending ? '조회 중' : query.isError ? '조회 실패' : data?.state === 'connected' ? '연결됨' : data?.state === 'not_configured' ? '연결 미설정' : '조회 불가';
-  const closeDetail = () => { setSelectedId(null); if (inlineInspector) window.requestAnimationFrame(() => rowRef.current?.focus()); };
-  const inspector = selected ? <aside key={selected.id} ref={detailRef} tabIndex={-1} data-sentry-inspector aria-label="Sentry 오류 상세" className={cn('h-full min-h-0 overflow-y-auto outline-none', inlineInspector ? 'admin-cms-inspector' : 'p-3')}>
+  const selectedIssueId = selected?.id ?? null;
+  useEffect(() => {
+    if (selectedIssueId) { detailShownRef.current = true; return; }
+    if (!detailShownRef.current) return;
+    detailShownRef.current = false;
+    if (inlineInspector) window.requestAnimationFrame(() => restoreAdminDetailFocus('[data-sentry-inspector]', rowRef.current, searchRef.current));
+  }, [selectedIssueId, inlineInspector]);
+  const closeDetail = () => setSelectedId(null);
+  const inspector = selected ? <aside key={selected.id} ref={detailRef} tabIndex={-1} data-sentry-inspector aria-label="Sentry 오류 상세" className={cn('h-full min-h-0 overflow-y-auto outline-none', inlineInspector ? 'admin-cms-inspector' : 'p-3')} onKeyDown={event => { if (inlineInspector && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeDetail(); } }}>
     <div className="flex items-start justify-between gap-2"><h2 className="min-w-0 break-words text-base font-semibold leading-6">{selected.type}</h2><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="오류 상세 닫기" onClick={closeDetail}><X className="h-3.5 w-3.5" /></Button></div>
     <p className="mt-1 break-all text-xs text-muted-foreground">{selected.shortId}</p>
     <div className="mt-3 flex flex-wrap gap-2"><Badge variant={selected.level === 'fatal' || selected.level === 'error' ? 'destructive' : 'secondary'}>{levelLabels[selected.level]}</Badge><Badge variant="outline">{statusLabels[selected.status]}</Badge></div>
@@ -78,7 +88,7 @@ export function AdminSentryPanel() {
       actions={<><Button size="sm" variant="ghost" onClick={() => void query.refetch()} disabled={query.isFetching} aria-label="오류 목록 새로고침"><RefreshCw className={`h-3.5 w-3.5 ${query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden="true" /></Button>{data?.dashboardUrl ? <Button size="sm" variant="outline" asChild><a href={data.dashboardUrl} target="_blank" rel="noopener noreferrer">Sentry 열기<ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" /></a></Button> : null}</>}
     />
     <div className="admin-cms-toolbar admin-toolbar shrink-0">
-      <label className="relative min-w-[150px] flex-1"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /><input type="search" aria-label="현재 페이지 오류 검색" value={search} onChange={event => { setSearch(event.target.value); setSelectedId(null); }} maxLength={120} placeholder="오류 유형·번호 검색" className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm" /></label>
+      <label className="relative min-w-[150px] flex-1"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /><input ref={searchRef} type="search" aria-label="현재 페이지 오류 검색" value={search} onChange={event => { setSearch(event.target.value); setSelectedId(null); }} maxLength={120} placeholder="오류 유형·번호 검색" className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm" /></label>
       <select aria-label="오류 처리 상태" value={status} onChange={event => { setStatus(event.target.value as SentryIssueStatus); setCursors([null]); setSelectedId(null); }} className="h-9 rounded-md border bg-background px-2 text-xs">{(Object.keys(statusLabels) as SentryIssueStatus[]).map(value => <option key={value} value={value}>{statusLabels[value]}</option>)}</select>
       <select aria-label="현재 페이지 오류 정렬" value={sort} onChange={event => setSort(event.target.value as typeof sort)} className="h-9 rounded-md border bg-background px-2 text-xs"><option value="latest">최근 발생순</option><option value="count">발생 횟수순</option><option value="level">심각도순</option></select>
     </div>
@@ -96,6 +106,6 @@ export function AdminSentryPanel() {
     <footer className="admin-cms-footer shrink-0"><span>{available && data ? `현재 페이지 ${issues.length} / ${data.issues.length}건 · ${cursors.length}페이지` : connectionLabel}</span>{data ? <span className="text-[11px]">브라우저 수집 {data.collection.browser ? '설정됨' : '미설정'} · 서버 수집 {data.collection.server ? '설정됨' : '미설정'}</span> : null}
       <div className="ml-auto flex gap-1"><Button size="sm" variant="ghost" aria-label="이전 오류 페이지" disabled={cursors.length <= 1 || query.isFetching} onClick={() => { setCursors(values => values.slice(0, -1)); setSelectedId(null); }}><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button><Button size="sm" variant="ghost" aria-label="다음 오류 페이지" disabled={!available || !data?.nextCursor || query.isFetching} onClick={() => { if (available && data?.nextCursor) { setCursors(values => [...values, data.nextCursor]); setSelectedId(null); } }}><ChevronRight className="h-4 w-4" aria-hidden="true" /></Button></div>
     </footer>
-    <Sheet open={!inlineInspector && !!selected} onOpenChange={open => { if (!open) setSelectedId(null); }}><SheetContent data-sentry-drawer className="flex w-full flex-col p-0 pt-10 sm:max-w-lg" onOpenAutoFocus={event => { event.preventDefault(); detailRef.current?.focus(); }} onCloseAutoFocus={event => { event.preventDefault(); rowRef.current?.focus(); }}><SheetHeader className="sr-only"><SheetTitle>Sentry 오류 상세</SheetTitle><SheetDescription>선택한 오류의 집계와 상세 링크</SheetDescription></SheetHeader>{!inlineInspector ? inspector : null}</SheetContent></Sheet>
+    <Sheet open={!inlineInspector && !!selected} onOpenChange={open => { if (!open) setSelectedId(null); }}><SheetContent data-sentry-drawer className="flex w-full flex-col p-0 pt-10 sm:max-w-lg" onOpenAutoFocus={event => { event.preventDefault(); detailRef.current?.focus(); }} onCloseAutoFocus={event => { event.preventDefault(); restoreAdminDetailFocus('[data-sentry-drawer]', rowRef.current, searchRef.current); }}><SheetHeader className="sr-only"><SheetTitle>Sentry 오류 상세</SheetTitle><SheetDescription>선택한 오류의 집계와 상세 링크</SheetDescription></SheetHeader>{!inlineInspector ? inspector : null}</SheetContent></Sheet>
   </div>;
 }

@@ -10,6 +10,7 @@ import { ArrowUpRight, Bot, RefreshCw, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { restoreAdminDetailFocus } from '@/lib/admin/detail-focus';
 import { readOperationsSource } from '@/lib/admin/operations-source';
 import {
   OPERATIONS_SOURCES,
@@ -35,6 +36,8 @@ export function AdminOperationsPanel() {
   const rowRef = useRef<HTMLButtonElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const detailRef = useRef<HTMLElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const detailShownRef = useRef(false);
   useEffect(() => {
     const media = window.matchMedia('(min-width: 1024px)');
     const update = () => setInlineInspector(media.matches);
@@ -62,8 +65,15 @@ export function AdminOperationsPanel() {
   const busy = queries.some(query => query.isFetching);
   const refresh = () => { void Promise.all(queries.map(query => query.refetch())); };
   const selectedQuery = selected ? queries[OPERATIONS_SOURCES.indexOf(selected.sourceId)] : null;
+  const selectedRowId = selected?.id ?? null;
+  useEffect(() => {
+    if (selectedRowId) { detailShownRef.current = true; return; }
+    if (!detailShownRef.current) return;
+    detailShownRef.current = false;
+    if (inlineInspector) window.requestAnimationFrame(() => restoreAdminDetailFocus('[data-operations-inspector]', rowRef.current, searchRef.current));
+  }, [selectedRowId, inlineInspector]);
 
-  const closeDetail = () => { setSelectedId(null); if (inlineInspector) window.requestAnimationFrame(() => rowRef.current?.focus()); };
+  const closeDetail = () => setSelectedId(null);
   const stateLabel = (row: (typeof rows)[number]) => row.state === 'ready' ? PRIORITY_LABELS[row.priority] : OPERATIONS_STATE_LABELS[row.state];
   const stateClass = (row: (typeof rows)[number]) => row.priority === 'failure' ? 'border-destructive/25 bg-destructive/5 text-destructive' : row.priority === 'attention' ? 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200' : 'border-border text-muted-foreground';
   const inspector = selected ? <aside key={selected.id} ref={detailRef} tabIndex={-1} className={cn('h-full min-h-0 overflow-y-auto outline-none', inlineInspector ? 'admin-cms-inspector' : 'p-3')} aria-label="운영 항목 상세" data-operations-inspector onKeyDown={event => { if (inlineInspector && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeDetail(); } }}>
@@ -91,7 +101,7 @@ export function AdminOperationsPanel() {
       {model.summaries.map(item => <span key={item.id} className="text-muted-foreground">{item.label} <strong className="font-medium tabular-nums text-foreground" data-operations-summary={item.id}>{item.value === null ? (snapshots[item.id as OperationsSourceId] ? '확인 불가' : '조회 중') : `${number.format(item.value)}건`}</strong></span>)}
     </div>
     <div className="admin-cms-toolbar admin-toolbar shrink-0">
-      <label className="relative min-w-[150px] flex-1"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /><input type="search" aria-label="운영 항목 검색" value={search} onChange={event => { setSearch(event.target.value); setSelectedId(null); }} maxLength={120} placeholder="운영 항목 검색" className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm" /></label>
+      <label className="relative min-w-[150px] flex-1"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /><input ref={searchRef} type="search" aria-label="운영 항목 검색" value={search} onChange={event => { setSearch(event.target.value); setSelectedId(null); }} maxLength={120} placeholder="운영 항목 검색" className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm" /></label>
       <select aria-label="운영 상태 필터" value={status} onChange={event => { setStatus(event.target.value as typeof status); setSelectedId(null); }} className="h-9 rounded-md border bg-background px-2 text-xs"><option value="all">전체 상태</option><option value="attention">확인 필요 ({model.attentionCount})</option><option value="failure">실패 확인</option><option value="waiting">검수 대기</option><option value="running">진행 중</option><option value="idle">대기 없음</option></select>
       <select aria-label="운영 목록 정렬" value={sort} onChange={event => setSort(event.target.value as typeof sort)} className="h-9 rounded-md border bg-background px-2 text-xs"><option value="priority">우선순위순</option><option value="name">항목 이름순</option></select>
     </div>
@@ -109,6 +119,6 @@ export function AdminOperationsPanel() {
       {inlineInspector ? inspector : null}
     </div>
     <footer className="admin-cms-footer shrink-0" aria-live="polite"><span>{rows.length} / {model.rows.length}개</span>{model.sources.map(source => <span key={source.sourceId} className="text-[11px]">{SOURCE_LABELS[source.sourceId]} · {OPERATIONS_STATE_LABELS[source.state]}</span>)}</footer>
-    <Sheet open={!inlineInspector && !!selected} onOpenChange={open => { if (!open) setSelectedId(null); }}><SheetContent data-operations-drawer className="flex w-full flex-col p-0 pt-10 sm:max-w-lg" onOpenAutoFocus={event => { event.preventDefault(); detailRef.current?.focus(); }} onCloseAutoFocus={event => { event.preventDefault(); rowRef.current?.focus(); }}><SheetHeader className="sr-only"><SheetTitle>운영 항목 상세</SheetTitle><SheetDescription>선택한 항목의 상태와 조회 근거</SheetDescription></SheetHeader>{!inlineInspector ? inspector : null}</SheetContent></Sheet>
+    <Sheet open={!inlineInspector && !!selected} onOpenChange={open => { if (!open) setSelectedId(null); }}><SheetContent data-operations-drawer className="flex w-full flex-col p-0 pt-10 sm:max-w-lg" onOpenAutoFocus={event => { event.preventDefault(); detailRef.current?.focus(); }} onCloseAutoFocus={event => { event.preventDefault(); restoreAdminDetailFocus('[data-operations-drawer]', rowRef.current, searchRef.current); }}><SheetHeader className="sr-only"><SheetTitle>운영 항목 상세</SheetTitle><SheetDescription>선택한 항목의 상태와 조회 근거</SheetDescription></SheetHeader>{!inlineInspector ? inspector : null}</SheetContent></Sheet>
   </section>;
 }
