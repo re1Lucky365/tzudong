@@ -1071,15 +1071,19 @@ export function RestaurantDetailPanel({
                             <Image src={getCategoryImagePath(categories[0] || '')} alt="" fill sizes="16px" className="object-contain" />
                         </span>
                     ) : undefined}
-                    titleAddon={viewMode === 'detail' ? categories.map((cat, index) => (
-                        <Badge
-                            key={`${cat}-${index}`}
-                            variant={index === 0 ? "default" : "secondary"}
-                            className="shrink-0 text-xs whitespace-nowrap"
-                        >
-                            {cat}
-                        </Badge>
-                    )) : undefined}
+                    titleAddon={viewMode === 'detail' && categories.length > 0 ? (
+                        <span className="flex shrink-0 items-center gap-1" data-restaurant-detail-categories="true">
+                            {categories.map((cat, index) => (
+                                <Badge
+                                    key={`${cat}-${index}`}
+                                    variant={index === 0 ? "default" : "secondary"}
+                                    className="shrink-0 whitespace-nowrap px-2 py-0.5 text-2xs"
+                                >
+                                    {cat}
+                                </Badge>
+                            ))}
+                        </span>
+                    ) : undefined}
                     onClose={viewMode === 'reviews' ? handleBackToDetail : onClose}
                     closeLabel={viewMode === 'reviews' ? '상세 정보로 돌아가기' : (showDesktopBackButton && !isMobile ? '이전 목록으로 돌아가기' : isMobile ? '이전 화면으로 돌아가기' : '맛집 상세 닫기')}
                     closeAction={viewMode === 'reviews' || showDesktopBackButton || isMobile ? 'back' : 'close'}
