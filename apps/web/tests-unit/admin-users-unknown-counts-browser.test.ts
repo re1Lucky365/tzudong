@@ -75,6 +75,10 @@ declare global { interface Window { __usersRead: { hold: boolean; release: () =>
         await page.keyboard.press('Enter');
         await playwrightExpect(retry).toHaveAttribute('aria-busy', 'true');
         await playwrightExpect(retry).toBeFocused();
+        await playwrightExpect(metric('전체 사용자')).toHaveText('미확인');
+        await playwrightExpect(page.getByText('목록을 확인한 후 사용자 작업을 진행할 수 있습니다.')).toBeVisible();
+        await playwrightExpect(page.getByRole('status', { name: '사용자 목록 로딩 중' })).toHaveCount(0);
+        await playwrightExpect(page.locator('.admin-cms-footer')).toContainText('조회 실패');
         await page.evaluate(() => window.__usersRead.release());
         await playwrightExpect(retry).toBeFocused();
         await playwrightExpect(metric('전체 사용자')).toHaveText('미확인');

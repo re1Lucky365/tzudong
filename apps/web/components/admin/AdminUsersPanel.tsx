@@ -388,6 +388,7 @@ export default function AdminUsersPanel({
   const isProfileDirty = Boolean(selectedUser && JSON.stringify(profileForm) !== JSON.stringify(getProfileForm(selectedUser)));
   const visibleUsers = users;
   const countsUnknown = Boolean(errorMessage) && users.length === 0;
+  const showUnreadUsersSkeleton = isLoading && users.length === 0 && !countsUnknown;
 
   const loadUsers = useCallback(async (signal?: AbortSignal) => {
     const generation = ++usersReadGeneration.current;
@@ -776,9 +777,9 @@ export default function AdminUsersPanel({
       <AdminPageHeader title={getAdminModuleTitle("users")} titleId="admin-users-title" icon={UsersRound} className="admin-cms-page-header"
         data-admin-module-header="compact" data-admin-module-header-module="users"
         summary={<div className="flex flex-wrap gap-1" data-admin-users-summary data-admin-module-summary="true">
-            <SummaryMetric label="전체 사용자" value={countsUnknown ? "미확인" : pagination.sourceTotal} isLoading={isLoading && users.length === 0} />
-            <SummaryMetric label="조건 일치" value={countsUnknown ? "미확인" : pagination.total} isLoading={isLoading && users.length === 0} />
-            <SummaryMetric label="현재 페이지" value={countsUnknown ? "미확인" : summary.loadedUsers} isLoading={isLoading && users.length === 0} />
+            <SummaryMetric label="전체 사용자" value={countsUnknown ? "미확인" : pagination.sourceTotal} isLoading={showUnreadUsersSkeleton} />
+            <SummaryMetric label="조건 일치" value={countsUnknown ? "미확인" : pagination.total} isLoading={showUnreadUsersSkeleton} />
+            <SummaryMetric label="현재 페이지" value={countsUnknown ? "미확인" : summary.loadedUsers} isLoading={showUnreadUsersSkeleton} />
           </div>}
         actions={<Button type="button" variant="ghost" size="sm" aria-label="사용자 목록 새로고침" onClick={() => { if (isLoading || isMutating || pendingReadback) return; requestIntent({ type: "refresh" }); }} disabled={isMutating || Boolean(pendingReadback)} aria-disabled={isLoading || isMutating || Boolean(pendingReadback)} aria-busy={isLoading} data-admin-users-refresh>
           <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" />새로고침
@@ -831,7 +832,7 @@ export default function AdminUsersPanel({
             )}
           </CardHeader>
           <CardContent className="admin-cms-table-container min-h-0 flex-1 space-y-0 overflow-y-auto p-0">
-            {isLoading && users.length === 0 ? (
+            {showUnreadUsersSkeleton ? (
               <UserTableSkeleton />
             ) : errorMessage && users.length === 0 ? (
               <div className="admin-empty-state p-4 text-center text-sm text-muted-foreground">목록을 확인한 후 사용자 작업을 진행할 수 있습니다.</div>
