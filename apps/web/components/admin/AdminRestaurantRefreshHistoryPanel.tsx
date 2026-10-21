@@ -823,7 +823,7 @@ export function AdminRestaurantRefreshHistoryPanel({
         </div>
         {error && <div role="alert" className="flex shrink-0 items-center justify-between gap-2 border-b bg-destructive/10 px-3 py-2 text-xs text-destructive"><span>{error}{data && " 이전 목록을 표시하고 있습니다."}</span><Button variant="outline" size="sm" aria-disabled={isLoading} aria-busy={isLoading} onClick={event => { if (isLoading) return; historyRetryHadFocusRef.current = document.activeElement === event.currentTarget; void loadHistory(); }}>{isLoading ? "불러오는 중…" : "다시 시도"}</Button></div>}
         <RefreshCandidateList candidates={filteredCandidates} isLoading={isLoading && !data && !error} readFailed={!data && Boolean(error)} selectedCandidateId={selectedCandidate?.id ?? null} disabled={isSavingDecision || Boolean(pendingReadback)} hasFilters={Boolean(query || statusFilter !== "all")} onOpenReview={requestSelection} />
-        <div className="admin-cms-footer flex shrink-0 flex-wrap items-center justify-between gap-1 text-muted-foreground"><span aria-live="polite">{!data && error ? "조회 실패" : isLoading ? "불러오는 중…" : `${filteredCandidates.length}건 · 최근 최대 100건`}</span><span>최근 점검 {formatDate(summary?.last_checked_at)}</span></div>
+        <div className="admin-cms-footer flex shrink-0 flex-wrap items-center justify-between gap-1 text-muted-foreground"><span aria-live="polite">{!data && error ? "조회 실패" : isLoading && !data ? "불러오는 중…" : `${filteredCandidates.length}건 · 최근 최대 100건`}</span><span>최근 점검 {formatDate(summary?.last_checked_at)}</span></div>
       </div>
       {!isNarrow && detail}
     </div>
