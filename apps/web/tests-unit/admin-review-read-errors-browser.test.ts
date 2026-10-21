@@ -113,6 +113,7 @@ async function bundle(entry: string) {
     await page.addScriptTag({ content: script });
     const error = page.locator('[data-admin-moderation-read-error="reviews"]');
     await playwrightExpect(error).toBeVisible();
+    await playwrightExpect(page.locator('select[aria-label="처리 상태"] option[value="all"]')).toHaveText('전체 상태 (미확인)');
     await playwrightExpect(page.locator('[data-admin-review-row]')).toHaveCount(0);
     const search = page.getByRole('searchbox', { name: '리뷰 검색' });
     await error.getByRole('button', { name: '다시 조회' }).click();
@@ -174,6 +175,8 @@ async function bundle(entry: string) {
     const fixture = (action: 'fail' | 'success') => page.evaluate(name => (window as unknown as { __submissionFixture: Record<string, () => void> }).__submissionFixture[name](), action);
     const error = page.locator('[data-admin-moderation-read-error="new"]');
     await playwrightExpect(error).toContainText('신규 제보 목록을 불러오지 못했습니다.');
+    await playwrightExpect(page.locator('select[aria-label="처리 상태"] option[value="all"]')).toHaveText('전체 상태 (미확인)');
+    await playwrightExpect(page.locator('select[aria-label="처리 상태"] option[value="pending"]')).toHaveText('대기 (미확인)');
     await playwrightExpect(page.getByText('조회된 항목이 없습니다.')).toHaveCount(0);
     await playwrightExpect(page.locator('[data-admin-submission-queue-reason-filter]')).toHaveCount(0);
     await playwrightExpect(page.getByLabel('대기 건수 조회 실패')).toHaveCount(2);
@@ -181,6 +184,7 @@ async function bundle(entry: string) {
 
     await page.getByRole('button', { name: /쯔양 제보/ }).click();
     await playwrightExpect(page.locator('[data-admin-submission-row="recommend-fixture"]')).toBeVisible();
+    await playwrightExpect(page.locator('select[aria-label="처리 상태"] option[value="all"]')).toHaveText('전체 상태 (1)');
     await playwrightExpect(page.locator('[data-admin-moderation-read-error]')).toHaveCount(0);
     await page.getByRole('button', { name: /신규 제보/ }).click();
 

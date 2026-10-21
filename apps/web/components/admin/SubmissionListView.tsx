@@ -2664,6 +2664,7 @@ export function SubmissionListView({
     const listRetrying = !failedEmptyList && (activeTab === 'reviews' ? reviewsLoading : loading && (!submissions.length || Boolean(submissionTabReadError)));
     const listReadFailed = failedEmptyList || (!listRetrying && (activeTab === 'reviews' ? reviewsError : Boolean(submissionTabReadError)));
     const retryBusy = activeTab === 'reviews' ? reviewsLoading : loading;
+    const statusCount = (count: number) => listReadFailed ? '미확인' : count;
     const retryListRead = activeTab === 'reviews' ? onRetryReviews : onRetrySubmissions;
     useLayoutEffect(() => {
         if (!listReadFailed) return;
@@ -2700,7 +2701,7 @@ export function SubmissionListView({
                         {searchValue && <button type="button" aria-label="검색 지우기" onClick={() => changeSearch('')} className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md hover:bg-muted"><X className="h-3.5 w-3.5" /></button>}
                     </div>
                     <select aria-label="처리 상태" value={statusFilter} onChange={event => { setStatusFilter(event.target.value as AdminModerationFilter); resetVisibleCountByTab(activeTab); }} className={filterClassName}>
-                        <option value="all">전체 상태 ({currentTabSummary.total})</option><option value="pending">대기 ({currentTabSummary.pending})</option><option value="approved">승인 ({currentTabSummary.approved})</option><option value="rejected">거부 ({currentTabSummary.rejected})</option>
+                        <option value="all">전체 상태 ({statusCount(currentTabSummary.total)})</option><option value="pending">대기 ({statusCount(currentTabSummary.pending)})</option><option value="approved">승인 ({statusCount(currentTabSummary.approved)})</option><option value="rejected">거부 ({statusCount(currentTabSummary.rejected)})</option>
                         {activeTab === 'reviews' ? <option value="duplicate">중복 영수증</option> : <option value="partially_approved">부분 승인</option>}
                     </select>
                     <select aria-label="목록 정렬" value={sortOrder} onChange={event => setSortOrder(event.target.value as AdminModerationSort)} className={filterClassName}>

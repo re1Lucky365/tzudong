@@ -122,6 +122,7 @@ test('moderation list renders loading, error and genuine empty review states sep
   expect(loading).not.toContain('조회된 항목이 없습니다.');
   const empty = render({});
   expect(empty).toContain('조회된 항목이 없습니다.');
+  expect(empty).toContain('전체 상태 (0)');
   const row = { ...syntheticReview, category: '한식', profiles: { nickname: '합성 작성자' },
     restaurants: { name: '합성 식당', address: '' } };
   const success = render({ reviews: [row] });
@@ -131,6 +132,10 @@ test('moderation list renders loading, error and genuine empty review states sep
   const failed = render({ reviews: [row], reviewsError: true, onRetryReviews() {} });
   expect(failed).toContain('리뷰 목록을 불러오지 못했습니다.');
   expect(failed).toContain('다시 조회');
+  expect(failed).toContain('전체 상태 (미확인)');
+  expect(failed).toContain('대기 (미확인)');
+  expect(failed).not.toContain('전체 상태 (0)');
+  expect(failed).not.toContain('전체 상태 (1)');
   expect(failed).not.toContain('조회된 항목이 없습니다.');
   expect(failed).not.toContain('data-admin-review-row="review-fixture"');
   const retrying = render({ reviewsLoading: true, reviewsError: true, onRetryReviews() {} });
