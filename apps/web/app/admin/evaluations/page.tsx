@@ -802,6 +802,8 @@ function AdminEvaluationPage({
   const legacyEvaluationLoad = isLegacyBrowserAdminMutationEnabled();
   const [serverFilteredTotal, setServerFilteredTotal] = useState(0);
   const [pageReadError, setPageReadError] = useState(false);
+  const pageErrorHadFocusRef = useRef(false);
+  const moduleContentRef = useRef<HTMLDivElement>(null);
   const [recordViewsInvalidated, setRecordViewsInvalidated] = useState(false);
   const [recordViewsRefreshing, setRecordViewsRefreshing] = useState(false);
   const recordViewsEpochRef = useRef(0);
@@ -907,6 +909,12 @@ function AdminEvaluationPage({
 
   // 사용자 제보 검수 상태 (URL 쿼리 파라미터로 초기화)
   const [showSubmissionView, setShowSubmissionView] = useState(false);
+  const showPageReadError = !recordViewsInvalidated && !legacyEvaluationLoad && pageReadError && !showSubmissionView;
+  useLayoutEffect(() => {
+    if (showPageReadError || !pageErrorHadFocusRef.current) return;
+    pageErrorHadFocusRef.current = false;
+    if (document.activeElement === document.body) moduleContentRef.current?.focus();
+  }, [showPageReadError]);
   const [submissionInitialTab, setSubmissionInitialTab] = useState<'new' | 'edit' | 'recommend' | 'reviews'>('new');
 
   // Deep-link 필터 (운영지표/이슈보드 -> 검수 화면 이동)
@@ -1260,7 +1268,6 @@ function AdminEvaluationPage({
       nextCursorRef.current = null;
       pageRevisionRef.current = null;
       detailRequestsRef.current.clear();
-      setPageReadError(false);
       setAllRecords([]);
       setDisplayedRecords([]);
       setPageWarnings({});
@@ -1272,6 +1279,7 @@ function AdminEvaluationPage({
       try {
         const page = await fetchAdminEvaluationPage(evaluationPageQuery, null, pageAbortRef.current.signal);
         if (epoch !== pageEpochRef.current) return;
+        setPageReadError(false);
         setAllRecords(page.records.map(normalizeEvaluationRecord).filter((record): record is EvaluationRecord => record !== null).map(withAdminEvaluationDisplayName));
         setPageWarnings(page.warnings);
         pageRevisionRef.current = page.revision;
@@ -1289,7 +1297,6 @@ function AdminEvaluationPage({
         pageRevisionRef.current = null;
         nextCursorRef.current = null;
         hasMoreRef.current = false;
-        toast({ variant: 'destructive', title: '데이터 로드 실패', description: '검수 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.' });
       } finally { if (epoch === pageEpochRef.current) setLoading(false); }
       return;
     }
@@ -2244,8 +2251,13 @@ function AdminEvaluationPage({
         onApplied={() => { invalidateRecordViews(); void refreshRecordViews(); void invalidateRestaurantDiscoveryQueries(queryClient); }}
       />}
       {recordViewsInvalidated && <div role="alert" data-admin-record-views-invalidated className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2 text-xs text-destructive"><span>변경 후 최신 정보를 다시 확인해야 합니다.</span><Button size="sm" variant="outline" disabled={recordActions.busy || recordViewsRefreshing} onClick={() => void refreshRecordViews()}>{recordViewsRefreshing ? '조회 중…' : '새로 조회'}</Button></div>}
-      <div className="flex-1 min-h-0 flex flex-col" data-admin-module-content={embedded ? "bounded" : undefined}>
-        {!recordViewsInvalidated && !legacyEvaluationLoad && pageReadError && !showSubmissionView ? <div role="alert" data-admin-evaluation-page-error="true" className="flex shrink-0 items-center gap-2 border-b px-3 py-2 text-xs text-destructive"><span>검수 목록 조회 실패</span><Button size="sm" variant="outline" disabled={loading} onClick={() => void loadAllRecords()}>다시 조회</Button></div> : null}
+      <div ref={moduleContentRef} tabIndex={-1} className="flex-1 min-h-0 flex flex-col focus-visible:outline-none" data-admin-module-content={embedded ? "bounded" : undefined}>
+        {showPageReadError ? <div role="alert" data-admin-evaluation-page-error="true" className="flex shrink-0 items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
+          onFocus={() => { pageErrorHadFocusRef.current = true; }}
+          onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) pageErrorHadFocusRef.current = false; }}>
+          <span>검수 목록 조회 실패</span>
+          <Button size="sm" variant="outline" aria-disabled={loading} aria-busy={loading} onClick={() => { if (!loading) void loadAllRecords(); }}>{loading ? '조회 중…' : '다시 조회'}</Button>
+        </div> : null}
         {showSubmissionView ? (
           /* 사용자 제보 목록 검수 뷰 */
           <SubmissionListView
@@ -2289,6 +2301,7 @@ function AdminEvaluationPage({
             onResolveConflict={handleResolveConflict}
             onEdit={handleEdit}
             loading={loading || recordViewsInvalidated}
+            readFailed={showPageReadError}
           />
         ) : (
           /* 테이블 영역 (무한 스크롤) */
@@ -2302,6 +2315,7 @@ function AdminEvaluationPage({
               onResolveConflict={handleResolveConflict}
               onEdit={handleEdit}
               loading={loading || recordViewsInvalidated}
+              readFailed={showPageReadError}
               evalFilters={evalFilters}
               isDeletedFilterActive={evalFilters.status === 'deleted'}
               searchQuery={searchQuery}

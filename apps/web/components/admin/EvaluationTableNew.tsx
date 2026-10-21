@@ -56,6 +56,7 @@ interface EvaluationTableProps {
   onResolveConflict?: (record: EvaluationRecord) => void;
   onEdit?: (record: EvaluationRecord) => void;
   loading?: boolean;
+  readFailed?: boolean;
   isDeletedFilterActive?: boolean; // 삭제 필터 활성화 여부
   searchQuery?: string; // 검색어
   onSearchChange?: (query: string) => void; // 검색어 변경 핸들러
@@ -629,6 +630,7 @@ export function EvaluationTable({
   onResolveConflict,
   onEdit,
   loading,
+  readFailed = false,
   isDeletedFilterActive = false,
   searchQuery = '',
   onSearchChange,
@@ -1545,7 +1547,7 @@ export function EvaluationTable({
               mobileLoadingCards
             ) : records.length > 0 ? (
               mobileCards
-            ) : (
+            ) : readFailed ? null : (
               <div className="admin-empty-state flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground lg:hidden">
                 표시할 데이터가 없습니다
               </div>
@@ -1733,7 +1735,7 @@ export function EvaluationTable({
           <TableBody>
             {loading && records.length === 0 ? (
               desktopLoadingRows
-            ) : records.length === 0 ? (
+            ) : records.length === 0 ? (readFailed ? null :
               <TableRow>
                 <TableCell colSpan={11} className="h-32 p-0 text-center text-muted-foreground">
                   <div className="admin-empty-state flex h-32 items-center justify-center">표시할 데이터가 없습니다</div>
