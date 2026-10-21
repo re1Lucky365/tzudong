@@ -413,6 +413,7 @@ export default function AdminUsersPanel({
           } else {
             setReadbackConflict({ pending: pendingAtReadStart, latest });
             setMutationResult({ action: pendingAtReadStart.action, targetUserId: pendingAtReadStart.targetUserId, status: "warning", message: `요청한 상태와 다른 최신 사용자 상태를 확인했습니다.${pendingAtReadStart.auditText} 최신 상태를 수용하면 추가 변경 없이 잠금을 해제합니다.` });
+            toast({ title: "최신 상태 확인 필요", description: "요청과 다른 최신 사용자 상태를 확인했습니다." });
           }
         }
       }
@@ -580,16 +581,15 @@ export default function AdminUsersPanel({
       const pending = { ...expectedReadback, message, auditText };
       updatePendingReadback(pending);
       const nextUsers = await loadUsers();
-      const refreshed = matchesPendingUserReadback(nextUsers, pending);
+      // loadUsers already reported a returned exact readback, whether it matched or conflicted.
+      if (nextUsers?.some((candidate) => candidate.id === pending.targetUserId)) return;
       setMutationResult({
         action,
         targetUserId: selectedUser.id,
-        status: refreshed ? "success" : "warning",
-        message: refreshed
-          ? `적용 완료: ${message}${auditText} 상태를 다시 확인했습니다.`
-          : `변경 결과 재확인 필요: ${message}${auditText} 조회 결과가 요청한 상태와 일치하는지 새로고침으로 확인해 주세요.`,
+        status: "warning",
+        message: `변경 결과 재확인 필요: ${message}${auditText} 조회 결과가 요청한 상태와 일치하는지 새로고침으로 확인해 주세요.`,
       });
-      toast({ title: refreshed ? "적용 완료" : "적용 완료 · 재조회 필요", description: message });
+      toast({ title: "적용 완료 · 재조회 필요", description: message });
     } catch (error) {
       const message = error instanceof Error ? error.message : "사용자 변경을 적용하지 못했습니다.";
       const uncertain = Boolean(pendingReadbackRef.current);
