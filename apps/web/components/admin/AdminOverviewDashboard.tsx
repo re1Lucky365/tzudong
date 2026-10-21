@@ -1699,6 +1699,8 @@ export function AdminOverviewDashboard({
     queryFn: fetchAdminMapRestaurants,
     staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
   const adminMapOverlaysQuery = useQuery({
     queryKey: ["admin-overview", "map-overlays"],
@@ -1809,8 +1811,9 @@ export function AdminOverviewDashboard({
         .join("|"),
     [routeRequestPoints],
   );
-  const isMapLoading = isLoading || mapRestaurantsQuery.isLoading;
-  const hasMapError = hasError || mapRestaurantsQuery.isError;
+  const mapRestaurantsReadFailed = adminQueryLastReadFailed(mapRestaurantsQuery);
+  const isMapLoading = isLoading || (mapRestaurantsQuery.isLoading && !mapRestaurantsReadFailed);
+  const hasMapError = hasError || mapRestaurantsReadFailed;
 
   useEffect(() => {
     if (routeMode !== "driving" || routeRequestPoints.length < 2) {

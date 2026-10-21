@@ -12,6 +12,9 @@ const routeEntry = `
   import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
   import { AdminOverviewDashboard } from './components/admin/AdminOverviewDashboard';
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, retryDelay: 0, refetchOnWindowFocus: false, refetchOnMount: false, refetchOnReconnect: false } } });
+  const fixture = { hold: false, waiters: [], release() { const pending = this.waiters.splice(0); for (const resolve of pending) resolve(); } };
+  globalThis.__routeRestaurants = fixture;
+  globalThis.__routeQueryClient = client;
   const bounds = { getSW: () => ({ lat: () => 37.4, lng: () => 126.8 }), getNE: () => ({ lat: () => 37.7, lng: () => 127.2 }) };
   const stub = () => new Proxy(function () {}, {
     get: (_, key) => typeof key === 'symbol' || key === 'then' ? undefined
@@ -26,7 +29,10 @@ const routeEntry = `
   window.naver = { maps: stub() };
   globalThis.fetch = async input => {
     const url = String(input).split('?')[0];
-    if (url === '/api/dashboard/restaurants') return new Response(JSON.stringify({ error: 'Failed to build dashboard restaurants.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    if (url === '/api/dashboard/restaurants') {
+      if (fixture.hold) await new Promise(resolve => { fixture.waiters.push(resolve); });
+      return new Response(JSON.stringify({ error: 'Failed to build dashboard restaurants.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
     return new Response('', { status: 503 });
   };
   const stats = { pendingSubmissions: 0, pendingReviews: 0, totalRestaurants: 3, totalVideos: 0, activeBanners: 0 };
@@ -98,6 +104,23 @@ async function bundle(entry: string) {
         const overlay = page.locator('[data-admin-map-status-overlay]');
         await playwrightExpect(overlay).toContainText('좌표 맛집 목록을 불러오지 못했습니다.');
         await playwrightExpect(overlay).not.toContainText('요약 API가 실패하면');
+        await page.evaluate(() => {
+          const fixture = (globalThis as unknown as { __routeRestaurants: { hold: boolean } }).__routeRestaurants;
+          const client = (globalThis as unknown as { __routeQueryClient: { refetchQueries: (filters: { queryKey: string[] }) => Promise<unknown> } }).__routeQueryClient;
+          fixture.hold = true;
+          void client.refetchQueries({ queryKey: ['admin-overview', 'map-restaurants'] }).catch(() => {});
+        });
+        await playwrightExpect(overlay).toContainText('좌표 맛집 목록을 불러오지 못했습니다.');
+        await playwrightExpect(cell('좌표 맛집')).toHaveText('미확인');
+        await playwrightExpect(page.getByText('표시할 좌표 맛집이 없습니다')).toHaveCount(0);
+        await playwrightExpect(page.getByText('거리 기반 후보', { exact: true })).toHaveCount(0);
+        await playwrightExpect(page.getByRole('status', { name: '관리자 네이버 지도 로딩' })).toHaveCount(0);
+        await page.evaluate(() => {
+          const fixture = (globalThis as unknown as { __routeRestaurants: { hold: boolean; release: () => void } }).__routeRestaurants;
+          fixture.hold = false;
+          fixture.release();
+        });
+        await playwrightExpect(overlay).toContainText('좌표 맛집 목록을 불러오지 못했습니다.');
         expect(pageErrors).toEqual([]);
         expect(externalRequests).toBe(0);
       } finally {
