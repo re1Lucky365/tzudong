@@ -9289,6 +9289,19 @@ function AuditPlaceholder() {
   });
   const auditPayload = auditEventsQuery.data;
   const events = auditPayload?.events ?? [];
+  const auditReadFailed = adminQueryLastReadFailed(auditEventsQuery);
+  const isAuditFirstLoad = auditEventsQuery.isLoading && !auditReadFailed;
+  const isAuditRetrying = auditEventsQuery.isFetching;
+  const auditSearchRef = useRef<HTMLInputElement>(null);
+  const auditRetryRef = useRef<HTMLButtonElement>(null);
+  const auditPanelHadFocusRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!auditPanelHadFocusRef.current || document.activeElement !== document.body) return;
+    (auditRetryRef.current ?? auditSearchRef.current)?.focus();
+  });
+  const retryAuditRead = () => {
+    if (!isAuditRetrying) void auditEventsQuery.refetch();
+  };
   const normalizedSearch = search.trim().toLocaleLowerCase("ko-KR");
   const visibleEvents = events.filter((event) => (!status || event.status === status) &&
     (!normalizedSearch || [getAdminAuditActionLabel(event.action), event.reasonCode, event.id, event.targetUserId]
@@ -9305,7 +9318,7 @@ function AuditPlaceholder() {
   const coverageBadgeLabel =
     isAuditAuthUnavailable
       ? "세션 확인 필요"
-      : unavailable || auditEventsQuery.isError
+      : unavailable || auditReadFailed
         ? "읽기 확인 필요"
         : hasTruthfulCoverage
           ? `부분 감사 · ${events.length}개`
@@ -9319,14 +9332,20 @@ function AuditPlaceholder() {
       icon={ScrollText}
       summary={coverageBadgeLabel}
       actions={<>
-        <Button size="sm" variant="ghost" aria-label="감사 로그 새로고침" disabled={auditEventsQuery.isFetching} onClick={() => auditEventsQuery.refetch()}><RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />새로고침</Button>
+        <Button size="sm" variant="ghost" aria-label="감사 로그 새로고침" aria-disabled={isAuditRetrying || undefined} aria-busy={isAuditRetrying || undefined} onClick={retryAuditRead}><RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />새로고침</Button>
         <Button asChild size="sm" variant="outline"><Link href="/admin/privacy-incidents" title="사람이 검토하고 처리합니다. 자동 신고나 수리 완료를 주장하지 않습니다." data-admin-privacy-incidents-link="true">개인정보 사고 대응<ExternalLink aria-hidden="true" className="h-3 w-3" /></Link></Button>
       </>}
       contentClassName="overflow-y-auto"
     >
-      <div className="min-h-[480px]">
+      <div
+        className="min-h-[480px]"
+        onFocus={() => { auditPanelHadFocusRef.current = true; }}
+        onBlur={(event) => {
+          if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) auditPanelHadFocusRef.current = false;
+        }}
+      >
         <div className="admin-cms-toolbar admin-toolbar">
-          <label className="relative min-w-0 flex-1"><Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /><input aria-label="감사 로그 검색" placeholder="작업·대상·감사 ID 검색" value={search} maxLength={256} onChange={(event) => setSearch(event.target.value)} className="h-8 w-full rounded-md border bg-background pl-7 pr-2 text-xs" /></label>
+          <label className="relative min-w-0 flex-1"><Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /><input ref={auditSearchRef} aria-label="감사 로그 검색" placeholder="작업·대상·감사 ID 검색" value={search} maxLength={256} onChange={(event) => setSearch(event.target.value)} className="h-8 w-full rounded-md border bg-background pl-7 pr-2 text-xs" /></label>
           <select aria-label="감사 처리 상태" value={status} onChange={(event) => setStatus(event.target.value)} className="h-8 rounded-md border bg-background px-2 text-xs"><option value="">전체 상태</option><option value="intent">적용 전</option><option value="applied">적용됨</option><option value="failed">실패</option></select>
         </div>
         <details
@@ -9348,7 +9367,7 @@ function AuditPlaceholder() {
           </p>
         </details>
 
-        {auditEventsQuery.isLoading ? (
+        {isAuditFirstLoad ? (
           <div className="admin-detail-section space-y-2 p-3" aria-label="감사 로그 로딩 중">
             <Skeleton className="h-16 rounded-2xl" />
             <Skeleton className="h-16 rounded-2xl" />
@@ -9356,7 +9375,7 @@ function AuditPlaceholder() {
           </div>
         ) : null}
 
-        {!auditEventsQuery.isLoading && (unavailable || auditEventsQuery.isError) ? (
+        {!isAuditFirstLoad && (unavailable || (auditReadFailed && events.length === 0)) ? (
           <div
             className={cn(
               "admin-empty-state p-4 text-sm leading-6",
@@ -9399,11 +9418,46 @@ function AuditPlaceholder() {
                   감사 로그 다시 확인
                 </Button>
               </div>
-            ) : null}
+            ) : (
+              <Button
+                ref={auditRetryRef}
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3 h-8 bg-background"
+                aria-disabled={isAuditRetrying || undefined}
+                aria-busy={isAuditRetrying || undefined}
+                onClick={retryAuditRead}
+              >
+                {isAuditRetrying ? "확인 중…" : "감사 로그 다시 확인"}
+              </Button>
+            )}
           </div>
         ) : null}
 
-        {!auditEventsQuery.isLoading && !unavailable && !auditEventsQuery.isError && events.length === 0 ? (
+        {auditReadFailed && events.length > 0 && !unavailable ? (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center gap-2 border-b border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-900"
+            data-admin-audit-stale-read="true"
+          >
+            <span className="min-w-0 flex-1">감사 로그를 다시 읽지 못했습니다. 이전 목록을 표시하고 있습니다.</span>
+            <Button
+              ref={auditRetryRef}
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 bg-background"
+              aria-disabled={isAuditRetrying || undefined}
+              aria-busy={isAuditRetrying || undefined}
+              onClick={retryAuditRead}
+            >
+              {isAuditRetrying ? "확인 중…" : "다시 확인"}
+            </Button>
+          </div>
+        ) : null}
+
+        {!isAuditFirstLoad && !unavailable && !auditReadFailed && events.length === 0 ? (
           <div
             className="admin-empty-state bg-muted/25 p-4 text-sm leading-6 text-muted-foreground"
             role="status"
@@ -9414,7 +9468,7 @@ function AuditPlaceholder() {
           </div>
         ) : null}
 
-        {events.length > 0 && !unavailable && !auditEventsQuery.isError ? (
+        {events.length > 0 && !unavailable ? (
           <>
             <div className="admin-cms-table-container">
               <table className="admin-cms-table" data-admin-audit-event-list="admin_audit_events">
