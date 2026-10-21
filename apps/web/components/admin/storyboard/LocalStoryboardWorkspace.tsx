@@ -840,7 +840,7 @@ function VersionHistory({ projectId, revision, disabled, onRestore }: {
     onBlur={(event) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) hadFocusRef.current = false; }}>
     <h3 id="local-version-title" className="font-semibold">과거 버전 복원</h3>
     <p className="mt-1 text-sm text-muted-foreground">저장된 이력부터 복원할 수 있습니다. 복원 전 상태도 새 이력으로 남습니다.</p>
-    {loading && !error && <p role="status" className="mt-2 text-sm">버전 불러오는 중…</p>}
+    {loading && !error && !versions && <p role="status" className="mt-2 text-sm">버전 불러오는 중…</p>}
     {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
     <button ref={refreshButtonRef} type="button" className={`${buttonClass} mt-2`} aria-disabled={loading} aria-busy={loading}
       onClick={() => { if (!loading) setRefresh((value) => value + 1); }}>버전 목록 새로고침</button>

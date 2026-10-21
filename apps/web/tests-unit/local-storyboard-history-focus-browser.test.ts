@@ -167,3 +167,47 @@ localTest('failed version history stays visible while the list refresh is in fli
     }
   }
 }, 40_000);
+
+localTest('visible version history keeps its status while the list is read again', async () => {
+  if (!browser) throw new Error('Local Chrome prerequisite missing');
+  for (const width of [1280, 390]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(8_000);
+    const errors: string[] = [];
+    let externalRequests = 0;
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/*', route => {
+      const url = route.request().url();
+      if (route.request().isNavigationRequest() && url.startsWith('http://storyboard.fixture.test/')) {
+        return route.fulfill({ contentType: 'text/html', body: '<div id="root"></div>' });
+      }
+      if (!url.startsWith('http://storyboard.fixture.test/')) externalRequests += 1;
+      return route.abort();
+    });
+    try {
+      await page.goto(`http://storyboard.fixture.test/admin?module=storyboard&storyboardProject=${A}`);
+      await page.addScriptTag({ content: script });
+      await page.getByRole('button', { name: '버전 이력' }).click();
+      const select = page.locator('#local-history-version');
+      const refresh = page.getByRole('button', { name: '버전 목록 새로고침' });
+      await playwrightExpect(select.locator('option[value="1"]')).toHaveCount(1);
+      await playwrightExpect(page.getByText('버전 불러오는 중…')).toHaveCount(0);
+
+      await page.evaluate(() => { window.storyboardHistoryFixture.holdVersions = true; });
+      await refresh.click();
+      await playwrightExpect(refresh).toHaveAttribute('aria-busy', 'true');
+      await playwrightExpect(select.locator('option[value="1"]')).toHaveCount(1);
+      await playwrightExpect(page.getByText('버전 불러오는 중…')).toHaveCount(0);
+
+      await page.evaluate(() => window.storyboardHistoryFixture.release());
+      await playwrightExpect(refresh).not.toHaveAttribute('aria-busy', 'true');
+      await playwrightExpect(select.locator('option[value="1"]')).toHaveCount(1);
+      await playwrightExpect(page.getByText('버전 불러오는 중…')).toHaveCount(0);
+      expect(errors).toEqual([]);
+      expect(externalRequests).toBe(0);
+    } finally {
+      await context.close();
+    }
+  }
+}, 40_000);
