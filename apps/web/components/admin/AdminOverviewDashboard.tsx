@@ -1124,9 +1124,15 @@ function AdminMapInfoPanel({
     directionsRoute?.summary?.duration,
   );
   const routeStops = routePlan.stops;
+  const shownDirectionsStatus =
+    directionsStatus === "loading" &&
+    directionsRoute?.provider === "naver-directions5" &&
+    directionsRoute.path.length >= 2
+      ? "ready"
+      : directionsStatus;
   const routeAhpAssessment = assessAdminRouteReadiness({
     mode: routeMode,
-    hasRoadRoute: directionsStatus === "ready",
+    hasRoadRoute: shownDirectionsStatus === "ready",
     routePlan,
   });
   const routeModeOption = ADMIN_ROUTE_MODE_OPTIONS.find(
@@ -1135,17 +1141,17 @@ function AdminMapInfoPanel({
   const restaurantListUnknown = hasError && coordinateRestaurantCount === 0;
   const routeStatusLabel = restaurantListUnknown
     ? "동선 미확인"
-    : directionsStatus === "ready"
+    : shownDirectionsStatus === "ready"
       ? "실제 도로 경로"
-      : directionsStatus === "loading"
+      : shownDirectionsStatus === "loading"
         ? "경로 계산 중"
-        : directionsStatus === "fallback" && directionsFallbackMessage
+        : shownDirectionsStatus === "fallback" && directionsFallbackMessage
           ? "Directions 사용 불가"
           : routeMode === "driving"
             ? "거리 기반 후보"
             : "촬영 초안";
   const routeSummaryText =
-    directionsStatus === "ready" &&
+    shownDirectionsStatus === "ready" &&
     [routeDistanceText, routeDurationText].filter(Boolean).length > 0
       ? [routeDistanceText, routeDurationText].filter(Boolean).join(" · ")
       : routeStops.length >= 2
@@ -1512,7 +1518,7 @@ function AdminMapInfoPanel({
           </div>
           <div>
             <p className="font-bold text-foreground">도로 경로</p>
-            <p>{restaurantListUnknown ? "미확인" : directionsStatus === "ready" ? "확보" : "로컬 후보"}</p>
+            <p>{restaurantListUnknown ? "미확인" : shownDirectionsStatus === "ready" ? "확보" : "로컬 후보"}</p>
           </div>
           <div>
             <p className="font-bold text-foreground">후보 출처</p>
@@ -1608,7 +1614,7 @@ function AdminMapInfoPanel({
           <p className="mt-2 text-2xs leading-4 text-muted-foreground">
             {restaurantListUnknown
               ? "좌표 맛집 목록을 확인하기 전에는 동선을 만들지 않습니다."
-              : directionsStatus === "ready"
+              : shownDirectionsStatus === "ready"
                 ? "네이버 Directions 5 기준 실제 도로 주행 경로를 지도에 표시합니다."
                 : routeMode === "driving"
                   ? "도로 경로 계산 전이나 실패 시에는 같은 영상·카테고리·직선거리 기반 후보를 먼저 표시합니다."
