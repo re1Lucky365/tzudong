@@ -46,7 +46,7 @@ export function AdminKnowledgeGraphPanel() {
       const value: unknown = await response.json(); if (!isKnowledgeGraphPage(value)) throw new Error('knowledge_unavailable'); return value;
     } });
   const data = query.data;
-  const current = query.isPlaceholderData ? null : data?.nodes.find(node => node.id === selected) ?? (data?.selected?.id === selected ? data.selected : null);
+  const current = data?.nodes.find(node => node.id === selected) ?? (!query.isPlaceholderData && data?.selected?.id === selected ? data.selected : null);
   const pageBusy = searchPending || query.isFetching || query.isPlaceholderData || query.isError;
   const outsideEdges = data ? data.totalEdges - (data.edgePageTotal ?? data.edges.length) : 0;
   const layout = useMemo(() => {
