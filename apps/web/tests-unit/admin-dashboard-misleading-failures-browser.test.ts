@@ -65,7 +65,7 @@ const routeEntry = `
     { id: 'r2', name: '두 번째 맛집', category: '분식', address: '서울 종로구', lat: 37.57, lng: 126.99 },
     { id: 'r3', name: '세 번째 맛집', category: '중식', address: '서울 용산구', lat: 37.53, lng: 126.97 },
   ].map(item => ({ youtubeLink: null, videoId: null, sourceType: null, status: null, geocodingSuccess: true, isNotSelected: false, updatedAt: null, createdAt: null, ...item }));
-  const fixture = { candidatesOk: false, candidatesDelayMs: 0, requests: [] };
+  const fixture = { candidatesOk: false, candidatesDelayMs: 0, requests: [], holdOverlays: false, overlayWaiters: [], releaseOverlays() { const pending = this.overlayWaiters.splice(0); for (const resolve of pending) resolve(); } };
   globalThis.__fixture = fixture;
   globalThis.fetch = async input => {
     const url = String(input).split('?')[0];
@@ -74,6 +74,9 @@ const routeEntry = `
     if (url === '/api/admin/routes/candidates') {
       await wait(fixture.candidatesDelayMs);
       if (fixture.candidatesOk) return json({ ok: true, asOf, items: restaurants, candidateReadback: { candidateTotal: 3, candidateReturned: 3, candidateLimit: 5, truncated: false, candidateSource: 'visible-bbox', excludedNoCoordinateCount: 0, selectedAnchorIncluded: true, exclusions: [] } });
+    }
+    if (url === '/api/admin/map-overlays') {
+      if (fixture.holdOverlays) await new Promise(resolve => { fixture.overlayWaiters.push(resolve); });
     }
     return unavailable();
   };
@@ -113,7 +116,7 @@ async function bundle(entry: string) {
   return built.outputs.find(output => output.path.endsWith('.js'))!.text();
 }
 
-type Fixture = { requests: string[]; logs?: unknown; holdLogs?: boolean; holdInsights?: boolean; releaseLogs?: () => void; releaseInsights?: () => void; candidatesOk?: boolean; candidatesDelayMs?: number };
+type Fixture = { requests: string[]; logs?: unknown; holdLogs?: boolean; holdInsights?: boolean; holdOverlays?: boolean; releaseLogs?: () => void; releaseInsights?: () => void; releaseOverlays?: () => void; candidatesOk?: boolean; candidatesDelayMs?: number };
 const setFixture = (page: Page, patch: Partial<Fixture>) =>
   page.evaluate(next => Object.assign((globalThis as unknown as { __fixture: Fixture }).__fixture, next), patch);
 const requestCount = async (page: Page, path: string) =>
@@ -256,6 +259,34 @@ browserTest('a failed route candidate read shows no invented readback or export 
         await playwrightExpect(exportBlock).toHaveAttribute('data-admin-route-candidate-source', 'visible-bbox');
         await playwrightExpect(exportBlock).toContainText('source=visible-bbox');
         expect(await requestCount(page, '/api/admin/routes/candidates')).toBe(before + 2);
+      });
+    }
+  } finally {
+    await browser.close();
+  }
+}, 90_000);
+
+browserTest('a failed map overlay read stays failed when the overlay layer is opened again', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle(routeEntry);
+    for (const width of [1280, 390]) {
+      await withPage(browser, width, script, async page => {
+        const toggle = page.getByRole('button', { name: '관리자 오버레이' });
+        await toggle.scrollIntoViewIfNeeded();
+        await toggle.click();
+        const status = page.locator('[data-admin-map-overlay-status]');
+        await playwrightExpect(status).toHaveText('오버레이를 불러오지 못했습니다');
+        await setFixture(page, { holdOverlays: true });
+        await toggle.click();
+        await playwrightExpect(status).toHaveCount(0);
+        await toggle.click();
+        await playwrightExpect(status).toHaveText('오버레이를 불러오지 못했습니다');
+        await playwrightExpect(page.getByText('오버레이 확인 중')).toHaveCount(0);
+        await playwrightExpect(page.getByText('등록된 활성 오버레이 없음')).toHaveCount(0);
+        await setFixture(page, { holdOverlays: false });
+        await page.evaluate(() => (globalThis as unknown as { __fixture: { releaseOverlays: () => void } }).__fixture.releaseOverlays());
+        await playwrightExpect(status).toHaveText('오버레이를 불러오지 못했습니다');
       });
     }
   } finally {

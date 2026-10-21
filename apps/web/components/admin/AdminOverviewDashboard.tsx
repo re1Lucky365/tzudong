@@ -1705,6 +1705,7 @@ export function AdminOverviewDashboard({
     queryFn: fetchAdminMapOverlays,
     enabled: showAdminMapOverlays,
     staleTime: 60 * 1000,
+    retry: false,
     refetchOnWindowFocus: false,
   });
 
@@ -1897,8 +1898,8 @@ export function AdminOverviewDashboard({
           directionsRoute={directionsRoute}
           overlays={adminMapOverlays}
           showAdminMapOverlays={showAdminMapOverlays}
-          isOverlayLoading={adminMapOverlaysQuery.isFetching}
-          hasOverlayError={adminMapOverlaysQuery.isError}
+          isOverlayLoading={adminMapOverlaysQuery.isFetching && !adminQueryLastReadFailed(adminMapOverlaysQuery)}
+          hasOverlayError={adminQueryLastReadFailed(adminMapOverlaysQuery)}
           isLoading={isMapLoading}
           hasError={hasMapError}
           onSelectRestaurant={(restaurant) =>
