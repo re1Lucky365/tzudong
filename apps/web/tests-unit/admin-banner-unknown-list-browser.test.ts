@@ -12,12 +12,13 @@ async function bundle() {
     import { createRoot } from 'react-dom/client';
     import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
     import BannerManagementRoutePage from './app/admin/banners/page';
-    const fixture = { requests: 0 };
+    const fixture = { requests: 0, hold: false, waiters: [], release() { const pending = this.waiters.splice(0); for (const resolve of pending) resolve(); } };
     globalThis.__bannerList = fixture;
     globalThis.fetch = async (input) => {
       const url = String(input);
       if (url === '/api/admin/banners') {
         fixture.requests += 1;
+        if (fixture.hold && fixture.requests > 1) await new Promise(resolve => { fixture.waiters.push(resolve); });
         return new Response(JSON.stringify({ error: 'unavailable' }), { status: 503, headers: { 'Content-Type': 'application/json' } });
       }
       return new Response('', { status: 503 });
@@ -78,6 +79,20 @@ async function bundle() {
         await playwrightExpect(page.getByText('등록된 배너가 없습니다. 새 배너를 추가해 보세요.')).toHaveCount(0);
         await playwrightExpect(page.locator('.admin-cms-footer')).toContainText('미확인');
         await playwrightExpect(page.locator('.admin-cms-footer')).not.toContainText('0 / 0개');
+
+        await page.evaluate(() => { (globalThis as unknown as { __bannerList: { hold: boolean } }).__bannerList.hold = true; });
+        const retry = alert.getByRole('button', { name: '다시 시도' });
+        await retry.focus();
+        await page.keyboard.press('Enter');
+        await playwrightExpect(retry).toBeFocused();
+        await playwrightExpect(retry).toHaveAttribute('aria-busy', 'true');
+        await playwrightExpect(retry).not.toHaveAttribute('disabled');
+        await playwrightExpect(page.getByText('배너 목록을 확인하지 못했습니다.')).toBeVisible();
+        await playwrightExpect(page.locator('[data-admin-module-header]')).toContainText('미확인');
+        await playwrightExpect(page.locator('[data-admin-module-header]')).not.toContainText('0개');
+        await page.evaluate(() => (globalThis as unknown as { __bannerList: { release: () => void } }).__bannerList.release());
+        await playwrightExpect(retry).toBeFocused();
+        await playwrightExpect(alert).toContainText('배너 목록을 불러오지 못했습니다.');
         expect(externalRequests).toBe(0);
         expect(pageErrors).toEqual([]);
       } finally {

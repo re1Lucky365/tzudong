@@ -18,6 +18,7 @@ import {
     useUploadBannerImage,
     useDeleteBannerImage,
 } from '@/hooks/use-ad-banners';
+import { adminQueryLastReadFailed } from '@/lib/admin/query-read-state';
 import { AdBanner, AdBannerFormData, DisplayTarget } from '@/types/ad-banner';
 import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/button';
@@ -297,7 +298,11 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
     const { user, isAdmin, isLoading: authLoading } = useAuth();
 
     // 배너 데이터
-    const { data: banners = [], isLoading: bannersLoading, isFetching: bannersFetching, isError: bannersError, refetch: refetchBanners } = useAdBannersAdmin();
+    const bannerQuery = useAdBannersAdmin();
+    const { data: banners = [], isLoading: bannersLoading, isFetching: bannersFetching, refetch: refetchBanners } = bannerQuery;
+    const bannerReadFailed = adminQueryLastReadFailed(bannerQuery);
+    const bannerFailureWithoutRows = bannerReadFailed && banners.length === 0;
+    const bannerListUnsettled = bannersLoading && !bannerFailureWithoutRows;
     const initialLoadPending = useInitialLoadPending(!authLoading && !bannersLoading);
     useLayoutEffect(() => {
         if (!onInitialContentReady || authLoading || initialLoadPending) return;
@@ -389,7 +394,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
     const inactiveBannerCount = sortedBanners.length - activeBannerCount;
     const sidebarTargetCount = sortedBanners.filter((banner) => banner.display_target.includes('sidebar')).length;
     const mobileTargetCount = sortedBanners.filter((banner) => banner.display_target.includes('mobile_popup')).length;
-    const hasReliableBannerCounts = !bannersError;
+    const hasReliableBannerCounts = !bannerReadFailed;
     const formatBannerCount = (count: number, suffix = '') => hasReliableBannerCounts ? `${count}${suffix}` : '미확인';
 
     if (!embedded && authLoading) {
@@ -655,7 +660,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             });
             return;
         }
-        if (isBusy || bannersError || !isDirty || Boolean(pendingReadback)) return;
+        if (isBusy || bannerReadFailed || !isDirty || Boolean(pendingReadback)) return;
         const titleValidationError = getBannerTitleValidationError(formData.title);
         if (titleValidationError) {
             toast({
@@ -802,7 +807,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
     // 삭제 실행
     const handleDelete = async () => {
         if (!bannerToDelete) return;
-        if (deleteConfirmation !== '배너삭제' || bannerToDelete.id !== editingBanner?.id || isBusy || bannersError || Boolean(pendingReadback) || hasRefreshConflict) return;
+        if (deleteConfirmation !== '배너삭제' || bannerToDelete.id !== editingBanner?.id || isBusy || bannerReadFailed || Boolean(pendingReadback) || hasRefreshConflict) return;
         const target = bannerToDelete;
         const hadEditorFocus = editorHasFocus();
 
@@ -974,10 +979,10 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                 <h2 id="banner-editor-title" className="text-sm font-semibold text-foreground">{!isEditorOpen ? '배너 상세' : editingBanner ? '배너 수정' : '새 배너 작성'}</h2>
                                 <p className="text-xs text-muted-foreground" role="status">{!isEditorOpen ? '목록에서 배너를 선택하세요.' : isDirty ? '저장하지 않은 변경' : editingBanner ? '저장된 배너' : '제목과 표시 위치를 입력하세요.'}</p>
                             </div>
-                            {isEditorOpen && <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={handleSubmit} disabled={isBusy || bannersError || !isDirty || Boolean(pendingReadback) || hasRefreshConflict}>{isBusy ? '처리 중…' : editingBanner ? '수정 저장' : '배너 추가'}</Button><Button type="button" variant="ghost" size="sm" disabled={isBusy || Boolean(pendingReadback)} onClick={closeEditor}><X className="h-4 w-4" aria-hidden="true" />{isNarrow ? '목록으로' : '닫기'}</Button></div>}
+                            {isEditorOpen && <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={handleSubmit} disabled={isBusy || bannerReadFailed || !isDirty || Boolean(pendingReadback) || hasRefreshConflict}>{isBusy ? '처리 중…' : editingBanner ? '수정 저장' : '배너 추가'}</Button><Button type="button" variant="ghost" size="sm" disabled={isBusy || Boolean(pendingReadback)} onClick={closeEditor}><X className="h-4 w-4" aria-hidden="true" />{isNarrow ? '목록으로' : '닫기'}</Button></div>}
                         </div>
 
-                        {pendingReadback && <div className="flex shrink-0 items-center gap-2 border-b bg-amber-50 px-3 py-2 text-xs text-amber-900"><span className="min-w-0 flex-1">이전 변경의 상태를 먼저 확인해 주세요.</span><Button type="button" size="sm" variant="outline" disabled={bannersFetching || isBusy} onClick={() => void refreshBannerList()}>상태 재확인</Button></div>}
+                        {pendingReadback && <div className="flex shrink-0 items-center gap-2 border-b bg-amber-50 px-3 py-2 text-xs text-amber-900"><span className="min-w-0 flex-1">이전 변경의 상태를 먼저 확인해 주세요.</span><Button type="button" size="sm" variant="outline" aria-disabled={bannersFetching || isBusy || undefined} aria-busy={bannersFetching || undefined} disabled={isBusy || undefined} onClick={() => { if (!bannersFetching && !isBusy) void refreshBannerList(); }}>상태 재확인</Button></div>}
                         {!isEditorOpen ? <div className="admin-cms-empty flex min-h-64 flex-1 flex-col items-center justify-center gap-3 p-6 text-center"><ImageIcon className="h-6 w-6 text-muted-foreground" aria-hidden="true" /><p className="text-sm text-muted-foreground">배너를 선택하면 내용과 노출 설정을 편집할 수 있습니다.</p><Button type="button" variant="outline" size="sm" disabled={isBusy || Boolean(pendingReadback)} onClick={openCreatePanel}><Plus className="h-4 w-4" aria-hidden="true" />새 배너</Button></div> : <fieldset disabled={isBusy || Boolean(pendingReadback)} className="admin-cms-inspector-body min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto p-3">
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="space-y-1.5 sm:col-span-2">
@@ -1047,7 +1052,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                     {isDirty && <p className="mt-1 text-xs text-destructive">변경 내용을 저장하거나 되돌린 후 삭제할 수 있습니다.</p>}
                                     <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                                         <Input value={deleteConfirmation} onChange={(event) => { setBannerToDelete(editingBanner); setDeleteConfirmation(event.target.value); }} placeholder="배너삭제" className="bg-background" aria-label="배너 삭제 확인 문구" />
-                                        <Button type="button" variant="destructive" className="w-full sm:w-auto" disabled={deleteConfirmation !== '배너삭제' || isBusy || bannersError || Boolean(pendingReadback) || hasRefreshConflict || isDirty} onClick={() => void handleDelete()}>
+                                        <Button type="button" variant="destructive" className="w-full sm:w-auto" disabled={deleteConfirmation !== '배너삭제' || isBusy || bannerReadFailed || Boolean(pendingReadback) || hasRefreshConflict || isDirty} onClick={() => void handleDelete()}>
                                             {deleteBanner.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />}
                                             삭제
                                         </Button>
@@ -1073,9 +1078,9 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
             <div className={cn("relative z-10 flex min-h-0 flex-1 flex-col", embedded ? "h-full" : "container mx-auto min-h-screen max-w-7xl p-3 md:p-4")}>
                 <AdminPageHeader title={getAdminModuleTitle("banners")} icon={ImageIcon} className="admin-cms-page-header"
                     data-admin-module-header={embedded ? "compact" : undefined} data-admin-module-header-module={embedded ? "banners" : undefined}
-                    summary={<>전체 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(sortedBanners.length, '개')} · 활성 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(activeBannerCount, '개')} · 비활성 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(inactiveBannerCount, '개')} · 데스크톱 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(sidebarTargetCount)} · 모바일 {bannersLoading ? <InlineCountSkeleton /> : formatBannerCount(mobileTargetCount)}</>}
+                    summary={<>전체 {bannerListUnsettled ? <InlineCountSkeleton /> : formatBannerCount(sortedBanners.length, '개')} · 활성 {bannerListUnsettled ? <InlineCountSkeleton /> : formatBannerCount(activeBannerCount, '개')} · 비활성 {bannerListUnsettled ? <InlineCountSkeleton /> : formatBannerCount(inactiveBannerCount, '개')} · 데스크톱 {bannerListUnsettled ? <InlineCountSkeleton /> : formatBannerCount(sidebarTargetCount)} · 모바일 {bannerListUnsettled ? <InlineCountSkeleton /> : formatBannerCount(mobileTargetCount)}</>}
                     actions={<div className="flex min-w-0 items-center gap-1.5" data-admin-module-actions={embedded ? "top-right" : undefined}>
-                        <Button type="button" variant="ghost" size="sm" aria-label="배너 목록 새로고침" disabled={bannersFetching || isBusy} onClick={() => void refreshBannerList()}><RefreshCw className={cn("h-4 w-4", bannersFetching && "animate-spin")} aria-hidden="true" />새로고침</Button>
+                        <Button type="button" variant="ghost" size="sm" aria-label="배너 목록 새로고침" aria-disabled={bannersFetching || isBusy || undefined} aria-busy={bannersFetching || undefined} disabled={isBusy || undefined} onClick={() => { if (!bannersFetching && !isBusy) void refreshBannerList(); }}><RefreshCw className={cn("h-4 w-4", bannersFetching && "animate-spin")} aria-hidden="true" />새로고침</Button>
                         <Button onClick={openCreatePanel} disabled={isBusy || Boolean(pendingReadback)} className="h-9 w-auto shrink-0 rounded-md bg-primary px-3 text-primary-foreground hover:bg-primary/90">
                             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />새 배너
                         </Button>
@@ -1100,16 +1105,16 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                 <select aria-label="배너 정렬" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} className="h-11 rounded-md border border-input bg-background px-2 text-xs md:h-8"><option value="priority">우선순위순</option><option value="updated">최근 수정순</option><option value="title">제목순</option></select>
                                 {(searchQuery || statusFilter !== 'all' || targetFilter !== 'all') && <Button type="button" size="sm" variant="ghost" className="h-11 md:h-8" onClick={() => { setSearchQuery(''); setStatusFilter('all'); setTargetFilter('all'); }}>초기화</Button>}
                             </div>
-                            {bannersError && <div role="alert" className="flex w-full flex-wrap items-center gap-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive"><span className="flex-1">배너 목록을 불러오지 못했습니다.{banners.length > 0 && ' 이전 목록을 표시합니다.'}</span><Button type="button" variant="outline" size="sm" disabled={bannersFetching || isBusy} onClick={() => void refreshBannerList()}>다시 시도</Button></div>}
+                            {bannerReadFailed && <div role="alert" className="flex w-full flex-wrap items-center gap-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive"><span className="flex-1">배너 목록을 불러오지 못했습니다.{banners.length > 0 && ' 이전 목록을 표시합니다.'}</span><Button type="button" variant="outline" size="sm" aria-disabled={bannersFetching || isBusy || undefined} aria-busy={bannersFetching || undefined} disabled={isBusy || undefined} onClick={() => { if (!bannersFetching && !isBusy) void refreshBannerList(); }}>다시 시도</Button></div>}
                         </div>
 
                         <div ref={bannerListRef} className="admin-cms-table-container min-h-0 flex-1 overflow-y-auto" aria-label="배너 목록">
-                            {bannersLoading ? (
+                            {bannerListUnsettled ? (
                                 <div className="space-y-2" role="status" aria-busy="true" aria-label="배너 목록 로딩 중">
                                     <span className="sr-only">배너 목록 데이터를 불러오는 중입니다.</span>
                                     {Array.from({ length: bannerListCount }).map((_, index) => <BannerListItemSkeleton key={index} index={index} />)}
                                 </div>
-                            ) : bannersError && banners.length === 0 ? (
+                            ) : bannerFailureWithoutRows ? (
                                 <p className="p-4 text-center text-sm text-muted-foreground">배너 목록을 확인하지 못했습니다.</p>
                             ) : visibleBanners.length === 0 ? (
                                 <Card className="border-dashed border-border bg-background/70 p-4 text-center text-sm text-muted-foreground">
@@ -1174,7 +1179,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                 })}</tbody>
                             </table></>}
                         </div>
-                        <div className="admin-cms-footer shrink-0 justify-between" aria-live="polite"><span className="tabular-nums">{bannersError && banners.length === 0 ? '미확인' : `${visibleBanners.length} / ${sortedBanners.length}개`}</span><span>{bannersError && banners.length === 0 ? '목록을 확인한 뒤 편집' : '배너를 선택해 편집'}</span></div>
+                        <div className="admin-cms-footer shrink-0 justify-between" aria-live="polite"><span className="tabular-nums">{bannerFailureWithoutRows ? '미확인' : `${visibleBanners.length} / ${sortedBanners.length}개`}</span><span>{bannerFailureWithoutRows ? '목록을 확인한 뒤 편집' : '배너를 선택해 편집'}</span></div>
                     </section>
 
                     {!isNarrow && inspectorContent}
