@@ -1004,7 +1004,7 @@ export function EvaluationTable({
         >
           <div className="min-w-0 truncate px-0.5 text-xs text-muted-foreground">
             <span>검수 항목</span>
-            {loading && records.length === 0 ? (
+            {loading && records.length === 0 && !readFailed ? (
               <span className="ml-1 font-medium">집계 중</span>
             ) : readFailed && records.length === 0 ? (
               <strong className="ml-1 text-sm font-bold text-foreground">미확인</strong>
@@ -1545,7 +1545,7 @@ export function EvaluationTable({
         {shouldRenderMobile && (
           <>
             {mobileControls}
-            {loading && records.length === 0 ? (
+            {loading && records.length === 0 && !readFailed ? (
               mobileLoadingCards
             ) : records.length > 0 ? (
               mobileCards
@@ -1735,7 +1735,7 @@ export function EvaluationTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && records.length === 0 ? (
+            {loading && records.length === 0 && !readFailed ? (
               desktopLoadingRows
             ) : records.length === 0 ? (readFailed ? null :
               <TableRow>

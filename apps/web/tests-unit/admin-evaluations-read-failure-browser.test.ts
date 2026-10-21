@@ -12,7 +12,7 @@ const entry = `
   import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
   import AdminEvaluationRoutePage from './app/admin/evaluations/page';
   import { AppToaster } from './components/ui/app-toaster';
-  const fixture = { page: 'fail', pageReads: 0 };
+  const fixture = { page: 'fail', pageReads: 0, hold: false, waiters: [], release() { const pending = this.waiters.splice(0); for (const resolve of pending) resolve(); } };
   globalThis.__fixture = fixture;
   const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
   const emptyPage = { records: [], revision: '1', filteredTotal: 0, nextCursor: null, warnings: {},
@@ -21,7 +21,8 @@ const entry = `
     const url = new URL(String(input), location.href);
     if (url.pathname === '/api/admin/evaluations' && url.searchParams.get('view') === 'page') {
       fixture.pageReads++;
-      if (fixture.page === 'slow-fail') await new Promise(resolve => setTimeout(resolve, 600));
+      if (fixture.hold) await new Promise(resolve => { fixture.waiters.push(resolve); });
+      else if (fixture.page === 'slow-fail') await new Promise(resolve => setTimeout(resolve, 600));
       return fixture.page === 'ok' ? json(emptyPage) : json({ code: 'unavailable' }, 500);
     }
     return new Response('', { status: 503 });
@@ -95,18 +96,24 @@ const setFixture = (page: Page, patch: Record<string, unknown>) =>
         await playwrightExpect(failedCount).toContainText('미확인');
         await playwrightExpect(failedCount).not.toContainText('0개');
 
-        await setFixture(page, { page: 'slow-fail' });
+        await setFixture(page, { hold: true });
         await retry.focus();
         await page.keyboard.press('Enter');
         await playwrightExpect(retry).toHaveText('조회 중…');
         await playwrightExpect(retry).toBeFocused();
+        await playwrightExpect(failedCount).toContainText('미확인');
+        await playwrightExpect(page.getByText('집계 중')).toHaveCount(0);
+        await playwrightExpect(page.locator('tr[aria-hidden="true"]')).toHaveCount(0);
+        await playwrightExpect(page.getByRole('status', { name: '맛집 검수 카드 로딩 중' })).toHaveCount(0);
         await page.keyboard.press('Enter');
+        expect(await page.evaluate(() => (globalThis as unknown as { __fixture: { pageReads: number } }).__fixture.pageReads)).toBe(2);
+        await page.evaluate(() => (globalThis as unknown as { __fixture: { release: () => void } }).__fixture.release());
         await playwrightExpect(retry).toHaveText('다시 조회');
         await playwrightExpect(retry).toBeFocused();
         await playwrightExpect(page.getByText('데이터 로드 실패')).toHaveCount(0);
         expect(await page.evaluate(() => (globalThis as unknown as { __fixture: { pageReads: number } }).__fixture.pageReads)).toBe(2);
 
-        await setFixture(page, { page: 'ok' });
+        await setFixture(page, { page: 'ok', hold: false });
         await page.keyboard.press('Enter');
         await playwrightExpect(alert).toHaveCount(0);
         await playwrightExpect(page.locator('[data-admin-module-content]')).toBeFocused();
