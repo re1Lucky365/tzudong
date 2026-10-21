@@ -354,14 +354,14 @@ export default function HomeClient() {
   }, [clearRestaurantDetailSelection]);
 
   const returnToRestaurantListPanel = useCallback(() => {
-    if (
-      typeof window !== "undefined" &&
-      isHomeDetailHistoryState(window.history.state)
-    ) {
-      const { snapshot } = readHomeRestoreSnapshot(window.history.state.restoreKey);
-      if (snapshot) {
-        window.history.back();
-        return;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("home:detail-user-closed"));
+      if (isHomeDetailHistoryState(window.history.state)) {
+        const { snapshot } = readHomeRestoreSnapshot(window.history.state.restoreKey);
+        if (snapshot) {
+          window.history.back();
+          return true;
+        }
       }
     }
 
@@ -370,6 +370,7 @@ export default function HomeClient() {
     setIsAnnouncementSheetOpen(false);
     setSelectedAnnouncement(null);
     clearAnnouncementPanelUrl();
+    return false;
   }, [closeRestaurantDetailPanel]);
 
   const createHomeRestoreSnapshot = useCallback(
