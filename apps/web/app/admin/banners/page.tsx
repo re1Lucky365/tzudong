@@ -1110,7 +1110,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                     {Array.from({ length: bannerListCount }).map((_, index) => <BannerListItemSkeleton key={index} index={index} />)}
                                 </div>
                             ) : bannersError && banners.length === 0 ? (
-                                <p className="p-4 text-center text-sm text-muted-foreground">조회가 완료되면 배너 목록을 표시합니다.</p>
+                                <p className="p-4 text-center text-sm text-muted-foreground">배너 목록을 확인하지 못했습니다.</p>
                             ) : visibleBanners.length === 0 ? (
                                 <Card className="border-dashed border-border bg-background/70 p-4 text-center text-sm text-muted-foreground">
                                     {banners.length > 0 ? '검색·필터에 맞는 배너가 없습니다. 조건을 초기화해 보세요.' : '등록된 배너가 없습니다. 새 배너를 추가해 보세요.'}
@@ -1174,7 +1174,7 @@ function BannerManagementPage({ embedded, onInitialContentReady }: BannerManagem
                                 })}</tbody>
                             </table></>}
                         </div>
-                        <div className="admin-cms-footer shrink-0 justify-between" aria-live="polite"><span className="tabular-nums">{visibleBanners.length} / {sortedBanners.length}개</span><span>배너를 선택해 편집</span></div>
+                        <div className="admin-cms-footer shrink-0 justify-between" aria-live="polite"><span className="tabular-nums">{bannersError && banners.length === 0 ? '미확인' : `${visibleBanners.length} / ${sortedBanners.length}개`}</span><span>{bannersError && banners.length === 0 ? '목록을 확인한 뒤 편집' : '배너를 선택해 편집'}</span></div>
                     </section>
 
                     {!isNarrow && inspectorContent}
