@@ -77,7 +77,7 @@ describe('actual public popularity cohort', () => {
     for (const html of [domestic, overseas]) {
       expect(html.match(/class="tz-popularity-flame"/g)).toHaveLength(1);
       expect(html).toContain('tz-popularity-flame-outer');
-      expect(html).toContain('fill: #f85c00');
+      expect(html).toContain('fill: #e10600');
       expect(html).not.toContain('tz-popularity-pulse');
       expect(html).not.toContain('data-flame-count');
       expect(html).toContain('data-popularity-tier="fire"');
