@@ -46,10 +46,19 @@ export function AdminPipelineDashboard() {
   const manifestQuery = useQuery({
     queryKey: ["admin-pipeline-manifest"],
     queryFn: async ({ signal }) => parsePipelineManifest(await readStatus("/api/admin/system-status", signal)),
-    staleTime: 30_000, retry: false,
+    // The server caches system status for 30 seconds, so polling faster cannot return newer records.
+    staleTime: 30_000, retry: false, refetchInterval: 30_000,
   });
   const snapshot = query.isError ? undefined : query.data;
   const manifest = manifestQuery.isError ? undefined : manifestQuery.data;
+  const jobSignature = snapshot ? snapshot.jobs.map(job => `${job.id}:${job.status}`).join("|") : null;
+  const seenJobSignature = useRef<string | null>(null);
+  const refetchManifest = manifestQuery.refetch;
+  useEffect(() => {
+    if (jobSignature === null) return;
+    if (seenJobSignature.current !== null && seenJobSignature.current !== jobSignature) void refetchManifest();
+    seenJobSignature.current = jobSignature;
+  }, [jobSignature, refetchManifest]);
   const jobs = pipelineJobsForDisplay(snapshot, manifest);
   const stages = buildPipelineStages(manifest);
   const [selected, setSelected] = useState<PipelineStageId>("collect");
