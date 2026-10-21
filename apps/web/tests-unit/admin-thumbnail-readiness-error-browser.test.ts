@@ -83,6 +83,7 @@ const readinessRequests = (page: Page) => page.evaluate(() => (globalThis as unk
     const retry = page.locator('[data-thumbnail-readiness-retry]');
     await playwrightExpect(retry).toHaveAccessibleName('모델 상태 다시 확인');
     expect(await readinessRequests(page)).toBe(1);
+    await playwrightExpect(page.getByText('기록 확인 실패', { exact: false }).first()).toBeVisible();
 
     await page.getByRole('button', { name: '밥도둑 한상 썸네일 예시 불러오기' }).click();
     await playwrightExpect(page.getByText('이미지 만들기 상태를 확인하지 못해 다시 확인하고 있어요.', { exact: false })).toBeVisible();

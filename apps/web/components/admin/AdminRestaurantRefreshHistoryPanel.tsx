@@ -245,15 +245,16 @@ function RefreshCandidateListSkeleton() {
 type RefreshCandidateListProps = {
   candidates: RefreshCandidateRow[];
   isLoading: boolean;
+  readFailed: boolean;
   selectedCandidateId: string | null;
   disabled: boolean;
   hasFilters: boolean;
   onOpenReview: (candidate: RefreshCandidateRow, trigger: HTMLButtonElement) => void;
 };
 
-function RefreshCandidateList({ candidates, isLoading, selectedCandidateId, disabled, hasFilters, onOpenReview }: RefreshCandidateListProps) {
+function RefreshCandidateList({ candidates, isLoading, readFailed, selectedCandidateId, disabled, hasFilters, onOpenReview }: RefreshCandidateListProps) {
   return <div className="admin-cms-table-container min-h-0 flex-1" data-admin-restaurant-refresh-list="management-like">
-    {isLoading ? <RefreshCandidateListSkeleton /> : candidates.length === 0 ? <p className="admin-empty-state p-6 text-center text-sm text-muted-foreground" role="status">{hasFilters ? "조건에 맞는 최신화 이력이 없습니다." : "최신화 이력이 없습니다."}</p> : <>
+    {isLoading ? <RefreshCandidateListSkeleton /> : readFailed ? <p className="admin-empty-state p-6 text-center text-sm text-muted-foreground" data-admin-restaurant-refresh-read-failed="true">이력을 불러오면 여기에 표시합니다.</p> : candidates.length === 0 ? <p className="admin-empty-state p-6 text-center text-sm text-muted-foreground" role="status">{hasFilters ? "조건에 맞는 최신화 이력이 없습니다." : "최신화 이력이 없습니다."}</p> : <>
       <ul className="divide-y md:hidden" aria-label="최신화 후보 및 결정 이력">{candidates.map(candidate => <li key={candidate.id}>
         <button type="button" className={cn("w-full min-w-0 px-3 py-3 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary", selectedCandidateId === candidate.id && "admin-cms-row-selected")} aria-pressed={selectedCandidateId === candidate.id} aria-label={`${candidate.restaurant_name} 상세 보기`} disabled={disabled} onClick={event => onOpenReview(candidate, event.currentTarget)}>
           <span className="flex items-start justify-between gap-2"><span className="min-w-0 truncate text-sm font-medium">{candidate.restaurant_name}</span><Badge variant="outline" className={cn("shrink-0 text-2xs", statusTone[candidate.candidate_status])}>{statusLabels[candidate.candidate_status]}</Badge></span>
@@ -545,6 +546,12 @@ export function AdminRestaurantRefreshHistoryPanel({
     onInitialContentReady();
   }, [isLoading, initialLoadPending, onInitialContentReady]);
   const [error, setError] = useState<string | null>(null);
+  const historyRetryHadFocusRef = useRef(false);
+  useLayoutEffect(() => {
+    if (error || !historyRetryHadFocusRef.current) return;
+    historyRetryHadFocusRef.current = false;
+    if (document.activeElement === document.body) document.getElementById("refresh-history-search")?.focus({ preventScroll: true });
+  }, [error]);
   const [selectedCandidate, setSelectedCandidate] =
     useState<RefreshCandidateRow | null>(null);
   const [decision, setDecision] = useState<CandidateDecision>("approved");
@@ -558,7 +565,6 @@ export function AdminRestaurantRefreshHistoryPanel({
     const pendingAtReadStart = pendingReadbackRef.current;
     const generation = ++readGeneration.current;
     setIsLoading(true);
-    setError(null);
     try {
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.set("status", statusFilter);
@@ -576,6 +582,7 @@ export function AdminRestaurantRefreshHistoryPanel({
       if (generation !== readGeneration.current) return;
       const nextData = payload as RefreshHistoryResponse;
       setData(nextData);
+      setError(null);
       setSelectedCandidate(current => current ? (exactPayload?.candidates as RefreshCandidateRow[] | undefined)?.find(candidate => candidate.id === current.id) ?? nextData.candidates.find(candidate => candidate.id === current.id) ?? current : null);
       if (pendingAtReadStart && pendingReadbackRef.current === pendingAtReadStart) {
         const readback = evaluateRefreshReadback(pendingAtReadStart, exactPayload.candidates);
@@ -712,22 +719,22 @@ export function AdminRestaurantRefreshHistoryPanel({
     },
     {
       label: "검토 필요",
-      value: summary?.needs_review ?? 0,
+      value: summary?.needs_review ?? "—",
       tone: "text-amber-700 dark:text-amber-300",
     },
     {
       label: "승인",
-      value: summary?.approved ?? 0,
+      value: summary?.approved ?? "—",
       tone: "text-emerald-700 dark:text-emerald-300",
     },
     {
       label: "적용",
-      value: summary?.applied ?? 0,
+      value: summary?.applied ?? "—",
       tone: "text-sky-700 dark:text-sky-300",
     },
     {
       label: "반려",
-      value: summary?.rejected ?? 0,
+      value: summary?.rejected ?? "—",
       tone: "text-slate-700 dark:text-slate-300",
     },
   ];
@@ -798,9 +805,9 @@ export function AdminRestaurantRefreshHistoryPanel({
           {(query || statusFilter !== "all") && <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" disabled={isSavingDecision || Boolean(pendingReadback)} onClick={() => { setSearchInput(""); setQuery(""); setStatusFilter("all"); }}>필터 초기화</Button>}
           <Button type="button" variant="ghost" size="sm" onClick={() => void loadHistory()} disabled={isLoading || isSavingDecision} className="h-11 w-11 shrink-0 p-0 md:h-8 md:w-8" aria-label="최신화 이력 새로고침"><RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden="true" /></Button>
         </div>
-        {error && <div role="alert" className="flex shrink-0 items-center justify-between gap-2 border-b bg-destructive/10 px-3 py-2 text-xs text-destructive"><span>{error}{data && " 이전 목록을 표시하고 있습니다."}</span><Button variant="outline" size="sm" disabled={isLoading} onClick={() => void loadHistory()}>다시 시도</Button></div>}
-        <RefreshCandidateList candidates={filteredCandidates} isLoading={isLoading && !data} selectedCandidateId={selectedCandidate?.id ?? null} disabled={isSavingDecision || Boolean(pendingReadback)} hasFilters={Boolean(query || statusFilter !== "all")} onOpenReview={requestSelection} />
-        <div className="admin-cms-footer flex shrink-0 flex-wrap items-center justify-between gap-1 text-muted-foreground"><span aria-live="polite">{isLoading ? "불러오는 중…" : `${filteredCandidates.length}건 · 최근 최대 100건`}</span><span>최근 점검 {formatDate(summary?.last_checked_at)}</span></div>
+        {error && <div role="alert" className="flex shrink-0 items-center justify-between gap-2 border-b bg-destructive/10 px-3 py-2 text-xs text-destructive"><span>{error}{data && " 이전 목록을 표시하고 있습니다."}</span><Button variant="outline" size="sm" aria-disabled={isLoading} aria-busy={isLoading} onClick={event => { if (isLoading) return; historyRetryHadFocusRef.current = document.activeElement === event.currentTarget; void loadHistory(); }}>{isLoading ? "불러오는 중…" : "다시 시도"}</Button></div>}
+        <RefreshCandidateList candidates={filteredCandidates} isLoading={isLoading && !data} readFailed={!data && Boolean(error)} selectedCandidateId={selectedCandidate?.id ?? null} disabled={isSavingDecision || Boolean(pendingReadback)} hasFilters={Boolean(query || statusFilter !== "all")} onOpenReview={requestSelection} />
+        <div className="admin-cms-footer flex shrink-0 flex-wrap items-center justify-between gap-1 text-muted-foreground"><span aria-live="polite">{isLoading ? "불러오는 중…" : !data && error ? "조회 실패" : `${filteredCandidates.length}건 · 최근 최대 100건`}</span><span>최근 점검 {formatDate(summary?.last_checked_at)}</span></div>
       </div>
       {!isNarrow && detail}
     </div>
