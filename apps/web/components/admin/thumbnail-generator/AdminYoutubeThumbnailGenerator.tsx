@@ -3425,10 +3425,10 @@ export function AdminYoutubeThumbnailGenerator() {
         });
         setActiveLayerId(null);
       }
-    } catch (error) {
+    } catch {
       if (thumbnailHistoryRequestIdRef.current !== requestId) return;
       setHistoryStatus("error");
-      setHistoryError(error instanceof Error ? error.message : "history_api_failed");
+      setHistoryError("다시 새로고침해 주세요.");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- pure canvas layout helpers are intentionally captured once so initial preview loading stays stable.
   }, [isGenerating]);
@@ -6396,8 +6396,9 @@ export function AdminYoutubeThumbnailGenerator() {
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              onClick={() => void loadThumbnailHistory({ replaceInitialPreview: false })}
-              disabled={historyStatus === "loading"}
+              onClick={() => { if (historyStatus !== "loading") void loadThumbnailHistory({ replaceInitialPreview: false }); }}
+              aria-disabled={historyStatus === "loading" || undefined}
+              aria-busy={historyStatus === "loading" || undefined}
               aria-label="생성 히스토리 새로고침"
               data-thumbnail-history-refresh="true"
             >
