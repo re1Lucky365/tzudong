@@ -5,7 +5,7 @@ import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 
 import { createPortal } from 'react-dom';
 import { useRestaurantManagementHeader } from '@/components/admin/RestaurantManagementWorkspace';
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, Suspense } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, Suspense, type FocusEvent } from 'react';
 import { isEvaluationRecordStatus, isRecord, isNullableString, isStringArray, isNullableStringArray, isNullableRecord, parseNumericEvaluationMetric, parseBooleanEvaluationMetric, parseCategoryEvaluationMetric, parseCategoryValidityEvaluationMetric, isLocationMatchEvidenceFamily, isLocationMatchPendingReason, parseLocationMatchSecondPass, parseLocationMatchAddress, parseLocationMatchResult, parseEvaluationResults, parseYoutubeMeta, parseDbErrorDetails, getString, getNullableString, getNullableNumber, normalizeEvaluationRecord, withAdminEvaluationDisplayName } from '@/lib/admin/normalize-evaluation-record';
 import { fetchAdminEvaluationPage, isEvaluationCursorStale, type EvaluationWarnings } from '@/lib/admin/evaluation-page-client';
 import { filterEvaluationRecords } from '@/lib/admin/evaluation-query';
@@ -802,7 +802,8 @@ function AdminEvaluationPage({
   const legacyEvaluationLoad = isLegacyBrowserAdminMutationEnabled();
   const [serverFilteredTotal, setServerFilteredTotal] = useState(0);
   const [pageReadError, setPageReadError] = useState(false);
-  const pageErrorHadFocusRef = useRef(false);
+  const statusAlertHadFocusRef = useRef(false);
+  const recordViewsRetryRef = useRef<HTMLButtonElement>(null);
   const moduleContentRef = useRef<HTMLDivElement>(null);
   const [recordViewsInvalidated, setRecordViewsInvalidated] = useState(false);
   const [recordViewsRefreshing, setRecordViewsRefreshing] = useState(false);
@@ -911,10 +912,14 @@ function AdminEvaluationPage({
   const [showSubmissionView, setShowSubmissionView] = useState(false);
   const showPageReadError = !recordViewsInvalidated && !legacyEvaluationLoad && pageReadError && !showSubmissionView;
   useLayoutEffect(() => {
-    if (showPageReadError || !pageErrorHadFocusRef.current) return;
-    pageErrorHadFocusRef.current = false;
+    if (showPageReadError || recordViewsInvalidated || !statusAlertHadFocusRef.current) return;
+    statusAlertHadFocusRef.current = false;
     if (document.activeElement === document.body) moduleContentRef.current?.focus();
-  }, [showPageReadError]);
+  }, [showPageReadError, recordViewsInvalidated]);
+  const trackStatusAlertFocus = {
+    onFocus: () => { statusAlertHadFocusRef.current = true; },
+    onBlur: (event: FocusEvent<HTMLDivElement>) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) statusAlertHadFocusRef.current = false; },
+  };
   const [submissionInitialTab, setSubmissionInitialTab] = useState<'new' | 'edit' | 'recommend' | 'reviews'>('new');
 
   // Deep-link 필터 (운영지표/이슈보드 -> 검수 화면 이동)
@@ -1989,7 +1994,7 @@ function AdminEvaluationPage({
     await Promise.all([refreshRecordViews(), invalidateRestaurantDiscoveryQueries(queryClient)]);
     invalidateAdminPendingCounts();
   };
-  const recordActions = useRecordAction(receipt => { void onRecordApplied(receipt); }, { recover: true });
+  const recordActions = useRecordAction(receipt => { void onRecordApplied(receipt); }, { recover: true, returnFocus: () => recordViewsRetryRef.current ?? moduleContentRef.current });
   const notifyTransactionalResult = (work: Promise<unknown>) => {
     void work.catch(() => toast({ title: '변경은 확인됐습니다', description: '작성자 알림 결과는 확인하지 못했습니다. 자동으로 다시 보내지 않습니다.' }));
   };
@@ -2250,11 +2255,14 @@ function AdminEvaluationPage({
         controlsTarget={compactReviewHeader ? managementHeader.automation : undefined}
         onApplied={() => { invalidateRecordViews(); void refreshRecordViews(); void invalidateRestaurantDiscoveryQueries(queryClient); }}
       />}
-      {recordViewsInvalidated && <div role="alert" data-admin-record-views-invalidated className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2 text-xs text-destructive"><span>변경 후 최신 정보를 다시 확인해야 합니다.</span><Button size="sm" variant="outline" disabled={recordActions.busy || recordViewsRefreshing} onClick={() => void refreshRecordViews()}>{recordViewsRefreshing ? '조회 중…' : '새로 조회'}</Button></div>}
+      {recordViewsInvalidated && <div role="alert" data-admin-record-views-invalidated className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2 text-xs text-destructive" {...trackStatusAlertFocus}>
+        <span>변경 후 최신 정보를 다시 확인해야 합니다.</span>
+        <Button ref={recordViewsRetryRef} size="sm" variant="outline" aria-disabled={recordActions.busy || recordViewsRefreshing} aria-busy={recordViewsRefreshing}
+          onClick={() => { if (!recordActions.busy && !recordViewsRefreshing) void refreshRecordViews(); }}>{recordViewsRefreshing ? '조회 중…' : '새로 조회'}</Button>
+      </div>}
       <div ref={moduleContentRef} tabIndex={-1} className="flex-1 min-h-0 flex flex-col focus-visible:outline-none" data-admin-module-content={embedded ? "bounded" : undefined}>
         {showPageReadError ? <div role="alert" data-admin-evaluation-page-error="true" className="flex shrink-0 items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
-          onFocus={() => { pageErrorHadFocusRef.current = true; }}
-          onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) pageErrorHadFocusRef.current = false; }}>
+          {...trackStatusAlertFocus}>
           <span>검수 목록 조회 실패</span>
           <Button size="sm" variant="outline" aria-disabled={loading} aria-busy={loading} onClick={() => { if (!loading) void loadAllRecords(); }}>{loading ? '조회 중…' : '다시 조회'}</Button>
         </div> : null}
