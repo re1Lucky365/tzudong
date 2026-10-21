@@ -484,7 +484,7 @@ export default function AdminReviewPanel({ isOpen, onClose, onToggleCollapse, is
                 )}
                 <div ref={loadMoreRef} aria-hidden="true" className="h-px" />
                 {isFetchNextPageError && <p role="alert" className="text-sm text-destructive">다음 리뷰를 불러오지 못했습니다.</p>}
-                {hasNextPage && <Button variant="outline" size="sm" className="w-full" onClick={() => { if (!isFetchingNextPage) void fetchNextPage(); }} disabled={isFetchingNextPage}>{isFetchNextPageError ? '다음 리뷰 다시 불러오기' : '리뷰 더 불러오기'}</Button>}
+                {hasNextPage && <Button variant="outline" size="sm" className="w-full" aria-disabled={isFetchingNextPage || undefined} aria-busy={isFetchingNextPage || undefined} onClick={() => { if (!isFetchingNextPage) void fetchNextPage(); }}>{isFetchNextPageError ? '다음 리뷰 다시 불러오기' : '리뷰 더 불러오기'}</Button>}
             </div>
 
             {recordActions.dialog}
