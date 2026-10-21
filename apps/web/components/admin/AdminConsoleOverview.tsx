@@ -7485,8 +7485,12 @@ function AdminDashboardManagementPanel({
         : "PDF 보고서 창을 열지 못했습니다. 브라우저 팝업 허용 상태를 확인해 주세요.",
     );
   }, [pdfReportData]);
+  const overviewHeadlineKnown =
+    typeof stats.pendingTotal === "number" &&
+    typeof stats.totalRestaurants === "number" &&
+    typeof stats.totalVideos === "number";
   const shouldShowMobileDashboardLoadingPrompt =
-    isDashboardMobileViewport && (isLoading || isSubscriberLoading || isChartLoading);
+    isDashboardMobileViewport && ((isLoading && !overviewHeadlineKnown) || isSubscriberLoading || isChartLoading);
   const isDashboardRetrying =
     isRetrying ||
     [insightQuery, growthInsightQuery, youtubeChannelQuery].some(
@@ -7517,7 +7521,7 @@ function AdminDashboardManagementPanel({
     )
     : (
       <span ref={dashboardSummaryRef} tabIndex={-1} className="focus-visible:outline-none">
-        {isLoading
+        {isLoading && !overviewHeadlineKnown
           ? "KPI 데이터 조회 중"
           : `대기 ${formatNumber(stats.pendingTotal)}건 · 맛집 ${formatNumber(stats.totalRestaurants)}곳 · 영상 ${formatNumber(stats.totalVideos)}개`}
       </span>
