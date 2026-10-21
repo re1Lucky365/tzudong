@@ -1923,8 +1923,19 @@ function AdminEvaluationPage({
 
   // 전체 대기 건수 (제보 + 리뷰)
   const totalPendingCount = getAdminPendingCountsTotal(pendingCounts);
+  const pendingCountsReadFailed = adminQueryLastReadFailed(pendingCountsQuery);
+  const pendingQueueCountsUnknown = !canonicalPendingCounts && (
+    pendingCountsReadFailed || submissionsReadFailed || recommendationsReadFailed || reviewsReadFailed
+  );
+  const pendingQueueCountsLoading = !canonicalPendingCounts && !pendingQueueCountsUnknown && (
+    pendingCountsQuery.isLoading || submissionsQuery.isLoading || recommendationRequestsQuery.isLoading || reviewsQuery.isLoading
+  );
   const pendingQueueSummaryText = showSubmissionView
-    ? `제보/리뷰 대기: 제보 ${pendingRestaurantSubmissionCount}건 | 추천 ${pendingRecommendationCount}건 | 리뷰 ${pendingReviewCount}건 | 전체 ${totalPendingCount}건`
+    ? pendingQueueCountsUnknown
+      ? '제보/리뷰 대기: 미확인'
+      : pendingQueueCountsLoading
+        ? '제보/리뷰 대기: 확인 중'
+        : `제보/리뷰 대기: 제보 ${pendingRestaurantSubmissionCount}건 | 추천 ${pendingRecommendationCount}건 | 리뷰 ${pendingReviewCount}건 | 전체 ${totalPendingCount}건`
     : `필터링: ${legacyEvaluationLoad ? filteredRecords.length : serverFilteredTotal}개 | 현 ${stats.total}개 레코드 | 삭제한 레코드 ${stats.deleted}개`;
   const isInitialEvaluationDataLoading = !showSubmissionView && loading && allRecords.length === 0;
   const pendingQueueSummaryContent = recordViewsInvalidated ? '새 조회 필요' : !showSubmissionView && !legacyEvaluationLoad && pageReadError ? '검수 목록 조회 실패' : showSubmissionView || !isInitialEvaluationDataLoading

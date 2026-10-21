@@ -6,33 +6,32 @@ import { chromium, expect as playwrightExpect, type Page } from '@playwright/tes
 const appRoot = join(import.meta.dir, '..');
 const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
-const entry = `
-  import React from 'react';
-  import { createRoot } from 'react-dom/client';
-  import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-  import AdminEvaluationRoutePage from './app/admin/evaluations/page';
-  import { AppToaster } from './components/ui/app-toaster';
-  const fixture = { page: 'fail', pageReads: 0, hold: false, waiters: [], release() { const pending = this.waiters.splice(0); for (const resolve of pending) resolve(); } };
-  globalThis.__fixture = fixture;
-  const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
-  const emptyPage = { records: [], revision: '1', filteredTotal: 0, nextCursor: null, warnings: {},
-    stats: { total: 0, pending: 0, approved: 0, hold: 0, db_conflict: 0, ready_for_approval: 0, unconfirmed_map: 0, missing: 0, not_selected: 0, deleted: 0 } };
-  globalThis.fetch = async (input) => {
-    const url = new URL(String(input), location.href);
-    if (url.pathname === '/api/admin/evaluations' && url.searchParams.get('view') === 'page') {
-      fixture.pageReads++;
-      if (fixture.hold) await new Promise(resolve => { fixture.waiters.push(resolve); });
-      else if (fixture.page === 'slow-fail') await new Promise(resolve => setTimeout(resolve, 600));
-      return fixture.page === 'ok' ? json(emptyPage) : json({ code: 'unavailable' }, 500);
-    }
-    return new Response('', { status: 503 });
-  };
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
-  createRoot(document.body.appendChild(document.createElement('div'))).render(
-    <QueryClientProvider client={client}><main style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}><AdminEvaluationRoutePage.Embedded embedded /></main><AppToaster /></QueryClientProvider>);
-`;
-
-async function bundle() {
+async function bundle(initialView: 'evaluations' | 'submissions' = 'evaluations') {
+  const entry = `
+    import React from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+    import AdminEvaluationRoutePage from './app/admin/evaluations/page';
+    import { AppToaster } from './components/ui/app-toaster';
+    const fixture = { page: 'fail', pageReads: 0, hold: false, waiters: [], release() { const pending = this.waiters.splice(0); for (const resolve of pending) resolve(); } };
+    globalThis.__fixture = fixture;
+    const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
+    const emptyPage = { records: [], revision: '1', filteredTotal: 0, nextCursor: null, warnings: {},
+      stats: { total: 0, pending: 0, approved: 0, hold: 0, db_conflict: 0, ready_for_approval: 0, unconfirmed_map: 0, missing: 0, not_selected: 0, deleted: 0 } };
+    globalThis.fetch = async (input) => {
+      const url = new URL(String(input), location.href);
+      if (url.pathname === '/api/admin/evaluations' && url.searchParams.get('view') === 'page') {
+        fixture.pageReads++;
+        if (fixture.hold) await new Promise(resolve => { fixture.waiters.push(resolve); });
+        else if (fixture.page === 'slow-fail') await new Promise(resolve => setTimeout(resolve, 600));
+        return fixture.page === 'ok' ? json(emptyPage) : json({ code: 'unavailable' }, 500);
+      }
+      return new Response('', { status: 503 });
+    };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
+    createRoot(document.body.appendChild(document.createElement('div'))).render(
+      <QueryClientProvider client={client}><main style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}><AdminEvaluationRoutePage.Embedded embedded initialView="${initialView}" /></main><AppToaster /></QueryClientProvider>);
+  `;
   const built = await Bun.build({
     entrypoints: ['evaluations-fixture'], target: 'browser', format: 'iife', write: false,
     define: { 'process.env.NODE_ENV': '"test"' },
@@ -124,6 +123,41 @@ const setFixture = (page: Page, patch: Record<string, unknown>) =>
         await playwrightExpect(emptyCount).not.toContainText('미확인');
         expect(external.count).toBe(0);
         expect(pageErrors).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+}, 90_000);
+
+(existsSync(chrome) ? test : test.skip)('a failed submission queue does not show zero pending counts in the module summary', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle('submissions');
+    for (const width of [1280, 390]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      try {
+        const page = await context.newPage();
+        page.setDefaultTimeout(8_000);
+        const pageErrors: string[] = [];
+        let externalRequests = 0;
+        page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
+        await page.route('**/*', route => {
+          if (route.request().url() === 'https://evaluations.test/admin') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
+          if (!route.request().url().startsWith('https://evaluations.test/')) externalRequests++;
+          return route.abort();
+        });
+        await page.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
+        await page.goto('https://evaluations.test/admin');
+        await page.addScriptTag({ content: script });
+        await playwrightExpect(page.getByText('신규 제보 목록을 불러오지 못했습니다.')).toBeVisible();
+        const summary = page.locator('[data-admin-module-summary]');
+        await playwrightExpect(summary).toContainText('미확인');
+        await playwrightExpect(summary).not.toContainText('0건');
+        expect(pageErrors).toEqual([]);
+        expect(externalRequests).toBe(0);
       } finally {
         await context.close();
       }
