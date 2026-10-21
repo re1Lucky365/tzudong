@@ -418,6 +418,16 @@ export function SubmissionListView({
     // 선택된 제보
     const [selectedSubmission, setSelectedSubmission] = useState<SubmissionRecord | null>(null);
     const submissionDetailPanelRef = useRef<HTMLElement>(null);
+    const submissionDetailHadFocusRef = useRef(false);
+    const latestSelectedSubmission = selectedSubmission ? submissions.find(submission => submission.id === selectedSubmission.id) ?? null : null;
+    const selectedSubmissionMissing = Boolean(selectedSubmission) && !latestSelectedSubmission && !loading && !submissionsError && !recommendationsError;
+    useEffect(() => {
+        if (latestSelectedSubmission && latestSelectedSubmission !== selectedSubmission) setSelectedSubmission(latestSelectedSubmission);
+    }, [latestSelectedSubmission, selectedSubmission]);
+    useLayoutEffect(() => {
+        if (!selectedSubmission) { submissionDetailHadFocusRef.current = false; return; }
+        if (submissionDetailHadFocusRef.current && document.activeElement === document.body) submissionDetailPanelRef.current?.focus({ preventScroll: true });
+    });
 
     // 지오코딩 관련 상태
     const [approvalData, setApprovalData] = useState<ApprovalData>({
@@ -2179,6 +2189,8 @@ export function SubmissionListView({
             key={selectedSubmission?.id}
             ref={submissionDetailPanelRef}
             tabIndex={-1}
+            onFocus={() => { submissionDetailHadFocusRef.current = true; }}
+            onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) submissionDetailHadFocusRef.current = false; }}
             data-admin-moderation-inspector="true"
             className={cn("admin-surface flex h-full min-h-0 min-w-0 flex-col overflow-hidden", inlineInspector && "admin-cms-inspector")}
         >
@@ -2189,7 +2201,7 @@ export function SubmissionListView({
                 </div>
                 {selectedSubmission && (
                     <div className="flex shrink-0 gap-1">
-                        {selectedSubmission.submission_type !== 'recommend' && <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" aria-label="선택한 제보 삭제" disabled={loading} onClick={handleDeleteSelectedSubmission}><Trash2 className="h-3.5 w-3.5" /></Button>}
+                        {selectedSubmission.submission_type !== 'recommend' && !selectedSubmissionMissing && <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" aria-label="선택한 제보 삭제" disabled={loading} onClick={handleDeleteSelectedSubmission}><Trash2 className="h-3.5 w-3.5" /></Button>}
                         <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={closeInspector}>닫기</Button>
                     </div>
                 )}
@@ -2203,6 +2215,7 @@ export function SubmissionListView({
             ) : (
                 <>
                     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+                        {selectedSubmissionMissing && <p role="status" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">이 제보는 최신 목록에 없습니다. 다른 관리자가 이미 처리했거나 삭제했을 수 있습니다.</p>}
                         <Card className="admin-detail-section p-3 shadow-none">
                             <div className="flex items-start justify-between gap-3">
                                 <p className="min-w-0 break-words text-xs leading-5 text-muted-foreground">{selectedSubmission.restaurant_address || '주소 없음'}</p>
@@ -2301,7 +2314,7 @@ export function SubmissionListView({
                             </Card>
                         )}
                     </div>
-                    {(selectedSubmission.status === 'pending' || selectedSubmission.status === 'partially_approved') && (
+                    {!selectedSubmissionMissing && (selectedSubmission.status === 'pending' || selectedSubmission.status === 'partially_approved') && (
                         <div data-ui="moderation-inspector-actions" className="grid shrink-0 grid-cols-2 gap-2 border-t bg-background p-3 sm:grid-cols-[1fr_1fr_1.4fr] [&_button]:min-h-11 md:[&_button]:min-h-8">
                             <Button type="button" variant="outline" size="sm" onClick={closeSubmissionDetail} disabled={loading}>
                                 닫기
