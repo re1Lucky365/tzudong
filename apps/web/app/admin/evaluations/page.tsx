@@ -1643,7 +1643,7 @@ function AdminEvaluationPage({
       const userIds = [...new Set(typedSubmissions.map(s => s.user_id))];
 
       // 2. items / profile summaries 병렬 조회
-      const [{ data: itemsData }, profilesLookup] = await Promise.all([
+      const [{ data: itemsData, error: itemsError }, profilesLookup] = await Promise.all([
         supabase
           .from('restaurant_submission_items')
           .select(ADMIN_SUBMISSION_ITEM_SELECT)
@@ -1653,7 +1653,8 @@ function AdminEvaluationPage({
         fetchAdminProfileSummariesLookup(userIds),
       ]);
 
-      const typedItemsData = parseValidatedRows(itemsData ?? [], isSubmissionItem);
+      if (itemsError || !Array.isArray(itemsData)) throw new Error('admin-submission-items-failed');
+      const typedItemsData = parseValidatedRows(itemsData, isSubmissionItem);
 
       const itemsMap = new Map<string, SubmissionItem[]>();
       typedItemsData.forEach((item) => {
@@ -2254,7 +2255,13 @@ function AdminEvaluationPage({
               queryClient.invalidateQueries({ queryKey: ['admin-restaurant-requests-inline'] });
               invalidateAdminPendingCounts();
             }}
-            loading={submissionsLoading || recommendationRequestsLoading || recordActions.busy || recordViewsInvalidated}
+            loading={submissionsLoading || recommendationRequestsLoading || (submissionsQuery.isError && submissionsQuery.isFetching) || (recommendationRequestsQuery.isError && recommendationRequestsQuery.isFetching) || recordActions.busy || recordViewsInvalidated}
+            submissionsError={!recordViewsInvalidated && submissionsQuery.isError}
+            recommendationsError={!recordViewsInvalidated && recommendationRequestsQuery.isError}
+            onRetrySubmissions={() => {
+              if (submissionsQuery.isError) void submissionsQuery.refetch();
+              if (recommendationRequestsQuery.isError) void recommendationRequestsQuery.refetch();
+            }}
             reviews={recordViewsInvalidated || reviewsQuery.isError ? [] : reviewsData}
             onApproveReview={handleApproveReview}
             onRejectReview={handleRejectReview}

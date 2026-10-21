@@ -338,6 +338,11 @@ interface SubmissionListViewProps {
     reviewsLoading?: boolean;
     reviewsError?: boolean;
     onRetryReviews?: () => void;
+    /** 신규·수정 탭의 제보 조회 실패 */
+    submissionsError?: boolean;
+    /** 쯔양 제보 탭의 추천 요청 조회 실패 */
+    recommendationsError?: boolean;
+    onRetrySubmissions?: () => void;
     // 초기 탭 설정
     initialTab?: SubmissionAdminTab;
 }
@@ -361,6 +366,9 @@ export function SubmissionListView({
     reviewsLoading = false,
     reviewsError = false,
     onRetryReviews,
+    submissionsError = false,
+    recommendationsError = false,
+    onRetrySubmissions,
     initialTab = 'new',
 }: SubmissionListViewProps) {
     // 탭 상태 (초기 탭 지정 가능)
@@ -369,16 +377,16 @@ export function SubmissionListView({
     const isMobile = useIsMobile();
     const [inlineInspector, setInlineInspector] = useState(false);
     const rowTriggerRef = useRef<HTMLButtonElement | null>(null);
-    const reviewRetryButtonRef = useRef<HTMLButtonElement | null>(null);
-    const reviewSearchInputRef = useRef<HTMLInputElement | null>(null);
-    const reviewFocusWasInRemovedContentRef = useRef(false);
+    const listRetryButtonRef = useRef<HTMLButtonElement | null>(null);
+    const listSearchInputRef = useRef<HTMLInputElement | null>(null);
+    const listFocusWasInRemovedContentRef = useRef(false);
     useEffect(() => {
-        const trackReviewFocus = (event: FocusEvent) => {
-            reviewFocusWasInRemovedContentRef.current = event.target instanceof Element
-                && event.target.closest('[data-admin-review-row], [data-admin-moderation-inspector="true"], [data-admin-moderation-drawer]') !== null;
+        const trackListFocus = (event: FocusEvent) => {
+            listFocusWasInRemovedContentRef.current = event.target instanceof Element
+                && event.target.closest('[data-admin-review-row], [data-admin-submission-row], [data-admin-moderation-inspector="true"], [data-admin-moderation-drawer]') !== null;
         };
-        document.addEventListener('focusin', trackReviewFocus, true);
-        return () => document.removeEventListener('focusin', trackReviewFocus, true);
+        document.addEventListener('focusin', trackListFocus, true);
+        return () => document.removeEventListener('focusin', trackListFocus, true);
     }, []);
     const restoreRowTriggerFocus = useCallback(() => {
         if (shouldRestoreModerationRowFocus(document.activeElement)
@@ -1915,6 +1923,11 @@ export function SubmissionListView({
         if (reviewsError && selectedReview) closeReviewDetail();
     }, [reviewsError, selectedReview, closeReviewDetail]);
 
+    const submissionTabReadError = activeTab === 'recommend' ? recommendationsError : activeTab !== 'reviews' && submissionsError;
+    useEffect(() => {
+        if (submissionTabReadError && selectedSubmission) closeSubmissionDetail();
+    }, [submissionTabReadError, selectedSubmission, closeSubmissionDetail]);
+
     const handleReviewAction = useCallback((action: 'approve' | 'reject', review: Review) => {
         setSelectedReview(review);
         setReviewDeleteTarget(null);
@@ -2631,13 +2644,15 @@ export function SubmissionListView({
         </section>
     );
 
-    const hasSelection = activeTab === 'reviews' ? !reviewsError && !!selectedReview : !!selectedSubmission;
-    const reviewReadFailed = activeTab === 'reviews' && reviewsError && !reviewsLoading;
+    const hasSelection = activeTab === 'reviews' ? !reviewsError && !!selectedReview : !submissionTabReadError && !!selectedSubmission;
+    const listRetrying = activeTab === 'reviews' ? reviewsLoading : loading && (!submissions.length || submissionTabReadError);
+    const listReadFailed = !listRetrying && (activeTab === 'reviews' ? reviewsError : submissionTabReadError);
+    const retryListRead = activeTab === 'reviews' ? onRetryReviews : onRetrySubmissions;
     useLayoutEffect(() => {
-        if (!reviewReadFailed) return;
-        if (reviewFocusWasInRemovedContentRef.current) reviewRetryButtonRef.current?.focus({ preventScroll: true });
-        reviewFocusWasInRemovedContentRef.current = false;
-    }, [reviewReadFailed]);
+        if (!listReadFailed) return;
+        if (listFocusWasInRemovedContentRef.current) listRetryButtonRef.current?.focus({ preventScroll: true });
+        listFocusWasInRemovedContentRef.current = false;
+    }, [listReadFailed]);
     const resultCount = activeTab === 'reviews' ? orderedReviews.length : filteredSubmissions.length;
     const displayedCount = activeTab === 'reviews' ? displayedReviews.length : displayedSubmissions.length;
     const closeInspector = () => {
@@ -2647,10 +2662,10 @@ export function SubmissionListView({
     const searchValue = activeTab === 'reviews' ? reviewSearchQuery : searchQuery;
     const changeSearch = (value: string) => activeTab === 'reviews' ? setReviewSearchQuery(value) : setSearchQuery(value);
     const tabs = [
-        { id: 'new' as const, label: '신규 제보', count: newCount, icon: <Video className="h-3.5 w-3.5" /> },
-        { id: 'edit' as const, label: '수정 요청', count: editCount, icon: <Edit className="h-3.5 w-3.5" /> },
-        { id: 'recommend' as const, label: '쯔양 제보', count: recommendCount, icon: <YouTubeIcon className="h-3.5 w-3.5" /> },
-        { id: 'reviews' as const, label: '리뷰', count: reviewPendingCount, icon: <MessageSquare className="h-3.5 w-3.5" /> },
+        { id: 'new' as const, label: '신규 제보', count: submissionsError ? null : newCount, icon: <Video className="h-3.5 w-3.5" /> },
+        { id: 'edit' as const, label: '수정 요청', count: submissionsError ? null : editCount, icon: <Edit className="h-3.5 w-3.5" /> },
+        { id: 'recommend' as const, label: '쯔양 제보', count: recommendationsError ? null : recommendCount, icon: <YouTubeIcon className="h-3.5 w-3.5" /> },
+        { id: 'reviews' as const, label: '리뷰', count: reviewsError ? null : reviewPendingCount, icon: <MessageSquare className="h-3.5 w-3.5" /> },
     ];
 
     return (
@@ -2658,13 +2673,13 @@ export function SubmissionListView({
             <div data-admin-moderation-workspace={activeTab === 'reviews' ? 'reviews' : 'submissions'} className="flex h-full min-h-0 min-w-0 flex-col gap-2 p-2">
                 {!(isFocusedReviewWorkspace && activeTab === 'reviews') && <nav className="grid shrink-0 grid-cols-4 gap-1 bg-muted/50 p-1" aria-label="제보·리뷰 종류">
                     {tabs.map(tab => <button key={tab.id} type="button" aria-pressed={activeTab === tab.id} onClick={() => setActiveTabWithReset(tab.id)} className={cn('flex min-h-11 min-w-0 flex-wrap items-center justify-center gap-1 rounded-md px-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:min-h-8', activeTab === tab.id ? 'bg-background text-primary' : 'text-muted-foreground hover:bg-muted')}>
-                        <span className="hidden sm:inline-flex">{tab.icon}</span><span>{tab.label}</span><span className="tabular-nums text-muted-foreground" aria-label={`대기 ${tab.count}건`}>{tab.count}</span>
+                        <span className="hidden sm:inline-flex">{tab.icon}</span><span>{tab.label}</span><span className="tabular-nums text-muted-foreground" aria-label={tab.count === null ? '대기 건수 조회 실패' : `대기 ${tab.count}건`}>{tab.count ?? '—'}</span>
                     </button>)}
                 </nav>}
                 <div data-admin-moderation-toolbar className="admin-toolbar admin-cms-toolbar shrink-0">
                     <div className="relative min-w-[180px] flex-1">
                         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input ref={activeTab === 'reviews' ? reviewSearchInputRef : undefined} type="search" aria-label={activeTab === 'reviews' ? '리뷰 검색' : '제보 검색'} placeholder={activeTab === 'reviews' ? '맛집·리뷰·작성자 검색' : '맛집·주소·제보자 검색'} value={searchValue} onChange={event => changeSearch(event.target.value)} className="h-11 pl-8 pr-8 text-sm md:h-8" />
+                        <Input ref={listSearchInputRef} type="search" aria-label={activeTab === 'reviews' ? '리뷰 검색' : '제보 검색'} placeholder={activeTab === 'reviews' ? '맛집·리뷰·작성자 검색' : '맛집·주소·제보자 검색'} value={searchValue} onChange={event => changeSearch(event.target.value)} className="h-11 pl-8 pr-8 text-sm md:h-8" />
                         {searchValue && <button type="button" aria-label="검색 지우기" onClick={() => changeSearch('')} className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md hover:bg-muted"><X className="h-3.5 w-3.5" /></button>}
                     </div>
                     <select aria-label="처리 상태" value={statusFilter} onChange={event => { setStatusFilter(event.target.value as AdminModerationFilter); resetVisibleCountByTab(activeTab); }} className={filterClassName}>
@@ -2687,17 +2702,17 @@ export function SubmissionListView({
                     {toolbarTrailingAction}
                 </div>
                 <div className="flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-2 px-1 text-xs text-muted-foreground" aria-live="polite">
-                    <span><strong className="font-semibold text-foreground">{currentTabSummary.label}</strong> · {activeTab === 'reviews' && reviewsLoading ? '조회 중' : reviewReadFailed ? '조회 실패' : `${resultCount}건`}</span>
+                    <span><strong className="font-semibold text-foreground">{currentTabSummary.label}</strong> · {listRetrying ? '조회 중' : listReadFailed ? '조회 실패' : `${resultCount}건`}</span>
                     <span>{searchValue || statusFilter !== 'all' || queueReasonFilter !== 'all' ? '필터 적용 중' : '전체 조회'}</span>
                 </div>
-                {activeTab !== 'reviews' && <div className="flex shrink-0 flex-wrap gap-1" data-admin-submission-queue-reason-filter="true" aria-label="제보 큐 검수 사유 필터">
+                {activeTab !== 'reviews' && !listReadFailed && <div className="flex shrink-0 flex-wrap gap-1" data-admin-submission-queue-reason-filter="true" aria-label="제보 큐 검수 사유 필터">
                     {queueReasonFilterOptions.filter(option => option.value === 'all' || option.count > 0 || option.value === queueReasonFilter).map(option => <button key={option.value} type="button" aria-pressed={queueReasonFilter === option.value} data-admin-submission-queue-reason-filter-option={option.value} onClick={() => handleQueueReasonFilterChange(option.value)} className={cn('min-h-7 rounded-md border px-2 text-[11px]', queueReasonFilter === option.value ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted')}>
                         {option.label}<span className="ml-1 tabular-nums">{option.count}</span>
                     </button>)}
                 </div>}
                 <div className={cn('grid min-h-0 flex-1 gap-2 overflow-hidden', inlineInspector && hasSelection && 'xl:grid-cols-[minmax(0,1fr)_360px]')}>
                     <section data-admin-moderation-list className="admin-surface flex min-h-0 min-w-0 flex-col overflow-hidden" aria-label={activeTab === 'reviews' ? '리뷰 목록' : '제보 목록'}>
-                        {(activeTab === 'reviews' ? reviewsLoading : loading && !submissions.length) ? renderListSkeletonCards(currentTabSummary.label) : reviewReadFailed ? <div role="alert" data-admin-moderation-read-error="reviews" className="admin-empty-state flex min-h-40 flex-1 flex-col items-center justify-center gap-2 p-4 text-sm text-destructive"><p>리뷰 목록을 불러오지 못했습니다.</p>{onRetryReviews && <Button ref={reviewRetryButtonRef} type="button" variant="outline" size="sm" onClick={event => { if (document.activeElement === event.currentTarget) reviewSearchInputRef.current?.focus({ preventScroll: true }); onRetryReviews(); }}>다시 조회</Button>}</div> : <div ref={listScrollRef} className={listBodyClassName}
+                        {listRetrying ? renderListSkeletonCards(currentTabSummary.label) : listReadFailed ? <div role="alert" data-admin-moderation-read-error={activeTab} className="admin-empty-state flex min-h-40 flex-1 flex-col items-center justify-center gap-2 p-4 text-sm text-destructive"><p>{tabs.find(tab => tab.id === activeTab)?.label} 목록을 불러오지 못했습니다.</p>{retryListRead && <Button ref={listRetryButtonRef} type="button" variant="outline" size="sm" onClick={event => { if (document.activeElement === event.currentTarget) listSearchInputRef.current?.focus({ preventScroll: true }); retryListRead(); }}>다시 조회</Button>}</div> : <div ref={listScrollRef} className={listBodyClassName}
                             style={isMobile && activeTab === 'reviews' ? { touchAction: 'pan-y' } : undefined}
                             onPointerDown={isMobile && activeTab === 'reviews' ? handleSubmissionTabPointerDown : undefined}
                             onPointerMove={isMobile && activeTab === 'reviews' ? handleSubmissionTabPointerMove : undefined}
@@ -2748,7 +2763,7 @@ export function SubmissionListView({
                             <div ref={loadMoreSentinelRef} className="h-1" />
                             {hasMoreCards && <div className="p-2 text-center"><Button type="button" variant="outline" size="sm" disabled={isCurrentListLoading} onClick={handleLoadMoreCards}>더 보기</Button></div>}
                         </div>}
-                        <div className="admin-cms-footer shrink-0 justify-between"><span role="status">{isCurrentListLoading ? '조회 중' : reviewReadFailed ? '조회 실패' : `${displayedCount} / ${resultCount}건`}</span><span>{reviewReadFailed ? '다시 조회 필요' : '조회된 목록 기준'}</span></div>
+                        <div className="admin-cms-footer shrink-0 justify-between"><span role="status">{isCurrentListLoading ? '조회 중' : listReadFailed ? '조회 실패' : `${displayedCount} / ${resultCount}건`}</span><span>{listReadFailed ? '다시 조회 필요' : '조회된 목록 기준'}</span></div>
                     </section>
                     {inlineInspector && hasSelection ? (activeTab === 'reviews' ? renderReviewDetailPanel() : renderSubmissionDetailPanel()) : null}
                 </div>

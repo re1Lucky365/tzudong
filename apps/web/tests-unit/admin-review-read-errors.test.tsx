@@ -9,23 +9,28 @@ mock.module('@/integrations/supabase/client', () => ({ supabase: {} }));
 
 const source = readFileSync(join(import.meta.dir, '../app/admin/evaluations/page.tsx'), 'utf8');
 const tree = ts.createSourceFile('page.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-let queryFn: ts.ArrowFunction | null = null;
-function visit(node: ts.Node) {
-  if (ts.isVariableDeclaration(node) && node.name.getText(tree) === 'reviewsQuery'
-    && node.initializer && ts.isCallExpression(node.initializer)) {
-    const options = node.initializer.arguments[0];
-    if (options && ts.isObjectLiteralExpression(options)) {
-      const property = options.properties.find(item => ts.isPropertyAssignment(item)
-        && item.name.getText(tree) === 'queryFn');
-      if (property && ts.isPropertyAssignment(property) && ts.isArrowFunction(property.initializer)) {
-        queryFn = property.initializer;
+function findQueryFn(name: string): string {
+  let queryFn: ts.ArrowFunction | null = null;
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && node.name.getText(tree) === name
+      && node.initializer && ts.isCallExpression(node.initializer)) {
+      const options = node.initializer.arguments[0];
+      if (options && ts.isObjectLiteralExpression(options)) {
+        const property = options.properties.find(item => ts.isPropertyAssignment(item)
+          && item.name.getText(tree) === 'queryFn');
+        if (property && ts.isPropertyAssignment(property) && ts.isArrowFunction(property.initializer)) {
+          queryFn = property.initializer;
+        }
       }
     }
-  }
-  if (!queryFn) ts.forEachChild(node, visit);
+    if (!queryFn) ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  if (!queryFn) throw new Error(`QUERY_BOUNDARY_MISSING:${name}`);
+  return new Bun.Transpiler({ loader: 'tsx' }).transformSync(`const queryFn = ${(queryFn as ts.ArrowFunction).getText(tree)};`);
 }
-visit(tree);
-if (!queryFn) throw new Error('REVIEW_QUERY_BOUNDARY_MISSING');
+const reviewQueryFn = findQueryFn('reviewsQuery');
+const submissionQueryFn = findQueryFn('submissionsQuery');
 
 type QueryResult = { data: unknown; error: unknown };
 const syntheticReview = {
@@ -52,8 +57,7 @@ function reviewQuery(results: { reviews: QueryResult; restaurants: QueryResult }
     fetchAdminProfileSummariesLookup: async () => ({ summaries: {}, ok: true }),
     resolveAdminReviewerDisplay: () => ({ nickname: '합성 작성자' }),
   };
-  const expression = new Bun.Transpiler({ loader: 'tsx' }).transformSync(`const queryFn = ${queryFn.getText(tree)};`);
-  const fn = new Function('dependencies', `const { user, isAdmin, ADMIN_REVIEW_SELECT, supabase, parseReview, parseValidatedRows, isReviewRestaurantRow, fetchAdminProfileSummariesLookup, resolveAdminReviewerDisplay } = dependencies; ${expression} return queryFn;`)(dependencies) as () => Promise<Array<{ restaurants: { name: string } }>>;
+  const fn = new Function('dependencies', `const { user, isAdmin, ADMIN_REVIEW_SELECT, supabase, parseReview, parseValidatedRows, isReviewRestaurantRow, fetchAdminProfileSummariesLookup, resolveAdminReviewerDisplay } = dependencies; ${reviewQueryFn} return queryFn;`)(dependencies) as () => Promise<Array<{ restaurants: { name: string } }>>;
   return { run: fn, calls };
 }
 
@@ -81,6 +85,29 @@ test('primary review transport error has a fixed client boundary', async () => {
   const malformed = reviewQuery({ reviews: { data: null, error: null }, restaurants: { data: null, error: null } });
   await expect(malformed.run()).rejects.toThrow('admin-review-read-failed');
   expect(malformed.calls).toEqual(['reviews']);
+});
+
+function submissionQuery(items: QueryResult) {
+  const submission = { id: 'submission-fixture', user_id: 'user-fixture', submission_type: 'new', status: 'pending', restaurant_name: '합성 신규 식당' };
+  const chain = { select() { return this; }, in() { return this; }, order() { return this; }, overrideTypes: () => Promise.resolve(items) };
+  const dependencies = {
+    user: { id: 'admin-fixture' }, isAdmin: true, ADMIN_SUBMISSION_ITEM_SELECT: '',
+    fetch: async () => new Response(JSON.stringify({ submissions: [submission] }), { status: 200 }),
+    supabase: { from(table: string) { if (table !== 'restaurant_submission_items') throw new Error(`UNEXPECTED_TABLE:${table}`); return chain; } },
+    parseValidatedRows: (rows: unknown) => rows,
+    isSubmissionRow: () => true, isSubmissionItem: () => true, isRestaurantLookupRow: () => true,
+    fetchAdminProfileSummariesLookup: async () => ({ summaries: {}, ok: true }),
+    resolveAdminReviewerDisplay: () => ({ nickname: '합성 제보자' }),
+  };
+  return new Function('dependencies', `const { user, isAdmin, ADMIN_SUBMISSION_ITEM_SELECT, fetch, supabase, parseValidatedRows, isSubmissionRow, isSubmissionItem, isRestaurantLookupRow, fetchAdminProfileSummariesLookup, resolveAdminReviewerDisplay } = dependencies; ${submissionQueryFn} return queryFn;`)(dependencies) as () => Promise<Array<{ items: unknown[] }>>;
+}
+
+test('submission query fails closed when its item read fails instead of returning item-less submissions', async () => {
+  const item = { id: 'item-fixture', submission_id: 'submission-fixture', youtube_link: '', tzuyang_review: '', target_restaurant_id: null, item_status: 'pending', created_at: '2026-10-01T00:00:00Z' };
+  expect((await submissionQuery({ data: [item], error: null })())[0].items).toHaveLength(1);
+  expect((await submissionQuery({ data: [], error: null })())[0].items).toEqual([]);
+  await expect(submissionQuery({ data: null, error: { message: 'provider detail' } })()).rejects.toThrow('admin-submission-items-failed');
+  await expect(submissionQuery({ data: null, error: null })()).rejects.toThrow('admin-submission-items-failed');
 });
 
 test('moderation list renders loading, error and genuine empty review states separately', async () => {
