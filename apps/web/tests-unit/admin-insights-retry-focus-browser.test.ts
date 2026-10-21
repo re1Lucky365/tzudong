@@ -11,7 +11,7 @@ const entry = `
   import { createRoot } from 'react-dom/client';
   import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
   import InsightsClient from './app/insights/insights-client';
-  const fixture = { failPeriod: '1M', delayMs: 0, requests: [] };
+  const fixture = { failPeriod: globalThis.__insightsInitialFailPeriod || '1M', delayMs: 0, hold: false, waiters: [], requests: [], release() { const pending = this.waiters.splice(0); for (const resolve of pending) resolve(); } };
   globalThis.__fixture = fixture;
   globalThis.fetch = async input => {
     const url = new URL(String(input), location.origin);
@@ -19,6 +19,7 @@ const entry = `
     const period = url.searchParams.get('period');
     fixture.requests.push(period);
     await new Promise(resolve => setTimeout(resolve, fixture.delayMs));
+    if (fixture.hold) await new Promise(resolve => { fixture.waiters.push(resolve); });
     if (period === fixture.failPeriod) return new Response('', { status: 503 });
     return new Response(JSON.stringify({ asOf: '2026-10-21T00:00:00Z', period, totalVideos: 0, videos: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
@@ -54,7 +55,7 @@ async function bundle() {
   return built.outputs.find(output => output.path.endsWith('.js'))!.text();
 }
 
-type Fixture = { failPeriod: string | null; delayMs: number; requests: string[] };
+type Fixture = { failPeriod: string | null; delayMs: number; hold?: boolean; requests: string[]; release?: () => void };
 const setFixture = (page: Page, patch: Partial<Fixture>) =>
   page.evaluate(next => Object.assign((globalThis as unknown as { __fixture: Fixture }).__fixture, next), patch);
 const requestCount = async (page: Page, period: string) =>
@@ -102,6 +103,57 @@ const requestCount = async (page: Page, period: string) =>
         await playwrightExpect(card).toBeFocused();
         await playwrightExpect(card.getByRole('button', { name: '1M', exact: true })).toBeVisible();
         expect(await requestCount(page, '1M')).toBeGreaterThan(afterRetry);
+        expect(externalRequests).toBe(0);
+        expect(pageErrors).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+}, 90_000);
+
+(existsSync(chrome) ? test : test.skip)('a failed first insights read stays failed while retrying', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle();
+    for (const width of [1280, 390]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      try {
+        const page = await context.newPage();
+        page.setDefaultTimeout(8_000);
+        const pageErrors: string[] = [];
+        let externalRequests = 0;
+        page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
+        await page.route('**/*', route => {
+          if (route.request().url() === 'https://insights.test/admin') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
+          if (!route.request().url().startsWith('https://insights.test/')) externalRequests++;
+          return route.abort();
+        });
+        await page.addInitScript(() => { (globalThis as unknown as { process: unknown; __insightsInitialFailPeriod: string }).process = { env: { NODE_ENV: 'test' } }; (globalThis as unknown as { __insightsInitialFailPeriod: string }).__insightsInitialFailPeriod = 'ALL'; });
+        await page.goto('https://insights.test/admin');
+        await page.addScriptTag({ content: script });
+
+        await playwrightExpect(page.getByText('데이터를 불러오지 못했습니다.')).toBeVisible();
+        await playwrightExpect(page.getByRole('heading', { name: '문제가 발생했습니다' })).toBeVisible();
+        const retry = page.getByRole('button', { name: '다시 시도', exact: true });
+        await page.evaluate(() => { (globalThis as unknown as { __fixture: { hold: boolean } }).__fixture.hold = true; });
+        await retry.focus();
+        await page.keyboard.press('Enter');
+        const retrying = page.getByRole('button', { name: /다시 시도/ });
+        await playwrightExpect(retrying).toHaveAttribute('aria-busy', 'true');
+        await playwrightExpect(retrying).toBeFocused();
+        await playwrightExpect(page.getByText('데이터를 불러오지 못했습니다.')).toBeVisible();
+        await playwrightExpect(page.getByRole('heading', { name: '문제가 발생했습니다' })).toBeVisible();
+        await playwrightExpect(page.getByText('데이터를 불러오는 중입니다.')).toHaveCount(0);
+        await page.evaluate(() => {
+          const fixture = (globalThis as unknown as { __fixture: { hold: boolean; release: () => void } }).__fixture;
+          fixture.hold = false;
+          fixture.release();
+        });
+        await playwrightExpect(page.getByText('데이터를 불러오지 못했습니다.')).toBeVisible();
+        await playwrightExpect(page.getByRole('button', { name: /다시 시도/ })).toBeFocused();
         expect(externalRequests).toBe(0);
         expect(pageErrors).toEqual([]);
       } finally {

@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { InsightTreemapPeriod, InsightTreemapResponse, InsightTreemapVideoRow } from '@/lib/public-insights/treemap';
 import { useDeviceType } from '@/hooks/useDeviceType';
 import { cn } from '@/lib/utils';
+import { adminQueryLastReadFailed } from '@/lib/admin/query-read-state';
 
 
 type ViewMode = 'all' | 'category' | 'change';
@@ -868,7 +869,7 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
     });
     const canRender = Boolean(treemapQuery.data);
     // Placeholder data from another period keeps the query in success while a failed period is refetched.
-    const treemapReadFailed = treemapQuery.isError || (treemapQuery.isPlaceholderData && treemapQuery.errorUpdatedAt > 0);
+    const treemapReadFailed = adminQueryLastReadFailed(treemapQuery) || (treemapQuery.isPlaceholderData && treemapQuery.errorUpdatedAt > 0);
     const isRetryingTreemap = treemapReadFailed && treemapQuery.isFetching;
     const insightsCardRef = useRef<HTMLDivElement>(null);
     const treemapRetryButtonRef = useRef<HTMLButtonElement>(null);
@@ -1330,9 +1331,9 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
     const treemapSmallCellGuidance = '작은 칸은 지표나 …만 보일 수 있습니다. 칸에 마우스를 올리거나 터치해 상세를 열고, 키보드는 영상 탐색 버튼에서 화살표 키로 항목을 고릅니다.';
 
     const isWaitingForAuthorizedQuery = !embedded && (
-        isAuthLoading || (!!user && !canRender && !treemapQuery.isError)
+        isAuthLoading || (!!user && !canRender && !treemapReadFailed)
     );
-    const isLoading = isWaitingForAuthorizedQuery || (treemapQuery.isLoading && !canRender);
+    const isLoading = isWaitingForAuthorizedQuery || (treemapQuery.isLoading && !canRender && !treemapReadFailed);
 
     const handleCellEnter = useCallback(
         (leaf: TreemapLeafNode, event: MouseEvent<HTMLDivElement>) => {
