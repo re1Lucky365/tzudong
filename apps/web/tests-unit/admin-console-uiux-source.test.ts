@@ -508,7 +508,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
 
     const loadingBranch =
       insightsSource.match(
-        /if \(isLoading && !canRender\) \{([\s\S]*?)if \(treemapQuery\.isError \|\| !treemapQuery\.data\)/,
+        /if \(isLoading && !canRender\) \{([\s\S]*?)if \(treemapReadFailed \|\| !treemapQuery\.data\)/,
       )?.[1] ?? "";
     expect(loadingBranch).toContain("if (embedded)");
     expect(loadingBranch).toContain("return renderEmbeddedShell(");
@@ -518,7 +518,7 @@ describe("admin console beginner-friendly UI/UX source contract", () => {
 
     const errorBranch =
       insightsSource.match(
-        /if \(treemapQuery\.isError \|\| !treemapQuery\.data\) \{([\s\S]*?)const insightsContent =/,
+        /if \(treemapReadFailed \|\| !treemapQuery\.data\) \{([\s\S]*?)const insightsContent =/,
       )?.[1] ?? "";
     expect(errorBranch).toContain("const errorContent = (");
     expect(errorBranch).toContain("onClick={handleRetry}");

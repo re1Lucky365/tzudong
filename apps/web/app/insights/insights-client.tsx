@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode, useTransition } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode, useTransition } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { hierarchy, treemap, treemapResquarify, type HierarchyRectangularNode } from 'd3-hierarchy';
@@ -867,6 +867,13 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
         retry: 1,
     });
     const canRender = Boolean(treemapQuery.data);
+    // Placeholder data from another period keeps the query in success while a failed period is refetched.
+    const treemapReadFailed = treemapQuery.isError || (treemapQuery.isPlaceholderData && treemapQuery.errorUpdatedAt > 0);
+    const isRetryingTreemap = treemapReadFailed && treemapQuery.isFetching;
+    const insightsCardRef = useRef<HTMLDivElement>(null);
+    const treemapRetryButtonRef = useRef<HTMLButtonElement>(null);
+    const treemapRetryHadFocusRef = useRef(false);
+    const insightsCardHadFocusRef = useRef(false);
 
     const periodOptionsForView = useMemo(() => {
         if (viewMode === 'change') {
@@ -1368,9 +1375,22 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
         });
     }, [startTransition]);
 
-    const handleRetry = useCallback(() => {
+    const handleRetry = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+        if (isRetryingTreemap) return;
+        treemapRetryHadFocusRef.current = document.activeElement === event.currentTarget;
         void treemapQuery.refetch();
-    }, [treemapQuery]);
+    }, [isRetryingTreemap, treemapQuery]);
+
+    useLayoutEffect(() => {
+        if (document.activeElement !== document.body) return;
+        if (treemapReadFailed) {
+            if (insightsCardHadFocusRef.current) treemapRetryButtonRef.current?.focus();
+            insightsCardHadFocusRef.current = false;
+        } else if (treemapRetryHadFocusRef.current) {
+            insightsCardRef.current?.focus();
+        }
+        if (!treemapReadFailed) treemapRetryHadFocusRef.current = false;
+    }, [treemapReadFailed]);
 
 
     const renderEmbeddedShell = (children: ReactNode, summary: ReactNode = moduleSummaryText) => (
@@ -1395,7 +1415,7 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
 
         return <InsightsClientLoadingSkeleton />;
     }
-    if (treemapQuery.isError || !treemapQuery.data) {
+    if (treemapReadFailed || !treemapQuery.data) {
         const errorContent = (
             <div className="flex min-h-0 items-center justify-center p-6 h-full">
                 <div className="text-center max-w-md w-full px-4">
@@ -1404,10 +1424,13 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
                     <p className="text-sm text-muted-foreground mb-6">일시적인 오류가 발생했습니다. 다시 시도해 주세요.</p>
                     <div className="flex gap-3 justify-center flex-wrap">
                         <Button
+                            ref={treemapRetryButtonRef}
                             onClick={handleRetry}
+                            aria-disabled={isRetryingTreemap || undefined}
+                            aria-busy={isRetryingTreemap || undefined}
                             className="h-10 px-4 py-2"
                         >
-                            다시 시도
+                            {isRetryingTreemap ? '다시 시도하는 중…' : '다시 시도'}
                         </Button>
                         {!embedded ? (
                             <Button
@@ -1434,7 +1457,15 @@ export default function InsightsClient({ embedded = false }: { embedded?: boolea
 
 
     const insightsContent = (
-                <Card className="overflow-hidden border border-border h-full flex flex-col min-h-0">
+                <Card
+                    ref={insightsCardRef}
+                    tabIndex={-1}
+                    data-insights-card="true"
+                    onFocus={() => { insightsCardHadFocusRef.current = true; }}
+                    onBlur={(event) => {
+                        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) insightsCardHadFocusRef.current = false;
+                    }}
+                    className="overflow-hidden border border-border h-full flex flex-col min-h-0 outline-none focus-visible:ring-2 focus-visible:ring-primary">
                     <div className="border-b border-border p-2 md:p-3">
                         <div className={cn(embedded ? "pb-2" : "overflow-x-auto pb-2")}>
                             <div className={cn("flex w-full flex-wrap items-start md:items-center gap-2 md:gap-3", embedded ? "min-w-0" : "min-w-max")}>
