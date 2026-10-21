@@ -67,7 +67,8 @@ const reads = (page: Page) => page.evaluate(() => (globalThis as unknown as { __
     const banner = page.getByRole('alert').filter({ hasText: '최신화 이력을 불러오지 못했습니다.' });
     await playwrightExpect(banner).toBeVisible();
     await playwrightExpect(page.getByText('최신화 이력이 없습니다.')).toHaveCount(0);
-    await playwrightExpect(page.locator('[data-admin-restaurant-refresh-read-failed]')).toBeVisible();
+    await playwrightExpect(page.locator('[data-admin-restaurant-refresh-read-failed]')).toHaveText('최신화 이력을 확인하지 못했습니다.');
+    await playwrightExpect(page.getByText('이력을 불러오면 여기에 표시합니다.')).toHaveCount(0);
     await playwrightExpect(page.getByText('조회 실패', { exact: true })).toBeVisible();
     await playwrightExpect(page.locator('[data-admin-module-summary] [data-admin-module-summary]')).toContainText('검토 필요 —');
 
