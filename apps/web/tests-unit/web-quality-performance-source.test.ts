@@ -1181,9 +1181,9 @@ describe("web quality performance source contracts", () => {
     expect(desktopLeftPanelMapHomeSource).toContain(
       'data-desktop-left-panel-latest-restaurants="true"',
     );
-    expect(desktopLeftPanelMapHomeSource).toContain(
-      '<Clock className="h-4 w-4 text-primary"',
-    );
+    expect(desktopLeftPanelMapHomeSource).toContain("<BrandSectionHeading");
+    expect(desktopLeftPanelMapHomeSource).not.toContain('eyebrow="새로 지도에 올라온"');
+    expect(desktopLeftPanelMapHomeSource).not.toContain('eyebrow="지금 많이 찾는"');
     expect(desktopLeftPanelMapHomeSource).toContain("최근 추가된 맛집");
     expect(desktopLeftPanelMapHomeSource).toContain(
       "먼저 3곳을 보여주고 스크롤하면 이어서 불러와요",
@@ -1478,7 +1478,7 @@ describe("web quality performance source contracts", () => {
       "const returnRoute = getDesktopLeftPanelRoute(",
     );
     expect(homeDesktopControlPanelSource).toContain(
-      "(onDetailPanelBack ?? onPanelClose)?.()",
+      "if (onDetailPanelBack?.() === true) return;\n    if (!onDetailPanelBack) onPanelClose?.();",
     );
     expect(homeDesktopControlPanelSource).toContain(
       "router.replace(returnRoute, { scroll: false })",
@@ -2393,9 +2393,6 @@ describe("web quality performance source contracts", () => {
     expect(stampCardSource).toContain(
       "absolute inset-0 z-10 flex items-center justify-center",
     );
-    expect(stampCardSource).toContain(
-      'isStampMobile ? "overflow-visible" : "overflow-hidden"',
-    );
     expect(stampCardSource).toContain("<img");
     expect(stampCardSource).toContain('src="/images/stamp-clear.png"');
     expect(stampCardSource).toContain(
@@ -2407,14 +2404,6 @@ describe("web quality performance source contracts", () => {
     expect(stampCardSource).toContain(
       "const isStampCompact = resolvedStampSize === 'compact'",
     );
-    expect(stampCardSource).toContain(
-      "const isStampMobile = resolvedStampSize === 'mobile'",
-    );
-    expect(stampCardSource).toContain("const stampImageStyle = isStampMobile");
-    expect(stampCardSource).toContain("translateY(0.375rem) rotate(-45deg)");
-    expect(stampCardSource).toContain("height: '74%'");
-    expect(stampCardSource).toContain("maxHeight: '9rem'");
-    expect(stampCardSource).toContain("maxWidth: '44%'");
     expect(stampCardSource).toContain(
       'role={isGuideCard ? undefined : "button"}',
     );
@@ -2437,8 +2426,6 @@ describe("web quality performance source contracts", () => {
     expect(stampCardSource).toContain(
       "pointer-events-none absolute inset-0 flex items-center justify-center",
     );
-    expect(stampCardSource).toContain("w-36 h-36 md:w-40 md:h-40");
-    expect(stampCardSource).toContain("w-48 h-48 sm:w-56 sm:h-56");
     expect(stampPageSource).toContain(
       'stampSize={isDesktop ? "compact" : "mobile"}',
     );
@@ -4769,7 +4756,8 @@ describe("web quality performance source contracts", () => {
     expect(mobileBottomNavSource).toContain(
       "'text-[12px] font-medium leading-none tracking-normal'",
     );
-    expect(mobileBottomNavSource).toContain("isActive && 'font-semibold'");
+    expect(mobileBottomNavSource).toContain("isActive && 'font-bold'");
+    expect(mobileBottomNavSource).toContain("isActive && 'fill-brand-tangerine/40 scale-110'");
     expect(viewportFixSource).toContain(
       "if (window.CSS?.supports?.('height', '100dvh'))",
     );

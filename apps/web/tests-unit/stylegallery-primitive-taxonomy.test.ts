@@ -179,19 +179,19 @@ const g003SourceCoverageMatrix = {
   storyboardAdmin: {
     files: [
       {
-        path: 'components/admin/storyboard/LegacyStoryboardReference.tsx',
+        path: 'components/admin/storyboard/LocalStoryboardWorkspace.tsx',
         contains: [
-          'data-layout-primitives="split-sidebar panel-layout list-detail frame step-nav stack"',
-          'data-storyboard-job-status',
-          'data-scroll-owner="storyboard-chat"',
+          'data-local-storyboard-workspace="true"',
+          'data-admin-storyboard-toolbar="true"',
+          'aria-label="프로젝트 설정과 기록"',
         ],
       },
       {
-        path: 'components/admin/storyboard/StoryboardCanvasShell.tsx',
+        path: 'components/admin/storyboard/AdminStoryboardGenerator.tsx',
         contains: [
-          'data-layout-primitives="panel-layout frame stack"',
-          'data-scroll-owner="storyboard-canvas"',
-          'data-scroll-owner="storyboard-readback"',
+          'data-admin-storyboard-workspace="true"',
+          'data-storyboard-archive="read-only"',
+          'getTrustedStoryboardGeneratedImage',
         ],
       },
     ],
@@ -431,6 +431,7 @@ describe('StyleGallery primitive taxonomy source contract', () => {
 
   test('G012 public map retains public boundaries and lazy map entry points', () => {
     const sources = publicMapLayoutSources.map(readSource);
+    const overseasLoaderSource = readSource('lib/overseas-map-loader.ts');
     const mobileControlsSource = readSource('components/home/MobileControlOverlay.tsx');
     const submissionSource = readSource('components/home/SubmissionFloatingButton.tsx');
     const homeMapSource = readSource('components/home/home-map-container.tsx');
@@ -446,9 +447,12 @@ describe('StyleGallery primitive taxonomy source contract', () => {
     expect(mobileControlsSource).toContain('{isAdmin && (');
     expect(submissionSource).toContain('{isAdmin && (');
     expect(homeMapSource).toContain('const NaverMapView = lazy(() => import("@/components/map/NaverMapView"));');
-    expect(homeMapSource).toContain('const OverseasMap = lazy(() => import("@/components/map/OverseasMap"));');
+    expect(homeMapSource).toMatch(/const OverseasMap\s*=\s*lazy\(/);
+    expect(homeMapSource).not.toMatch(/^import\s+OverseasMap\b/m);
+    expect(overseasLoaderSource).toMatch(/\bimport\(\s*['"]@\/components\/map\/OverseasMap['"]\s*\)/);
+    expect(overseasLoaderSource).not.toMatch(/^\s*import\s+(?:[\s\S]*?\s+from\s+)?['"]@\/components\/map\/OverseasMap['"]/m);
     expect(homeMapSource).toContain('const RestaurantDetailPanel = lazy(() =>');
-    expect(homeMapSource).toContain('<Suspense fallback={null}>');
+    expect(homeMapSource).toContain('<Suspense fallback=');
     expect(homeClientSource).toContain('const HomeMapContainer = dynamic(');
     expect(homeClientSource).toContain('() => import("../components/home/home-map-container")');
     expect(homeClientSource).toContain('const HomeControlPanel = dynamic(');

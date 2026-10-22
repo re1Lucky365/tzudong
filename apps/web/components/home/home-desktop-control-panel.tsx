@@ -48,6 +48,7 @@ const DropdownMenuTrigger = dynamic(() =>
   loadDropdownMenu().then((mod) => mod.DropdownMenuTrigger),
 );
 import RegionSelector from "@/components/region/RegionSelector";
+import { preloadOverseasMap } from "@/lib/overseas-map-loader";
 import DesktopLeftPanelMapHome from "@/components/home/DesktopLeftPanelMapHome";
 import CategoryFilter from "@/components/filters/CategoryFilter";
 import { OVERSEAS_REGION_LIST } from "@/constants/overseas-regions";
@@ -279,7 +280,7 @@ interface HomeDesktopControlPanelProps {
   contextualRestaurantsPayload?: HomeMapContextualRestaurantsPayload | null;
   isMapFullscreen?: boolean;
   onPanelClose?: () => void;
-  onDetailPanelBack?: () => void;
+  onDetailPanelBack?: () => boolean | void;
   onReviewModalOpen?: () => void;
   onAdminEditRestaurant?: (restaurant: Restaurant) => void;
   onRequestEditRestaurant?: (restaurant: Restaurant) => void;
@@ -1264,7 +1265,8 @@ export default function HomeDesktopControlPanel({
     const returnProfileUserId = returnState.profileUserId;
 
     pendingDetailReturnCaptureRef.current = false;
-    (onDetailPanelBack ?? onPanelClose)?.();
+    if (onDetailPanelBack?.() === true) return;
+    if (!onDetailPanelBack) onPanelClose?.();
 
     setDesktopSearchQuery(returnState.searchQuery);
     setDesktopSearchType(returnState.searchType);
@@ -1577,6 +1579,9 @@ export default function HomeDesktopControlPanel({
                   variant="ghost"
                   size="sm"
                   onClick={() => handleModeChange("overseas")}
+                  onPointerEnter={preloadOverseasMap}
+                  onPointerDown={preloadOverseasMap}
+                  onFocus={preloadOverseasMap}
                   aria-pressed={mapMode === "overseas"}
                   aria-label="해외 맛집 지도 보기"
                   className={cn(
