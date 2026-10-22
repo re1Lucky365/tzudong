@@ -48,6 +48,12 @@ describe("TypeScript 7 dual-toolchain manifest contract", () => {
     expect(config.compilerOptions.moduleResolution).toBe("bundler");
     expect(config.compilerOptions.paths["@/*"]).toEqual(["./*"]);
     expect(config.compilerOptions.ignoreDeprecations).toBeUndefined();
+    expect(config.exclude).toContain("performance/**/historical-*/**");
+    expect(config.exclude).not.toContain("performance");
+    expect(source("bunfig.toml").trim()).toBe([
+      "[test]",
+      'pathIgnorePatterns = ["performance/**/historical-*/**"]',
+    ].join("\n"));
   });
 
   test("reconciles exact npm and Bun dependency graphs", () => {

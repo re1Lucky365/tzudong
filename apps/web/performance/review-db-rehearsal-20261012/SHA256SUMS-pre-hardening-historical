@@ -1,0 +1,7 @@
+f6cf33c2f5f5fdc8f5a5361f1ffc54a2c2cb70aa752da4815e4f614dffba3410  .github/review-media-sql-successor.v1.json
+dfef9d60199b8656cf6bb50ce32ba19825a8caf1a1dbca28f08e91e4d6c7e38c  apps/web/scripts/review-media-sql-successor.mjs
+0857216fc85b1a59a29bf70a0550a285952cde97fb9553b0860da04046908a49  apps/web/scripts/review-media-sql-rehearsal.mjs
+fcebc20dc4846606dc14bdbe658a07daa32430ad632e52383151f5c22d22efb9  apps/web/scripts/supabase-migration-bundle.mjs
+29622de79b7ebc63080ef3edb4c7f9f8ba61e14efa5600fcb589791a53323356  apps/web/performance/review-db-rehearsal-20261012/verify-review-media-sql-rehearsal.mjs
+cb766e279baad0315e9d7055bc326b41b78a7d50a4972dac3214bc071aee0e49  apps/web/performance/review-db-rehearsal-20261012/pg17-rollback-rehearsal.json
+159d19163e920882ce0ae98c16eed8120d53bebac4e3c173615d930ebddcfc31  apps/web/performance/review-db-rehearsal-20261012/README.md

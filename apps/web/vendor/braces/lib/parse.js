@@ -35,6 +35,11 @@ const parse = (input, options = {}) => {
   }
 
   const opts = options || {};
+  if (Number.isNaN(opts.maxLength)) {
+    const error = new RangeError('invalid brace maxLength');
+    error.code = 'BRACES_INPUT_LIMIT';
+    throw error;
+  }
   const max = typeof opts.maxLength === 'number' ? Math.min(MAX_LENGTH, opts.maxLength) : MAX_LENGTH;
   if (input.length > max) {
     throw new SyntaxError(`Input length (${input.length}), exceeds max characters (${max})`);

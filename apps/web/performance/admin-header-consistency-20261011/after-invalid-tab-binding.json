@@ -1,0 +1,772 @@
+{
+  "kind": "measurement-setup-failure",
+  "reason": "Inspection helper retained the baseline tab binding while navigation and screenshots used the new tab. These 15 metrics are rejected as acceptance evidence.",
+  "acceptedCombinations": 0,
+  "records": [
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "대시보드 (KPI)",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "overview",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:02.517Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "맛집 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "restaurants",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:02.753Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "제보 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "submissions",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:02.857Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "리뷰 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "reviews",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:02.985Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "사용자 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "users",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:03.413Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "배너 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "banners",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:03.565Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "영상 성과 분석",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "insights",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:04.002Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "크롤러 파이프라인",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "pipeline",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:04.120Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "지식 그래프",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "knowledge-graph",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:04.285Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "오류 모니터링",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "sentry",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:04.708Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "유튜브 썸네일 생성",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "youtube-thumbnail-generator",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:05.116Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "스토리보드 생성",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "storyboard",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:05.538Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "맛집 동선 추천",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "routes",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:05.651Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "운영 보조",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "llm",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:05.751Z",
+      "ready": false,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "expectedTitle": "감사 로그",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "audit",
+      "loading": false,
+      "observedAt": "2026-10-11T16:42:05.870Z",
+      "ready": true,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1
+    }
+  ]
+}

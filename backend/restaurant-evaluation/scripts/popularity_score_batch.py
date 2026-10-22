@@ -1,0 +1,274 @@
+import math
+import re
+
+THESIS_LAMBDA = 0.0015
+_VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
+PROPOSED_FLOOR = 0.5
+PROPOSED_HALF_LIFE_DAYS = 460.0
+COEFFICIENTS_LOCKED = False
+
+
+def decay(days, floor, half_change_days):
+    values = (days, floor, half_change_days)
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError("non_finite")
+    if days < 0 or floor < 0 or floor >= 1 or half_change_days <= 0:
+        raise ValueError("invalid_decay_parameters")
+    return floor + (1 - floor) / (1 + days / half_change_days)
+
+
+def hyperbolic_decay(days, lambda_value=THESIS_LAMBDA):
+    if not math.isfinite(days) or not math.isfinite(lambda_value):
+        raise ValueError("non_finite")
+    if days < 0 or lambda_value <= 0:
+        raise ValueError("invalid_decay_parameters")
+    return 1 / (1 + lambda_value * days)
+
+
+def hyperbolic_half_life_days(lambda_value=THESIS_LAMBDA):
+    if not math.isfinite(lambda_value) or lambda_value <= 0:
+        raise ValueError("invalid_decay_parameters")
+    return 1 / lambda_value
+
+
+def visits_multiplier(video_ids, gamma):
+    if not math.isfinite(gamma) or gamma < 0:
+        raise ValueError("invalid_gamma")
+    unique = []
+    for video_id in video_ids:
+        if not isinstance(video_id, str) or _VIDEO_ID.fullmatch(video_id) is None:
+            raise ValueError("invalid_video_id")
+        if video_id not in unique:
+            unique.append(video_id)
+    return 1 + gamma * math.log1p(max(0, len(unique) - 1))
+
+
+def build_popularity_row(*, canonical_key, video_ids, days_since_publish, review_count, scoring_version, cohort_version, computed_at, gamma, source_revision):
+    if COEFFICIENTS_LOCKED:
+        raise ValueError("coefficients_must_stay_unlocked")
+    if review_count is not None and review_count < 0:
+        raise ValueError("invalid_review_count")
+    if isinstance(source_revision, bool) or not isinstance(source_revision, int) or source_revision < 0:
+        raise ValueError("invalid_source_revision")
+    decay(days_since_publish, PROPOSED_FLOOR, PROPOSED_HALF_LIFE_DAYS)
+    visits_multiplier(video_ids, gamma)
+    return {
+        "canonical_key": canonical_key,
+        "source_revision": source_revision,
+        "scoring_version": scoring_version,
+        "cohort_version": cohort_version,
+        "popularity_score": None,
+        "popularity_tier": None,
+        "computed_at": computed_at,
+        "writes_hosted_database": False,
+        "mutates_restaurant_updated_at": False,
+    }
+
+
+def _source_revision(row):
+    value = row.get("source_revision")
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError("invalid_source_revision")
+    return value
+
+
+def _scoring_version(row):
+    value = row.get("scoring_version")
+    if isinstance(value, str) and value.strip():
+        return value
+    return ""
+
+
+def keep_popularity_row(existing, incoming):
+    if incoming is None:
+        raise ValueError("missing_popularity_row")
+    if not _scoring_version(incoming) and existing is None:
+        raise ValueError("scoring_version_required")
+    if existing is None:
+        return {"action": "insert", "row": incoming, "reason": "new_row"}
+    existing_revision = _source_revision(existing)
+    incoming_revision = _source_revision(incoming)
+    if incoming_revision < existing_revision:
+        return {"action": "keep", "row": existing, "reason": "stale_source_revision"}
+    incoming_version = _scoring_version(incoming)
+    existing_version = _scoring_version(existing)
+    if incoming_revision == existing_revision and incoming_version == existing_version:
+        return {"action": "keep", "row": existing, "reason": "duplicate_replay"}
+    if not incoming_version:
+        raise ValueError("scoring_version_required")
+    reason = "scoring_version_changed" if incoming_revision == existing_revision else "newer_source_revision"
+    return {"action": "replace", "row": incoming, "reason": reason}
+
+
+def popularity_batch_succeeded(chunk_results):
+    if not isinstance(chunk_results, list) or not chunk_results:
+        return False
+    return all(result is True for result in chunk_results)
+
+
+def _finite_number(value, code):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError(code)
+    return value
+
+
+def compare_cohort_shadow(members):
+    if not isinstance(members, list) or not members:
+        raise ValueError("empty_cohort")
+    records = []
+    seen = set()
+    missing = 0
+    differ_count = 0
+    for member in members:
+        if not isinstance(member, dict):
+            raise ValueError("invalid_shadow_member")
+        identity = member.get("identity")
+        if not isinstance(identity, str) or not identity.strip() or identity in seen:
+            raise ValueError("invalid_shadow_member")
+        seen.add(identity)
+        operational = member.get("operational_score", None)
+        if operational is not None:
+            operational = _finite_number(operational, "invalid_operational_score")
+        signals = member.get("candidate_signals", None)
+        if signals is None:
+            missing += 1
+            records.append({
+                "identity": identity,
+                "operational_score": operational,
+                "candidate_freshness": None,
+                "candidate_visit_multiplier": None,
+                "comparison_present": False,
+                "differs": False,
+            })
+            continue
+        if not isinstance(signals, dict):
+            raise ValueError("invalid_candidate_signals")
+        freshness = _finite_number(signals.get("freshness"), "invalid_candidate_signals")
+        visits = _finite_number(signals.get("visit_multiplier"), "invalid_candidate_signals")
+        differs = operational is not None
+        if differs:
+            differ_count += 1
+        records.append({
+            "identity": identity,
+            "operational_score": operational,
+            "candidate_freshness": freshness,
+            "candidate_visit_multiplier": visits,
+            "comparison_present": True,
+            "differs": differs,
+        })
+    return {
+        "records": records,
+        "summary": {
+            "count": len(records),
+            "differ_count": differ_count,
+            "live_write_allowed": missing == 0,
+        },
+    }
+
+
+def refuse_operational_write(summary):
+    if not isinstance(summary, dict) or summary.get("live_write_allowed") is not True:
+        raise ValueError("shadow_comparison_required")
+    return {
+        "popularity_score": None,
+        "popularity_tier": None,
+        "writes_hosted_database": False,
+        "mutates_restaurant_updated_at": False,
+        "overwrites_operational_values": False,
+    }
+
+
+def _nearest_rank_index(percent, count):
+    index = math.ceil((percent / 100) * count) - 1
+    if index < 0:
+        return 0
+    if index > count - 1:
+        return count - 1
+    return index
+
+
+def assign_shadow_percentile_tiers(members):
+    if not isinstance(members, list):
+        raise ValueError("invalid_shadow_cohort")
+    summary = {
+        "count": len(members),
+        "percentile_method": "nearest-rank",
+        "live_operational_score": None,
+        "live_popularity_tier": None,
+        "writes_restaurants_popularity_tier": False,
+    }
+    if len(members) < 1:
+        return {"records": [], "summary": summary}
+    slices = {}
+    slice_order = []
+    prepared = []
+    for member in members:
+        if not isinstance(member, dict):
+            raise ValueError("invalid_shadow_member")
+        identity = member.get("identity")
+        computed_at = member.get("computed_at")
+        if not isinstance(identity, str) or not identity.strip():
+            raise ValueError("invalid_shadow_member")
+        if not isinstance(computed_at, str) or not computed_at.strip():
+            raise ValueError("invalid_computed_at")
+        operational = member.get("operational_score", None)
+        if operational is not None:
+            operational = _finite_number(operational, "invalid_operational_score")
+        signals = member.get("candidate_signals", None)
+        present = signals is not None
+        freshness = None
+        visits = None
+        if present:
+            if not isinstance(signals, dict):
+                raise ValueError("invalid_candidate_signals")
+            freshness = _finite_number(signals.get("freshness"), "invalid_candidate_signals")
+            visits = _finite_number(signals.get("visit_multiplier"), "invalid_candidate_signals")
+        item = {
+            "identity": identity,
+            "computed_at": computed_at,
+            "operational_score": operational,
+            "candidate_freshness": freshness,
+            "candidate_visit_multiplier": visits,
+            "comparison_present": present,
+        }
+        prepared.append(item)
+        if computed_at not in slices:
+            slice_order.append(computed_at)
+            slices[computed_at] = []
+        slices[computed_at].append(item)
+    tier_by_identity = {}
+    for computed_at in slice_order:
+        group = slices[computed_at]
+        if any(not item["comparison_present"] for item in group):
+            continue
+        ranked = sorted(
+            group,
+            key=lambda item: (item["candidate_visit_multiplier"], item["candidate_freshness"]),
+        )
+        count = len(ranked)
+        if count < 1:
+            continue
+        fire_index = _nearest_rank_index(95, count)
+        rainbow_index = _nearest_rank_index(85, count)
+        for index, item in enumerate(ranked):
+            if index >= fire_index:
+                tier = "fire"
+            elif index >= rainbow_index:
+                tier = "rainbow"
+            else:
+                tier = "standard"
+            tier_by_identity[item["identity"]] = tier
+    records = []
+    for item in prepared:
+        records.append({
+            "identity": item["identity"],
+            "computed_at": item["computed_at"],
+            "operational_score": item["operational_score"],
+            "popularity_score": None,
+            "restaurants_popularity_tier": None,
+            "shadow_tier": tier_by_identity.get(item["identity"]),
+            "candidate_freshness": item["candidate_freshness"],
+            "candidate_visit_multiplier": item["candidate_visit_multiplier"],
+            "comparison_present": item["comparison_present"],
+        })
+    return {"records": records, "summary": summary}

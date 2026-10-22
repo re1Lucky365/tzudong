@@ -4,6 +4,7 @@ import { StorageApiError } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import { downloadReviewVerification } from '../lib/reviews/private-verification';
 import { readPrivateVerificationImage, type VerificationImageDependencies } from '../lib/reviews/private-verification-handler';
+import { getOwnedReviewPhotoObjectPath, resolveReviewPhotoUrl } from '../lib/review-photo-url';
 
 const owner = '11111111-1111-4111-8111-111111111111';
 const review = '22222222-2222-4222-8222-222222222222';
@@ -43,6 +44,45 @@ describe('private review verification image boundary', () => {
         expect(response.headers.get('content-type')).toBe('image/webp');
         expect(response.headers.get('x-content-type-options')).toBe('nosniff');
         expect(response.headers.get('location')).toBeNull();
+    });
+    test('authoritative historical GIF previews preserve bytes through the missing-private fallback', async () => {
+        const legacyKey = `${owner}/1720000000000_verification_proof.gif`;
+        const calls: string[] = [];
+        const bytes = new Uint8Array([71, 73, 70, 56, 57, 97]);
+        const storage = { from: (bucket: string) => ({ download: async (path: string) => {
+            calls.push(bucket); expect(path).toBe(legacyKey);
+            return bucket === 'review-verifications'
+                ? { data: null, error: new StorageApiError('Object not found', 404, '404', 'storage', 'NoSuchKey') }
+                : { data: new Blob([bytes], { type: 'image/gif' }), error: null };
+        } }) } as unknown as SupabaseClient<Database>['storage'];
+        const { deps } = fixture();
+        deps.read = async () => ({ data: { user_id: owner, verification_photo: legacyKey }, error: null });
+        deps.download = path => downloadReviewVerification(storage, path);
+        const reply = await readPrivateVerificationImage(Promise.resolve({ reviewId: review }), deps);
+        expect(reply.status).toBe(200);
+        expect(new Uint8Array(await reply.arrayBuffer())).toEqual(bytes);
+        expect(reply.headers.get('content-type')).toBe('image/gif');
+        expect(reply.headers.get('cache-control')).toBe('private, no-store');
+        expect(reply.headers.get('x-content-type-options')).toBe('nosniff');
+        expect(calls).toEqual(['review-verifications', 'review-photos']);
+    });
+    test('legacy GIF display uses the admin route without admitting GIF uploads or compensation', async () => {
+        const prior = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project-ref.supabase.co';
+        const ownership = { ownerId: owner, reviewId: review, purpose: 'verification' as const };
+        const legacyKey = `${owner}/1720000000000_verification_proof.gif`;
+        try {
+            for (const path of [legacyKey, `https://project-ref.supabase.co/storage/v1/object/public/review-photos/${legacyKey}`]) {
+                expect(resolveReviewPhotoUrl(path, ownership)).toBe(`/api/admin/review-verification/${review}`);
+                expect(getOwnedReviewPhotoObjectPath(path, ownership)).toBeNull();
+            }
+            for (const path of [legacyKey.replace(owner, review), legacyKey.replace('_verification_', '_food_0_'), legacyKey.replace('.gif', '.svg'), key.replace('.webp', '.gif')]) {
+                expect(resolveReviewPhotoUrl(path, ownership)).toBeNull();
+            }
+        } finally {
+            if (prior === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+            else process.env.NEXT_PUBLIC_SUPABASE_URL = prior;
+        }
     });
     test('oversize, unsupported format and provider diagnostics stay bounded and fixed', async () => {
         for (const blob of [new Blob([new Uint8Array(5 * 1024 * 1024 + 1)], { type: 'image/webp' }), new Blob(['script'], { type: 'text/html' })]) {

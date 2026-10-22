@@ -1,0 +1,10 @@
+{
+  "schema": "tzudong-lossless-log-container/v1",
+  "originalFilename": "final-build-output.txt",
+  "uncompressedBytes": 1207,
+  "uncompressedSha256": "a90b32efb6f3706ee87bfbce29bb6ae47cbd0ff734e20f3ed1f02d784c4d2cde",
+  "container": "final-build-output.txt.gz",
+  "containerSha256": "da3332c3e096c9e658959a0b6c2fd901997f4aa4c9fbeedc814707be6c59d102",
+  "reason": "Preserve captured sanitized CLI bytes while removing raw-log trailing whitespace from Git text diff.",
+  "sourceOrBuildChanged": false
+}

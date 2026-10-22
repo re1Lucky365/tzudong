@@ -1,0 +1,28 @@
+{
+  "observedAtUTC": "2026-10-13T20:34:16.074395+00:00",
+  "verified": true,
+  "checksumMaps": [
+    {
+      "path": "apps/web/performance/review-db-rehearsal-20261012/SHA256SUMS",
+      "sha256": "c1af1afd832bd2b0bbdcd4419589de778525e1b18a4dff196e457b82381c97fb",
+      "files": 36
+    },
+    {
+      "path": "apps/web/performance/review-db-successor-20261012/SHA256SUMS",
+      "sha256": "aff9374a0e6a6964b2d32f6cb5c6069296c5155b94c2ec1015460d2386fb4e88",
+      "files": 25
+    },
+    {
+      "path": "apps/web/performance/review-media-operating-admission-20261013/SHA256SUMS",
+      "sha256": "f7345de87e22378811fb0bfef0f57461702a4178ec92cd13e82812dcb921138e",
+      "files": 13
+    }
+  ],
+  "relatedIndexTests": 34,
+  "assertions": 153,
+  "currentRollbackProofSha256": "23fb9b471a06dbd36aafab3a678152ca897893b3cdc968f2d623035d217b1e38",
+  "fullSuiteFailedPriorHead": "71dcfc98ab03a016d05449780574a4b9edd81e36",
+  "fullSuiteNewHeadPending": true,
+  "operatingEvidence": false,
+  "performanceEvidence": false
+}

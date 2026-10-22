@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "purpose": "Portable and exclusive local replay follow-up for PR 3195 review comments",
+  "reviewComments": [
+    4258184886,
+    4258184895,
+    4258184905
+  ],
+  "sourceFreeze": {
+    "worktreeHeadAtMeasurement": "c503483d02c97c9abe6a19eddd8cd3f5715ebc42",
+    "runLocalReplaySha256": "e2dfc3a8b266b5adb8f6570915a2f79a3cc6d686d4596121979529bdc0f5701a",
+    "runLocalReplayBytes": 19305,
+    "regressionTestSha256": "6a8bda809c0b54464edc6c8b484712eac7ec6dcab77a37cb360d37b1eff97130",
+    "regressionTestBytes": 10454
+  },
+  "historicalEvidence": {
+    "classification": "historical-retained-package",
+    "artifactMapV1Sha256": "312ec242a66cd8b17df93edeb865ad19a8f3477bc143cf5379401687a321a77a",
+    "artifactMapV1SidecarSha256": "3fdde00266b6a205e168fbf24da8f0b7a5a7e800ec4119cba450848a77049ae7",
+    "mappedHistoricalRunnerSha256": "22b457af353db43914e0b35b04647278b359fa3827af033d630394ab526a3787",
+    "currentRunnerDiffersFromHistoricalMap": true,
+    "localReplayV1Sha256": "44ee007b4d0a3896eda7afffd75f65154fbfa32838451bd9d8e3b9b59b99aaf4",
+    "localReplayV1PreservedByteForByte": true,
+    "artifactMapV1PreservedByteForByte": true,
+    "artifactMapV1SidecarPreservedByteForByte": true,
+    "note": "The retained maps continue to describe their original bytes. This delta binds the evolved runner without rewriting historical evidence."
+  },
+  "verification": {
+    "regression": {
+      "commandClass": "python unittest for test_run_local_replay.py",
+      "testsRun": 7,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "reportedSeconds": 2.457
+    },
+    "isolatedPostgresReplay": {
+      "attemptId": "verified-pg176-20261013-v4",
+      "externalReceiptSha256": "d54e50fa27623368c551d50a5a8f35405eb24846b7e15dc857ada74fcca57f51",
+      "externalReceiptBytes": 2403,
+      "sourceCommit": "056a86600f412eb42df4304e3206841679012f3e",
+      "sourceTree": "4b47fe832c375a9a0f829332c354379c042ace06",
+      "postgres": "postgres (PostgreSQL) 17.6",
+      "versionAndHelpValidatedBinaries": 6,
+      "testsRun": 50,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "reportedSeconds": 4.767,
+      "wallSeconds": 5.066903,
+      "callerDockerRoutingInjected": true,
+      "callerDatabaseRoutingInjected": true,
+      "dockerRoutingInherited": false,
+      "databaseRoutingInherited": false,
+      "ownedWorkspaceDisposition": "removed",
+      "remainingPostmasterMarkers": 0,
+      "hostedReads": 0,
+      "hostedWrites": 0,
+      "storageWrites": 0,
+      "providerCalls": 0
+    },
+    "failedExploratoryAttempt": {
+      "attemptId": "verified-pg176-20261013",
+      "externalReceiptSha256": "b31515b6d94c32685752c8490b97e2b919186228c03535c6e1e6c77007509cbe",
+      "failureCode": "suite_failed",
+      "cause": "The initial workspace used the macOS-expanded temporary path and exceeded the PostgreSQL Unix socket path budget.",
+      "resolution": "The runner now owns a mode-0700 short workspace under the resolved system /tmp directory.",
+      "hostedReads": 0,
+      "hostedWrites": 0,
+      "providerCalls": 0
+    },
+    "staticChecks": {
+      "pyCompile": "passed",
+      "gitDiffCheck": "passed"
+    }
+  },
+  "measurement": {
+    "performanceClaim": false,
+    "sampleCount": 1,
+    "confidenceInterval95": null,
+    "confidenceIntervalReason": "A single deterministic compatibility replay is contract evidence, not a latency or throughput estimate."
+  },
+  "limits": [
+    "No hosted database was read or changed.",
+    "No provider was called.",
+    "The replay covers the seven pinned modules and does not prove the full operating migration sequence.",
+    "The external attempt receipt remains outside Git; its hash and bounded summary are retained here."
+  ]
+}

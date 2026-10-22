@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-unit-reverification",
+  "recordedAtUTC": "2026-10-13T20:18:10.822481+00:00",
+  "sourceBaseRevision": "4ba9c6d2f54b6e0c8458b2518977665f606eb4ff",
+  "checks": {
+    "passed": 98,
+    "failed": 0,
+    "assertions": 808,
+    "command": "bun test tests-unit/review-media-operating-admission.test.ts tests-unit/review-media-sql-successor.test.ts tests-unit/review-media-sql-successor-harness.test.ts tests-unit/supabase-migration-bundle.test.ts",
+    "cwd": "apps/web",
+    "log": "apps/web/performance/review-media-operating-admission-20261013/review-fix-units-20261014-v1.log",
+    "logSha256": "6ccafd88858b8613ab199e22f14eac97cdadb2f9a69e73d2edd6afb1fd1fefd3"
+  },
+  "sources": [
+    {
+      "path": "apps/web/scripts/review-media-operating-admission.mjs",
+      "sha256": "b30f841c858edfc4865dd704ae7f5463d5570117bc3543fd43a63208b2b34ea9"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-operating-admission.test.ts",
+      "sha256": "dfccda6dc30761a7ce0be2c3c15344cf66d9fbca9781907c4d8ac48a96024d9b"
+    },
+    {
+      "path": "apps/web/scripts/review-media-sql-successor.mjs",
+      "sha256": "4f1b2798e0cfc13db4f11cd6eb4a8653320aa8516eccd71d410fcff6d06a7f24"
+    },
+    {
+      "path": ".github/review-media-sql-successor.v1.json",
+      "sha256": "295b2354c562ed87102c5e256497a2705f90941587fefa7e9ad8a4ba8e40787f"
+    }
+  ],
+  "supplementalHarnessVerification": {
+    "passed": 20,
+    "failed": 0,
+    "assertions": 98,
+    "log": "apps/web/performance/review-db-successor-20261012/review-fix-harness-units-20261014-v2.log",
+    "logSha256": "7815d90d73d6b3508a355aee06743c22ff802e78ffca46172cda18ca83ed51b4",
+    "sources": [
+      {
+        "path": "apps/web/performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs",
+        "sha256": "7e750e9d0126f6f10afe9056d747a2ea854d462161ea4e8f0168e2751d554c0a"
+      },
+      {
+        "path": "apps/web/tests-unit/review-media-sql-successor-harness.test.ts",
+        "sha256": "99c6bc0221188f93317640d4d65affdfeb91fea233bb0f0cc0f409407e419d84"
+      }
+    ]
+  },
+  "reason": "Bound stored rehearsal admission, finite preflight and transport timeouts; verify detached checksum pin. The 98-test run covers the four primary source hashes. The later 20-test run replaces its 18 harness tests after the contention fixture change; these runs are not 118 independent tests.",
+  "operatingEvidence": false,
+  "performanceEvidence": false
+}

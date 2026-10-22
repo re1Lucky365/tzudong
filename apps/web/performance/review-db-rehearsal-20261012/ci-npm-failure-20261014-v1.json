@@ -1,0 +1,19 @@
+{
+  "observedAtUTC": "2026-10-13T20:31:32.330565+00:00",
+  "sourceRevision": "71dcfc98ab03a016d05449780574a4b9edd81e36",
+  "runId": 38461911693,
+  "jobId": 115518972088,
+  "job": "Ubuntu npm",
+  "boundedFailure": "LOCAL_REHEARSAL_ARTIFACT_SHA256_MISMATCH",
+  "failedTest": "default retained proof uses a stable current-proof selector",
+  "summary": [
+    "(pass) verified review count pagination > thrown page 2 failure rejects instead of returning partial counts [0.01ms]",
+    " 3318 pass",
+    " 21 skip",
+    " 1 fail",
+    "Ran 3340 tests across 420 files. [164.92s]"
+  ],
+  "cause": "Rollback evidence map retained hashes for the changed successor controller, manifest and fixture helper. The full-map validator correctly rejected stale dependencies.",
+  "fullProviderLogPersistedInRepository": false,
+  "operatingEvidence": false
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "kind": "isolated-fixture-ownership-verification",
+  "status": "passed",
+  "recordedAtUTC": "2026-10-13T07:18:48.134Z",
+  "sourceSha256": "8c3d7df52c281a9df1d6a4bd2acefb59f9a23b60185559fc6a8298cd65fde370",
+  "verifierSha256": "14af945a8e2d5d64a33bc6917da06fc6325a8c13af5e948d03c91e7af319d870",
+  "environment": {
+    "engine": "17.6",
+    "image": "supabase/postgres@sha256:fbe6c858a2ea9616aead3c39e132afcc0660decc5cb7dc656208ed145f5331ab"
+  },
+  "results": [
+    {
+      "kind": "roles",
+      "mode": "normal",
+      "createAttempts": 1,
+      "dropAttempts": 1,
+      "cleaned": true
+    },
+    {
+      "kind": "roles",
+      "mode": "lost-create-and-drop-ack",
+      "createAttempts": 1,
+      "dropAttempts": 1,
+      "cleaned": true
+    },
+    {
+      "kind": "roles",
+      "mode": "lost-create-ack-and-first-readback",
+      "createAttempts": 1,
+      "dropAttempts": 1,
+      "cleaned": true
+    },
+    {
+      "kind": "database",
+      "mode": "normal",
+      "createAttempts": 1,
+      "dropAttempts": 1,
+      "cleaned": true
+    },
+    {
+      "kind": "database",
+      "mode": "lost-create-ack",
+      "createAttempts": 1,
+      "dropAttempts": 1,
+      "cleaned": true
+    },
+    {
+      "kind": "database",
+      "mode": "lost-create-ack-and-first-readback",
+      "createAttempts": 1,
+      "dropAttempts": 1,
+      "cleaned": true
+    }
+  ],
+  "temporaryContainerRemoved": true,
+  "sourceContainerMutation": false,
+  "hostedWrites": false,
+  "predecessorAndFixtureSqlExercised": false
+}

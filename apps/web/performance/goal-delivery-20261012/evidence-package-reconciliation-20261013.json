@@ -1,0 +1,79 @@
+{
+  "schema": "tzudong-evidence-package-reconciliation/v1",
+  "sourceHead": "c503483d02c97c9abe6a19eddd8cd3f5715ebc42",
+  "recordedAt": "2026-10-13",
+  "scope": [
+    "apps/web/performance/goal-delivery-20261012/db-prepare",
+    "apps/web/performance/admin-route-consistency-20261012",
+    "apps/web/performance/goal-delivery-20261012"
+  ],
+  "historicalArchives": [
+    {
+      "path": "db-prepare/historical-c503483d02c97c9a",
+      "files": 4,
+      "bytes": 9387,
+      "inventoryVectorSha256": "ea3f0e0f2c6133e6d26cbd223ba3319c39a641b73794bcb142bace0ed6b48c97",
+      "contents": "original db-prepare map, detached checksum, runner, and carrier verifier"
+    },
+    {
+      "path": "../admin-route-consistency-20261012/historical-c503483d02c97c9a",
+      "files": 7,
+      "bytes": 74710,
+      "inventoryVectorSha256": "21af7414c026a8c80c72b3f642f7e76ebb8b02f4abebee390e07afa124b4a320",
+      "contents": "original admin evidence map, detached checksum, four fixture executables, and the bound runtime regression test"
+    },
+    {
+      "path": "historical-c503483d02c97c9a",
+      "files": 2,
+      "bytes": 37648,
+      "inventoryVectorSha256": "9dbfe62247103027148d6201b9e5445ca60a676053e4e97a5257df6ef8f329db",
+      "contents": "original parent goal-delivery map and detached checksum"
+    }
+  ],
+  "currentSourceOnlyEvidence": [
+    {
+      "path": "db-prepare/carrier-verifier-delta-20261013.json",
+      "sha256": "fb383035265fb7ed33544f5d19c71ff7b02b423bb66980a3ca38b8f8c0d95d39",
+      "classification": "current local verifier regression receipt"
+    },
+    {
+      "path": "db-prepare/run-local-replay-hardening-delta-20261013.json",
+      "sha256": "522a1684a445a3f17d8299481e4f5ddc4cc33df3049cc56257b4c57d8b32142d",
+      "classification": "current local replay hardening receipt"
+    },
+    {
+      "path": "../admin-route-consistency-20261012/privacy-fixture-startup-closure-delta-20261013.json",
+      "sha256": "adf255f8240f7599911dc79bb71187548fc95d341344f2e40ac91c3648d4d661",
+      "classification": "current local fixture startup and input-closure receipt"
+    }
+  ],
+  "classification": {
+    "oldBuildReceipts": "historical; preserved byte-for-byte; not rerun by this reconciliation",
+    "oldRenderReceipts": "historical; preserved byte-for-byte; not rerun by this reconciliation",
+    "oldRuntimeReceipts": "historical; preserved byte-for-byte; not rerun by this reconciliation",
+    "currentMaps": "byte inventories only; they do not upgrade historical execution evidence into current reruns",
+    "performanceClaim": false,
+    "hostedOrProviderClaim": false
+  },
+  "indexPolicy": {
+    "mapAndDetachedSidecarSelfReferenceExcluded": true,
+    "diagnosticLogsExcluded": true,
+    "credentialsAndSecretsExcluded": true,
+    "historicalArchivesIndexed": true,
+    "historicalArchiveVectorFormat": "UTF-8 lines: <sha256><two spaces><relative path><LF>, paths sorted lexicographically",
+    "allIndexedBytesAndHashesRequireReadback": true
+  },
+  "operations": {
+    "hostedReads": 0,
+    "hostedWrites": 0,
+    "databaseConnections": 0,
+    "providerCalls": 0,
+    "deployments": 0,
+    "gitWrites": 0
+  },
+  "limits": [
+    "This reconciliation records current file identity and evidence classification only.",
+    "It does not rerun or strengthen historical build, render, browser, database, or provider receipts.",
+    "Current map hashes are bound by their detached checksum files after this receipt is indexed."
+  ]
+}

@@ -33,7 +33,9 @@ export function AdminPageHeader({
       </div>
       {summary != null && <div className="admin-page-header-summary" data-admin-module-summary="true">{summary}</div>}
     </div>
-    {children}
-    {actions != null && <div className="admin-page-header-actions" data-admin-module-actions="top-right">{actions}</div>}
+    {children != null || actions != null ? <div className="admin-page-header-controls">
+      {children != null && <div className="admin-page-header-context">{children}</div>}
+      {actions != null && <div className="admin-page-header-actions" data-admin-module-actions="top-right">{actions}</div>}
+    </div> : null}
   </header>;
 }

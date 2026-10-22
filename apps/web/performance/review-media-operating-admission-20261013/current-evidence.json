@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "current": "controller-reverification-v2.json",
+  "sha256": "ad9406090dea1f2c1f8a146f5e241aae2651449f0c58af50201116e39ccfa2b6",
+  "historical": [
+    "verification.json",
+    "controller-reverification.json"
+  ],
+  "historicalSourceMatch": false,
+  "operatingEvidence": false,
+  "performanceEvidence": false
+}

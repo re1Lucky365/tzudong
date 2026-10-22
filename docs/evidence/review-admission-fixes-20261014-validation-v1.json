@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "observedAtUTC": "2026-10-13T20:18:46.314544+00:00",
+  "verified": true,
+  "checksumMaps": [
+    {
+      "path": "apps/web/performance/review-db-successor-20261012/SHA256SUMS",
+      "sha256": "aff9374a0e6a6964b2d32f6cb5c6069296c5155b94c2ec1015460d2386fb4e88",
+      "files": 25
+    },
+    {
+      "path": "apps/web/performance/review-media-operating-admission-20261013/SHA256SUMS",
+      "sha256": "f7345de87e22378811fb0bfef0f57461702a4178ec92cd13e82812dcb921138e",
+      "files": 13
+    }
+  ],
+  "primaryUnitTests": 98,
+  "subsequentHarnessTests": 20,
+  "overlapNotSummed": true,
+  "pg17ProofSha256": "9a4985689d121979e3d7559c32b8f27c88ae3d1bb82d559fb9bb8ada6e706ac2",
+  "originalProofPreserved": true,
+  "heldLaunchPolicy": true,
+  "hostedWrites": false,
+  "operatingWrites": false,
+  "performanceEvidence": false
+}

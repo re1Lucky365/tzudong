@@ -15,6 +15,7 @@ import {
 } from "@/lib/home-map-theme-filters";
 import { enrichRestaurantsWithHomeMapYoutubeKpiMetrics } from "@/lib/home-map-youtube-kpi";
 import { describeErrorCodeForLog } from "@/lib/debug-log";
+import { lookupPublishedPopularityTier, resolvePublishedPopularityTier, type PublishedPopularityLookup } from "@/lib/evidence-engineering/published-popularity";
 
 
 type DBRestaurant = Tables<"restaurants">;
@@ -39,6 +40,7 @@ type ReviewCountCandidateRestaurant = Pick<
 const SUPABASE_IN_CHUNK_SIZE = 80;
 const SUPABASE_IN_CHUNK_CONCURRENCY = 4;
 const REVIEW_COUNT_RELATED_RESTAURANT_SELECT = 'id, name:approved_name, approved_name, road_address, jibun_address, status';
+export const RESTAURANT_EVIDENCE_FRAME_EMBED = "restaurant_evidence_frames(frame_id,content_sha256,video_id,timestamp_ms,storage_object_key,youtube_seek_url,frame_type,evidence_level,confidence_level,moderation_status,detected_shop_name,detected_branch_name)";
 export const RESTAURANT_MERGE_SELECT = [
     'id',
     'name:approved_name',
@@ -80,13 +82,39 @@ export const RESTAURANT_MERGE_SELECT = [
     'recollect_version',
     'created_at',
     'updated_at',
+    RESTAURANT_EVIDENCE_FRAME_EMBED,
 ].join(', ');
 const RESTAURANT_COMPACT_SELECT =
     "id, name:approved_name, lat, lng, road_address, jibun_address, categories, review_count, youtube_link, source_type";
 const RESTAURANT_COMPACT_WITH_YOUTUBE_META_SELECT =
     "id, name:approved_name, lat, lng, road_address, jibun_address, categories, review_count, youtube_link, youtube_meta, source_type";
 const RESTAURANT_FULL_SELECT =
-    "id, name:approved_name, lat, lng, road_address, jibun_address, categories, phone, review_count, youtube_link, tzuyang_review, youtube_meta, source_type, english_address, status, created_at";
+    `id, name:approved_name, lat, lng, road_address, jibun_address, categories, phone, review_count, youtube_link, tzuyang_review, youtube_meta, source_type, english_address, status, created_at, ${RESTAURANT_EVIDENCE_FRAME_EMBED}`;
+
+export function selectWithoutEvidenceEmbed(select: string): string {
+    return select.replace(/,?\s*restaurant_evidence_frames\([^)]*\)/, "").replace(/^\s*,\s*/, "").trim();
+}
+
+export function isMissingEvidenceRelationError(error: unknown): boolean {
+    return error instanceof Error && error.message.includes("PGRST200");
+}
+
+export async function fetchRestaurantsRecoveringMissingEmbed<T>(
+    query: Array<[string, string | number]>,
+    fetchRows: (nextQuery: Array<[string, string | number]>) => Promise<T[]> = (nextQuery) => fetchSupabaseRows<T>("restaurants", nextQuery),
+): Promise<T[]> {
+    try {
+        return await fetchRows(query);
+    } catch (error) {
+        const select = query.find(([key]) => key === "select")?.[1];
+        if (!isMissingEvidenceRelationError(error) || typeof select !== "string" || !select.includes("restaurant_evidence_frames(")) {
+            throw error;
+        }
+        return fetchRows(query.map(([key, value]) => (
+            key === "select" ? ["select", selectWithoutEvidenceEmbed(select)] : [key, value]
+        )));
+    }
+}
 
 export function buildRestaurantSelectFields({
     compact,
@@ -304,7 +332,7 @@ function buildRestaurantQueryKey(
     ];
 }
 
-function projectSingletonRestaurant(restaurant: DBRestaurant): Restaurant {
+function projectSingletonRestaurant(restaurant: DBRestaurant, publishedTier: PublishedPopularityLookup): Restaurant {
     const categories = Array.from(new Set(restaurant.categories || []));
     const youtubeLink = restaurant.youtube_link || null;
     const review = restaurant.tzuyang_review || null;
@@ -312,6 +340,7 @@ function projectSingletonRestaurant(restaurant: DBRestaurant): Restaurant {
 
     return {
         ...restaurant,
+        popularity_tier: publishedTier(restaurant.id),
         name: getRestaurantName(restaurant as RestaurantWithOptionalName),
         lat: restaurant.lat || 0,
         lng: restaurant.lng || 0,
@@ -432,7 +461,10 @@ function isNameBetterForMainCandidate(candidate: RestaurantWithOptionalName, cur
  * @param restaurants DB에서 조회된 레스토랑 목록
  * @returns 병합된 레스토랑 목록
  */
-export function mergeRestaurants(restaurants: DBRestaurant[]): Restaurant[] {
+export function mergeRestaurants(
+    restaurants: DBRestaurant[],
+    publishedTier: PublishedPopularityLookup = lookupPublishedPopularityTier,
+): Restaurant[] {
     if (!restaurants.length) return [];
 
     perfMonitor.startMeasure('mergeRestaurants');
@@ -543,7 +575,7 @@ export function mergeRestaurants(restaurants: DBRestaurant[]): Restaurant[] {
 
     const mergedResults: Restaurant[] = Array.from(groups.values()).map((indices) => {
         if (indices.length === 1) {
-            return projectSingletonRestaurant(restaurants[indices[0]]);
+            return projectSingletonRestaurant(restaurants[indices[0]], publishedTier);
         }
         const groupRestaurants = indices.map(idx => restaurants[idx]);
 
@@ -592,6 +624,7 @@ export function mergeRestaurants(restaurants: DBRestaurant[]): Restaurant[] {
 
         return {
             ...mainRestaurant,
+            popularity_tier: resolvePublishedPopularityTier(mainRestaurant, publishedTier, groupRestaurants),
             name: getRestaurantName(mainRestaurant as RestaurantWithOptionalName),
             lat,
             lng,
@@ -726,7 +759,7 @@ export function useRestaurants(options: UseRestaurantsOptions = {}) {
 
             let data: RestaurantWithOptionalName[] = [];
             try {
-                data = await fetchSupabaseRows<RestaurantWithOptionalName>('restaurants', query);
+                data = await fetchRestaurantsRecoveringMissingEmbed<RestaurantWithOptionalName>(query);
             } catch (error) {
                 console.error('레스토랑 데이터 조회 실패:', describeErrorCodeForLog(error));
                 throw error;

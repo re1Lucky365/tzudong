@@ -1,0 +1,31 @@
+{
+  "schema": "tzudong-privacy-incidents-local-build/v2",
+  "status": 1,
+  "signal": null,
+  "node": "24.21.0",
+  "next": "16.3.8",
+  "runId": "full-closure-20261014-01",
+  "basePort": 19480,
+  "distDir": ".next-privacy-incidents-v2-20261012-full-closure-20261014-01",
+  "buildId": null,
+  "sourceManifestSha256": "28d309b1b472cd7d47592761267182bac699e93337b5a81a3eb2e0d32ce6ba27",
+  "sourceFileCount": 1536,
+  "sourceUnchanged": true,
+  "tsconfigRestored": true,
+  "dependencyLockSha256": "607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4",
+  "dependenciesPath": "node_modules@sha256:d1a062003ddc026f1277b2c9c65ad669ee63a4ee876fe69eacad776eb91dbdfc",
+  "dependencyMode": "workspace",
+  "dependencyLinkRemoved": true,
+  "artifacts": [],
+  "runtimeArtifactClosure": null,
+  "css": null,
+  "environment": {
+    "inheritedAllowlistOnly": true,
+    "repositoryEnvFilesAdmitted": false,
+    "hostedCredentialsAdmitted": false,
+    "syntheticLoopbackOnly": true
+  },
+  "limitations": [
+    "Local production bundle only; no browser render, OAuth, hosted database, provider, deployment, or production evidence."
+  ]
+}

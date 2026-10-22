@@ -24,6 +24,6 @@ export function MapViewGoogleLoadErrorState() {
     return <MapStatusNotice title="해외 지도를 불러오지 못했어요" description="잠시 후 다시 확인해 주세요." />;
 }
 
-export function NaverMapLoadErrorState(_props: { message: string }) {
-    return <MapStatusNotice title="지도를 불러오지 못했어요" description="잠시 후 다시 확인해 주세요." />;
+export function NaverMapLoadErrorState({ onRetry }: { message: string; onRetry?: () => void }) {
+    return <MapStatusNotice title="지도를 불러오지 못했어요" description="잠시 후 다시 확인해 주세요." onRetry={onRetry} />;
 }

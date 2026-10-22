@@ -54,6 +54,8 @@
   ],
   "exclude": [
     "node_modules",
-    "tests-unit"
+    "tests-unit",
+    "performance/**/historical-*/**",
+    "performance/overseas-map-startup-20261021-v1/fixture-inputs/**"
   ]
 }

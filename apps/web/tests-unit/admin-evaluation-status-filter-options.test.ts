@@ -192,7 +192,8 @@ describe('PRIMARY_STATUS_FILTER_OPTIONS', () => {
     expect(tableSource).not.toContain('style={shouldRenderMobile ? { touchAction: \'pan-y\' } : undefined}');
     expect(tableSource).not.toContain('onPointerDown={handleMobileFilterPointerStart}');
     expect(tableSource).not.toContain('onTouchStart={handleMobileFilterTouchStart}');
-    expect(tableSource).toContain('sticky top-0 z-30 -mx-2 bg-background/95 px-2 pb-2 pt-1 backdrop-blur lg:hidden');
+    expect(tableSource).toContain('sticky top-0 z-30 bg-background pb-2 pt-1 lg:hidden');
+    expect(tableSource).not.toContain('sticky top-0 z-30 -mx-2');
     expect(tableSource).toContain('grid grid-cols-3 gap-1.5');
     expect(tableSource).toContain('<div className="min-w-0 truncate px-0.5 text-xs text-muted-foreground">');
     expect(tableSource).toContain('<span>검수 항목</span>');
@@ -204,11 +205,10 @@ describe('PRIMARY_STATUS_FILTER_OPTIONS', () => {
     expect(tableSource).toContain('aria-label="필터 초기화"');
     expect(tableSource).toContain('{hasActiveFilters && (');
     expect(tableSource).toContain('variant="ghost"');
-    expect(tableSource).toContain('h-8 min-w-0 rounded-full px-2 text-xs font-medium');
+    expect(tableSource).toContain('h-11 min-w-0 rounded-md px-2 text-xs font-medium');
     expect(tableSource).toContain('data-admin-evaluation-mobile-card="true"');
     expect(tableSource).toContain('data-layout-primitives="stack frame"');
     expect(tableSource).toContain('<article');
-    expect(tableSource).toContain('flex min-w-max flex-nowrap gap-1.5');
     expect(tableSource).toContain('rounded-xl bg-muted/35 p-2.5 text-2xs');
     expect(pageSource).toContain('data-admin-evaluation-view-actions="top-right"');
     expect(pageSource).toContain('data-admin-evaluation-title-icon="true"');
@@ -233,8 +233,8 @@ describe('PRIMARY_STATUS_FILTER_OPTIONS', () => {
     expect(adminOverviewSource).toContain('전체 집계 중');
     expect(adminOverviewSource).not.toContain('필터링: <Skeleton');
     expect(adminOverviewSource).toContain('data-admin-evaluation-dynamic-loading-shell="true"');
-    expect(adminOverviewSource).toContain('<AdminEvaluationModuleStaticShell />');
-    expect(adminOverviewSource).toContain('정적인 관리자 데이터 검수 컨트롤은 바로 표시하고, 동적인 검수 데이터만 불러오는 중입니다.');
+    expect(adminOverviewSource.includes('<AdminEvaluationModuleStaticShell moduleId={moduleId} />')).toBe(true);
+    expect(adminOverviewSource.includes('title={getAdminModuleTitle(moduleId)}')).toBe(true);
     expect(adminOverviewSource).toContain('data-admin-evaluation-static-loading-controls="true"');
     expect(pageSource).toContain("fetch('/api/admin/evaluations'");
     expect(pageSource).toContain('브라우저 Supabase 클라이언트는 RLS 때문에 승인된 공개 레코드만 보일 수 있다.');

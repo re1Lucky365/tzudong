@@ -1,0 +1,114 @@
+{
+  "schema": "tzudong-privacy-fixture-startup-closure-delta/v1",
+  "baseHead": "c503483d02c97c9abe6a19eddd8cd3f5715ebc42",
+  "recordedAt": "2026-10-13",
+  "scope": {
+    "launchers": [
+      "performance/admin-route-consistency-20261012/start-loopback.mjs",
+      "performance/admin-route-consistency-20261012/v2/start-loopback.mjs"
+    ],
+    "builders": [
+      "performance/admin-route-consistency-20261012/build-privacy-fixture.mjs",
+      "performance/admin-route-consistency-20261012/v2/build-privacy-fixture.mjs"
+    ],
+    "tests": [
+      "tests-unit/privacy-fixture-runtime.test.ts"
+    ]
+  },
+  "sourceSha256": {
+    "performance/admin-route-consistency-20261012/build-privacy-fixture.mjs": "a3b241db992172b5d0f97d6a59c000d9ca3d6ee8ccaa97a0e75888858f0635c7",
+    "performance/admin-route-consistency-20261012/v2/build-privacy-fixture.mjs": "802880be620366640f93e1c4f9e2fc3bb529a971e2f753c6bd9942a8f8c9344b",
+    "performance/admin-route-consistency-20261012/start-loopback.mjs": "fdcb45eca0d6b590fd04f82421c4ec4e6718ee7697938223c8394f1243973bb4",
+    "performance/admin-route-consistency-20261012/v2/start-loopback.mjs": "b6ea673b50fec876990b4cd140311962681624502fc028558ace2fbfc901a43b",
+    "tests-unit/privacy-fixture-runtime.test.ts": "b5d67e0e043efd0ca2c84c5f53b8fa2e1014b3ed5ebf864eb80844a5e7719394"
+  },
+  "runtimeCollisionReplay": {
+    "environment": {
+      "node": "24.21.0",
+      "os": "macOS",
+      "filesystem": "owned temporary copy",
+      "network": "loopback only"
+    },
+    "existingStartReceiptBytesPreserved": true,
+    "existingLogBytesPreserved": true,
+    "borrowedDependencyEntryAfterExit": false,
+    "nextSpawnMarkerCreated": false,
+    "gatewaySpawnMarkerCreated": false,
+    "listenersAfterExit": 0,
+    "launcherExitStatus": 1,
+    "boundedCause": "EEXIST",
+    "sampleSize": 1,
+    "confidenceInterval95": null,
+    "confidenceIntervalReason": "Deterministic ownership invariant replay; not a sampled latency estimate."
+  },
+  "buildInputClosure": {
+    "historicalReviewedManifestFiles": 423,
+    "currentManifestFiles": 1532,
+    "absoluteIncrease": 1109,
+    "relativeIncreasePercent": 262.17494089834514,
+    "previouslyMissingDirectRootInputsNowBound": [
+      "app/app-runtime-shell.tsx",
+      "app/root-speed-insights.tsx"
+    ],
+    "excludedMutableOrGeneratedRoots": [
+      ".lazyweb",
+      ".next",
+      ".next-*",
+      ".omx",
+      ".vercel",
+      "node_modules",
+      "performance",
+      "supabase/.temp"
+    ],
+    "cleanControl": {
+      "wrapperExitStatus": 0,
+      "nextBuildStatus": 0,
+      "buildIdPresent": true,
+      "sourceUnchanged": true,
+      "currentTestSourceBound": true,
+      "tsconfigRestored": true,
+      "borrowedDependencyLinkRemoved": true,
+      "sampleSize": 1
+    },
+    "directRootDriftReplay": {
+      "mutatedPath": "app/app-runtime-shell.tsx",
+      "wrapperExitStatus": 1,
+      "nextBuildStatus": 0,
+      "buildIdPresent": true,
+      "sourceUnchanged": false,
+      "beforeAfterHashChanged": true,
+      "tsconfigRestored": true,
+      "borrowedDependencyLinkRemoved": true,
+      "sampleSize": 1
+    },
+    "confidenceInterval95": null,
+    "confidenceIntervalReason": "Deterministic paired control/fault replay; not a sampled performance estimate."
+  },
+  "verification": {
+    "unit": {
+      "command": "TZUDONG_NODE24_BIN=<node24> bun test tests-unit/privacy-fixture-runtime.test.ts",
+      "passed": 14,
+      "failed": 0,
+      "assertions": 156
+    },
+    "eslint": {
+      "targetedFiles": 5,
+      "passed": true
+    },
+    "nodeSyntax": {
+      "targetedModules": 4,
+      "passed": true
+    },
+    "diffCheck": true,
+    "temporaryCopiesRemoved": true
+  },
+  "history": {
+    "existingReceiptsModified": false,
+    "existingSourceManifestsModified": false,
+    "existingArtifactMapsModified": false
+  },
+  "limitations": [
+    "Local deterministic fixture evidence only; no hosted service, provider, SQL, deployment, or production claim.",
+    "The file-count increase measures manifest coverage, not runtime speed or cost improvement."
+  ]
+}

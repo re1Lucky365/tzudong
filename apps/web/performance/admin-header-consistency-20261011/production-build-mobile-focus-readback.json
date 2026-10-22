@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-11T17:25:00.143Z",
+  "evidenceClass": "local-synthetic-production-build-mobile-focus-source-readback",
+  "changeReason": "Mobile menu close autofocus now follows explicit menu-selection intent; this source change requires a fresh production bundle and parity.",
+  "repository": {
+    "head": "bd80988fb925e7c47d4fe202da8d929d119a6cca",
+    "webRoot": "apps/web",
+    "sourceMayBeDirty": true,
+    "deploymentProven": false
+  },
+  "priorEvidencePreservation": {
+    "priorBuildIds": [
+      "P6Z8v8hH7rZE8yHslUIH5",
+      "PAhiV2v8TfHlQW4XwMk4s",
+      "StMTT6clVUew0sIDfYpWM"
+    ],
+    "fileSha256": {
+      "production-build-readback.json": "d3f3f1280d7e86340193abef667cc0772ef0b59b0dd1185aa6b0859b29041505",
+      "production-build-after-chart-readback.json": "0b323cabe454690b451db354f67eef24ed03afe68225d4f1194821fe00ec3c5d",
+      "production-build-final-layout-readback.json": "978947f788f5d7986cd5e0a5de8ae114d553e57eee1a0c442fd2fd5e033a84ec",
+      "render-readback.json": "a82c010c212c752a14e5e273883b4c953bd787ce34fd64ea42db8c373b04df41",
+      "after-render-readback.json": "967217da58498f3cd2de83ad3a179deca1550846c4d5a44b9ada9d7e3c3d2ecf",
+      "chart-toggle-before-layout-fix.json": "b2201969e87701e6c5d73d9ae6c83c9bba7b6718f6cb660f3abb50be3f2879c3",
+      "final-layout-intermediate-readback.json": "823e067ae33161e63dd39f9f75576d51b6ca336e3a41ad9c3d81bb57c3f2b81b"
+    },
+    "baselineRenderPngCount": 45,
+    "baselineRenderPngManifestSha256": "e71495a7f222c4a1aeb3bcd16fd880269b62c79198c0a4d42441c4c334535642",
+    "priorEvidenceModifiedByThisRun": false
+  },
+  "currentBuild": {
+    "buildId": "GKEnGiPgevGdstEfWZX7W",
+    "buildCompletedAt": "2026-10-11T17:23:54.290Z",
+    "distDirectory": ".next-admin-header-build-20261012",
+    "output": "standalone",
+    "status": "passed",
+    "serverStartedByThisVerification": false
+  },
+  "commands": {
+    "typecheckParityArgv": [
+      "/opt/homebrew/opt/node@24/bin/node",
+      "scripts/run-typecheck.mjs",
+      "--compiler",
+      "parity"
+    ],
+    "productionBuildArgv": [
+      "/opt/homebrew/opt/node@24/bin/node",
+      "scripts/clean-next.mjs",
+      "--",
+      "node",
+      "node_modules/next/dist/bin/next",
+      "build",
+      "--webpack"
+    ]
+  },
+  "sanitizedBuildInputs": {
+    "inheritedEnvironmentRestrictedToSafeParentAllowlist": true,
+    "safeParentNames": [
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "PATH",
+      "SHELL",
+      "TERM",
+      "TMPDIR",
+      "TZ",
+      "USER"
+    ],
+    "processedEnvironmentTrue": true,
+    "supabaseUrlWasExactLoopback18821": true,
+    "supabaseAnonWasDeclaredSynthetic": true,
+    "siteUrlWasExactLoopback18822": true,
+    "naverMapScriptWasLocalPath": true,
+    "localRuntimeWasEnabled": true,
+    "vercelOnePresent": false,
+    "hostedDatabaseCredentialsPresent": false,
+    "providerCredentialsPresent": false,
+    "repositoryEnvironmentFilesLoaded": false
+  },
+  "readback": {
+    "requiredServerConfig": {
+      "distDirectoryMatches": true,
+      "outputStandalone": true,
+      "supabaseUrlExactMatch": true,
+      "supabaseAnonExactMatch": true,
+      "supabaseUrlSha256": "70f8f38942120e39d6d75de59cd5dc27d2c171f6aae5c40543351700bd561fb4",
+      "supabaseAnonSha256": "1983e1ffe450806146caca837a585ccbfaa45ebe49bb58402962e6c8e486d9d3"
+    },
+    "compiledMarkerOccurrences": {
+      "supabaseLoopback18821": 204,
+      "syntheticAnon": 87,
+      "siteLoopback18822": 33,
+      "localMapPath": 8,
+      "localRuntimeName": 8
+    },
+    "artifactSha256": {
+      "BUILD_ID": "0741c2630a6dfd635ca276e58c7afec67a3102feb6897692f052abcbb73280c5",
+      "required-server-files.json": "ba4e9e25f5da896bb5739ead06710aef6b0c4154f4f7285f7876de2c79d3f7e7",
+      "build-manifest.json": "261dd984fb548e240aa75e17181eab2ce7f3ee0d380821c8da488b0fa637b86c",
+      "app-path-routes-manifest.json": "23239b15b3ea6507dd8a962b6ed2f89d6e391af26235d61cf7bd777fccf9ef6c",
+      "routes-manifest.json": "be62a06119c812ff18a324a569c24db285cffea6ac8ede513dfc23a8929aefc3"
+    }
+  },
+  "verification": {
+    "node": "v24.21.0",
+    "npm": "11.6.2",
+    "next": "16.3.8",
+    "typecheckParity": {
+      "status": "passed",
+      "diagnostics": 0,
+      "logicalInputs": 3289,
+      "logicalInputNamesSha256": "816df7c3beb226e8ae3c5d64dc01a358be773df9b8b6b974d04204065a790729",
+      "nonLibraryContentSha256": "cd9794e818ed902c03a6da423c722795a5443b02a43c0fa2b49c964738902906",
+      "standardLibraryContentSha256": {
+        "native": "d328ef5dcbac7d4c183cd37a26eb383e8e6921ab2147b20e5d73f3c149223a64",
+        "compat": "82afdd90154e9b315a83eb66f2d4ee59972c492094bbf66d7f0791f584e41eb0"
+      }
+    },
+    "productionBuild": {
+      "status": "passed",
+      "webpackCompileSeconds": 48,
+      "typescriptSeconds": 20.7,
+      "staticPagesCompleted": 50,
+      "staticPagesExpected": 50,
+      "staticPageGenerationSeconds": 1.321
+    },
+    "notRepeated": {
+      "nativeToolchainReceipt": true,
+      "cssBoundary": true,
+      "passingWholeSuite": true,
+      "serverStart": true
+    }
+  },
+  "sourceBinding": {
+    "canonicalSourceRoots": [
+      "app/admin",
+      "app/api/admin",
+      "app/insights",
+      "components/admin",
+      "components/ui",
+      "contexts",
+      "hooks",
+      "config",
+      "integrations",
+      "lib",
+      "styles",
+      "types",
+      "data/knowledge-graph"
+    ],
+    "extraSourcePaths": [
+      "scripts/preview-design-fixtures.mjs",
+      "scripts/verify-admin-sidebar-pages-browser.ts"
+    ],
+    "canonicalManifestFileCount": 547,
+    "canonicalManifestSha256": "473b0ce2469f6ee4c6454afa1cbacbf241893c2c99a08aac90690d6535be0133",
+    "sourceFilesNewerThanBuildId": [],
+    "relevantSourceSha256": {
+      "components/admin/AdminConsoleOverview.tsx": "b5aca7e1a8a8e0d565469ab0cbb82c5ef2105eb652f21a3e8f8fa9683b65e102"
+    },
+    "wrapperSourceSha256": {
+      "AdminDashboardResponsiveChart": "25d4df71f9dce94aca50ed6fb9480a4080275605398df39aa48ede3116893439",
+      "mobileModuleScrollResetEffect": "af55100f26c91b1f70f0fd0ba4dc343bea1d64ceca65d0b9b8c3a619a469f619"
+    },
+    "focusHandlerSourceSha256": {
+      "menuNavigationIntentHandler": "ec3f2db5b77dcdcb21e7569c7b995f0a08f6ed44c8ed186e4bfba58d97237c4c",
+      "closeAutoFocusIntentHandler": "85d1232d4e9091415c7f4ec31082c781b84edf23489fc94f51e9752e7cf86fb0",
+      "combinedSelectionAndCloseAutoFocus": "bf26f9f99f23b92fd061a14a28703f50a9dc326086400c4fd7e6d691b35a9749"
+    }
+  },
+  "limits": {
+    "localBuildDoesNotProveDeployment": true,
+    "syntheticFixtureDoesNotProveHostedDatabaseOrProviderBehavior": true,
+    "rootFinalCuaRenderFocusHeightWheelReadbackRequired": true,
+    "rawCliLogsStored": false,
+    "secretsStored": false
+  }
+}

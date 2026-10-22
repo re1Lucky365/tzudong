@@ -1,0 +1,31 @@
+{
+  "schema": "tzudong-privacy-incidents-loopback/v2",
+  "node": "24.21.0",
+  "runId": "reviewed-20261013",
+  "basePort": 18960,
+  "buildId": "VsVqwHP7JPw_Dah--3Lp1",
+  "distDir": ".next-privacy-incidents-v2-20261012-reviewed-20261013",
+  "launcherPid": 27536,
+  "nextPid": 27547,
+  "gatewayPid": 27548,
+  "origins": {
+    "next": "http://127.0.0.1:18960",
+    "supabase": "http://127.0.0.1:18961",
+    "gateway": "http://127.0.0.1:18962",
+    "visibleStart": "http://127.0.0.1:18962/__fixture/start"
+  },
+  "source": {
+    "fixtureServerSha256": "3b9684c3dda38715b788c564fbaed8f0e002edbf9a46821a65b574bb602d8e09",
+    "runtimeFixtureServerSha256": "b4e18f4e01e4b8b0c8b5a8ff04dbfe252d410459d104cb9dbec54fa74a2c0afd",
+    "fixtureServerPortsPatched": true,
+    "launcherSha256": "edfe8fc95407961445be24ecdef7675d0d799a08d134d327b80a3b07481c450f",
+    "buildReceiptSha256": "870f6bf66469dc0d29f741937f069171f6d38f29d83bb7db183d39be7cee2ab2"
+  },
+  "boundaries": {
+    "loopbackOnly": true,
+    "syntheticDataOnly": true,
+    "browserMutationMethodsAllowed": false,
+    "hostedCredentialsAdmitted": false,
+    "dependencyMode": "workspace"
+  }
+}

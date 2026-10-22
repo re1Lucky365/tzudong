@@ -1,0 +1,90 @@
+{
+  "schema": "tzudong-reviewed-ui-local-verification/v1",
+  "recordedAt": "2026-10-13T09:41:55.595704+00:00",
+  "baseHead": "a45a6bb4989e588ddb02ac6c23ada44eb11cfdb0",
+  "sourceBindings": [
+    {
+      "path": "apps/web/app/admin/privacy-incidents/page.tsx",
+      "bytes": 51007,
+      "sha256": "e22616985864f9d19f9d16bc91dab114fb22d76de0e8f6dbd6c814a3d73df79b"
+    },
+    {
+      "path": "apps/web/lib/privacy/incident-list-read-state.ts",
+      "bytes": 2099,
+      "sha256": "6550e99a9435bc0047df8f3dd8828e2d7927eb07a19b56e7ff59d85e8f1b7f60"
+    },
+    {
+      "path": "apps/web/scripts/gemini-live-verification-io.ts",
+      "bytes": 25668,
+      "sha256": "165cc1d223eb55b2dd54e8b3fbd2363cf138b401730caa7963e6615accb25dca"
+    },
+    {
+      "path": "apps/web/tests-unit/privacy-incident-workflow.test.ts",
+      "bytes": 23806,
+      "sha256": "c4f699cb85472bc54b7021c08cc4e6b57fd6bc5e5df4e55d0f0347c1f62be71c"
+    },
+    {
+      "path": "apps/web/tests-unit/gemini-live-verification-boundary.test.ts",
+      "bytes": 15429,
+      "sha256": "49e4d6e487ddb86dd79ee757f6b71b9b6c8232d735f7f8555954466204691361"
+    },
+    {
+      "path": "apps/web/tests-unit/privacy-fixture-runtime.test.ts",
+      "bytes": 18278,
+      "sha256": "fccb91440bc760570b8a4acb16860dc213e6561491bf58794185388618f86a59"
+    },
+    {
+      "path": "apps/web/tests-unit/privacy-fixture-scenarios.test.ts",
+      "bytes": 4030,
+      "sha256": "b659f2a2cf84a2681b0a8b83f7286c3de02b1d9731b2a5c5ba0e54ffec2166ae"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/privacy-fixture-runtime.mjs",
+      "bytes": 16000,
+      "sha256": "7f6e53dff7f27bbc99517af7e4757990f8e91e5e05a294eb6a8e91dee0ab4ba0"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/v2/fixture-server.mjs",
+      "bytes": 15529,
+      "sha256": "7a7cc9cd4c028462d274ce874e52adb168cf244835871feed340d96f07eafbee"
+    }
+  ],
+  "unitRun": {
+    "command": "bun test tests-unit/privacy-incident-workflow.test.ts tests-unit/gemini-live-verification-boundary.test.ts tests-unit/privacy-fixture-runtime.test.ts tests-unit/privacy-fixture-scenarios.test.ts",
+    "terminalEvidence": "unified session 38393 final exit 0",
+    "passed": 47,
+    "failed": 0,
+    "assertions": 419,
+    "files": 4,
+    "elapsedMs": 1498,
+    "elapsedScope": "single verification run; no comparative performance claim"
+  },
+  "parity": {
+    "status": "passed",
+    "diagnostics": 0,
+    "logicalInputs": 3150,
+    "logicalInputNamesSha256": "0338ffeedcf0862434df6f35517553a173f88be10987388ae79b4f0abdb33f16",
+    "nonLibraryContentSha256": "78027509a7c463c8cfe44ebab0b56d671a8412305c89a3444f650a500684cdf5",
+    "standardLibraryContentSha256": {
+      "native": "d328ef5dcbac7d4c183cd37a26eb383e8e6921ab2147b20e5d73f3c149223a64",
+      "compat": "82afdd90154e9b315a83eb66f2d4ee59972c492094bbf66d7f0791f584e41eb0"
+    }
+  },
+  "parityStatus": {
+    "exitCode": 0,
+    "elapsedSeconds": 22.940326929092407,
+    "pid": 45466
+  },
+  "parityStdoutSha256": "148270ad678cc46002b1307da9992d656e8311d226d901fcbc10759f45d474fd",
+  "parityStatusSha256": "7f338a4000dd9c642ed34ea16f05322114045808cc60e5f8a02ed663fcc14087",
+  "buildSourceCurrentReadback": {
+    "files": 423,
+    "mismatchPaths": []
+  },
+  "boundaries": {
+    "providerCalls": 0,
+    "hostedWrites": 0,
+    "deployed": false,
+    "performanceImprovementMeasured": false
+  }
+}

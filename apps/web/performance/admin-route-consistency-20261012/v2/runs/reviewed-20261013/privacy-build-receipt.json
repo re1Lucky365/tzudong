@@ -1,0 +1,72 @@
+{
+  "schema": "tzudong-privacy-incidents-local-build/v2",
+  "status": 0,
+  "signal": null,
+  "node": "24.21.0",
+  "next": "16.3.8",
+  "runId": "reviewed-20261013",
+  "basePort": 18960,
+  "distDir": ".next-privacy-incidents-v2-20261012-reviewed-20261013",
+  "buildId": "VsVqwHP7JPw_Dah--3Lp1",
+  "sourceManifestSha256": "82c20552d807847bce24aefdde4476d1348daf6c344cdebe0772dcef818f9b8d",
+  "sourceFileCount": 423,
+  "sourceUnchanged": true,
+  "tsconfigRestored": true,
+  "dependencyLockSha256": "607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4",
+  "dependenciesPath": "node_modules",
+  "dependencyMode": "workspace",
+  "dependencyLinkRemoved": true,
+  "artifacts": [
+    {
+      "path": "BUILD_ID",
+      "sha256": "9f120014bdc80da6278de41a6fbfd1757a4835511a462d9865623f075477be3f"
+    },
+    {
+      "path": "build-manifest.json",
+      "sha256": "b6ca9f192de5886c6910f12962e707f455ba4bb57497526998907fdeb6678557"
+    },
+    {
+      "path": "routes-manifest.json",
+      "sha256": "c93e69872da09259c12857d04c45b6968628661c5785ff91142511483b288f3e"
+    },
+    {
+      "path": "required-server-files.json",
+      "sha256": "c648e9c6cfd56bdf79f7d4444b550966871b76411b94d69d1663dcd6bd3b49ce"
+    }
+  ],
+  "css": {
+    "homeBytes": 195887,
+    "generalAppBytes": 369843,
+    "adminBytes": 383693,
+    "deferredBytes": 195887,
+    "homeTransferBytes": 46701,
+    "generalAppTransferBytes": 68540,
+    "adminTransferBytes": 71726,
+    "deferredTransferBytes": 46701,
+    "sharedAssetPaths": [
+      "static/css/1240feada28706b0.css",
+      "static/css/21152eadce53cbfb.css",
+      "static/css/2c51162548402e22.css",
+      "static/css/56dbb6b80320ef6e.css",
+      "static/css/9082e756fe962baa.css"
+    ],
+    "exclusiveAssetPaths": {
+      "home": [],
+      "generalApp": [],
+      "admin": [
+        "static/css/c0d42224543a4a09.css",
+        "static/css/f54a2be7094b25e4.css"
+      ],
+      "deferred": []
+    }
+  },
+  "environment": {
+    "inheritedAllowlistOnly": true,
+    "repositoryEnvFilesAdmitted": false,
+    "hostedCredentialsAdmitted": false,
+    "syntheticLoopbackOnly": true
+  },
+  "limitations": [
+    "Local production bundle only; no browser render, OAuth, hosted database, provider, deployment, or production evidence."
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-unit-verification",
+  "recordedAtUTC": "2026-10-13T05:42:51.792097+00:00",
+  "sources": [
+    {
+      "path": "apps/web/scripts/review-media-operating-admission.mjs",
+      "sha256": "4ad55ed526b7af8c0ee1282057dbfa3706249deea04472a2749909af45492064",
+      "bytes": 28152
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-operating-admission.test.ts",
+      "sha256": "26d7fe68effda2813b3f9384dd2d7e4f9e8998447cd988b89820d93be7f6bdc7",
+      "bytes": 20142
+    }
+  ],
+  "environment": {
+    "platform": "macOS",
+    "node": "24.21.0",
+    "bun": "1.4.0"
+  },
+  "checks": [
+    {
+      "command": "bun test tests-unit/review-media-operating-admission.test.ts",
+      "cwd": "apps/web",
+      "passed": 10,
+      "failed": 0,
+      "assertions": 59
+    },
+    {
+      "command": "node --check apps/web/scripts/review-media-operating-admission.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node node_modules/eslint/bin/eslint.js scripts/review-media-operating-admission.mjs tests-unit/review-media-operating-admission.test.ts",
+      "cwd": "apps/web",
+      "exitCode": 0
+    }
+  ],
+  "scope": [
+    "CLI input validation",
+    "private exclusive output",
+    "receipt schema/hash binding",
+    "unchanged admission window",
+    "fsync failure",
+    "symlink and oversize input rejection"
+  ],
+  "limitations": [
+    "Synthetic receipts test format and internal consistency only.",
+    "The producer does not authenticate observation origin.",
+    "No hosted mutation, trusted live capture, or performance improvement is established."
+  ],
+  "confidenceInterval": {
+    "applicable": false,
+    "reason": "Deterministic branch checks, not a sampled performance or reliability estimate."
+  }
+}

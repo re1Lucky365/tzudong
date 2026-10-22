@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-11T16:37:01.410Z",
+  "evidenceClass": "local-synthetic-production-build-after-chart-source-readback",
+  "changeReason": "Recharts initial zero-size mount hook behavior changed; rebuild and compiler/CSS verification were required.",
+  "repository": {
+    "head": "bd80988fb925e7c47d4fe202da8d929d119a6cca",
+    "webRoot": "apps/web",
+    "sourceMayBeDirty": true,
+    "deploymentProven": false
+  },
+  "priorEvidencePreservation": {
+    "priorBuildId": "P6Z8v8hH7rZE8yHslUIH5",
+    "priorBuildReceiptClassification": "valid-before-chart-source-change",
+    "priorBuildArtifactStillAvailable": false,
+    "fileSha256": {
+      "production-build-readback.json": "d3f3f1280d7e86340193abef667cc0772ef0b59b0dd1185aa6b0859b29041505",
+      "render-readback.json": "a82c010c212c752a14e5e273883b4c953bd787ce34fd64ea42db8c373b04df41",
+      "render-data-path.json": "9b006e8c93882faf712c1aa2def001a7fcbe27d02829fa90e116cd2f1d8433fc",
+      "render-data-path-result.json": "910eb559db45c6ac419626f0c6af58e4ab262bf3f41e4b1d692e175b6fd16f4d"
+    },
+    "baselineRenderPngCount": 45,
+    "baselineRenderPngManifestSha256": "e71495a7f222c4a1aeb3bcd16fd880269b62c79198c0a4d42441c4c334535642",
+    "baselineRenderEvidenceModifiedByThisRun": false,
+    "priorReceiptModifiedByThisRun": false
+  },
+  "currentBuild": {
+    "buildId": "PAhiV2v8TfHlQW4XwMk4s",
+    "buildCompletedAt": "2026-10-11T16:35:18.583Z",
+    "distDirectory": ".next-admin-header-build-20261012",
+    "output": "standalone",
+    "status": "passed",
+    "serverStartedByThisVerification": false
+  },
+  "commands": {
+    "typecheckVerifyArgv": [
+      "/opt/homebrew/opt/node@24/bin/node",
+      "scripts/verify-typescript-toolchain.mjs"
+    ],
+    "typecheckParityArgv": [
+      "/opt/homebrew/opt/node@24/bin/node",
+      "scripts/run-typecheck.mjs",
+      "--compiler",
+      "parity"
+    ],
+    "productionBuildArgv": [
+      "/opt/homebrew/opt/node@24/bin/node",
+      "scripts/clean-next.mjs",
+      "--",
+      "node",
+      "node_modules/next/dist/bin/next",
+      "build",
+      "--webpack"
+    ],
+    "cssGate": {
+      "node": "/opt/homebrew/opt/node@24/bin/node",
+      "api": "verifyBuildRouteCssBoundaries",
+      "nextDirectory": ".next-admin-header-build-20261012"
+    }
+  },
+  "sanitizedBuildInputs": {
+    "inheritedEnvironmentRestrictedToSafeParentAllowlist": true,
+    "safeParentNames": [
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "PATH",
+      "SHELL",
+      "TERM",
+      "TMPDIR",
+      "TZ",
+      "USER"
+    ],
+    "processedEnvironmentTrue": true,
+    "supabaseUrlWasExactLoopback18821": true,
+    "supabaseAnonWasDeclaredSynthetic": true,
+    "siteUrlWasExactLoopback18822": true,
+    "naverMapScriptWasLocalPath": true,
+    "localRuntimeWasEnabled": true,
+    "vercelOnePresent": false,
+    "hostedDatabaseCredentialsPresent": false,
+    "providerCredentialsPresent": false,
+    "repositoryEnvironmentFilesLoaded": false
+  },
+  "readback": {
+    "requiredServerConfig": {
+      "distDirectoryMatches": true,
+      "outputStandalone": true,
+      "supabaseUrlExactMatch": true,
+      "supabaseAnonExactMatch": true,
+      "supabaseUrlSha256": "70f8f38942120e39d6d75de59cd5dc27d2c171f6aae5c40543351700bd561fb4",
+      "supabaseAnonSha256": "1983e1ffe450806146caca837a585ccbfaa45ebe49bb58402962e6c8e486d9d3"
+    },
+    "compiledMarkerOccurrences": {
+      "supabaseLoopback18821": 204,
+      "syntheticAnon": 87,
+      "siteLoopback18822": 33,
+      "localMapPath": 8,
+      "localRuntimeName": 8
+    },
+    "artifactSha256": {
+      "BUILD_ID": "929f1e59fd40d43329b920c2d71454e81160a07ed5373b9027cfdc3a4f7175f1",
+      "required-server-files.json": "ba4e9e25f5da896bb5739ead06710aef6b0c4154f4f7285f7876de2c79d3f7e7",
+      "build-manifest.json": "6a8ce41eeb2316079c9e20d841aec0ea2e6c90c93ee332d7be71622ef17932d5",
+      "app-path-routes-manifest.json": "0b69996fc44c117c84dc78a010ba26c0819b96ccf589706cbea7047faf654d99",
+      "routes-manifest.json": "be62a06119c812ff18a324a569c24db285cffea6ac8ede513dfc23a8929aefc3",
+      "static/css/2c51162548402e22.css": "6c58e66070985f24f79990766cd6cc01482feddefc51d0041815c88ded698b36",
+      "static/css/591091c27525f55d.css": "b8de97528fc537596d5733cf558d4475e01926302f21a1b5939707de1a002816",
+      "static/css/a569e2016bc29536.css": "68988595fa8a0d25b420f48d73e371d0f6d7bb8882bbd2a65eec38eb45c9383f",
+      "static/css/e724b53714374078.css": "e9ed27a7f267ecd4a3b1930ef89e3720423c010d9d2f25269039bc1c37edc8a7",
+      "static/css/fe3cf1d79cde5d21.css": "320a43166cac4eb5fff497696874d469b1054c6fb3f5c4fbffc5f24cdffba150",
+      "static/css/eac5d5b90e664f19.css": "277047ea3902c799a054577d75286c79960b6e1c7159fca729cc15e9ac6ef08e",
+      "static/css/f54a2be7094b25e4.css": "0976da1e539f730d483cd5242350cf7bfd32f5079988e263c69674c05c09891f"
+    }
+  },
+  "verification": {
+    "node": "v24.21.0",
+    "npm": "11.6.2",
+    "next": "16.3.8",
+    "typecheckVerify": {
+      "status": "passed",
+      "nativeCli": "7.0.2",
+      "compatCli": "6.0.2",
+      "programmaticApi": "6.0.2",
+      "receiptPathsCandidateLocal": true,
+      "nativeCliEntrypointSha256": "2219f428a7e55aaf1f7ad85b9b0f0cf5078aeb76ccc9a7c6036c92d48f492ffd",
+      "compatCliEntrypointSha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+      "platformBinarySha256": "a82f731365ad69d5c4c15f5e18fba4584bf3b7b839960172a76c3462b5114bf2"
+    },
+    "typecheckParity": {
+      "status": "passed",
+      "diagnostics": 0,
+      "logicalInputs": 3289,
+      "logicalInputNamesSha256": "816df7c3beb226e8ae3c5d64dc01a358be773df9b8b6b974d04204065a790729",
+      "nonLibraryContentSha256": "849630144f951be3b13d6eb38c419372fbd7312ff9cb94998c163cd1e07c2571",
+      "standardLibraryContentSha256": {
+        "native": "d328ef5dcbac7d4c183cd37a26eb383e8e6921ab2147b20e5d73f3c149223a64",
+        "compat": "82afdd90154e9b315a83eb66f2d4ee59972c492094bbf66d7f0791f584e41eb0"
+      }
+    },
+    "productionBuild": {
+      "status": "passed",
+      "webpackCompileSeconds": 28.9,
+      "typescriptSeconds": 21.3,
+      "staticPagesCompleted": 50,
+      "staticPagesExpected": 50,
+      "staticPageGenerationSeconds": 1.399
+    },
+    "cssBoundary": {
+      "status": "passed",
+      "homeBytes": 194468,
+      "generalAppBytes": 368253,
+      "adminBytes": 381917,
+      "deferredBytes": 194468,
+      "homeTransferBytes": 46277,
+      "generalAppTransferBytes": 68083,
+      "adminTransferBytes": 71249,
+      "deferredTransferBytes": 46277,
+      "sharedAssetCount": 5,
+      "adminExclusiveAssetCount": 2
+    }
+  },
+  "sourceBinding": {
+    "canonicalSourceRoots": [
+      "app/admin",
+      "app/api/admin",
+      "app/insights",
+      "components/admin",
+      "components/ui",
+      "contexts",
+      "hooks",
+      "config",
+      "integrations",
+      "lib",
+      "styles",
+      "types",
+      "data/knowledge-graph"
+    ],
+    "extraSourcePaths": [
+      "scripts/preview-design-fixtures.mjs",
+      "scripts/verify-admin-sidebar-pages-browser.ts"
+    ],
+    "canonicalManifestFileCount": 547,
+    "canonicalManifestSha256": "fb29b662cc56451f8b9934cdf4986c3abac012c498f6250da03d816d23492df8",
+    "sourceFilesNewerThanBuildId": [],
+    "relevantSourceSha256": {
+      "components/admin/AdminConsoleOverview.tsx": "dd86b87c9d006f57b98df9678a935821329a5de3e2f054e90d2b5fe14202f85e",
+      "components/admin/AdminPageHeader.tsx": "ac2621a32fbed7b801798675683a439b8900621ef86e6116034d71a1cfb40a73",
+      "styles/admin-ui.css": "4c2132956c05cd5388bf90ebec37c84bd73a8c7adc87d535763302e8aa57d092",
+      "scripts/verify-admin-sidebar-pages-browser.ts": "7500adb0f2ae2878fb0c87f9c2a50e2603635843e6795c748d8faae8057dfafe"
+    }
+  },
+  "limits": {
+    "localBuildDoesNotProveDeployment": true,
+    "syntheticFixtureDoesNotProveHostedDatabaseOrProviderBehavior": true,
+    "rootAfterChartCuaRenderRequired": true,
+    "rawCliLogsStored": false,
+    "secretsStored": false
+  }
+}

@@ -1,0 +1,2955 @@
+{
+  "schemaVersion": 1,
+  "kind": "admin-header-consistency-artifact-map",
+  "status": "accepted-local-synthetic-fixture-current-source-reconciled",
+  "generatedAt": "2026-10-12T03:42:57.964Z",
+  "packageRoot": "apps/web/performance/admin-header-consistency-20261011",
+  "inventoryContract": {
+    "sort": "path-bytewise-ascending",
+    "hash": "sha256-file-bytes",
+    "excludedFromInventory": [
+      {
+        "path": "artifact-map.json",
+        "reason": "self-reference"
+      },
+      {
+        "path": "artifact-map.json.sha256",
+        "reason": "detached-map-digest"
+      }
+    ],
+    "allOtherPackageFilesIncluded": true
+  },
+  "currentBinding": {
+    "buildId": "-cMz_aROVaZTlUcj5f8XN",
+    "canonicalSourceFileCount": 547,
+    "canonicalSourceSignatureSha256": "58b6e29fa7ef19b52f4b66787261a797b2002d733a60fb2f535f618c65c58c2a",
+    "uiSource": {
+      "path": "apps/web/components/admin/AdminConsoleOverview.tsx",
+      "sha256": "e3ea987a737af697a5d7ea155a474ed448f1d539fe46178914bb5abc419ac4d1"
+    },
+    "scrollOwnerGridClassBinding": {
+      "count": 2,
+      "orderedSha256": "458149c0541c0ec03ebeddff5f283b195e1fed8c4413da65a06520f08b974f88",
+      "allUseOverflowXClip": true
+    },
+    "buildReceipt": {
+      "path": "production-build-scroll-owner-readback.json",
+      "sha256": "23ed890f953e4594464fa7cf670c52733aa8484c8970ff97d107f21e2e4e150e",
+      "bytes": 7238
+    },
+    "renderReceipt": {
+      "path": "scroll-owner-final-render-readback.json",
+      "sha256": "602a6717fffc566be05517bb5e45d4f21dfc55179831dc82feaf4b2646f7dbb1",
+      "bytes": 70088
+    },
+    "accepted": true,
+    "observed": {
+      "menuViewportCases": 45,
+      "uniqueMenuViewportPairs": 45,
+      "mobileFocusedCases": 15,
+      "titleClipping": 0,
+      "horizontalOverflow": 0,
+      "mobileButtonViolations": 0,
+      "typography": [
+        "{\"lineHeight\":\"24px\",\"size\":\"16px\",\"weight\":\"600\"}"
+      ],
+      "mainScrollTopAfterWheel": 350,
+      "mainScrollTopAfterReturn": 0,
+      "headerHiddenAfterScroll": true,
+      "headerVisibleAfterReturn": true,
+      "chartPositiveHeightSequence": [
+        273.15625,
+        845.984375,
+        273.15625
+      ],
+      "restoredViewSeriesPressed": "false",
+      "cumulativeWarnings": 3,
+      "cumulativeDirectionFallbackWarnings": 3,
+      "cumulativeRechartsSizeWarnings": 0,
+      "cumulativeErrors": 0
+    },
+    "bindingScope": "canonical-current-source-to-retained-build-and-render-with-generated-type-projection-reconciliation",
+    "currentWorkingCanonicalSourceMatchesBundle": true,
+    "sourceReconciliationReceipt": {
+      "path": "source-signature-reconciliation-readback.json",
+      "sha256": "9c4d9999951eaa3660cea4dad0f2772133b10fce45d018045531b1b4cb6a07f7",
+      "bytes": 106031
+    }
+  },
+  "historicalBindings": [
+    {
+      "buildId": "-iqj34OuxGGmWhNjbyXPY",
+      "classification": "build-passed-render-unsuitable",
+      "retainedBuildArtifactAvailable": false,
+      "rendered": false,
+      "recordedIn": {
+        "path": "production-build-readback.json",
+        "sha256": "d3f3f1280d7e86340193abef667cc0772ef0b59b0dd1185aa6b0859b29041505",
+        "bytes": 8018
+      }
+    },
+    {
+      "buildId": "P6Z8v8hH7rZE8yHslUIH5",
+      "classification": "baseline-header-render-with-recharts-warnings",
+      "buildReceipt": {
+        "path": "production-build-readback.json",
+        "sha256": "d3f3f1280d7e86340193abef667cc0772ef0b59b0dd1185aa6b0859b29041505",
+        "bytes": 8018
+      },
+      "renderReceipt": {
+        "path": "render-readback.json",
+        "sha256": "a82c010c212c752a14e5e273883b4c953bd787ce34fd64ea42db8c373b04df41",
+        "bytes": 60253
+      }
+    },
+    {
+      "buildId": "PAhiV2v8TfHlQW4XwMk4s",
+      "classification": "header-render-passed-chart-transition-rejected",
+      "sourceSignatureSha256": "fb29b662cc56451f8b9934cdf4986c3abac012c498f6250da03d816d23492df8",
+      "uiSourceSha256": "dd86b87c9d006f57b98df9678a935821329a5de3e2f054e90d2b5fe14202f85e",
+      "buildReceipt": {
+        "path": "production-build-after-chart-readback.json",
+        "sha256": "0b323cabe454690b451db354f67eef24ed03afe68225d4f1194821fe00ec3c5d",
+        "bytes": 7924
+      },
+      "renderReceipt": {
+        "path": "after-render-readback.json",
+        "sha256": "967217da58498f3cd2de83ad3a179deca1550846c4d5a44b9ada9d7e3c3d2ecf",
+        "bytes": 61272
+      },
+      "rejectedTransitionReceipt": {
+        "path": "chart-toggle-before-layout-fix.json",
+        "sha256": "b2201969e87701e6c5d73d9ae6c83c9bba7b6718f6cb660f3abb50be3f2879c3",
+        "bytes": 3898
+      }
+    },
+    {
+      "buildId": "StMTT6clVUew0sIDfYpWM",
+      "classification": "chart-height-fixed-mobile-focus-rejected-intermediate",
+      "sourceSignatureSha256": "80bb7f04abe4ad50b0d12e82a389a8da4b240d4c3591bd63e68e23b3688e3609",
+      "uiSourceSha256": "b152fc93fbc4ac5a633ab94eac6723f3c0ff4388aedfe9b9247bed7d8e7b45a5",
+      "buildReceipt": {
+        "path": "production-build-final-layout-readback.json",
+        "sha256": "978947f788f5d7986cd5e0a5de8ae114d553e57eee1a0c442fd2fd5e033a84ec",
+        "bytes": 8438
+      },
+      "rejectedIntermediateReceipt": {
+        "path": "final-layout-intermediate-readback.json",
+        "sha256": "823e067ae33161e63dd39f9f75576d51b6ca336e3a41ad9c3d81bb57c3f2b81b",
+        "bytes": 47368
+      }
+    },
+    {
+      "buildId": "GKEnGiPgevGdstEfWZX7W",
+      "classification": "header-and-focus-passed-actual-scroll-not-admitted",
+      "sourceSignatureSha256": "473b0ce2469f6ee4c6454afa1cbacbf241893c2c99a08aac90690d6535be0133",
+      "uiSourceSha256": "b5aca7e1a8a8e0d565469ab0cbb82c5ef2105eb652f21a3e8f8fa9683b65e102",
+      "buildReceipt": {
+        "path": "production-build-mobile-focus-readback.json",
+        "sha256": "1b2f576fb8150a05c0531e1f84b194e45d2b01ca16bb63ea1b437ea9b52e03d2",
+        "bytes": 6722
+      },
+      "renderReceipt": {
+        "path": "mobile-focus-render-readback.json",
+        "sha256": "01d534e7d4ff27ec1d5908615bafb3ab9d4b3b4bddd9d1194ec543de30298e49",
+        "bytes": 64893
+      }
+    }
+  ],
+  "preservedRejectedAndIncompleteEvidence": [
+    {
+      "classification": "invalid-tab-binding-zero-accepted",
+      "path": "after-invalid-tab-binding.json",
+      "sha256": "c50a73d320f5c7bd4c1cfeb27b9cdc60606114deeea5c0cc6d7552b8cfdb207a",
+      "bytes": 16978
+    },
+    {
+      "classification": "chart-height-regression-accepted-false",
+      "path": "chart-toggle-before-layout-fix.json",
+      "sha256": "b2201969e87701e6c5d73d9ae6c83c9bba7b6718f6cb660f3abb50be3f2879c3",
+      "bytes": 3898
+    },
+    {
+      "classification": "partial-31-of-45-focus-failure-accepted-false",
+      "path": "final-layout-intermediate-readback.json",
+      "sha256": "823e067ae33161e63dd39f9f75576d51b6ca336e3a41ad9c3d81bb57c3f2b81b",
+      "bytes": 47368
+    },
+    {
+      "classification": "source-only-zero-of-45-root-cua-pending-at-capture",
+      "path": "source-verification.json",
+      "sha256": "04fb6a0320169d7b747416ba4fc6a3a3308a673575b8e6fb4627951b3eedce97",
+      "bytes": 1944
+    },
+    {
+      "classification": "ui-only-plan-execution-not-performed",
+      "path": "render-data-path-result.json",
+      "sha256": "910eb559db45c6ac419626f0c6af58e4ab262bf3f41e4b1d692e175b6fd16f4d",
+      "bytes": 324
+    }
+  ],
+  "coverage": {
+    "inventoryFileCount": 251,
+    "inventoryBytes": 15576385,
+    "extensionCounts": {
+      ".json": 16,
+      ".md": 1,
+      ".mjs": 6,
+      ".png": 228
+    },
+    "roleCounts": {
+      "canonical-summary": 1,
+      "current-final-build-receipt": 1,
+      "current-final-overview-screenshot": 1,
+      "current-final-render-readback": 1,
+      "current-final-render-screenshot": 45,
+      "fixture-source": 6,
+      "historical-baseline-build-receipt": 1,
+      "historical-baseline-render-readback": 1,
+      "historical-baseline-render-screenshot": 45,
+      "historical-chart-fix-build-receipt": 1,
+      "historical-chart-fix-render-readback": 1,
+      "historical-chart-fix-render-screenshot": 45,
+      "historical-layout-build-receipt": 1,
+      "historical-layout-intermediate-screenshot": 31,
+      "historical-mobile-focus-build-receipt": 1,
+      "historical-mobile-focus-render-readback": 1,
+      "historical-mobile-focus-screenshot": 45,
+      "historical-overview-screenshot": 1,
+      "historical-setup-screenshot": 15,
+      "historical-source-verification": 1,
+      "historical-ui-only-read-plan": 1,
+      "historical-ui-only-read-plan-result": 1,
+      "rejected-chart-regression-readback": 1,
+      "rejected-intermediate-layout-readback": 1,
+      "rejected-setup-failure-readback": 1,
+      "source-signature-reconciliation-readback": 1
+    },
+    "screenshotCount": 228,
+    "screenshotMediaTypeCounts": {
+      "image/jpeg": 228
+    },
+    "jsonReadbackAndReceiptCount": 16,
+    "unmappedPackageFileCount": 0
+  },
+  "privacyAndSafetyReadback": {
+    "fixtureDataClass": "synthetic-local-loopback-only",
+    "hostedReads": 0,
+    "hostedWrites": 0,
+    "providerCalls": 0,
+    "recordMutations": 0,
+    "rawCliLogsStored": false,
+    "rawProviderOrDatabaseDiagnosticsStored": false,
+    "cookiesHeadersLocalStoragePersisted": false,
+    "credentialLikeFixedValuePatternMatchFiles": 0,
+    "credentialLikeFixedValuePatternsPassed": true,
+    "secretValuesStoredInMap": false
+  },
+  "limits": [
+    "Local source, build, CSS and CUA evidence does not prove deployment or production state.",
+    "Synthetic loopback evidence does not prove real OAuth, permissions, hosted database, provider, directions success or record mutation behavior.",
+    "The 45 menu-viewport cases are a finite census; chart and wheel transitions were observed once and are not independent performance samples.",
+    "Cumulative console warnings include earlier bundle reloads and are not valid for between-build statistical comparison.",
+    "No speed, cost, general usability or production reliability improvement is established.",
+    "The compiler filename-set reconciliation uses .tsbuildinfo only for paths; individual incremental version hashes are not source-content evidence.",
+    "Removing four Next-generated fixture include globs changes raw generated-type reachability but does not change the canonical 547-file source manifest."
+  ],
+  "artifacts": [
+    {
+      "path": "README.md",
+      "role": "canonical-summary",
+      "sha256": "811f68215a538afc57a8494a34edb6f32bfb694d1e788d5a1e0cea2d23598d62",
+      "bytes": 15246,
+      "mode": "0644"
+    },
+    {
+      "path": "after-invalid-tab-binding.json",
+      "role": "rejected-setup-failure-readback",
+      "sha256": "c50a73d320f5c7bd4c1cfeb27b9cdc60606114deeea5c0cc6d7552b8cfdb207a",
+      "bytes": 16978,
+      "mode": "0600"
+    },
+    {
+      "path": "after-render-audit-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "6537058811feb9b91b47136a4fdf50196817d8b94c63c63e932b36810901db6e",
+      "bytes": 70610,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-audit-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "5168397c34c804b113367b9403699c61a9664831558bfb1d2885e491b2c5cba9",
+      "bytes": 24609,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-audit-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "9b9377a224ac50188065401b83f82809db4e11a3a6e84afa3406506cec55d460",
+      "bytes": 58017,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-banners-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "806d15cb0722d19177085ec3acf63c6d9ecc685b72b20af969f16f3fd04a7834",
+      "bytes": 56045,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-banners-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "a9768586bd5fcd432869870d546727c1695d351e86a0cd9644da6b0b8524567e",
+      "bytes": 21225,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-banners-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "0c2ceee4bf62204a552f7599acf14a4cece64afac4f78534f16b175d38f02957",
+      "bytes": 40351,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-insights-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "8813fa9e76104a6d52811d92b556b52c9ae7b87bc2a2734b75dae21ffb5c5d9b",
+      "bytes": 125280,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-insights-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "0862db9a2296cd2224de409ddd741617236e09a6f15a614e3dd38f3a18833370",
+      "bytes": 46379,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-insights-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "8dac3fc724971c9fd047dce27d59233d8f80200e9317bf03620679205a757d77",
+      "bytes": 90346,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-knowledge-graph-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "3211f1ff26a5dee0c74a8ab5187d7997c75bd3e95aa58cd5e9057d3f590897d2",
+      "bytes": 65335,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-knowledge-graph-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "d9eb1e4330ab807791b2cb56f5585a64b4aa4e2878fa8dcb47a5df5cf764d50a",
+      "bytes": 23228,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-knowledge-graph-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "2f49f3415a7b00f2fde5ef76898ae081a05656ba9e7e36145c8c7bf8abe65962",
+      "bytes": 47635,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-llm-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "647691b1b91009b356c275de7e79d378afe70b39f72000f4d52d499c40bd3d2d",
+      "bytes": 76020,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-llm-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "bfa3e279741785dbb6a299f1f5d76491084fa8a5f88e37bf86fdc6681e0076d8",
+      "bytes": 34869,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-llm-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "109cf8b80685e9d1c52aeb8a20da886688937bc5e8b3f8ad4bbdf0c3a2585b49",
+      "bytes": 59507,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-overview-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "34b2f389613999aa7c589c8c8b3cddf1eb9176dfe88a176025bfdd1aa9c732b6",
+      "bytes": 163977,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-overview-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "d89d3a673eb35d2e3272765c43ab7dd7ba7facdfade405c58d791874474b7340",
+      "bytes": 41709,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-overview-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "597b37ccf972233b48476f6d67f966292cbdfde65310e219078f7ecaf7e25fc6",
+      "bytes": 89742,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-pipeline-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "3bb3b627faea28b00ce745fc5145a68a8f7de76304a23ff40e76593fcc063819",
+      "bytes": 77648,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-pipeline-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "82c4991b9316f240b016e2360543e03bd72bd6b2bd1f7f36a4668eaa4e144085",
+      "bytes": 28795,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-pipeline-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "cb8f362f2f19280efe95b8f2d1b2aa0b835b8880cbd7ea28f08cf84a80c0c674",
+      "bytes": 58015,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-readback.json",
+      "role": "historical-chart-fix-render-readback",
+      "sha256": "967217da58498f3cd2de83ad3a179deca1550846c4d5a44b9ada9d7e3c3d2ecf",
+      "bytes": 61272,
+      "mode": "0600"
+    },
+    {
+      "path": "after-render-restaurants-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "7f7d7b196f697e69e6541e3f952c861706b67a88c7184e49f037a03ee68f3cab",
+      "bytes": 122613,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-restaurants-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "f20ea5c68f99ec5332dfbbd4f4b80d6caeb0af3e23636f0ece8b0a36f1503e67",
+      "bytes": 40285,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-restaurants-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "95d17a95d86315e2626bdbbbc4040dfac301cd0f13dab968377b77c8317c2ca7",
+      "bytes": 99765,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-reviews-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "357676f16e7231c380b56ca4fe2a9b84aa15d758ea9ef3a50827c41446710e78",
+      "bytes": 51744,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-reviews-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "7ca9fe768e808aa6dc9675618f5d67d801de5aba086c8b439e0d8b05fcee5fb3",
+      "bytes": 20206,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-reviews-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "1ec249d35ae22edf847c93839b5da8ce4ccbf70ce3077177fdff4b7f623c4ee6",
+      "bytes": 42150,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-routes-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "6f903e9aed3350b307ec8788d0ba6c003dc18bf01bdf06e22e3a6a574bd8620e",
+      "bytes": 105077,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-routes-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "06cf5be646687e7d51402894183e8559b9d79d4b6d4c8825697998fd81c9c60a",
+      "bytes": 30972,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-routes-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "03657ac729590d4cc6d0a019e46737f08769468f79eecf138d601f131f167db4",
+      "bytes": 68828,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-sentry-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "5b14f1a68e473425aecb533e127265dee6ecbda149b21d1a80a7a51249452b16",
+      "bytes": 45979,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-sentry-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "01a8548422dcf224a9d07d953c6ee425dabe6a136f3210152551a4524c2538db",
+      "bytes": 17832,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-sentry-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "49445f8f62cdf545b0b380a5d516d363b5a805a47827380dcd8cb5fc45d0ec39",
+      "bytes": 37629,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-storyboard-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "395b720c1b1fb8b0b1536e437c2bd1f7db011364027889c07fccfdbc4cc69627",
+      "bytes": 85320,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-storyboard-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "7749de1494af72c86deb53137a76699f881f2dc1f7d8e17f98bd69556110cd4a",
+      "bytes": 33583,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-storyboard-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "718a11a27139ff2f957eddcfe820849c9dd4c9cb6c9daada944e1d796861c25b",
+      "bytes": 73062,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-submissions-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "9515623d6c548d270033f6b4aefff5bd9f5018dbd3f5af9af02a8cd1613e06b6",
+      "bytes": 53425,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-submissions-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "10c31aa028934deae09356f22d9f46a6264b0768bff7a48917ba0775747baaff",
+      "bytes": 21391,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-submissions-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "dd64e22caa70aeb6aec0a9618d02fb18b6806a71092ec5e1143a7aea9cc0b8cb",
+      "bytes": 43097,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-users-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "55d7b5f5338b9a6cc8dece569488fbc1cf762144543da3ea28077474da39191e",
+      "bytes": 64396,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-users-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "419b84292035b514af0fd9cccddabcc9316892a7e76d70fdcc40b753b34ee51a",
+      "bytes": 28441,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-users-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "deaa231aeb1f774a88c0c082b4f5195fbe3a432eb3e847c661077c4fb33098ee",
+      "bytes": 50643,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-youtube-thumbnail-generator-1423.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "1d8556ad229260792904a511dbb4993435dd7e70db0f55e06553bd553d19d07d",
+      "bytes": 188212,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-youtube-thumbnail-generator-390.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "ee0174a6012fd34267bb2ea651ea12a214e1552bb93e24d7992252121c7433bf",
+      "bytes": 62487,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-render-youtube-thumbnail-generator-768.png",
+      "role": "historical-chart-fix-render-screenshot",
+      "sha256": "b18cad02a7674af34bf94bfe11e411417caa725769e8486840f2d5a3e427981b",
+      "bytes": 100870,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-audit-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "7bfcb040bcf7a2cbe1f09812417c45531db877342f1d6edaf8a5ca99bd085243",
+      "bytes": 70564,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-banners-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "2a6506670bc9e9c6b40f107ccef2ed335d354584b0066bac7a6f03e7e800e515",
+      "bytes": 56133,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-insights-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "0f737364ed6eab828ba77b14b35a5a18ef23c3d09e9864cef79666756fa68360",
+      "bytes": 119455,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-knowledge-graph-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "59d2fde2a5113b4e4bf8bec2f76f241c815a1f61c107cc49e543c80f3911d336",
+      "bytes": 65250,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-llm-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "1e212b74c2a73db1dec9d55b0ba18bbe58bdefaa9d1bef870f07e632adfc79f4",
+      "bytes": 76106,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-overview-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "7b402ffc1af1ddfb1e1a3bb3977b5821314faf898d0a3395c098a346db75bb81",
+      "bytes": 163958,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-pipeline-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "66bc73306af1e2f20b6b1e3ddb65574d02611b1c513e92836aed3f4467339d21",
+      "bytes": 77635,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-restaurants-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "e083e1a16f54f7ffc938b70ab0b5cfeac859a0c7ca794cad0b9de5991bf88cbf",
+      "bytes": 122608,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-reviews-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "60096f08fd63bfd5ab467015bf89030d2ecc9f9fc8f0638589061bd1ce6fecd0",
+      "bytes": 51736,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-routes-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "bad8b1f4ddf1ef831fbea09ff9c3b83e29289f6c8a91c2a74c2e09cf969631a9",
+      "bytes": 53614,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-sentry-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "eb16240393304e0137abc3d4ec24af6ef5ec5cbffd65818d0c4ace97687a7615",
+      "bytes": 45980,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-storyboard-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "306fe324e565650c8f49e7c50b62f60fb353e0fbc9a875a8af94b89a2ed304b1",
+      "bytes": 85132,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-submissions-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "99e0fec6c64c347837bf52d14618619d9831db85e63b345e4f88fffd3c7e1f17",
+      "bytes": 53318,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-users-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "9be53fed6c61b99c2203b7d03b97d780462d349cb1df319ee45f945ce136ed58",
+      "bytes": 64240,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "after-setup-snapshot-youtube-thumbnail-generator-1423.png",
+      "role": "historical-setup-screenshot",
+      "sha256": "11dc94bbc8d3027ca4aa2c11bebb36852e3116820cfa24432e17f18fda76f716",
+      "bytes": 188174,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "chart-toggle-before-layout-fix.json",
+      "role": "rejected-chart-regression-readback",
+      "sha256": "b2201969e87701e6c5d73d9ae6c83c9bba7b6718f6cb660f3abb50be3f2879c3",
+      "bytes": 3898,
+      "mode": "0600"
+    },
+    {
+      "path": "final-layout-intermediate-readback.json",
+      "role": "rejected-intermediate-layout-readback",
+      "sha256": "823e067ae33161e63dd39f9f75576d51b6ca336e3a41ad9c3d81bb57c3f2b81b",
+      "bytes": 47368,
+      "mode": "0600"
+    },
+    {
+      "path": "final-render-audit-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "0121be88fe034712f619932a95bd9367ee4cbc292fc5036bd072876f6daa7ee1",
+      "bytes": 70749,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-audit-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "eeb1c132e74a1945f3d1e4b9571b3b6243ffe91d229e3fc7be5959d97dfd9c2e",
+      "bytes": 58059,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-banners-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "6ffbe97afa2711cf7b0f97b5b93fdb9f417432d4ed789704085743fcb371996c",
+      "bytes": 56020,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-banners-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "909595b404bf4b870b9bd47728556e43e23eb230a8eb189437fd08e42dd3497f",
+      "bytes": 40439,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-insights-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "8d160991dfe0613c455dc4ee41aa5023157102d10ff5925b70e51f515e6d2303",
+      "bytes": 119566,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-insights-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "499918c8353f99e6154915ac3c45caffea6c2bbfdbf6d29916d4433fb93c4335",
+      "bytes": 90235,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-knowledge-graph-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "66e550490de1f52d6a09cc412f1ad87c686be8a2a6a47d27ca8a7fab535d5827",
+      "bytes": 65244,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-knowledge-graph-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "5c49979570f8cda811582abfa422f01ebc7945c8cbeb2840a9147bf8c05cbddb",
+      "bytes": 47728,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-llm-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "2e352e567733cb4fb68e72fb72959c222c4ce6d4be9005e16bcca0d5fd95e81f",
+      "bytes": 76063,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-llm-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "dd12226b0e4251f1b32d88afdb2f7fe43d1bab55a60d9abb75d88956516affdf",
+      "bytes": 59273,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-overview-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "34b2f389613999aa7c589c8c8b3cddf1eb9176dfe88a176025bfdd1aa9c732b6",
+      "bytes": 163977,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-overview-390.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "b91ee84b8c29fea5bc3f35ae8df0220cbc372b481747dd0afdd28b1db23b952c",
+      "bytes": 41701,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-overview-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "0b13ac012eef5d461ccd862d68e9a8e818729b17d2b15f3a059dd6f6d6281a57",
+      "bytes": 89751,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-pipeline-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "843a7e3f12162b25021c1d60ec48aae2ad97aff47b1d4481cc04a03f4f50d716",
+      "bytes": 77702,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-pipeline-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "6b2ceea6241df9b4732bc277a6da64462c05249061ca3c0a21ad5183b9eee8f9",
+      "bytes": 57951,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-restaurants-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "d3e43856198c1643f9d716949e7de500abdd5f769bb07348d2009ab7776b82f6",
+      "bytes": 122688,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-restaurants-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "951600dbda73ccc4fc9fffa1c23fe90eb37edfb2edfabc0c0c09c14ecbc76822",
+      "bytes": 99849,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-reviews-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "fee66750d172717c9f943e05770d508246c815f053042966e3b875f07119546e",
+      "bytes": 51810,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-reviews-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "a6b3072a9a65726e8c3c907617c2ecf41d81171695d0f1fb63bd5e8be0261722",
+      "bytes": 42185,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-routes-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "7c410cfa5ca1c3ac3c150650d89c15d60968d07c09b2159e048b3b6c75115200",
+      "bytes": 79997,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-routes-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "9fc0ac2a81e0dab992356e1560fd359bb0e1e672958b15fdfd81b39d896b5e2d",
+      "bytes": 68749,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-sentry-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "09739122e1ec851d7af64f4dc2637fb23850668c6efa9988a3d073351cd20744",
+      "bytes": 46032,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-sentry-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "8ccd456918b4d9985c75001fc7176e605ad0cc73732f2d05a55dc89f7deba5c2",
+      "bytes": 37600,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-storyboard-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "8e00d1956e8868a1250b8b445c37ed301740033f88f70ba7a57aa26c4a0a3aa9",
+      "bytes": 85168,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-storyboard-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "601f7164ec4a4d0721f4b394ab0cd8a5fa3e3f65f2fe1e4fea8518b9d3a3fd1a",
+      "bytes": 73014,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-submissions-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "77adf40969e700c18dcefedb9bc55752bddc08865e705efa111d1dde927ec21c",
+      "bytes": 53212,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-submissions-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "5d7c37f4825a6b11a789bce773d5ad107fcd89f18e61a3fc19f6c774d839b3bc",
+      "bytes": 43135,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-users-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "5a9395a19747350b0dec5463fd126c1e03888fb96038d7cde6aa51c4229a0cfc",
+      "bytes": 64290,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-users-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "6f9cc0c009b7de9b8fbab26a7ab8edae5bed031ae60a4eb03b38856858d8c2c1",
+      "bytes": 50680,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-youtube-thumbnail-generator-1423.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "fdc7df8e0f7d363bed19706649919ffa8bc9f51af59157a70888eaaac8e67722",
+      "bytes": 188166,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-render-youtube-thumbnail-generator-768.png",
+      "role": "historical-layout-intermediate-screenshot",
+      "sha256": "806188e4e014340761eee6e2d2310f4890753fe95da682bf46b7f3bbe85379c0",
+      "bytes": 100819,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "final-ui-overview.png",
+      "role": "current-final-overview-screenshot",
+      "sha256": "e4e4df61c748cc765d9505f2d6aa48323ed00649852a6d9e3bba9975c6e426ac",
+      "bytes": 164017,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "fixture-data.mjs",
+      "role": "fixture-source",
+      "sha256": "a68b66b253732283abdac28bd97a5a436e8ab008fdb64d0dca0f9928c75f541f",
+      "bytes": 10490,
+      "mode": "0644"
+    },
+    {
+      "path": "fixture-gateway.mjs",
+      "role": "fixture-source",
+      "sha256": "4c1de21b915fec206c8fbc76e82d41c5e1c8a388627c41c25b08aec6dd1d382f",
+      "bytes": 23687,
+      "mode": "0644"
+    },
+    {
+      "path": "focus-final-render-audit-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "42dbafda2703bf6f4074f5202cb469186c7c92b51416729134cdb56e212ab83e",
+      "bytes": 71024,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-audit-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "911b4814e3040f16b7ebba706a6008d7c204c6937720776560a8b341ec3e320c",
+      "bytes": 31563,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-audit-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "37a33f8494d1d85b84dcf40c899a1e6da513dd9dfaa89603b17501d728d65984",
+      "bytes": 58354,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-banners-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "048b3aa784d6b6a3d59165deef275d5d4f1f0de2cc0f024c19c1e340039c0b7d",
+      "bytes": 56436,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-banners-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "43fdd8a754637077a59a1cb74cec040307ae904ea776c8d4d3baa27b34470d63",
+      "bytes": 28440,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-banners-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "a6e44fcad88de512bbe5398f33cfb0764463cd3f0bf550c740b601fcba2725f0",
+      "bytes": 40710,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-insights-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "e155c4dd3c0621d1533a016569c4749db106dde74707bd711999c6c19bdf8578",
+      "bytes": 119639,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-insights-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "ac9d04ecf3c1457b693bbab97d35793d77bc959734eddc6ed010644b1cb455b6",
+      "bytes": 46794,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-insights-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "efcda51706d14655a7bfa90f8d86fd604e25ccc906e3c3b05eacc946af8e553b",
+      "bytes": 90290,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-knowledge-graph-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "d43100248d2b5b327438686bd93fa1acb2c65b912a5022fcb369bee90b84faed",
+      "bytes": 65305,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-knowledge-graph-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "d5e0b54f7a905c71e6df8913d607493d224ed492d939c6913fc84ad0e08a6f7a",
+      "bytes": 23468,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-knowledge-graph-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "faa395958772f1b1cb0b7b6bd25021418d6c46a2aa7e3cbbac055f76dc0dd1da",
+      "bytes": 48026,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-llm-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "61a36a33ac7197165af27fe95277aa95461e07c3af8926555b6a098e85db8f32",
+      "bytes": 76440,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-llm-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "7af42cf50c92832d8c25ee84a200bd8c656044d8ca3f62d4a6547e5746b8b535",
+      "bytes": 37742,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-llm-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "d567fc9285ae2e38a0c0a343ce097906c005446339e7bf185dab5754193a5db4",
+      "bytes": 59750,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-overview-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "eff79d5d79dfdfe056d07779321bba2243eaf75b6c8359ec9ea2ebba27862c9c",
+      "bytes": 164246,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-overview-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "535dcbddfd0f0e2a01bf3ab798ec4ee8e8bd882547cd56363f655159f967a619",
+      "bytes": 45873,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-overview-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "c6d7ee6ee3e7c3a6d0b824caa9f13d4608b015e0f891910c8200e5cd3793803b",
+      "bytes": 89851,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-pipeline-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "dfb9fbd468ab09b2ffbd1e77dc4d52d2cc2a15af4af62368870004ea7889fee5",
+      "bytes": 77899,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-pipeline-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "16849315d9e5acc476fdb84e05405b9bd86726d75a3cf2860837209ba066b6b0",
+      "bytes": 33675,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-pipeline-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "0fd297e14218ff9a607c1c9742d458b1630aaac0ce7b14d3732830a8e13d08dd",
+      "bytes": 58129,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-restaurants-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "02ea86943eff12af79931496709e3ed3c307896fec249124bc3e8b94261a8e36",
+      "bytes": 122927,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-restaurants-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "53d562f23c686d9b330b23a813ad5b25fa48e8a3e2ac64b48ce47585e2b4b30e",
+      "bytes": 43163,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-restaurants-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "9a3d6e76d09f231a42a2220a9c4a1d919ad1a5af2c3a4c0ebc29cbd98d1e2d51",
+      "bytes": 100221,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-reviews-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "71f4ff716d04e672ac589852697f75d21148019ce9faa4cce1682108b8866a11",
+      "bytes": 52100,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-reviews-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "71cbc1cf252fde2e5aa9e1c90b7ad5e2ea567f77dbbba9671e13b8881dce2863",
+      "bytes": 27579,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-reviews-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "00cea299f9230499affb493f96c952f5c5a144e4860e92cd1425ebfebadb1077",
+      "bytes": 42582,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-routes-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "9f259c3d034151d76ded3b39d06c2993dc4af474124e2f2c318a5acbc82f56de",
+      "bytes": 100455,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-routes-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "d3897a323fafff7d08ee7422e9c0def26747ca0152d556e8f897d42fcc12194c",
+      "bytes": 35653,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-routes-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "a1ae444f1448e190ceeb7c20c908bee8b5c6729e288dc961ab36a5404ec522ed",
+      "bytes": 68926,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-sentry-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "78b3ea48a8bafdd6161c09d807a6566b5afd1af17e3b851b6e0c8c27f90b5e25",
+      "bytes": 46091,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-sentry-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "ab5b7c36df3a9113f1eb53bebf08a3ecd044a1c85216e664dd05bf74143c4b29",
+      "bytes": 18276,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-sentry-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "c099cb1a14f2bc2d318008b6260d53b3c8fc64af719ccdf47f8613fe7eb9c0f0",
+      "bytes": 37838,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-storyboard-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "8d39406cef809844dcb69ae80691419d07d0bf9ef63144140ec55fe3db081ef8",
+      "bytes": 85281,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-storyboard-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "b2b9bee5c29120eadd5055523325d163230cd3327a8eb55d56d6c8917fb685dc",
+      "bytes": 38676,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-storyboard-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "d6c074b89f48aa498403306d30af4590564a56ff9992ad5efaba4aca75806eee",
+      "bytes": 73284,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-submissions-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "d6af2d2fb3abedf3aa07db67c4f8e04a4abde62c8bfda9bcbdbcbbdb1eccadcb",
+      "bytes": 53712,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-submissions-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "b5a3984624196ff06ed469afc492503494ff1f3634319001f6dfa4cac31fc7df",
+      "bytes": 28767,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-submissions-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "696ff16e221ef64ac9944fd39f2952786cd883099634112fe98b388383df9763",
+      "bytes": 43372,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-users-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "cdddf954ffe9da0870756b6ebc8be69b0819d74e4d26b66a5cad55efb566a299",
+      "bytes": 64449,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-users-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "2cd680033ff06e52b5908e6c3ca839f990e65325755efb04831e322c9864e945",
+      "bytes": 35631,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-users-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "9db2f4b76dff23e9c15eb8433b70a1c25e33a65b491ff00e90ddd63aa79b2e72",
+      "bytes": 50932,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-youtube-thumbnail-generator-1423.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "93e24c561344825e3b029d7ab298c0e5936d01472cb7151a84c6c6b955056fa5",
+      "bytes": 188361,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-youtube-thumbnail-generator-390.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "fffa8f6d10b321c89a8a2f1dd42dd712f9e2a4f0d3bd848fa22addcc0787f37c",
+      "bytes": 63111,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "focus-final-render-youtube-thumbnail-generator-768.png",
+      "role": "historical-mobile-focus-screenshot",
+      "sha256": "f6c87d2f65cf4d836da93cbada7bb83b20f4f33c7e45e5a8e9c3d30c6a9eba52",
+      "bytes": 101201,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "launch.mjs",
+      "role": "fixture-source",
+      "sha256": "b6889b8a9f8a186a96ddee7b0859b76a303e482ccf02fc0e1518c8efb04d081e",
+      "bytes": 6291,
+      "mode": "0644"
+    },
+    {
+      "path": "loopback-transport.mjs",
+      "role": "fixture-source",
+      "sha256": "95f1adac46f098f0e05c1ff05271f7d13e90e5a17984b4f1b2c46f9f2bed6ff0",
+      "bytes": 6305,
+      "mode": "0644"
+    },
+    {
+      "path": "mobile-focus-render-readback.json",
+      "role": "historical-mobile-focus-render-readback",
+      "sha256": "01d534e7d4ff27ec1d5908615bafb3ab9d4b3b4bddd9d1194ec543de30298e49",
+      "bytes": 64893,
+      "mode": "0600"
+    },
+    {
+      "path": "overview-desktop.png",
+      "role": "historical-overview-screenshot",
+      "sha256": "34b2f389613999aa7c589c8c8b3cddf1eb9176dfe88a176025bfdd1aa9c732b6",
+      "bytes": 163977,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "production-build-after-chart-readback.json",
+      "role": "historical-chart-fix-build-receipt",
+      "sha256": "0b323cabe454690b451db354f67eef24ed03afe68225d4f1194821fe00ec3c5d",
+      "bytes": 7924,
+      "mode": "0600"
+    },
+    {
+      "path": "production-build-final-layout-readback.json",
+      "role": "historical-layout-build-receipt",
+      "sha256": "978947f788f5d7986cd5e0a5de8ae114d553e57eee1a0c442fd2fd5e033a84ec",
+      "bytes": 8438,
+      "mode": "0600"
+    },
+    {
+      "path": "production-build-mobile-focus-readback.json",
+      "role": "historical-mobile-focus-build-receipt",
+      "sha256": "1b2f576fb8150a05c0531e1f84b194e45d2b01ca16bb63ea1b437ea9b52e03d2",
+      "bytes": 6722,
+      "mode": "0600"
+    },
+    {
+      "path": "production-build-readback.json",
+      "role": "historical-baseline-build-receipt",
+      "sha256": "d3f3f1280d7e86340193abef667cc0772ef0b59b0dd1185aa6b0859b29041505",
+      "bytes": 8018,
+      "mode": "0600"
+    },
+    {
+      "path": "production-build-scroll-owner-readback.json",
+      "role": "current-final-build-receipt",
+      "sha256": "23ed890f953e4594464fa7cf670c52733aa8484c8970ff97d107f21e2e4e150e",
+      "bytes": 7238,
+      "mode": "0600"
+    },
+    {
+      "path": "render-audit-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "dc8ccc6250fec9689990fb7ce171159494eb7e6261fed4a5f06cfe5517d3c702",
+      "bytes": 62764,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-audit-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "b6daa96e36294b3eb4d023784208a9ed12f3398fe5de5f0403148a03256a108b",
+      "bytes": 31240,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-audit-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "f5ec54a2ceeb64e1c3e979717e744d1dbf4020c8999b2632d4c67d8788c92e7b",
+      "bytes": 58024,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-banners-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "e90db500004a67fbeb98359a4cd4365107de5a3baa19660a2761f6b8cee9c7e4",
+      "bytes": 55958,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-banners-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "004474b8621571b6e6db59dd2909db7688f95f69bb264307fd64e56de56e411c",
+      "bytes": 21201,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-banners-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "18c42807acfd87b286119e6d06df2c2e34770233a38f754617e7a99f8eb6fad6",
+      "bytes": 40445,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-data-path-result.json",
+      "role": "historical-ui-only-read-plan-result",
+      "sha256": "910eb559db45c6ac419626f0c6af58e4ab262bf3f41e4b1d692e175b6fd16f4d",
+      "bytes": 324,
+      "mode": "0644"
+    },
+    {
+      "path": "render-data-path.json",
+      "role": "historical-ui-only-read-plan",
+      "sha256": "9b006e8c93882faf712c1aa2def001a7fcbe27d02829fa90e116cd2f1d8433fc",
+      "bytes": 269,
+      "mode": "0644"
+    },
+    {
+      "path": "render-insights-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "0f737364ed6eab828ba77b14b35a5a18ef23c3d09e9864cef79666756fa68360",
+      "bytes": 119455,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-insights-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "a0978f323cb6e75e82a5d065abdf14bb86129a5488b26f245fca698956fdc821",
+      "bytes": 46363,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-insights-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "1398d6c7f6e0639607835aec84b6c41aa5bc42156f8f646ab6a9ade0605f0c75",
+      "bytes": 90214,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-knowledge-graph-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "cc8f47614364b0d29fb75bc6c15ef8fc7714c4b86249911a4303c5e77fd4b73c",
+      "bytes": 65164,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-knowledge-graph-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "6c1df6e0fb3180ac274e2958975e9e90b3eb89d0fcd3434af324157134bed65c",
+      "bytes": 23196,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-knowledge-graph-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "bd7a3a60d9b2bc9f6183339491d6f3a713b473a9cd510ca154ba78ed1159234c",
+      "bytes": 47622,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-llm-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "ec8b9e6599aff565949d35e43de3878847330a893d1ccc9d3ab4b800bcacb5c9",
+      "bytes": 94276,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-llm-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "50e2055b84185d38804fec06e6c6f4d09a436bf8f58747cbd9a3068d031ed588",
+      "bytes": 37533,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-llm-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "c4f4582270b120695b2ffd26a6e62b25aec5cb05fb0c0352864725bf57ae12da",
+      "bytes": 59344,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-overview-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "7b402ffc1af1ddfb1e1a3bb3977b5821314faf898d0a3395c098a346db75bb81",
+      "bytes": 163958,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-overview-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "b91ee84b8c29fea5bc3f35ae8df0220cbc372b481747dd0afdd28b1db23b952c",
+      "bytes": 41701,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-overview-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "153a6b14bfcfa3c21acd8c81185f9bce6c919e5136c1096ea47ffcd43d75cde3",
+      "bytes": 89872,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-pipeline-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "319a5d9686b4ccd79257501908fcc9743677c321f221d53c44b50bc437ccae83",
+      "bytes": 77650,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-pipeline-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "87485686887ac09e2517d50fe661bfc3eef9c7995dd9ff2302450c92c83a0766",
+      "bytes": 28758,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-pipeline-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "d9d2440ff5741c8dd3c9f2efd964941855ca0d1fd9c00dd91be4cd15d4fdf878",
+      "bytes": 57901,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-readback.json",
+      "role": "historical-baseline-render-readback",
+      "sha256": "a82c010c212c752a14e5e273883b4c953bd787ce34fd64ea42db8c373b04df41",
+      "bytes": 60253,
+      "mode": "0600"
+    },
+    {
+      "path": "render-restaurants-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "2e7cdcba9164dc6ef2ee8d58cbcf0750730f3916f7699b4ee03cb5a16ef81b42",
+      "bytes": 122645,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-restaurants-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "f39e8e8719322ee7b87a426df63a6263c263430cd667f15e351b4f61e6be8ae7",
+      "bytes": 40328,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-restaurants-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "d67dd8dc6c98a2bc5dd6daa6827b4b2873c9a570501ebd91bee3065e2d750590",
+      "bytes": 99927,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-reviews-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "b4ea3d177934f70d99effded00328490848ffa9a9e1f6de9182d4cac21596cf6",
+      "bytes": 51845,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-reviews-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "cceb62912b0b8d2b1f15a0a39500c8dafa9134ea81d60dbfae9e0f14435450f5",
+      "bytes": 20252,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-reviews-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "4da5a69abc9181e822a5f5accfb405045737e62a2ac4d69e113c1b95d45db78e",
+      "bytes": 42174,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-routes-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "cf92e9bd7bef0f77eaccc97a034488f1c94ecb4d30fd2256732d91580e67136b",
+      "bytes": 41225,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-routes-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "2b11baad60f28ee88d0b7adfa1cf67fce25e4f589f60948e16dc3b2678dfc117",
+      "bytes": 35388,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-routes-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "fcbf7565a2d82b5db54fae3a5dcc580d38af3e3ff318ef3827d1a20f109682e5",
+      "bytes": 68833,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-sentry-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "eb16240393304e0137abc3d4ec24af6ef5ec5cbffd65818d0c4ace97687a7615",
+      "bytes": 45980,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-sentry-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "38287ee0400def2d53e95fc106f863a7b1d37d36dc9448f0884d27cba39a736b",
+      "bytes": 17816,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-sentry-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "9821e9b097e12802d6dcdd858f5b87a729c6ac619f4d4f0103caf0cb46709b09",
+      "bytes": 37581,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-storyboard-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "48a423601c7ad8f95eb14f69c5ada1b35b89587d763f116d850fb19bacd2bbae",
+      "bytes": 85131,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-storyboard-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "7a438017316e33e782a408bf9e83967015523d7c77e4d32b92b246c1e5d010ab",
+      "bytes": 38345,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-storyboard-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "cc8c495face852aecae6473fc568e12c492f56215a8aa0a5fe90e672a36c0bf0",
+      "bytes": 72964,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-submissions-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "b33ad85f6a2e0ee2c94c9589775bebcd093652a672debe9c79d77171ad5a1acf",
+      "bytes": 53355,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-submissions-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "fb527c870c6595b0b7c2cece1bab6e3641bf4fddb00831816777b7e59744b359",
+      "bytes": 21421,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-submissions-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "f68de5b591736037558c4860c733e2bce2205efb78bec44e4469f8382c971c6a",
+      "bytes": 43012,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-users-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "9be53fed6c61b99c2203b7d03b97d780462d349cb1df319ee45f945ce136ed58",
+      "bytes": 64240,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-users-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "727d6c230241d51b3845fd08b1645914098f76928132eaf0ff05ba83586902ef",
+      "bytes": 28494,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-users-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "d9d6f51a5f7da84d21db31e4bac71d1ce12c1a0a06e2322d5d72bfb32184caea",
+      "bytes": 50610,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-youtube-thumbnail-generator-1423.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "6b1e2a1e5e2147e860c7200746120fea3eede9bca3447eaf2b2e4fe68d71d0f4",
+      "bytes": 91628,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-youtube-thumbnail-generator-390.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "10cae967c7618564213bd9554e7ec5e6ef9231f04b85e6c3ebd466a2c1794b1c",
+      "bytes": 63170,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "render-youtube-thumbnail-generator-768.png",
+      "role": "historical-baseline-render-screenshot",
+      "sha256": "46e6a3761c69a78842ba7e4a797911bed0aa4948b5587c743c2fe7850f42fa0c",
+      "bytes": 100894,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-audit-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "96482b3770639c754bf12420d04d4dedfa516fa4625b6960039c7f0b782b15e8",
+      "bytes": 71040,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-audit-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "b72ea69fc818bd6f9059c1bdd28097875e99de9813425614b49245db9c6a507d",
+      "bytes": 31658,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-audit-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "eff37a954327ec79ef6c31b802eb16a07d43d7f757625cd1591a1efdac006191",
+      "bytes": 58349,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-banners-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "e57177a89c48b4c2566d84785f1b7ca67465614247f9de8283e994b28a1f5c76",
+      "bytes": 56431,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-banners-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "815dc75f7b1885892701455d788de36644d44a0b93fe27089ec5ea5845593ea1",
+      "bytes": 21667,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-banners-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "5a9e4ef236651e70ab0b75425e63ef514505856777f88efda95499bcdd22a557",
+      "bytes": 45548,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-insights-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "641172f6778905e43a419310092ac53411c553a0a49373ff2ecf0d0339ceb004",
+      "bytes": 119612,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-insights-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "a1df9f23506677c0eefe0419031bd9e77977bc37db9033873609d39a546169ec",
+      "bytes": 46646,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-insights-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "47e189144b42935bcc57cc379dc06408595ed509c2d452672858bbdb9264a769",
+      "bytes": 83681,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-knowledge-graph-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "09a466198675cd22bac882ef514f04aa2ff932a5636803be1492df4ad7b30724",
+      "bytes": 65357,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-knowledge-graph-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "5bcd83e69cf9f5bc86c28fc10015f4a514e5d48c28abf588675f0d60f000b518",
+      "bytes": 23536,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-knowledge-graph-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "0e1c80420532bfaff2ef02fa953498b54dfaca575b99bc1cfcd3eaf572b721fb",
+      "bytes": 49798,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-llm-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "a731972a1aa7eafe02276b3bcc49b2586d363511e97b16efd41d7a82e94e255c",
+      "bytes": 76424,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-llm-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "18731bd3d29c203643cb1b76244b4ba0ca46a882a0fd7a842235b5acca9871e0",
+      "bytes": 37797,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-llm-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "d567fc9285ae2e38a0c0a343ce097906c005446339e7bf185dab5754193a5db4",
+      "bytes": 59750,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-overview-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "de5aa2867766789644f3ed078d811c128bfe96d3cedeb20a36161cf312ce3b5d",
+      "bytes": 164116,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-overview-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "28dabd8007ee908d3f0752b624dec15751b1bd529ad840582a95b0af155a7190",
+      "bytes": 40682,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-overview-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "18b3782a198db99eccf92d04db434911b0686f57341ce5cbe3dac97c3a7d1180",
+      "bytes": 89633,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-pipeline-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "3bae4f4b9653d12368f1826c0d617e7fae6ea8e38f1516a3345d3f0238fc2497",
+      "bytes": 77924,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-pipeline-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "a95a3fc646d0bea8ed0bf57fb2ac6baea38bacf4196817f6f77c5d960727c1a8",
+      "bytes": 28991,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-pipeline-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "7d465f9f87c68e3d42adffadacf86dd63b162c275234f80967cfb99b983a2bdf",
+      "bytes": 55684,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-restaurants-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "f5108212302e2724a9a49bbdd393a088717130673d176192906024c22439edfe",
+      "bytes": 122959,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-restaurants-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "238b7fcd95dcfd9264f119a8376b7f9f1a7d597d80a09c2aadd609c2a503ede5",
+      "bytes": 40470,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-restaurants-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "edadda17700815f8de23e6c4d7cf9ed079631700e4a678d419fabdb40e2c6c7d",
+      "bytes": 103255,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-reviews-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "e2b57f8fd049c3ff977f6a13a15fc07dff33a0ff80000804bc12314ae6166eeb",
+      "bytes": 52245,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-reviews-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "cc92ff7e04e84bf92accddfabf7445c1741005da747f8c2baa08c47cdda5e6a8",
+      "bytes": 20610,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-reviews-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "3033e41dbc94d4f7962365072564e4f359bdc1164f0bcc20a9198db52359e502",
+      "bytes": 47448,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-routes-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "05568349109b9813c0355477af12a08c7a78166a91b458f6818e3c38248e708f",
+      "bytes": 80234,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-routes-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "bb8794c532f15f08d8f98610c1d521bbd2b7bbed38eb973253f6896de17f55fa",
+      "bytes": 35719,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-routes-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "d6fa5ac78239c84d012060918ad291549dabf389e804a3c16ae084780d4c01c1",
+      "bytes": 68878,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-sentry-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "db36bf4631a51cfeb73b7b460ed3d0ca08778b7eb980e24e9d628e11b8d8f7aa",
+      "bytes": 46147,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-sentry-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "8d8137fd99d0a55b9473de2d971fc78721037e6f0ef3f39256e1f90c29b759c2",
+      "bytes": 18259,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-sentry-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "e5df036e7856533a1197bc40d5f62a9c4679649c7d353dbb2a5b854590b8139d",
+      "bytes": 42502,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-storyboard-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "913bb5d658c7099f397fd174e3b6c2313de7254dc374c14008bce0ce5418aedc",
+      "bytes": 85282,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-storyboard-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "80d424f946e63e3df16bb98ff5259a156328b54f95428926c3ecb4839bfb06b5",
+      "bytes": 38707,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-storyboard-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "5deccd779272c09ded2852ea92f3ab6b0265609f371b7489f3b565fb314a063b",
+      "bytes": 70287,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-submissions-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "fcc0501b6f26d01860dbbad5558cfa4c0ff61938b94512b005198f400b81a2ab",
+      "bytes": 53638,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-submissions-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "2f618c4830afb859c112c52caa3dc3fb761ac45287e73a40d286267035fb5fe7",
+      "bytes": 21805,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-submissions-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "589c1e98dcfd3e1e01bd33580a68f6f2ca587b72ede3563ed114efd81f8a1464",
+      "bytes": 48189,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-users-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "7ea5e5893b45345e2bbab5e4c1c76bd1e08ea76b41afd251a22e8605371b0853",
+      "bytes": 64433,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-users-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "41decf263f73ee9b3195339b063d6545f00d32a8483b5f30c980f0a6f6ab69f0",
+      "bytes": 28896,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-users-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "78b8842fac1f304dd693ff953a6537b994282ff710ccf0076119f4047d66e205",
+      "bytes": 55626,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-youtube-thumbnail-generator-1423.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "6aac2ec690552dfe2cf26ecc42c711dbf2701cf376402c6e735d49ee7ec1ea8a",
+      "bytes": 188235,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 1423,
+      "height": 954,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-youtube-thumbnail-generator-390.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "6c284dc76d385c548fe323ae5b1b0a2ad387e924bfffa90850504289a8feeafb",
+      "bytes": 63120,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 390,
+      "height": 844,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-final-render-youtube-thumbnail-generator-768.png",
+      "role": "current-final-render-screenshot",
+      "sha256": "ac3f36b452d7a5eeefddce168d808d85ddead41d6fdd6cab7b5c830f3e7ec32f",
+      "bytes": 101091,
+      "mode": "0600",
+      "mediaType": "image/jpeg",
+      "width": 768,
+      "height": 1024,
+      "filenameExtension": ".png"
+    },
+    {
+      "path": "scroll-owner-final-render-readback.json",
+      "role": "current-final-render-readback",
+      "sha256": "602a6717fffc566be05517bb5e45d4f21dfc55179831dc82feaf4b2646f7dbb1",
+      "bytes": 70088,
+      "mode": "0600"
+    },
+    {
+      "path": "source-contract.mjs",
+      "role": "fixture-source",
+      "sha256": "2d045096091a6d4be50512eb1b8984aca8fa822c473c9588d830257789f709ab",
+      "bytes": 1898,
+      "mode": "0644"
+    },
+    {
+      "path": "source-signature-reconciliation-readback.json",
+      "role": "source-signature-reconciliation-readback",
+      "sha256": "9c4d9999951eaa3660cea4dad0f2772133b10fce45d018045531b1b4cb6a07f7",
+      "bytes": 106031,
+      "mode": "0600"
+    },
+    {
+      "path": "source-verification.json",
+      "role": "historical-source-verification",
+      "sha256": "04fb6a0320169d7b747416ba4fc6a3a3308a673575b8e6fb4627951b3eedce97",
+      "bytes": 1944,
+      "mode": "0644"
+    },
+    {
+      "path": "verify-package.mjs",
+      "role": "fixture-source",
+      "sha256": "917247132562dc689ae1fa6194240b0908640db68fb7fef0a316019e34eeea78",
+      "bytes": 11214,
+      "mode": "0644"
+    }
+  ],
+  "currentWorkingSourceReadback": {
+    "canonicalSourceFileCount": 547,
+    "canonicalSourceSignatureSha256": "58b6e29fa7ef19b52f4b66787261a797b2002d733a60fb2f535f618c65c58c2a",
+    "bundleCanonicalSourceSignatureSha256": "58b6e29fa7ef19b52f4b66787261a797b2002d733a60fb2f535f618c65c58c2a",
+    "matchesRetainedBundle": true,
+    "pathOrHashMismatchCount": 0,
+    "uiSource": {
+      "path": "apps/web/components/admin/AdminConsoleOverview.tsx",
+      "sha256": "e3ea987a737af697a5d7ea155a474ed448f1d539fe46178914bb5abc419ac4d1",
+      "matchesRetainedBundleUiSource": true
+    },
+    "supersededNoncomparableAuditProjectionSha256": "3e377b5ce052e29a4c0d2792a07fa3573272d75bca03b91fd3738b461aee5620",
+    "compilerInputProjection": {
+      "buildSourceFileCount": 3289,
+      "currentSourceFileCount": 3139,
+      "buildOnlyGeneratedFixtureTypeCount": 150,
+      "currentOnlyCount": 0,
+      "inMemoryFourIncludeRestorationExact": true,
+      "generatedExcludedCount": 3137,
+      "generatedExcludedExact": true
+    },
+    "reconciliationReceipt": {
+      "path": "source-signature-reconciliation-readback.json",
+      "sha256": "9c4d9999951eaa3660cea4dad0f2772133b10fce45d018045531b1b4cb6a07f7"
+    },
+    "disposition": "exact-canonical-match-no-rebuild-or-rerender-required-for-source-binding-reconciliation"
+  }
+}

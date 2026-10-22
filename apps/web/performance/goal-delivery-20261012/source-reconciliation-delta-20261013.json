@@ -1,0 +1,51 @@
+{
+  "schema": "tzudong-goal-delivery-source-reconciliation-delta/v1",
+  "recordedAt": "2026-10-13T11:05:57.667886+00:00",
+  "historicalPackage": {
+    "artifactMapSha256": "d45cfe77af130fa7b01df6c04188f754e138ca10b6891c189ec52e121f88b0cb",
+    "baseSha": "dd0c790be7ffc94a86f95126aa60019ded8ff9b7",
+    "buildId": "HcJtq7WT9AGLOOijoRGrZ",
+    "sourceManifestSha256": "2cc2a16f055ce9bbcb3cd1c75ac05c90cc0cbd36d29661d1967260ccf8dc3cfa",
+    "classification": "historical-build-and-readback-package"
+  },
+  "currentReconciliation": {
+    "parentHead": "bfea9d03853ab44db5e03bba85834a7ad4dd826b",
+    "filesChecked": 2,
+    "mismatchCount": 2,
+    "items": [
+      {
+        "path": "apps/web/scripts/gemini-live-verification-io.ts",
+        "historicalBuildBinding": {
+          "bytes": 25023,
+          "sha256": "011794294f92d45206601382809465ba3ceb3e5f61a25b270587d768d06678ed"
+        },
+        "currentSource": {
+          "bytes": 25668,
+          "sha256": "165cc1d223eb55b2dd54e8b3fbd2363cf138b401730caa7963e6615accb25dca"
+        },
+        "matches": false
+      },
+      {
+        "path": "apps/web/tests-unit/gemini-live-verification-boundary.test.ts",
+        "historicalBuildBinding": {
+          "bytes": 12827,
+          "sha256": "33ce11392aa64c24e524e915ada410d34b6608c89152f4f84c5a8f338789113c"
+        },
+        "currentSource": {
+          "bytes": 15429,
+          "sha256": "49e4d6e487ddb86dd79ee757f6b71b9b6c8232d735f7f8555954466204691361"
+        },
+        "matches": false
+      }
+    ]
+  },
+  "boundaries": {
+    "historicalSourceHashesOverwritten": false,
+    "historicalBuildReplayed": false,
+    "historicalReadbackReplayed": false,
+    "fullBuildRun": false,
+    "browserRun": false,
+    "providerCalls": 0,
+    "hostedWrites": 0
+  }
+}

@@ -1,0 +1,181 @@
+{
+  "schema": "tzudong-develop-merge-final-verification/v1",
+  "recordedAt": "2026-10-15T05:44:44Z",
+  "candidateHead": "2d7e284df964e3f00ce61deb49165e321d273fc0",
+  "candidateHeadSummary": "Merge remote-tracking branch 'origin/develop' into codex/goal-delivery-20261012",
+  "initialWorktreeClean": true,
+  "runtime": {
+    "node": "24.21.0",
+    "nodePath": "/opt/homebrew/opt/node@24/bin/node",
+    "tzudongNode24BinFixed": true,
+    "bun": "1.4.0",
+    "pathFixed": true
+  },
+  "sourceBindings": [
+    {
+      "path": "apps/web/instrumentation-client.ts",
+      "bytes": 488,
+      "sha256": "cce1ee0a59c29254fbea312b4543a17c7a87012543490c7ff188906ef5af09b7"
+    },
+    {
+      "path": "apps/web/lib/monitoring/sentry-dsn.ts",
+      "bytes": 851,
+      "sha256": "176f1caa68ef0c69ad27dfcb51f7f40366bddb3adf29ecc1d5d598f6f1db424a"
+    },
+    {
+      "path": "apps/web/lib/monitoring/sentry-privacy.ts",
+      "bytes": 4628,
+      "sha256": "9ea159296486516d77f51a4cad5a728df823a8b5463aab98f77182b680674fd0"
+    },
+    {
+      "path": "apps/web/lib/monitoring/sentry-release.ts",
+      "bytes": 245,
+      "sha256": "144cb41730ed86ef254f9f9a972839b5112e8d17f32252fef28318573b042aae"
+    },
+    {
+      "path": "apps/web/next.config.mjs",
+      "bytes": 13983,
+      "sha256": "54e31631c0354d8be441e8e5b3ecba71ae5580feb2150fcecc18abf506358068"
+    },
+    {
+      "path": "apps/web/proxy.ts",
+      "bytes": 13175,
+      "sha256": "c6ef405162873c392d213c365820c73d02056882e652c4c25b3549217ab21b25"
+    },
+    {
+      "path": "apps/web/sentry.edge.config.ts",
+      "bytes": 491,
+      "sha256": "aebb3f800247b7dc8186dc389c10b79fc29f057548deebd1af21c53fa8b92e89"
+    },
+    {
+      "path": "apps/web/sentry.server.config.ts",
+      "bytes": 510,
+      "sha256": "aa7611a0c41a8360c37237973bb2fe194c95ebdb5e27438403e3bf2857a569d4"
+    },
+    {
+      "path": "apps/web/tests-unit/auth-admin-login-redirect.test.ts",
+      "bytes": 25302,
+      "sha256": "6d23d41d8e84ba4d9677714a5357cd217f323e253b480387dbae953ceb96a3dd"
+    },
+    {
+      "path": "apps/web/tests-unit/sentry-dsn.test.ts",
+      "bytes": 1246,
+      "sha256": "45a73d2a750c5be95367b3d5873cec56480c5644bb69a08c86e531557946ec4b"
+    },
+    {
+      "path": "apps/web/tests-unit/sentry-privacy.test.ts",
+      "bytes": 4374,
+      "sha256": "55adf106af54ec03f81c68803749f117b4efe9f26bf9f0f38fd3772e7cbcfb1e"
+    },
+    {
+      "path": "apps/web/tests-unit/sentry-release.test.ts",
+      "bytes": 1537,
+      "sha256": "e577c0d02053e88da54b0c91a780fc56a8c8119b29ba7b560b57c95801f97d3b"
+    },
+    {
+      "path": "docs/operations/sentry-activation-20261015.md",
+      "bytes": 3057,
+      "sha256": "7c8a2ba8b651545bdad7f09822e0a25d843e32a0d87c306b9c8537906bbde484"
+    },
+    {
+      "path": "docs/operations/sentry-release-binding-20261015.md",
+      "bytes": 2059,
+      "sha256": "c1b9e7c99bf4af003a65104efcf07738a96e32727560648f34a11261a5f3b529"
+    }
+  ],
+  "verification": {
+    "canonicalUnit": {
+      "runnerExitCode": 0,
+      "groups": 21,
+      "fileExecutions": 450,
+      "tests": 3667,
+      "passed": 3656,
+      "skipped": 11,
+      "failed": 0,
+      "assertions": 92655,
+      "privateRawLog": {
+        "persistedInGit": false,
+        "bytes": 470486,
+        "sha256": "0517465c416f10e0320410c5de8d60e8385dd991735217833e3257e859c58185"
+      }
+    },
+    "typecheckParity": {
+      "runnerExitCode": 0,
+      "native": "7.0.2",
+      "compat": "6.0.2",
+      "logicalInputs": 3156,
+      "diagnostics": 0,
+      "logicalInputNamesSha256": "ab992198ef1e0275f9cbcb03833d679ed1d6a5ac78adc4b12e551a69eea25fa3",
+      "nonLibraryContentSha256": "3950b62a5dc735d3c6da1ea81b6a73abb9669768af43d02c0d92fbdc954da6fc",
+      "privateRawLog": {
+        "persistedInGit": false,
+        "bytes": 510,
+        "sha256": "bbb2dcbe520752b3a04ec04b4971211244deee1574e7d364858d88feffb5a59c"
+      }
+    },
+    "affectedEslint": {
+      "runnerExitCode": 0,
+      "files": 12,
+      "warnings": 0,
+      "privateRawLog": {
+        "persistedInGit": false,
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "productionFixtureBuild": {
+      "runnerExitCode": 0,
+      "runId": "fc15-01",
+      "status": 0,
+      "next": "16.3.8",
+      "buildId": "IAm9tyKVsGPEJbWEfHVOd",
+      "distDir": ".next-privacy-incidents-v2-20261012-fc15-01",
+      "sourceFileCount": 1543,
+      "sourceManifestSha256": "d3e5b84d936de03099cc68454128112d45fd2e7d123342f321d8e5f2f67e7881",
+      "sourceUnchanged": true,
+      "tsconfigRestored": true,
+      "dependencyLinkRemoved": true,
+      "runtimeArtifactClosure": {
+        "fileCount": 4540,
+        "bytes": 160203871,
+        "sha256": "9c25b133c185cca2f01069901eb7b655686fbdd81ed0ade51dc89f78a717eabf"
+      },
+      "cssBoundariesVerified": true,
+      "privateRawLog": {
+        "persistedInGit": false,
+        "bytes": 803119,
+        "sha256": "cbfc140206bf44dc283aa87acc711e8c558f7e4d5e2f1e8dcce69a004b96b8cf"
+      }
+    }
+  },
+  "artifactBindings": [
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/v2/runs/fc15-01/privacy-build-receipt.json",
+      "bytes": 1003456,
+      "sha256": "3aeba71279a413031323bbae91018d2e24145a99f6c21db87c7e2737c6ed386c"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/v2/runs/fc15-01/privacy-build-source-before.json",
+      "bytes": 268619,
+      "sha256": "e3fd7e3032ddb67286cc7d843e81c58d32feeb3934f4c374a68dd88eaca88e07"
+    },
+    {
+      "path": "apps/web/performance/admin-route-consistency-20261012/v2/runs/fc15-01/privacy-build-source-after.json",
+      "bytes": 268582,
+      "sha256": "bf1d9982ee3014ae549fc45fdad666c5fef65702a2a1f6bbeaa052abffa0fe39"
+    }
+  ],
+  "completionHandles": {
+    "canonicalUnitProcessExited": true,
+    "typecheckParityProcessExited": true,
+    "eslintProcessExited": true,
+    "productionBuildProcessExited": true,
+    "allExitCodesZero": true
+  },
+  "limits": [
+    "This is source-bound local verification after merging origin/develop; it is not hosted or production evidence.",
+    "The production fixture admitted no repository environment files, hosted credentials, browser render, OAuth, hosted database, or provider call.",
+    "The successful build is a new fc15-01 observation and does not relabel fc14-02 or any older failed, render, smoke, PostgreSQL, provider, or deployment evidence.",
+    "No latency, throughput, quota, cost, deployment, or user-visible performance improvement is claimed from these functional checks."
+  ]
+}

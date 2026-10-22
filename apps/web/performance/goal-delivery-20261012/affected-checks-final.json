@@ -1,0 +1,32 @@
+{
+  "schema": "tzudong-affected-checks/v1",
+  "evidenceClass": "local",
+  "cliBoundary": {
+    "command": "TZUDONG_PYTHON=<project-python3> bun test tests-unit/ocr-live-verification-cli.test.ts tests-unit/gemini-live-verification-boundary.test.ts",
+    "passed": 18,
+    "failed": 0,
+    "assertions": 103,
+    "exitCode": 0,
+    "providerCalls": 0,
+    "networkCalls": 0,
+    "realCredentialsRead": false
+  },
+  "typecheckParity": {
+    "command": "npm 11.6.2 run typecheck:parity under Node 24.21.0",
+    "exitCode": 0,
+    "diagnostics": 0,
+    "logicalInputs": 3149,
+    "logicalInputNamesSha256": "a26d22d6f960374753769956be9663ec8e3c23afb96c653f4fcb75fd49409ed4",
+    "nonLibraryContentSha256": "da84f9e34a0b854caffb93b207130b80ffccfc5070c98cc4d99c310abe913a4b"
+  },
+  "correctedFailures": [
+    {
+      "kind": "typecheck",
+      "cause": "Next ProcessEnv requires NODE_ENV even for intentionally empty child env",
+      "fix": "type-only cast preserving empty runtime child environment"
+    }
+  ],
+  "limits": [
+    "No CI, hosted authentication, database or paid provider requests in these checks."
+  ]
+}

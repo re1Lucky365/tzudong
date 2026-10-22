@@ -1,0 +1,33 @@
+{
+  "schema": "tzudong-gitguardian-single-incident-readback/v1",
+  "recordedAtUtc": "2026-10-12T13:42:52.816277+00:00",
+  "repository": "twoimo/tzudong",
+  "pullRequest": 3196,
+  "sourceRevision": "f4739a77822ce218595db67ebe0664eb10922688",
+  "incidentId": 38128430,
+  "occurrenceId": 303564026,
+  "incidentCount": 1,
+  "classification": "test credential",
+  "action": "Skip: test cred",
+  "actionRequests": 2,
+  "reason": "The same single incident was present in the original check and an already-existing rerun. No new workflow or check rerun was requested by this task.",
+  "apiReadback": [
+    {
+      "id": 114780500942,
+      "status": "completed",
+      "conclusion": "skipped",
+      "title": "You tagged this GitGuardian alert as a test credential"
+    },
+    {
+      "id": 114833294224,
+      "status": "completed",
+      "conclusion": "skipped",
+      "title": "You tagged this GitGuardian alert as a test credential"
+    }
+  ],
+  "incidentStatusShown": "Triggered",
+  "incidentResolvedClaimed": false,
+  "scannerSettingsChanged": false,
+  "otherIncidentsChanged": false,
+  "currentSourcePasswordFixtureRemoved": true
+}

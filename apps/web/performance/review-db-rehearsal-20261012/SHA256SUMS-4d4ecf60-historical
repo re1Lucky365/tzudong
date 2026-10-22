@@ -1,0 +1,16 @@
+8297b18793513956118c720e3aa5bd481d0769645c263f680a5272825b70569e  .github/review-media-sql-successor.v1.json
+2080947cbc3c92934c98cee259d4f41e9c1eebc80e437f20862849fd36bd4f40  apps/web/scripts/review-media-sql-successor.mjs
+c893c294719776bf5b064c3355866ab97e0fa9412082d9b47d7de5266094c65f  apps/web/scripts/review-media-sql-rehearsal.mjs
+fcebc20dc4846606dc14bdbe658a07daa32430ad632e52383151f5c22d22efb9  apps/web/scripts/supabase-migration-bundle.mjs
+7ab17835c727c22bad4138b86f4d3695d55bd1b4511141d1d374b2ca4694d080  apps/web/performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs
+0489bf7de7252e652c9c4967be77664cdeacb8afc07dcf846d73f0cf7c25dbe9  apps/web/performance/review-db-rehearsal-20261012/README.md
+6c474d8e78c0eba3f15c077dbdd8634f073524c3b5f842213372bf0f1fed84fc  apps/web/performance/review-db-rehearsal-20261012/SHA256SUMS-pre-hardening-historical
+b279a6b900dd3be10b9084a6362d169e87435bae955b2a1419858709645a6883  apps/web/performance/review-db-rehearsal-20261012/pg17-rollback-rehearsal-current-20261013.json
+7f74c175be3eee72b5e93eb75dac07bfefc0ef88d7d9957c26d877ee125ff590  apps/web/performance/review-db-rehearsal-20261012/pg17-rollback-rehearsal-final-20261013.json
+cb766e279baad0315e9d7055bc326b41b78a7d50a4972dac3214bc071aee0e49  apps/web/performance/review-db-rehearsal-20261012/pg17-rollback-rehearsal.json
+c53a467eaf9b929647bc1d66248308ba1ff73eba89fc9221dbf7db4711eb8562  apps/web/performance/review-db-rehearsal-20261012/scanner-readback.json
+8088aa57f39045e2bf93cba084711119395098d053318b70aaa676b5c13fea26  apps/web/performance/review-db-rehearsal-20261012/verify-review-media-sql-rehearsal.mjs
+099e0b728cbfde7f1b292ec5c90e1ab14af54bdf9e87d07ef44ead9bb885883e  apps/web/tests-unit/review-media-sql-successor.test.ts
+dc1f2594e629d5af16541db93e2e51f9b98d8282dd7fbeb802dd240fa6f522c0  apps/web/tests-unit/review-media-migration-bundle.test.ts
+c2c833a6fb2529477e02bbdc353a1e840d0c079d045a81dbc8a0e905ef16a601  apps/web/tests-unit/review-media-sql-successor-harness.test.ts
+b25b5dcc6516435a1c74a038c20856cc5dd719b303d9c3f3e600dc314197c7cd  apps/web/tests-unit/review-media-sql-rehearsal-verifier.test.ts

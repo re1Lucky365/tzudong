@@ -161,6 +161,23 @@ describe("reviewed Supabase migration apply contract", () => {
     );
   });
 
+  test("rejects evidence and shadow migrations before transport in the frozen legacy release path", async () => {
+    let transportCalls = 0;
+    let vectorCalls = 0;
+    for (const id of ["evidence_frames_and_popularity", "restaurant_popularity_shadow", "restaurant_popularity_shadow_tier"]) {
+      await expect(main(["--migration-id", id, "--dry-run", "--json"], {
+        environment: { RELEASE_MIGRATION_MANIFEST_SHA256: MANIFEST_SHA256 },
+        runPsqlImpl: () => { transportCalls++; throw new Error("unexpected_transport"); },
+        readVectorImpl: () => { vectorCalls++; throw new Error("unexpected_source_read"); },
+      })).rejects.toThrow("MIGRATION_ID_NOT_ALLOWLISTED");
+    }
+    expect(transportCalls).toBe(0);
+    expect(vectorCalls).toBe(0);
+    const workflow = readFileSync(new URL("../../../.github/workflows/supabase-migration-apply.yml", import.meta.url), "utf8");
+    expect(workflow).toContain('contains(fromJSON(\'["g016_privacy_audit_owner_policy","g016_onboarding_confirmation_freshness"]\'), needs.validate.outputs.migration_id)');
+    expect(workflow).toContain("github.event.inputs.verify_terminal_state == 'true'");
+  });
+
   test("accepts only a manifest identity, never caller path or migration digest", async () => {
     const { migrations } = await loadReleaseMigrationManifest({
       expectedManifestSha256: MANIFEST_SHA256,

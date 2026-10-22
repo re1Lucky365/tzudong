@@ -1,0 +1,12 @@
+file:///Users/twoimo/.codex/worktrees/mobile-nav-read-20261012/tzudong/apps/web/performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs:55
+  throw new Error(detail ? `${code}:${detail}` : code);
+        ^
+
+Error: LOCAL_REHEARSAL_ADVISORY_CONTENTION_NOT_OBSERVED
+    at fail (file:///Users/twoimo/.codex/worktrees/mobile-nav-read-20261012/tzudong/apps/web/performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs:55:9)
+    at waitForAdvisoryContention (file:///Users/twoimo/.codex/worktrees/mobile-nav-read-20261012/tzudong/apps/web/performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs:823:3)
+    at async assertContendedExpiryRejected (file:///Users/twoimo/.codex/worktrees/mobile-nav-read-20261012/tzudong/apps/web/performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs:842:34)
+    at async run (file:///Users/twoimo/.codex/worktrees/mobile-nav-read-20261012/tzudong/apps/web/performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs:993:46)
+    at async file:///Users/twoimo/.codex/worktrees/mobile-nav-read-20261012/tzudong/apps/web/performance/review-db-successor-20261012/verify-review-media-sql-successor.mjs:1057:85
+
+Node.js v24.21.0

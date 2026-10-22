@@ -1,0 +1,75 @@
+{
+  "schema": "tzudong-local-build/v1",
+  "startedAt": "2026-10-12T04:56:20.562Z",
+  "completedAt": "2026-10-12T04:57:22.198Z",
+  "status": 0,
+  "signal": null,
+  "argv": [
+    "scripts/clean-next.mjs",
+    "--skip-clean",
+    "--",
+    "/opt/homebrew/opt/node@24/bin/node",
+    "node_modules/next/dist/bin/next",
+    "build",
+    "--webpack"
+  ],
+  "node": "24.21.0",
+  "next": "16.3.8",
+  "buildId": "HcJtq7WT9AGLOOijoRGrZ",
+  "sourceUnchanged": true,
+  "sourceManifestSha256": "2cc2a16f055ce9bbcb3cd1c75ac05c90cc0cbd36d29661d1967260ccf8dc3cfa",
+  "sourceFileCount": 579,
+  "artifacts": [
+    {
+      "path": "BUILD_ID",
+      "sha256": "88b6667d35cfcf2401ce388b9c23c823f9db8130d5ab47cb04394a7dcb82e9c8"
+    },
+    {
+      "path": "build-manifest.json",
+      "sha256": "38bf95706296d958f8118d688e8e9294d46576b845caa1991fba36109b75c685"
+    },
+    {
+      "path": "routes-manifest.json",
+      "sha256": "c93e69872da09259c12857d04c45b6968628661c5785ff91142511483b288f3e"
+    },
+    {
+      "path": "required-server-files.json",
+      "sha256": "740ef14b2b1a7aba914f18e264c9a5573b79a46e1bafa7f64639a1327d0d0bd3"
+    }
+  ],
+  "css": {
+    "homeBytes": 195887,
+    "generalAppBytes": 369885,
+    "adminBytes": 383735,
+    "deferredBytes": 195887,
+    "homeTransferBytes": 46701,
+    "generalAppTransferBytes": 68545,
+    "adminTransferBytes": 71731,
+    "deferredTransferBytes": 46701,
+    "sharedAssetPaths": [
+      "static/css/1240feada28706b0.css",
+      "static/css/21152eadce53cbfb.css",
+      "static/css/2c51162548402e22.css",
+      "static/css/3b25debbbcfd0a9d.css",
+      "static/css/56dbb6b80320ef6e.css"
+    ],
+    "exclusiveAssetPaths": {
+      "home": [],
+      "generalApp": [],
+      "admin": [
+        "static/css/c0d42224543a4a09.css",
+        "static/css/f54a2be7094b25e4.css"
+      ],
+      "deferred": []
+    }
+  },
+  "environment": {
+    "inheritedAllowlistOnly": true,
+    "hostedProviderCredentials": false,
+    "hostedDatabaseCredentials": false,
+    "syntheticLoopback": true
+  },
+  "limits": [
+    "Local build and synthetic fixture only; no deployment or production mutation."
+  ]
+}

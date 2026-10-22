@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "status": "failed",
+  "code": "LOCAL_REHEARSAL_FIXTURE_ROLE_READBACK_FAILED",
+  "observed": {
+    "actorSuperuser": true,
+    "roles": [
+      {
+        "name": "review_successor_fixture_parent_20261012",
+        "inherit": false,
+        "connlimit": -1,
+        "validuntil": null,
+        "config": null,
+        "markerPresent": true
+      },
+      {
+        "name": "review_successor_fixture_member_20261012",
+        "inherit": true,
+        "connlimit": -1,
+        "validuntil": null,
+        "config": null,
+        "markerPresent": true
+      }
+    ],
+    "memberships": [
+      {
+        "parent": "review_successor_fixture_parent_20261012",
+        "member": "review_successor_fixture_member_20261012",
+        "grantor": "supabase_admin",
+        "admin": false,
+        "inherit": true,
+        "set": true
+      }
+    ]
+  }
+}

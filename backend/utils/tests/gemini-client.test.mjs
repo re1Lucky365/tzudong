@@ -32,7 +32,7 @@ test('release debt recovers in the same live process before admitting a new prov
     const originalPython=process.env.RUN_DAILY_PYTHON || (await execute('python3',['-c','import sys;print(sys.executable)'])).stdout.trim();
     const wrapper=path.join(directory,'release-wrapper');const flag=path.join(directory,'release-failed');
     const previousPython=process.env.RUN_DAILY_PYTHON,previousFlag=process.env.FX_RELEASE_FAILURE;
-    fs.writeFileSync(wrapper,`#!${originalPython}\nimport os,sys,subprocess\nfrom pathlib import Path\nif '--lease' in sys.argv and Path(os.environ['FX_RELEASE_FAILURE']).exists():raise SystemExit(1)\nraise SystemExit(subprocess.run([${JSON.stringify(originalPython)},*sys.argv[1:]],env=os.environ).returncode)\n`,{mode:0o700});
+    fs.writeFileSync(wrapper,`#!${originalPython}\nimport os,sys,subprocess\nfrom pathlib import Path\nif 'release' in sys.argv and Path(os.environ['FX_RELEASE_FAILURE']).exists():raise SystemExit(1)\nraise SystemExit(subprocess.run([${JSON.stringify(originalPython)},*sys.argv[1:]],env=os.environ).returncode)\n`,{mode:0o700});
     process.env.RUN_DAILY_PYTHON=wrapper;process.env.FX_RELEASE_FAILURE=flag;
     let calls=0;
     try {

@@ -80,7 +80,9 @@ const hasFixedAuthorizationLifetime = (
   isSafeTimestamp(grantedAt)
   && isSafeTimestamp(expiresAt)
   && expiresAt > grantedAt
-  && expiresAt - grantedAt === DEVICE_LOCATION_AUTHORIZATION_LIFETIME_MS;
+  // Compare the minted sum directly: subtracting fractional monotonic timestamps
+  // can round to either side of the fixed lifetime after a long-running session.
+  && expiresAt === grantedAt + DEVICE_LOCATION_AUTHORIZATION_LIFETIME_MS;
 
 const isActiveAuthorization = (
   authorization: DeviceLocationUseAuthorization | null | undefined,

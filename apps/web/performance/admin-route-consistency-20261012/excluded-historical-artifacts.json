@@ -1,0 +1,37 @@
+{
+  "schema": "tzudong-admin-route-consistency-excluded-artifacts/v1",
+  "status": "excluded_unverifiable",
+  "reason": "원본 없음, 검증 불가, 현재 증빙 제외",
+  "historicalInventory": "artifact-map-35-historical.json",
+  "historicalInventorySha256": "941c8370d50239cc718ad2c4f73c4bc63d5f89c580d28e82665dc39db8b90ce8",
+  "sourceRecovery": {
+    "requestedSource": "archived admin-route-consistency-20261012 worktree",
+    "result": "missing",
+    "contentInspection": "not_possible",
+    "sensitiveDataReview": "not_possible"
+  },
+  "excludedCount": 4,
+  "excludedBytes": 3099,
+  "artifacts": [
+    {
+      "path": "privacy-build-output.log",
+      "historicalBytes": 1204,
+      "historicalSha256": "49ffded9997c5df7fbac0aaf0be5a4aeb777e49693322036be5460097ec2dbc6"
+    },
+    {
+      "path": "privacy-runtime.log",
+      "historicalBytes": 358,
+      "historicalSha256": "5c024ae5b7d55700450f2528e2a99254c8e46894c4d517c58e109851de430fd3"
+    },
+    {
+      "path": "v2/privacy-build-output.log",
+      "historicalBytes": 1207,
+      "historicalSha256": "bb222ca1365bfbe6ce41a7fcfc13d5ab79555fc37c2c4feca0364f14d77c8018"
+    },
+    {
+      "path": "v2/privacy-runtime.log",
+      "historicalBytes": 330,
+      "historicalSha256": "461ab57e6df8b36b0d28596c42223d7c70d44fbf244c0ac7c16c41f416172213"
+    }
+  ]
+}

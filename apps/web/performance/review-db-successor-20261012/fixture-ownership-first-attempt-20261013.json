@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "failed-local-fixture-verification",
+  "status": {
+    "state": "completed",
+    "runnerPid": 35642,
+    "exitCode": 1,
+    "finishedAtUTC": "2026-10-13T07:06:00.847303+00:00"
+  },
+  "failureCode": "FIXTURE_OWNERSHIP_COMMAND_FAILED",
+  "phase": "server-version query after Unix socket readiness",
+  "roleAndDatabaseScenariosEstablished": false,
+  "correction": "Wait for final TCP server, matching the existing rollback verifier."
+}

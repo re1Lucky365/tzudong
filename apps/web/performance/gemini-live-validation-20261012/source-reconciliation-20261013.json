@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "historical-provider-source-reconciliation",
+  "historicalArtifactMapSha256": "251afc906a6493ced159430ff72b55d56b63ee6c62afbc0e10a218ab4e116114",
+  "providerCallsStartedThisVerification": 0,
+  "mismatchCount": 6,
+  "uniqueMismatchCount": 2,
+  "mismatches": [
+    {
+      "phase": "ocr",
+      "path": "package-lock.json",
+      "recordedSha256": "ce2e7d9dee5cb837a77f504028452b5e04f9f96a3413bfa2e9a005fa5de7531d",
+      "currentSha256": "607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4"
+    },
+    {
+      "phase": "ocr",
+      "path": "scripts/gemini-live-verification-io.ts",
+      "recordedSha256": "d20727d9f964b9472d4bd7f3cce706b6a77cf8afc120883646649833631192d3",
+      "currentSha256": "165cc1d223eb55b2dd54e8b3fbd2363cf138b401730caa7963e6615accb25dca"
+    },
+    {
+      "phase": "storyboard",
+      "path": "package-lock.json",
+      "recordedSha256": "ce2e7d9dee5cb837a77f504028452b5e04f9f96a3413bfa2e9a005fa5de7531d",
+      "currentSha256": "607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4"
+    },
+    {
+      "phase": "storyboard",
+      "path": "scripts/gemini-live-verification-io.ts",
+      "recordedSha256": "d20727d9f964b9472d4bd7f3cce706b6a77cf8afc120883646649833631192d3",
+      "currentSha256": "165cc1d223eb55b2dd54e8b3fbd2363cf138b401730caa7963e6615accb25dca"
+    },
+    {
+      "phase": "proImage",
+      "path": "package-lock.json",
+      "recordedSha256": "ce2e7d9dee5cb837a77f504028452b5e04f9f96a3413bfa2e9a005fa5de7531d",
+      "currentSha256": "607175eda02d7746caf5593d34835cef317bf197ca6d5428fa1266cdb2aae5f4"
+    },
+    {
+      "phase": "proImage",
+      "path": "scripts/gemini-live-verification-io.ts",
+      "recordedSha256": "d20727d9f964b9472d4bd7f3cce706b6a77cf8afc120883646649833631192d3",
+      "currentSha256": "165cc1d223eb55b2dd54e8b3fbd2363cf138b401730caa7963e6615accb25dca"
+    }
+  ],
+  "historicalProviderReceiptsModified": false,
+  "currentPaidRunProven": false
+}

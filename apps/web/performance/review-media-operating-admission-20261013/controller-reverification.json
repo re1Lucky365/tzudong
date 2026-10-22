@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-unit-reverification",
+  "checks": {
+    "passed": 10,
+    "failed": 0,
+    "assertions": 59,
+    "command": "bun test tests-unit/review-media-operating-admission.test.ts",
+    "cwd": "apps/web"
+  },
+  "reason": "Imported controller and manifest changed for terminal boundary fixes.",
+  "sources": [
+    {
+      "path": "apps/web/scripts/review-media-operating-admission.mjs",
+      "sha256": "4ad55ed526b7af8c0ee1282057dbfa3706249deea04472a2749909af45492064"
+    },
+    {
+      "path": "apps/web/tests-unit/review-media-operating-admission.test.ts",
+      "sha256": "26d7fe68effda2813b3f9384dd2d7e4f9e8998447cd988b89820d93be7f6bdc7"
+    },
+    {
+      "path": "apps/web/scripts/review-media-sql-successor.mjs",
+      "sha256": "dcf552697251c2f10d859c7a2f56937a0f6e92ee9467e5b919807e498eff1d49"
+    },
+    {
+      "path": ".github/review-media-sql-successor.v1.json",
+      "sha256": "ae764bb760102a6d7d066be669c85248feed1823eafded4bf8c246a062090a8c"
+    }
+  ],
+  "operatingEvidence": false,
+  "performanceEvidence": false
+}

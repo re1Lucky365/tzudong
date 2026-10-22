@@ -29,6 +29,12 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+from evidence_identity import resolve_automatic_identity
+from naver_query_plan import build_naver_query_plan, executable_exact_queries
 from datetime import datetime, timezone, timedelta
 import requests
 
@@ -510,6 +516,10 @@ def build_location_result(
     second_pass: Optional[Dict[str, Any]] = None,
     false_message: Optional[str] = None,
     match_status: Optional[str] = None,
+    query_stage: Optional[int] = None,
+    search_miss: bool = False,
+    evidence_conflicts: bool = False,
+    closure_record: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     unique_families = _unique_evidence_families(evidence_families)
     second_pass_state = second_pass or build_second_pass_state()
@@ -531,7 +541,7 @@ def build_location_result(
         else:
             resolved_status = "failed"
 
-    return {
+    result = {
         "origin_name": origin_name,
         "eval_value": resolved_true,
         "match_status": resolved_status,
@@ -548,6 +558,18 @@ def build_location_result(
         "second_pass": second_pass_state,
         "falseMessage": None if resolved_true else false_message,
     }
+    if query_stage is not None or search_miss or evidence_conflicts or closure_record is not None:
+        decision = resolve_automatic_identity(
+            query_stage=query_stage,
+            search_miss=search_miss,
+            evidence_families=(),
+            evidence_conflicts=evidence_conflicts,
+            closure_record=closure_record,
+        )
+        result["identity_state"] = decision["state"]
+        result["auto_closed_store"] = decision["auto_closed_store"]
+        result["auto_relocated"] = decision["auto_relocated"]
+    return result
 
 
 # ========= API 호출 (기존 backup 그대로) =========
@@ -771,6 +793,8 @@ def evaluate_with_browser_review_needed(
         evidence_summary=evidence_summary,
         evidence_families=[EVIDENCE_BROWSER_VERIFICATION],
         match_status="pending",
+        query_stage=1,
+        search_miss=True,
     )
 
 
@@ -1050,13 +1074,26 @@ def evaluate_one_restaurant(rec: Dict[str, Any]) -> Dict[str, Any]:
 
     # [PERF] Naver Search 3건 동시 호출 (직렬 → 병렬)
     region = extract_region_from_address(origin_address)
-    name_addr_query = f"{name} {_norm_space(origin_address)}"
+    query_plan = build_naver_query_plan(
+        origin_name=name,
+        road_address=origin_address,
+        jibun_address=geocoded_jibun or "",
+        sigungu=region,
+    )
+    exact_queries = executable_exact_queries(query_plan)
+    search_queries = []
+    for query in [name, *exact_queries]:
+        if query and query not in search_queries:
+            search_queries.append(query)
+    search_queries = search_queries[:3]
+    name_addr_query = search_queries[1] if len(search_queries) > 1 else f"{name} {_norm_space(origin_address)}"
+    region_query = search_queries[2] if len(search_queries) > 2 else ""
 
     future_name = _naver_executor.submit(naver_local_search_one, name, 5)
     future_addr = _naver_executor.submit(naver_local_search_one, name_addr_query, 3)
     future_region = (
-        _naver_executor.submit(naver_local_search_one, f"{name} {region}", 5)
-        if region
+        _naver_executor.submit(naver_local_search_one, region_query, 5)
+        if region_query
         else None
     )
 

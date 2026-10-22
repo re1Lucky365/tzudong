@@ -1,0 +1,40 @@
+{
+  "schema": "tzudong-privacy-fixture-portability-delta/v1",
+  "recordedAt": "2026-10-13T10:24:42.219927+00:00",
+  "reason": "Ubuntu HOME may be an explicitly redacted path and therefore become <LOCAL_PATH> before the generic /home fallback; the test now normalizes both safe placeholders without changing sanitizer behavior.",
+  "baseArtifactMap": {
+    "artifactCount": 61,
+    "artifactBytes": 2927899,
+    "sha256": "04df93f498ba0e37238e71c18087844154b7bec986e93dd52c4a2e65c4afa021"
+  },
+  "changedSource": {
+    "path": "apps/web/tests-unit/privacy-fixture-runtime.test.ts",
+    "bytes": 18608,
+    "sha256": "a8b2c19e8ef64f46d934d9240317bbdeccf9bfe2b298b74379b1144f70f79ed0",
+    "priorSha256": "fccb91440bc760570b8a4acb16860dc213e6561491bf58794185388618f86a59"
+  },
+  "unchangedBindings": {
+    "helperSha256": "7f6e53dff7f27bbc99517af7e4757990f8e91e5e05a294eb6a8e91dee0ab4ba0",
+    "buildId": "VsVqwHP7JPw_Dah--3Lp1",
+    "buildSourceFiles": 423,
+    "buildInputsChanged": false
+  },
+  "verification": {
+    "command": "bun test tests-unit/privacy-fixture-runtime.test.ts tests-unit/privacy-fixture-scenarios.test.ts",
+    "representativeLinuxHome": "/home/runner",
+    "processEnvironmentHomeMutated": false,
+    "passed": 18,
+    "failed": 0,
+    "assertions": 149,
+    "files": 2,
+    "eslint": "passed with --max-warnings=0"
+  },
+  "boundaries": {
+    "productionHelperChanged": false,
+    "fullBuildRun": false,
+    "uiRerendered": false,
+    "runtimeStarted": false,
+    "providerCalls": 0,
+    "hostedWrites": 0
+  }
+}

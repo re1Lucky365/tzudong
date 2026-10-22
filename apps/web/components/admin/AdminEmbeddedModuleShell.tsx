@@ -6,14 +6,14 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { AdminConsoleRouteModuleId } from "@/lib/admin/admin-module-routing";
+import type { AdminSidebarItemId } from "@/lib/admin/sidebar-order";
+import { getAdminModuleTitle } from "@/lib/admin/admin-module-metadata";
 
 type AdminEmbeddedModuleShellProps = {
-  moduleId: AdminConsoleRouteModuleId;
+  moduleId: AdminSidebarItemId;
   titleId: string;
-  title: string;
   icon: LucideIcon;
-  summary: ReactNode;
+  summary?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -25,7 +25,6 @@ type AdminEmbeddedModuleShellProps = {
 export function AdminEmbeddedModuleShell({
   moduleId,
   titleId,
-  title,
   icon: Icon,
   summary,
   actions,
@@ -36,6 +35,7 @@ export function AdminEmbeddedModuleShell({
   scrollOwner,
 }: AdminEmbeddedModuleShellProps) {
   const hideHeader = moduleId === "overview";
+  const title = getAdminModuleTitle(moduleId);
 
   return (
     <section
@@ -49,14 +49,11 @@ export function AdminEmbeddedModuleShell({
       data-layout-primitives="stack"
     >
       {hideHeader ? (
-        <h2 id={titleId} className="sr-only">
-          {title}
-        </h2>
+        <span id={titleId} className="sr-only">{title}</span>
       ) : (
         <AdminPageHeader
           title={title}
           titleId={titleId}
-          titleAs="h2"
           icon={Icon}
           summary={summary}
           actions={actions}

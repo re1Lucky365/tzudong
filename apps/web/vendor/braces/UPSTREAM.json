@@ -16,7 +16,26 @@
   "localChanges": [
     "Hard nesting bound in parser for brace and parentheses ASTs.",
     "Iterative public AST depth/cycle guard before recursive walkers.",
-    "Remove one trailing blank line in lib/stringify.js for repository whitespace validation."
+    "Remove one trailing blank line in lib/stringify.js for repository whitespace validation.",
+    "Correct inclusive descending and explicit-step range-limit enforcement; reject unsafe integer arithmetic before fill-range loops.",
+    "Apply per-expression mandatory cumulative generation/output limits, including stepped regex enumeration and transformed range output.",
+    "Reject NaN parser maxLength and remove an upstream AST debug console write.",
+    "Validate data-AST node/value containers and bounded parent backlinks, including parser-flattened ancestry.",
+    "Bound nested intermediate array processing and use iterative cycle-aware flattening for retained queues."
   ],
-  "notAnOfficialUpstreamRelease": true
+  "notAnOfficialUpstreamRelease": true,
+  "resourceProfile": {
+    "perExpression": true,
+    "maxParsedInputCharacters": 10000,
+    "maxAstDepth": 128,
+    "parserSimultaneousOpenLimit": 127,
+    "maxAstNodes": 50000,
+    "maxGeneratedWorkItems": 50000,
+    "maxGeneratedCharacters": 1048576,
+    "rangeLimitFalseDisablesOnlyConfiguredNumericLimit": true,
+    "arrayOfExpressionsMustBeBoundedByCaller": true,
+    "hostileGettersAndJavaScriptCallbacksAreNotSandboxed": true,
+    "largeInputsMayNowRejectWithFixedRangeErrorInsteadOfAllocateOrHang": true,
+    "maxGeneratedArrayDepth": 128
+  }
 }

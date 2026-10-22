@@ -49,9 +49,9 @@ export function CenteredErrorState({
         >
           <Icon className="h-5 w-5" />
         </div>
-        <h2 id="centered-error-title" className="text-lg font-semibold text-foreground">
+        <h1 id="centered-error-title" className="text-lg font-semibold text-foreground">
           {title}
-        </h2>
+        </h1>
         <p id="centered-error-description" className="mt-2 text-sm leading-6 text-muted-foreground">
           {description}
         </p>

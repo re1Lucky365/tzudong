@@ -1,0 +1,77 @@
+{
+  "schema": "tzudong-privacy-incidents-loopback/v2",
+  "node": "24.21.0",
+  "runId": "fc14-02",
+  "basePort": 19480,
+  "runtimeAttempt": "smoke-02",
+  "buildId": "eOeHIjll95bAtBcBUVaXn",
+  "distDir": ".next-privacy-incidents-v2-20261012-fc14-02",
+  "launcherPid": 29010,
+  "nextPid": 29375,
+  "gatewayPid": 29376,
+  "origins": {
+    "next": "http://127.0.0.1:19480",
+    "supabase": "http://127.0.0.1:19481",
+    "gateway": "http://127.0.0.1:19482",
+    "visibleStart": "http://127.0.0.1:19482/__fixture/start"
+  },
+  "source": {
+    "fixtureServerSha256": "7a7cc9cd4c028462d274ce874e52adb168cf244835871feed340d96f07eafbee",
+    "runtimeFixtureServerSha256": "5db8868c9a982bb1dc6ba0dae1733027621ca9c52c4abc82c7f467571de6d8fc",
+    "fixtureServerPortsPatched": true,
+    "launcherSha256": "bb9e2f4e295400e6bd9ae89cb5da15c0821e13bda186fdc9b602ea3fe78960d4",
+    "buildReceiptSha256": "5c895f6b3869151a4e1cd5412c21b845bf5f9f438203c6d9e68b2dab58bbf40e",
+    "buildArtifacts": [
+      {
+        "path": "BUILD_ID",
+        "sha256": "94e61cbfdc5846328297e929ec74efcb74d9d1db9d6a246ae5d987fbd452e601",
+        "size": 21
+      },
+      {
+        "path": "build-manifest.json",
+        "sha256": "b55e578a58d7a50af53beddf12c59215e55e6b8908b0bd364e9fc8c5ac8eff12",
+        "size": 1002
+      },
+      {
+        "path": "routes-manifest.json",
+        "sha256": "13aa091767fabdda308632d9781e87b7c4cd251d49b6ade062924fc17fc843c7",
+        "size": 41016
+      },
+      {
+        "path": "required-server-files.json",
+        "sha256": "b01bf6c3803f715823f92e10bbfb398f4c2dd96d6373dea145e90d3e21ac176f",
+        "size": 15637
+      }
+    ],
+    "buildRuntimeArtifactClosure": {
+      "schema": "tzudong-next-runtime-artifact-closure/v1",
+      "mutableExclusions": [
+        {
+          "path": "cache",
+          "scope": "subtree",
+          "reason": "next-runtime-cache"
+        },
+        {
+          "path": "trace",
+          "scope": "file",
+          "reason": "next-runtime-trace"
+        },
+        {
+          "path": "trace-build",
+          "scope": "file",
+          "reason": "next-build-trace"
+        }
+      ],
+      "fileCount": 4540,
+      "bytes": 160202737,
+      "sha256": "c21d6f81577cdd477e52a9b2649ff66e1332c86829a1630a2409d1fbe671b886"
+    }
+  },
+  "boundaries": {
+    "loopbackOnly": true,
+    "syntheticDataOnly": true,
+    "browserMutationMethodsAllowed": false,
+    "hostedCredentialsAdmitted": false,
+    "dependencyMode": "workspace"
+  }
+}

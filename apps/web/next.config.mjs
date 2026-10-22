@@ -2,10 +2,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import bundleAnalyzer from '@next/bundle-analyzer';
 import { withSentryConfig } from '@sentry/nextjs/config';
+import { sentryBuildRelease } from './lib/monitoring/sentry-release.ts';
 import { resolveConfiguredSupabaseOrigin } from './lib/profile-avatar-url.ts';
+import { calculateStoryboardRuntimeSourceBinding } from './lib/admin/storyboard/runtime-source-binding.ts';
+import { prepareMapLibreWorkerAssets } from './scripts/prepare-maplibre-worker-assets.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const mapLibreWorkerAssets = prepareMapLibreWorkerAssets(__dirname);
 
 const withBundleAnalyzer = bundleAnalyzer({
     enabled: process.env.ANALYZE === 'true',
@@ -13,6 +17,10 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 const isNextBuildCommand = process.argv.some((arg) => arg === 'build');
 const shouldUseStandaloneOutput = isNextBuildCommand && process.env.VERCEL !== '1';
+const monitoringRelease = sentryBuildRelease(process.env.VERCEL_GIT_COMMIT_SHA);
+export const storyboardRuntimeSourceBinding = calculateStoryboardRuntimeSourceBinding({
+    repositoryRoot: path.resolve(__dirname, '../..'),
+});
 const configuredNextDistDir = process.env.TZUDONG_NEXT_DIST_DIR?.trim();
 if (
     configuredNextDistDir
@@ -147,6 +155,12 @@ const nextConfig = {
         remotePatterns: buildImageRemotePatterns(),
     },
     env: {
+        NEXT_PUBLIC_MAPLIBRE_WORKER_URL: mapLibreWorkerAssets.workerUrl,
+        // Computed from the executable storyboard provider/worker sources at build time.
+        // Next inlines this server-only value so runtime readback never depends on source files.
+        STORYBOARD_RUNTIME_SOURCE_BINDING_SHA256: storyboardRuntimeSourceBinding.sha256,
+        // Only a complete immutable build commit identifies every Sentry runtime.
+        NEXT_PUBLIC_SENTRY_RELEASE: monitoringRelease ?? '',
         NEXT_PUBLIC_TZUDONG_FIELD_RELEASE: /^[a-f0-9]{40}$/.test(process.env.VERCEL_GIT_COMMIT_SHA ?? '')
             ? process.env.VERCEL_GIT_COMMIT_SHA : '',
         NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -193,6 +207,13 @@ const nextConfig = {
             },
             {
                 source: '/images/:path*',
+                headers: [
+                    ...securityHeaders,
+                    { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+                ],
+            },
+            {
+                source: '/scripts/maplibre/:path*',
                 headers: [
                     ...securityHeaders,
                     { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
@@ -320,6 +341,6 @@ export default withSentryConfig(withBundleAnalyzer(nextConfig), {
         disable: !(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT),
         deleteSourcemapsAfterUpload: true,
     },
-    release: { create: Boolean(process.env.SENTRY_AUTH_TOKEN), finalize: Boolean(process.env.SENTRY_AUTH_TOKEN) },
+    release: { name: monitoringRelease, create: Boolean(process.env.SENTRY_AUTH_TOKEN), finalize: Boolean(process.env.SENTRY_AUTH_TOKEN) },
     webpack: { treeshake: { removeDebugLogging: true, removeTracing: true } },
 });

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "testedHead": "c503483d02c97c9abe6a19eddd8cd3f5715ebc42",
+  "frozenCarrier": {
+    "path": "apps/web/performance/goal-delivery-20261012/db-prepare/review-carrier-v1.json",
+    "bytes": 14880,
+    "sha256": "ddc64738652c7a4a2da7aa294a4d8aaac4dcb945e6ec963a3ac855eb5e78551a",
+    "protectedMainCommit": "056a86600f412eb42df4304e3206841679012f3e"
+  },
+  "legacyReproduction": {
+    "verifierSha256": "4bd5f7d9d357cd2ec379bc2ff0c111f7bfa564b9e8f1d4dc312e23c4d8739a65",
+    "mutation": "criticalPreconditions.ownerCleanup.requiredPostimageSha256",
+    "replacement": "64 ASCII zero characters",
+    "output": "{\"status\": \"passed\", \"migrations\": 11, \"remoteReads\": 0, \"writes\": 0}",
+    "finding": "the prior verifier did not bind the complete operational carrier"
+  },
+  "fixedVerifier": {
+    "path": "apps/web/performance/goal-delivery-20261012/db-prepare/verify_carrier.py",
+    "bytes": 4177,
+    "sha256": "81983d82440b1ca6b388c75ea2b8eb7a8916276f6b66c2aff7fc9f3cfcbbe9e6",
+    "method": "regenerate the complete carrier from the builder's frozen Git sources in an owned temporary directory and require exact byte equality",
+    "candidateRead": "regular-file, no-follow, inode-and-metadata-stable read",
+    "failurePrivacy": "builder stdout and child-process stderr are suppressed; failures use fixed bounded messages",
+    "success": {
+      "status": "passed",
+      "migrations": 11,
+      "remoteReads": 0,
+      "writes": 0
+    }
+  },
+  "regression": {
+    "path": "apps/web/performance/goal-delivery-20261012/db-prepare/test_verify_carrier.py",
+    "bytes": 8507,
+    "sha256": "c087eb8fd77fc9733371902df73da8222b9adeb6dba9db0dc88a731b943fe3aa",
+    "tests": 7,
+    "failures": 0,
+    "scalarLeafMutations": 266,
+    "scalarPathVectorSha256": "fdc0dffc7231cfca4274462776f92b02b262be3bf722406b7655803768b288a9",
+    "coveredTopLevelKeys": 15,
+    "structuralMutations": 3,
+    "allMutationsRejected": true,
+    "fixedMismatchError": "carrier verification failed: canonical carrier mismatch",
+    "fixedRegenerationError": "carrier verification failed: canonical regeneration failed",
+    "fixedUnavailableError": "carrier verification failed: carrier unavailable"
+  },
+  "environment": {
+    "python": "3.14.8",
+    "node": "24.21.0",
+    "databaseConnections": 0,
+    "providerCalls": 0,
+    "remoteWrites": 0,
+    "gitWrites": 0
+  },
+  "limits": [
+    "this is local verifier evidence, not an operating database admission receipt",
+    "no hosted database, storage, writer fence, provider, deployment, or billing state was changed",
+    "the frozen carrier and prior replay receipts were not regenerated or modified"
+  ]
+}

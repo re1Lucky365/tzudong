@@ -1,0 +1,3112 @@
+{
+  "schemaVersion": 1,
+  "buildId": "-cMz_aROVaZTlUcj5f8XN",
+  "sourceSignature": "58b6e29fa7ef19b52f4b66787261a797b2002d733a60fb2f535f618c65c58c2a",
+  "uiSourceSha256": "e3ea987a737af697a5d7ea155a474ed448f1d539fe46178914bb5abc419ac4d1",
+  "observedAt": "2026-10-11T17:44:41.711Z",
+  "summary": {
+    "cases": 45,
+    "uniquePairs": 45,
+    "titleClipping": 0,
+    "horizontalOverflow": 0,
+    "typography": [
+      "{\"lineHeight\":\"24px\",\"size\":\"16px\",\"weight\":\"600\"}"
+    ],
+    "mobileFocusedCases": 15,
+    "mobileButtonViolations": 0,
+    "sessionWarnings": 3,
+    "sessionErrors": 0,
+    "sessionRechartsSizeWarnings": 0,
+    "sessionDirectionFallbackWarnings": 3
+  },
+  "results": [
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 1149.71875,
+            "width": 58.6875,
+            "x": 1091.03125,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "KPI 카드 직접 드래그 순서 설정"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 1200.25,
+            "width": 46.53125,
+            "x": 1153.71875,
+            "y": 24
+          },
+          "enabled": false,
+          "name": "KPI 카드 순서를 처음 상태로 초기화"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 1295.96875,
+            "width": 89.71875,
+            "x": 1206.25,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "KPI 대시보드를 PDF 보고서로 내보내기"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 1327.96875,
+            "width": 28,
+            "x": 1299.96875,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "GitHub Actions KPI 데이터 수집 로그 열기"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 1399,
+            "width": 65.03125,
+            "x": 1333.96875,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "대시보드 타임프레임 설정: 1개월"
+        }
+      ],
+      "charts": 2,
+      "expectedTitle": "대시보드 (KPI)",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "overview",
+      "measuredChartWrappers": 7,
+      "observedAt": "2026-10-11T17:40:59.706Z",
+      "positiveChartWrappers": 2,
+      "ready": true,
+      "title": "대시보드 (KPI)",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 349.484375,
+        "width": 93.484375,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 745.4375,
+            "width": 48.203125,
+            "x": 697.234375,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "검수"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 833.625,
+            "width": 88.1875,
+            "x": 745.4375,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "최신화·이력"
+        },
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 921.40625,
+            "width": 77.78125,
+            "x": 843.625,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "맛집 등록"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 957.40625,
+            "width": 32,
+            "x": 925.40625,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "리스트 뷰"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 993.40625,
+            "width": 32,
+            "x": 961.40625,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "슬라이드 뷰"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 1238.640625,
+            "width": 40,
+            "x": 1198.640625,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "자동 운영 상태 새로고침"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 1318.84375,
+            "width": 76.203125,
+            "x": 1242.640625,
+            "y": 24
+          },
+          "enabled": false,
+          "name": "설정"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 1399,
+            "width": 76.15625,
+            "x": 1322.84375,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "이력·정책"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "맛집 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "restaurants",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:00.295Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "맛집 관리",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "제보 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "submissions",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:00.791Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "제보 관리",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "리뷰 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "reviews",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:01.248Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "리뷰 관리",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 68,
+            "height": 36,
+            "right": 1399,
+            "width": 96.40625,
+            "x": 1302.59375,
+            "y": 32
+          },
+          "enabled": true,
+          "name": "사용자 목록 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "사용자 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 89,
+        "height": 77,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "users",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:01.800Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "사용자 관리",
+      "titleBox": {
+        "bottom": 62,
+        "height": 24,
+        "right": 327.75,
+        "width": 71.75,
+        "x": 256,
+        "y": 38
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 1297.3125,
+            "width": 96.40625,
+            "x": 1200.90625,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "배너 목록 새로고침"
+        },
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 1399,
+            "width": 95.6875,
+            "x": 1303.3125,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "새 배너"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "배너 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "banners",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:02.255Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "배너 관리",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "영상 성과 분석",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "insights",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:03.013Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "영상 성과 분석",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 344.984375,
+        "width": 88.984375,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 1303.578125,
+            "width": 36,
+            "x": 1267.578125,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "새로고침"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 1399,
+            "width": 89.421875,
+            "x": 1309.578125,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "실행 관리"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "크롤러 파이프라인",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "pipeline",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:03.494Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "크롤러 파이프라인",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 368.640625,
+        "width": 112.640625,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 1353,
+            "width": 78.203125,
+            "x": 1274.796875,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "지식 목록과 분석 현황 열기"
+        },
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 1399,
+            "width": 40,
+            "x": 1359,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "지식 그래프 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "지식 그래프",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "knowledge-graph",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:04.043Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "지식 그래프",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 327.75,
+        "width": 71.75,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 1399,
+            "width": 40,
+            "x": 1359,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "오류 목록 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "오류 모니터링",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "sentry",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:04.515Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "오류 모니터링",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 341.375,
+        "width": 85.375,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "유튜브 썸네일 생성",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "youtube-thumbnail-generator",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:05.292Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "유튜브 썸네일 생성",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 372.25,
+        "width": 116.25,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "스토리보드 생성",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "storyboard",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:05.844Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "스토리보드 생성",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 355.015625,
+        "width": 99.015625,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "맛집 동선 추천",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "routes",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:06.302Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "맛집 동선 추천",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 344.984375,
+        "width": 88.984375,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 1399,
+            "width": 94.40625,
+            "x": 1304.59375,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "운영 상태 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "운영 보조",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "llm",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:06.744Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "운영 보조",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 1239.4375,
+            "width": 96.40625,
+            "x": 1143.03125,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "감사 로그",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 1411,
+        "width": 1191,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "audit",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:07.191Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 954,
+        "width": 1423
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 479.71875,
+            "width": 58.6875,
+            "x": 421.03125,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "KPI 카드 직접 드래그 순서 설정"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 530.25,
+            "width": 46.53125,
+            "x": 483.71875,
+            "y": 24
+          },
+          "enabled": false,
+          "name": "KPI 카드 순서를 처음 상태로 초기화"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 625.96875,
+            "width": 89.71875,
+            "x": 536.25,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "KPI 대시보드를 PDF 보고서로 내보내기"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 657.96875,
+            "width": 28,
+            "x": 629.96875,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "GitHub Actions KPI 데이터 수집 로그 열기"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 729,
+            "width": 65.03125,
+            "x": 663.96875,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "대시보드 타임프레임 설정: 1개월"
+        }
+      ],
+      "charts": 3,
+      "expectedTitle": "대시보드 (KPI)",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 741,
+        "width": 521,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "overview",
+      "measuredChartWrappers": 7,
+      "observedAt": "2026-10-11T17:41:07.931Z",
+      "positiveChartWrappers": 3,
+      "ready": true,
+      "title": "대시보드 (KPI)",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 349.484375,
+        "width": 93.484375,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 90.4375,
+            "width": 48.203125,
+            "x": 42.234375,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "검수"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 178.625,
+            "width": 88.1875,
+            "x": 90.4375,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "최신화·이력"
+        },
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 266.40625,
+            "width": 77.78125,
+            "x": 188.625,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "맛집 등록"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 302.40625,
+            "width": 32,
+            "x": 270.40625,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "리스트 뷰"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 338.40625,
+            "width": 32,
+            "x": 306.40625,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "슬라이드 뷰"
+        },
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 583.640625,
+            "width": 40,
+            "x": 543.640625,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "자동 운영 상태 새로고침"
+        },
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 663.84375,
+            "width": 76.203125,
+            "x": 587.640625,
+            "y": 22
+          },
+          "enabled": false,
+          "name": "설정"
+        },
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 744,
+            "width": 76.15625,
+            "x": 667.84375,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "이력·정책"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "맛집 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "restaurants",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:08.378Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "맛집 관리",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "제보 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "submissions",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:08.815Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "제보 관리",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "리뷰 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "reviews",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:09.242Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "리뷰 관리",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 100,
+            "height": 36,
+            "right": 744,
+            "width": 96.40625,
+            "x": 647.59375,
+            "y": 64
+          },
+          "enabled": true,
+          "name": "사용자 목록 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "사용자 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 153,
+        "height": 141,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "users",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:09.665Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "사용자 관리",
+      "titleBox": {
+        "bottom": 94,
+        "height": 24,
+        "right": 327.75,
+        "width": 71.75,
+        "x": 256,
+        "y": 70
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 642.3125,
+            "width": 96.40625,
+            "x": 545.90625,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "배너 목록 새로고침"
+        },
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 744,
+            "width": 95.6875,
+            "x": 648.3125,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "새 배너"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "배너 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "banners",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:10.100Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "배너 관리",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "영상 성과 분석",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "insights",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:10.515Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "영상 성과 분석",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 344.984375,
+        "width": 88.984375,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 648.578125,
+            "width": 36,
+            "x": 612.578125,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "새로고침"
+        },
+        {
+          "box": {
+            "bottom": 56,
+            "height": 32,
+            "right": 744,
+            "width": 89.421875,
+            "x": 654.578125,
+            "y": 24
+          },
+          "enabled": true,
+          "name": "실행 관리"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "크롤러 파이프라인",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "pipeline",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:10.924Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "크롤러 파이프라인",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 368.640625,
+        "width": 112.640625,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 698,
+            "width": 78.203125,
+            "x": 619.796875,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "지식 목록과 분석 현황 열기"
+        },
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 744,
+            "width": 40,
+            "x": 704,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "지식 그래프 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "지식 그래프",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "knowledge-graph",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:11.315Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "지식 그래프",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 327.75,
+        "width": 71.75,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 744,
+            "width": 40,
+            "x": 704,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "오류 목록 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "오류 모니터링",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "sentry",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:11.715Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "오류 모니터링",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 341.375,
+        "width": 85.375,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "유튜브 썸네일 생성",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "youtube-thumbnail-generator",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:12.138Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "유튜브 썸네일 생성",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 372.25,
+        "width": 116.25,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "스토리보드 생성",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "storyboard",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:12.541Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "스토리보드 생성",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 355.015625,
+        "width": 99.015625,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "맛집 동선 추천",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "routes",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:12.955Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "맛집 동선 추천",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 344.984375,
+        "width": 88.984375,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 744,
+            "width": 94.40625,
+            "x": 649.59375,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "운영 상태 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "운영 보조",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "llm",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:13.384Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "운영 보조",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 58,
+            "height": 36,
+            "right": 584.4375,
+            "width": 96.40625,
+            "x": 488.03125,
+            "y": 22
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "감사 로그",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 69,
+        "height": 57,
+        "right": 756,
+        "width": 536,
+        "x": 220,
+        "y": 12
+      },
+      "headerOverflow": 0,
+      "id": "audit",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:13.794Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 52,
+        "height": 24,
+        "right": 314.125,
+        "width": 58.125,
+        "x": 256,
+        "y": 28
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 80.6875,
+            "width": 58.6875,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "KPI 카드 직접 드래그 순서 설정"
+        },
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 131.21875,
+            "width": 46.53125,
+            "x": 84.6875,
+            "y": 126
+          },
+          "enabled": false,
+          "name": "KPI 카드 순서를 처음 상태로 초기화"
+        },
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 181.21875,
+            "width": 44,
+            "x": 137.21875,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "KPI 대시보드를 PDF 보고서로 내보내기"
+        },
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 229.21875,
+            "width": 44,
+            "x": 185.21875,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "GitHub Actions KPI 데이터 수집 로그 열기"
+        },
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 300.25,
+            "width": 65.03125,
+            "x": 235.21875,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "대시보드 타임프레임 설정: 1개월"
+        }
+      ],
+      "charts": 1,
+      "expectedTitle": "대시보드 (KPI)",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "overview",
+      "measuredChartWrappers": 6,
+      "observedAt": "2026-10-11T17:41:26.931Z",
+      "positiveChartWrappers": 1,
+      "ready": true,
+      "title": "대시보드 (KPI)",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 139.484375,
+        "width": 93.484375,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 174,
+            "height": 44,
+            "right": 74.203125,
+            "width": 48.203125,
+            "x": 26,
+            "y": 130
+          },
+          "enabled": true,
+          "name": "검수"
+        },
+        {
+          "box": {
+            "bottom": 174,
+            "height": 44,
+            "right": 162.390625,
+            "width": 88.1875,
+            "x": 74.203125,
+            "y": 130
+          },
+          "enabled": true,
+          "name": "최신화·이력"
+        },
+        {
+          "box": {
+            "bottom": 174,
+            "height": 44,
+            "right": 250.171875,
+            "width": 77.78125,
+            "x": 172.390625,
+            "y": 130
+          },
+          "enabled": true,
+          "name": "맛집 등록"
+        },
+        {
+          "box": {
+            "bottom": 174,
+            "height": 44,
+            "right": 298.171875,
+            "width": 44,
+            "x": 254.171875,
+            "y": 130
+          },
+          "enabled": true,
+          "name": "리스트 뷰"
+        },
+        {
+          "box": {
+            "bottom": 174,
+            "height": 44,
+            "right": 346.171875,
+            "width": 44,
+            "x": 302.171875,
+            "y": 130
+          },
+          "enabled": true,
+          "name": "슬라이드 뷰"
+        },
+        {
+          "box": {
+            "bottom": 174,
+            "height": 44,
+            "right": 595.40625,
+            "width": 44,
+            "x": 551.40625,
+            "y": 130
+          },
+          "enabled": true,
+          "name": "자동 운영 상태 새로고침"
+        },
+        {
+          "box": {
+            "bottom": 174,
+            "height": 44,
+            "right": 675.609375,
+            "width": 76.203125,
+            "x": 599.40625,
+            "y": 130
+          },
+          "enabled": false,
+          "name": "설정"
+        },
+        {
+          "box": {
+            "bottom": 174,
+            "height": 44,
+            "right": 755.765625,
+            "width": 76.15625,
+            "x": 679.609375,
+            "y": 130
+          },
+          "enabled": true,
+          "name": "이력·정책"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "맛집 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 187,
+        "height": 121,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "restaurants",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:28.201Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "맛집 관리",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "제보 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 127,
+        "height": 61,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "submissions",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:29.300Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "제보 관리",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "리뷰 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 127,
+        "height": 61,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "reviews",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:30.430Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "리뷰 관리",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 186,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 142
+          },
+          "enabled": true,
+          "name": "사용자 목록 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "사용자 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 195,
+        "height": 129,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "users",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:31.593Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "사용자 관리",
+      "titleBox": {
+        "bottom": 116,
+        "height": 24,
+        "right": 117.75,
+        "width": 71.75,
+        "x": 46,
+        "y": 92
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 124.40625,
+            "width": 96.40625,
+            "x": 28,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "배너 목록 새로고침"
+        },
+        {
+          "box": {
+            "bottom": 220,
+            "height": 44,
+            "right": 226.09375,
+            "width": 198.09375,
+            "x": 28,
+            "y": 176
+          },
+          "enabled": true,
+          "name": "새 배너"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "배너 관리",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 229,
+        "height": 163,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "banners",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:32.789Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "배너 관리",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "영상 성과 분석",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 127,
+        "height": 61,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "insights",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:33.969Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "영상 성과 분석",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 134.984375,
+        "width": 88.984375,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 66,
+            "width": 44,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "새로고침"
+        },
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 161.421875,
+            "width": 89.421875,
+            "x": 72,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "실행 관리"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "크롤러 파이프라인",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "pipeline",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:35.149Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "크롤러 파이프라인",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 158.640625,
+        "width": 112.640625,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 100.203125,
+            "width": 78.203125,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "지식 목록과 분석 현황 열기"
+        },
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 150.203125,
+            "width": 44,
+            "x": 106.203125,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "지식 그래프 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "지식 그래프",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "knowledge-graph",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:36.372Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "지식 그래프",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 117.75,
+        "width": 71.75,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 66,
+            "width": 44,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "오류 목록 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "오류 모니터링",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "sentry",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:37.543Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "오류 모니터링",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 131.375,
+        "width": 85.375,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "유튜브 썸네일 생성",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 127,
+        "height": 61,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "youtube-thumbnail-generator",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:38.749Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "유튜브 썸네일 생성",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 162.25,
+        "width": 116.25,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "스토리보드 생성",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 127,
+        "height": 61,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "storyboard",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:39.974Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "스토리보드 생성",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 145.015625,
+        "width": 99.015625,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [],
+      "charts": 0,
+      "expectedTitle": "맛집 동선 추천",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 127,
+        "height": 61,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "routes",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:41.179Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "맛집 동선 추천",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 134.984375,
+        "width": 88.984375,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 116.40625,
+            "width": 94.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "운영 상태 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "운영 보조",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "llm",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:42.367Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "운영 보조",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    },
+    {
+      "bodyOverflow": 0,
+      "buttons": [
+        {
+          "box": {
+            "bottom": 170,
+            "height": 44,
+            "right": 118.40625,
+            "width": 96.40625,
+            "x": 22,
+            "y": 126
+          },
+          "enabled": true,
+          "name": "감사 로그 새로고침"
+        }
+      ],
+      "charts": 0,
+      "expectedTitle": "감사 로그",
+      "font": {
+        "lineHeight": "24px",
+        "size": "16px",
+        "weight": "600"
+      },
+      "headerBox": {
+        "bottom": 179,
+        "height": 113,
+        "right": 380,
+        "width": 370,
+        "x": 10,
+        "y": 66
+      },
+      "headerOverflow": 0,
+      "id": "audit",
+      "measuredChartWrappers": 0,
+      "observedAt": "2026-10-11T17:41:43.522Z",
+      "positiveChartWrappers": 0,
+      "ready": true,
+      "title": "감사 로그",
+      "titleBox": {
+        "bottom": 108,
+        "height": 24,
+        "right": 104.125,
+        "width": 58.125,
+        "x": 46,
+        "y": 84
+      },
+      "titleClipped": false,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "visibleH1Count": 1,
+      "navigation": "menu"
+    }
+  ],
+  "mobileStates": [
+    {
+      "id": "overview",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "restaurants",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "submissions",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "reviews",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "users",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "banners",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "insights",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "pipeline",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "knowledge-graph",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "sentry",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "youtube-thumbnail-generator",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "storyboard",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "routes",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "llm",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    },
+    {
+      "id": "audit",
+      "focused": true,
+      "height": 44,
+      "pointer": "auto",
+      "scrollTop": 0,
+      "width": 44,
+      "y": 5.5
+    }
+  ],
+  "wheelStates": [
+    {
+      "step": "initial-audit",
+      "state": {
+        "headerVisible": "true",
+        "menuY": 5.5,
+        "pointer": "auto",
+        "scrollOwners": []
+      }
+    },
+    {
+      "step": "no-scroll-wheel",
+      "state": {
+        "headerVisible": "true",
+        "menuY": 5.5,
+        "pointer": "auto",
+        "scrollOwners": []
+      }
+    },
+    {
+      "step": "overview-initial",
+      "state": {
+        "headerVisible": "true",
+        "menuY": 5.5,
+        "pointer": "auto",
+        "scrollOwners": [
+          {
+            "classes": "min-h-0 min-w-0 flex-1 overflow-hidden overflow-y-auto",
+            "client": 766,
+            "height": 2143,
+            "overflowX": "hidden",
+            "overflowY": "auto",
+            "top": 0
+          }
+        ]
+      }
+    },
+    {
+      "step": "actual-scroll-down",
+      "state": {
+        "headerVisible": "false",
+        "menuY": -37.617652893066406,
+        "pointer": "none",
+        "scrollOwners": [
+          {
+            "classes": "min-h-0 min-w-0 flex-1 overflow-hidden overflow-y-auto",
+            "client": 815,
+            "height": 2158,
+            "overflowX": "hidden",
+            "overflowY": "auto",
+            "top": 350
+          }
+        ]
+      }
+    },
+    {
+      "step": "actual-scroll-top",
+      "state": {
+        "headerVisible": "true",
+        "menuY": 5.417690277099609,
+        "pointer": "auto",
+        "scrollOwners": [
+          {
+            "classes": "min-h-0 min-w-0 flex-1 overflow-hidden overflow-y-auto",
+            "client": 766,
+            "height": 2158,
+            "overflowX": "hidden",
+            "overflowY": "auto",
+            "top": 0
+          }
+        ]
+      }
+    }
+  ],
+  "chartStates": [
+    {
+      "step": "initial",
+      "state": {
+        "charts": 2,
+        "positiveWrappers": 2,
+        "series": [
+          {
+            "label": "조회수 숨기기",
+            "pressed": "true"
+          },
+          {
+            "label": "참여 숨기기",
+            "pressed": "true"
+          },
+          {
+            "label": "참여율 숨기기",
+            "pressed": "true"
+          }
+        ],
+        "wrappers": [
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 273.15625,
+            "ready": "true",
+            "width": 313.6875
+          },
+          {
+            "height": 273.15625,
+            "ready": "true",
+            "width": 433.609375
+          }
+        ]
+      }
+    },
+    {
+      "step": "table",
+      "state": {
+        "charts": 1,
+        "positiveWrappers": 1,
+        "series": [
+          {
+            "label": "조회수 보이기",
+            "pressed": "false"
+          },
+          {
+            "label": "참여 숨기기",
+            "pressed": "true"
+          },
+          {
+            "label": "참여율 숨기기",
+            "pressed": "true"
+          }
+        ],
+        "wrappers": [
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 845.984375,
+            "ready": "true",
+            "width": 309.1875
+          }
+        ]
+      }
+    },
+    {
+      "step": "restored",
+      "state": {
+        "charts": 2,
+        "positiveWrappers": 2,
+        "series": [
+          {
+            "label": "조회수 보이기",
+            "pressed": "false"
+          },
+          {
+            "label": "참여 숨기기",
+            "pressed": "true"
+          },
+          {
+            "label": "참여율 숨기기",
+            "pressed": "true"
+          }
+        ],
+        "wrappers": [
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 0,
+            "ready": "false",
+            "width": 0
+          },
+          {
+            "height": 273.15625,
+            "ready": "true",
+            "width": 313.6875
+          },
+          {
+            "height": 273.15625,
+            "ready": "true",
+            "width": 433.609375
+          }
+        ]
+      }
+    }
+  ],
+  "accepted": true,
+  "limits": [
+    "Synthetic loopback fixture only. No real OAuth/provider/hosted DB/record mutations.",
+    "Logs are cumulative across this owned tab including previous bundle reloads; direction fallback warnings are retained.",
+    "Chart and wheel transitions were observed once; no production speed, general usability or cost claim."
+  ]
+}

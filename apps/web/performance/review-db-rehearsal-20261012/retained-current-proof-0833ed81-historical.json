@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "kind": "review-media-sql-retained-current-proof",
+  "proofPath": "pg17-terminal-boundaries-20261013.json",
+  "proofSha256": "0cfc9c10ff7b70c606f6eeef33fff8dbd14636dc15b7c963925097454ee454a2"
+}

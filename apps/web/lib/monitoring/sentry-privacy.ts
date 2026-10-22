@@ -1,5 +1,6 @@
 import type { ErrorEvent, EventHint, StackFrame, getClient } from '@sentry/nextjs';
 import { assertPrivacySafe } from '@/lib/privacy/sanitize';
+export { validSentryDsn } from './sentry-dsn';
 
 type SentryClient = NonNullable<ReturnType<typeof getClient>>;
 type SentryTransport = NonNullable<ReturnType<SentryClient['getTransport']>>;
@@ -69,17 +70,6 @@ export function sentryErrorOnlyIntegrations<T extends { name: string }>(integrat
   return integrations.filter((integration) => !excluded.has(integration.name));
 }
 
-export function validSentryDsn(value: string | undefined): string | undefined {
-  if (!value || value.length > 512) return undefined;
-  try {
-    const url = new URL(value);
-    if (url.protocol !== 'https:' || url.password || url.port || url.search || url.hash
-      || !/^[a-f0-9]{16,64}$/i.test(url.username) || !/^\/\d+$/.test(url.pathname)
-      || !/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}$/i.test(url.hostname)) return undefined;
-    return value;
-  } catch { return undefined; }
-}
-
 export const sentryPrivacyOptions = {
   integrations: sentryErrorOnlyIntegrations,
   dataCollection: {
@@ -95,6 +85,7 @@ export const sentryPrivacyOptions = {
     stackFrameVariables: false,
     frameContextLines: 0,
   },
+  sendDefaultPii: false,
   enableLogs: false,
   tracesSampleRate: 0,
   profilesSampleRate: 0,
