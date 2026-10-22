@@ -1,6 +1,6 @@
 'use client';
 import { syncRetainedMarkerAccessibility } from '@/lib/retained-marker-accessibility';
-import { createNaverOneShotCallback, removeNaverMapListener } from '@/lib/naver-map-event-cleanup';
+import { createNaverOneShotCallback, detachNaverMapMarker, removeNaverMapListener } from '@/lib/naver-map-event-cleanup';
 
 import { Suspense, lazy, useEffect, useRef, useState, memo, useMemo, useCallback } from "react";
 import type { CSSProperties } from "react";
@@ -1160,7 +1160,7 @@ const NaverMapView = memo(({
         const map = mapInstanceRef.current;
 
         if (!deviceLocation) {
-            deviceLocationMarkerRef.current?.setMap(null);
+            detachNaverMapMarker(deviceLocationMarkerRef.current);
             deviceLocationMarkerRef.current = null;
             lastFocusedDeviceLocationRequestRef.current = null;
             return;
@@ -1168,7 +1168,7 @@ const NaverMapView = memo(({
 
         const currentZoom = map.getZoom();
         if (!hasValidNaverDeviceLocation(deviceLocation, currentZoom) || !Number.isFinite(currentZoom)) {
-            deviceLocationMarkerRef.current?.setMap(null);
+            detachNaverMapMarker(deviceLocationMarkerRef.current);
             deviceLocationMarkerRef.current = null;
             lastFocusedDeviceLocationRequestRef.current = null;
             return;
@@ -1207,7 +1207,7 @@ const NaverMapView = memo(({
     }, [deviceLocation, isMapInitialized]);
 
     useEffect(() => () => {
-        deviceLocationMarkerRef.current?.setMap(null);
+        detachNaverMapMarker(deviceLocationMarkerRef.current);
     }, []);
 
     const handleDetailPanelMouseDownCapture = useMemo(
@@ -1829,11 +1829,11 @@ const NaverMapView = memo(({
         if (!mapRef.current || !mapInstanceRef.current || !isMapInitialized) return;
 
         const map = mapInstanceRef.current;
-        const { naver } = window;
 
         const handleResize = () => {
+            if (!window.naver?.maps?.Event) return;
             // 1. 지도 리사이즈 트리거
-            naver.maps.Event.trigger(map, 'resize');
+            window.naver.maps.Event.trigger(map, 'resize');
 
             const { urlLat, urlLng, urlZoom } = parseNaverMapUrlState(window.location.search);
             if (
@@ -1901,7 +1901,7 @@ const NaverMapView = memo(({
         const { cancel, observerCallback } = buildNaverResizeObserverHandler({
             runAfterTransition: handleResize,
             triggerResize: () => {
-                naver.maps.Event.trigger(map, 'resize');
+                window.naver?.maps?.Event?.trigger(map, 'resize');
             },
         });
         const resizeObserver = new ResizeObserver(observerCallback);
@@ -1922,7 +1922,7 @@ const NaverMapView = memo(({
         const { cancel, handleWindowResize } = buildNaverWindowResizeHandler({
             getMap: () => mapInstanceRef.current,
             triggerResize: (map) => {
-                naver.maps.Event.trigger(map, 'resize');
+                window.naver?.maps?.Event?.trigger(map, 'resize');
             },
         });
 
