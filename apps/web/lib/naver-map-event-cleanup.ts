@@ -26,6 +26,14 @@ export function createNaverOneShotCallback(callback: () => void) {
     };
 }
 
+export function createNaverCancellableCallback(callback: () => void) {
+    let active = true;
+    return {
+        handle() { if (active) callback(); },
+        cancel() { active = false; },
+    };
+}
+
 /** Failed SDK instances must be discarded rather than returned to the marker pool. */
 export function detachNaverMapMarker(marker: { setMap: (map: null) => void } | null | undefined): boolean {
     if (!marker) return false;
@@ -35,4 +43,14 @@ export function detachNaverMapMarker(marker: { setMap: (map: null) => void } | n
     } catch {
         return false;
     }
+}
+
+/** Remove the app-owned location visual immediately; retain failed SDK handles for retry. */
+export function clearNaverDeviceLocationMarker<T extends { setMap: (map: null) => void }>(
+    marker: T | null,
+    removeVisual: () => void,
+): T | null {
+    const detached = detachNaverMapMarker(marker);
+    removeVisual();
+    return detached ? null : marker;
 }
