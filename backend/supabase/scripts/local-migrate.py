@@ -401,6 +401,10 @@ REVIEW_MEDIA_FUNCTIONS = [['public.admin_review_verification_cleanup(uuid,text,t
   False,
   False,
   []],
+ ['review_media_private.guard_verification_object_delete()',
+  'privacy_workflow_owner', 'trigger', True, 'v', ['search_path=""'],
+  '24311fc7071597fbc78c4c54897690da5aaa70edb62c24f7912fd23fecf515b0',
+  False, False, False, []],
  ['review_media_private.guard_references()',
   'privacy_workflow_owner',
   'trigger',
@@ -445,6 +449,10 @@ REVIEW_MEDIA_FUNCTIONS = [['public.admin_review_verification_cleanup(uuid,text,t
   False,
   False,
   []],
+ ['review_media_private.reject_verification_object_update()',
+  'privacy_workflow_owner', 'trigger', False, 'v', ['search_path=""'],
+  'aa1d4951b8d5fdd15249b090c6d6efba897f39eaceee86bf09221eb1d942d545',
+  False, False, False, []],
  ['review_media_private.referenced(text)',
   'privacy_workflow_owner',
   'boolean',
@@ -456,7 +464,12 @@ REVIEW_MEDIA_FUNCTIONS = [['public.admin_review_verification_cleanup(uuid,text,t
   False,
   False,
   []]]
-REVIEW_MEDIA_STORAGE_POLICIES = {'review_media_safe_delete': ('DELETE',
+REVIEW_MEDIA_FUNCTIONS.sort(key=lambda row: row[0])
+REVIEW_MEDIA_STORAGE_POLICIES = {
+ 'review_verifications_immutable_update': ('UPDATE', ['authenticated'],
+    "(bucket_id <> 'review-verifications'::text)",
+    "(bucket_id <> 'review-verifications'::text)", False),
+ 'review_media_safe_delete': ('DELETE',
                               ['authenticated'],
                               "((bucket_id <> 'review-photos'::text) OR review_media_delete_allowed(name))",
                               None,
@@ -3363,7 +3376,7 @@ def _validate_seed_invariants(records: list[list[Any]]) -> None:
     ]:
         _receipt_error("receipt_bucket_fixture")
     storage_policies = [row for row in records if row[0] == "storage_policies"]
-    if len(storage_policies) != 22 or any(row[1:3] != ["storage", "objects"] for row in storage_policies):
+    if len(storage_policies) != 12 + len(REVIEW_MEDIA_STORAGE_POLICIES) or any(row[1:3] != ["storage", "objects"] for row in storage_policies):
         _receipt_error("receipt_storage_policy_fixture")
     policy_names = {row[3] for row in storage_policies}
     expected_policy_names = {
