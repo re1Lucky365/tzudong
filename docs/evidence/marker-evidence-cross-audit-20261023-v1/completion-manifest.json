@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "status": "AUDIT_AND_NATIVE_FIXES_COMPLETE_DELIVERY_PENDING",
-  "updated_at": "2026-10-22T21:26:52.134597+00:00",
+  "status": "AUDIT_COMPLETE_RUNTIME_FIX_NATIVE_PASSED_PREVIEW_PENDING",
+  "updated_at": "2026-10-22T21:56:00Z",
   "scope": "Real published map flames and approved video context frames; retained marker refresh and robust public detail boundaries",
   "reports": [
     {
@@ -32,11 +32,12 @@
     "lint": "scopedexit0",
     "build": "Next16.3.8compileTS56routesCSSpass at8d47 beforeguardremedy andupstreamintegration; CInewhead required",
     "public_assets": "All12liveWebPfullhashesmatch,4approvedownervideomappings;735JSONunchanged",
-    "local_runtime": "SSR/clienthydration shell observed; actualhosteddata path locally401, NOT full localHOST_TESTED"
+    "local_runtime": "SSR/clienthydration shell observed; actualhosteddata path locally401, NOT full localHOST_TESTED",
+    "final_source_ci": "PR3486 CI39857451330 all jobs passed on4b25361a7d958ab5ee455a5eac4151eabfb831c0"
   },
   "delivery": {
-    "state": "pending protected PR/CI/develop-data-main/exactSHA-READY-alias-URLreadback",
-    "previous_observed_live_sha": "ac80e35da566db242420a62bbf3e3320b5c00e76",
+    "state": "Original fixes promoted to data. Production held for LOCAL-RUNTIME-01 corrected-preview verification.",
+    "previous_observed_live_sha": "6e6cad4e3891b3ed64a79c9a04ec38e41e53c4fb",
     "newer_staged_production_sha": "6e6cad4e3891b3ed64a79c9a04ec38e41e53c4fb",
     "note": "Other owner READYdeployment preserved; freshlive rollback identity required before ourpromotion."
   },
@@ -52,5 +53,6 @@
     "No physical-device/field/performance proof",
     "Trusted owner-controlled frame staging, no concurrent untrusted writer; no batch atomicity claim",
     "Other owners/actualquota preserved; Pstack owner settlement request stillpending atlastsharedreadback, Telegramownercancelled"
-  ]
+  ],
+  "runtime_followup": "LOCAL-RUNTIME-01-resolution.json"
 }
