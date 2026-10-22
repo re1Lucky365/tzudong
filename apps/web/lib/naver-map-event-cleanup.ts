@@ -25,3 +25,14 @@ export function createNaverOneShotCallback(callback: () => void) {
         cancel() { active = false; },
     };
 }
+
+/** Failed SDK instances must be discarded rather than returned to the marker pool. */
+export function detachNaverMapMarker(marker: { setMap: (map: null) => void } | null | undefined): boolean {
+    if (!marker) return false;
+    try {
+        marker.setMap(null);
+        return true;
+    } catch {
+        return false;
+    }
+}

@@ -12,7 +12,7 @@
  */
 
 import { syncRetainedMarkerAccessibility } from './retained-marker-accessibility';
-import { removeNaverMapListener } from './naver-map-event-cleanup';
+import { detachNaverMapMarker, removeNaverMapListener } from './naver-map-event-cleanup';
 
 type MarkerClickEvent = unknown;
 
@@ -237,8 +237,8 @@ export class MarkerPool {
         // closure or dispatch a queued click for a no-longer-active place.
         marker.__onClick = undefined;
         syncRetainedMarkerAccessibility(marker, true);
-        marker.setMap(null);
-        if (this.pool.length < this.MAX_POOL_SIZE) {
+        const detached = detachNaverMapMarker(marker);
+        if (detached && this.pool.length < this.MAX_POOL_SIZE) {
             this.pool.push(marker);
         } else {
             marker.__disposeClickListener?.();
@@ -337,7 +337,7 @@ export class MarkerPool {
         this.active.forEach((marker) => {
             marker.__onClick = undefined;
             syncRetainedMarkerAccessibility(marker, true);
-            marker.setMap(null);
+            detachNaverMapMarker(marker);
             marker.__disposeClickListener?.();
             marker.__disposeClickListener = undefined;
         });
@@ -345,7 +345,7 @@ export class MarkerPool {
         // 풀의 모든 마커도 정리
         this.pool.forEach((marker) => {
             marker.__onClick = undefined;
-            marker.setMap(null);
+            detachNaverMapMarker(marker);
             marker.__disposeClickListener?.();
             marker.__disposeClickListener = undefined;
         });
