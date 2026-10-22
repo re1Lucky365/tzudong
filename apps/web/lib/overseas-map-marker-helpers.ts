@@ -4,6 +4,13 @@ import { publicPopularityTier, wrapMarkerWithPopularityTier } from './evidence-e
 const OVERSEAS_MARKER_BASE_SIZE_CLASSES = ['!h-8', '!w-8'] as const;
 const OVERSEAS_MARKER_SELECTED_SIZE_CLASSES = ['!h-[42px]', '!w-[42px]'] as const;
 
+export function hasRenderableOverseasCoordinates({ lat, lng }: { lat: unknown; lng: unknown }) {
+    const valid = (value: unknown, limit: number) =>
+        (typeof value === 'number' || (typeof value === 'string' && value.trim() !== ''))
+        && Number.isFinite(Number(value)) && Math.abs(Number(value)) <= limit;
+    return valid(lat, 90) && valid(lng, 180) && (Number(lat) !== 0 || Number(lng) !== 0);
+}
+
 export function buildOverseasMarkerHtml({
     imagePath,
     name,

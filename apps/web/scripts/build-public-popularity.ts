@@ -13,7 +13,19 @@ export async function buildPublicPopularity(sourcePath: string, metricsPath: str
   const source = JSON.parse(sourceBytes.toString()) as { rows: Array<Record<string, unknown>> };
   const metrics = JSON.parse(metricBytes.toString()) as { rows: Array<{ video_id: string; view_count: number | string; fetched_at: string; bucket_started_at: string }> };
   const byVideo = new Map(metrics.rows.map((r) => [r.video_id, r]));
-  const rows = source.rows.map((r) => ({ ...r, approved_name: r.name })) as unknown as Tables<'restaurants'>[];
+  const rows = source.rows.map((r) => {
+    if (r.status !== 'approved') throw new Error('popularity_source_not_approved');
+    const validCoordinate = (value: unknown, limit: number) =>
+      (typeof value === 'number' || (typeof value === 'string' && value.trim() !== ''))
+      && Number.isFinite(Number(value)) && Math.abs(Number(value)) <= limit;
+    // Validate before mergeRestaurants can replace missing coordinates with zero.
+    if (!validCoordinate(r.lat, 90) || !validCoordinate(r.lng, 180) || (Number(r.lat) === 0 && Number(r.lng) === 0)) {
+      throw new Error('popularity_source_coordinates_invalid');
+    }
+    const name = r.approved_name ?? r.name;
+    if (typeof name !== 'string' || name.trim() === '') throw new Error('popularity_source_name_invalid');
+    return { ...r, name, approved_name: name, lat: Number(r.lat), lng: Number(r.lng) };
+  }) as unknown as Tables<'restaurants'>[];
   const countries = [...new Set(Object.values(OVERSEAS_REGIONS).map((r) => r.country))];
   const groups = mergeRestaurants(rows, () => 'standard').map((r) => {
     const members = r.mergedRestaurants?.length ? r.mergedRestaurants : [r];
@@ -23,7 +35,7 @@ export async function buildPublicPopularity(sourcePath: string, metricsPath: str
       const metric = byVideo.get(id); const count = Number(metric?.view_count);
       return metric && Number.isSafeInteger(count) && count > 0 ? [{ videoId: id, count, observedAt: metric.fetched_at || metric.bucket_started_at }] : [];
     });
-    const overseas = countries.some((country) => restaurantMatchesOverseasCountry(r, country)) || Number(r.lat) < 32 || Number(r.lat) > 40 || Number(r.lng) < 124 || Number(r.lng) > 132;
+    const overseas = countries.some((country) => restaurantMatchesOverseasCountry(r, country)) || Number(r.lat) < 33 || Number(r.lat) > 39 || Number(r.lng) < 124 || Number(r.lng) > 132;
     return { restaurantId: ids[0], memberRestaurantIds: ids, name: r.name, cohort: overseas ? 'overseas' : 'domestic', viewCount: observed.length ? Math.max(...observed.map((m) => m.count)) : null, observed };
   });
   const thresholds = ['domestic', 'overseas'].map((cohort) => {
@@ -38,7 +50,7 @@ export async function buildPublicPopularity(sourcePath: string, metricsPath: str
   }).sort((a, b) => a.restaurantId.localeCompare(b.restaurantId));
   const publication = parsePublicPopularityPublication({ schemaVersion: 2, publicationVersion: 'video-views-20261022-v1', sourceRevision: revision, entries });
   const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
-  return { publication, evidence: { policy: 'map-cohort-max-linked-video-views-nearest-rank-p95-p85-v1', definition: 'Most-viewed linked video per merged restaurant, ranked separately within domestic and overseas approved restaurant cohorts. This measures video reach, not food quality.', sourceSha256: sha(sourceBytes), metricsSha256: sha(metricBytes), thresholds, groups } };
+  return { publication, evidence: { policy: 'map-cohort-max-linked-video-views-nearest-rank-p98-p95-p85-v2', definition: 'Most-viewed linked video per merged restaurant, ranked separately within domestic and overseas approved restaurant cohorts. This measures video reach, not food quality.', sourceSha256: sha(sourceBytes), metricsSha256: sha(metricBytes), thresholds, groups } };
 }
 
 if (import.meta.main) {
