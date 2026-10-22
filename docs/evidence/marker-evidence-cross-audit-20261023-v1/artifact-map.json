@@ -17,11 +17,6 @@
       "sha256": "c876bc27ed38248e20fbfebcdbdd43d5fe0bacbbd78d6e1e98f4f1f77dd80724"
     },
     {
-      "path": "artifact-map.json.sha256",
-      "bytes": 65,
-      "sha256": "f6afa22ba6b52147e3c81a9b0f1a7c065635b1a46345ee364682ec150add07a7"
-    },
-    {
       "path": "chatgpt_master_plan.md",
       "bytes": 44976,
       "sha256": "f0b823f93ffc1052e041843f3fbdd50c11b4c66a04f7f67ec7b23b60bd48564f"
