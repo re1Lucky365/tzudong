@@ -3,7 +3,7 @@
   "kind": "platform_modernization_reconciliation",
   "baseCommit": "3f4ca55742aa33869b776291e0d035a16024eef1",
   "sourceCommit": "880bf06d375dbc6ebe8dcf108419c3f455048a97",
-  "candidateContentSha256": "ef79ee497a3420d6203f232c1f2788d05a3030c41748c141ed8f5fcbee146180",
+  "candidateContentSha256": "18a6ede5bedae405ff4848b987854491c186b101a13f7682c6baaeb515b8b7cb",
   "candidateWorkingTreeStateIncluded": true,
   "sourceDeltaEntryCount": 207,
   "dispositionCounts": {
@@ -1265,7 +1265,7 @@
       "candidatePresentAtInspectionPath": true,
       "baseGitBlobSha1": "92ba461990acd75a9677171814de9849838f97ee",
       "sourceGitBlobSha1": "92ba461990acd75a9677171814de9849838f97ee",
-      "candidateGitBlobSha1": "261350685ec082b46522123205b14f69e832aa9b",
+      "candidateGitBlobSha1": "7a5d77b1a5c65ae358e0c3a40ec07dde947990ef",
       "contentState": "candidate_transformed",
       "disposition": "current_layout_retained",
       "rationale": "The parked path move or deletion stays unapplied so backend/pipeline-control remains the sole owned compose tree."
