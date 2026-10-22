@@ -28,6 +28,7 @@ import {
     applyOverseasMarkerSelectedState,
     buildOverseasMarkerHtml,
     getOverseasMarkerActiveId,
+    hasRenderableOverseasCoordinates,
 } from '@/lib/overseas-map-marker-helpers';
 import {
     mergeOverseasRestaurants,
@@ -323,7 +324,7 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
     }, [mapAttempt]);
 
     const moveToRestaurant = useCallback((restaurant: Restaurant) => {
-        if (!map.current) return;
+        if (!map.current || !hasRenderableOverseasCoordinates(restaurant)) return;
 
         // [New] 강제 줌 레벨이 있으면 사용, 없으면 현재 줌 유지
         const targetZoom = mapFocusZoom ?? map.current.getZoom();
@@ -354,10 +355,7 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
     useEffect(() => {
         if (!map.current || !isMapLoaded) return;
 
-        const renderableRestaurants = restaurantsToShow.filter(({ lat, lng }) =>
-            lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))
-            && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lng)) <= 180
-            && (Number(lat) !== 0 || Number(lng) !== 0));
+        const renderableRestaurants = restaurantsToShow.filter(hasRenderableOverseasCoordinates);
         const currentMarkerIds = new Set(renderableRestaurants.map(r => r.id));
 
         // 1. Remove markers that are no longer in the list

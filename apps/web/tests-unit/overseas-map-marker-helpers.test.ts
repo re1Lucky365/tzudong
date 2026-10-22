@@ -5,9 +5,19 @@ import {
     applyOverseasMarkerSelectedState,
     buildOverseasMarkerHtml,
     getOverseasMarkerActiveId,
+    hasRenderableOverseasCoordinates,
 } from '../lib/overseas-map-marker-helpers';
 
 describe('overseas map marker helpers', () => {
+    test('validates the same coordinates before marker creation and external map movement', () => {
+        for (const row of [{ lat: 35, lng: 139 }, { lat: 0, lng: 30 }, { lat: '35', lng: '139' }]) {
+            expect(hasRenderableOverseasCoordinates(row)).toBe(true);
+        }
+        for (const row of [{ lat: null, lng: null }, { lat: 0, lng: 0 }, { lat: '', lng: ' ' },
+            { lat: 91, lng: 139 }, { lat: 35, lng: 181 }, { lat: Number.NaN, lng: 139 }, { lat: undefined, lng: 139 }]) {
+            expect(hasRenderableOverseasCoordinates(row)).toBe(false);
+        }
+    });
     test('builds class-only marker HTML with valid local and HTTPS images', () => {
         for (const imagePath of [
             '/images/maker-images/asian.png',

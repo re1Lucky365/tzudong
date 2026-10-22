@@ -18,6 +18,7 @@ async function fixtureBundle() {
       globalThis.__refresh = patch => { globalThis.__rows = [{ ...globalThis.__rows[0], ...patch }]; update(v => v + 1); };
       return <OverseasMap filters={{ categories: [], minRating: 0, minReviews: 0, minUserVisits: 0, minJjyangVisits: 0 }} selectedCountry={null} searchedRestaurant={null}
         selectedRestaurant={globalThis.__rows[0]} refreshTrigger={version} mapFocusZoom={12 + version}
+        onMapReady={move => { globalThis.__externalMove = move; }}
         onRestaurantSelect={row => globalThis.__sdk.clicks.push({ kind: 'select', name: row.name, version })}
         onMarkerClick={row => globalThis.__sdk.clicks.push({ kind: 'marker', name: row.name, version })} />;
     }
@@ -92,6 +93,17 @@ async function fixtureBundle() {
         const state = await page.evaluate(() => (window as unknown as { __sdk: { creations: number; clicks: unknown[]; jumps: { center: number[]; zoom: number }[] } }).__sdk);
         expect(state.creations).toBe(1); expect(state.clicks).toHaveLength(4);
         expect(state.jumps.at(-1)).toMatchObject({ center: [140, 36], zoom: 15 });
+        const beforeInvalidMoves = state.jumps.length;
+        await page.evaluate(() => {
+          const fixture = window as unknown as { __externalMove: (row: object) => void };
+          for (const coordinates of [{ lat: null, lng: null }, { lat: 0, lng: 0 }, { lat: 91, lng: 140 },
+            { lat: 35, lng: 181 }, { lat: '', lng: ' ' }, { lat: Number.NaN, lng: 140 }]) {
+            fixture.__externalMove({ id: 'external-invalid', ...coordinates });
+          }
+        });
+        expect(await page.evaluate(() => (window as unknown as { __sdk: { jumps: unknown[] } }).__sdk.jumps.length)).toBe(beforeInvalidMoves);
+        await page.evaluate(() => (window as unknown as { __externalMove: (row: object) => void }).__externalMove({ id: 'external-valid', lat: 37, lng: 126 }));
+        expect(await page.evaluate(() => (window as unknown as { __sdk: { jumps: object[] } }).__sdk.jumps.at(-1))).toMatchObject({ center: [126, 37], zoom: 15 });
         await page.evaluate(() => (window as unknown as { __refresh: (row: object) => void }).__refresh({ lat: 0, lng: 0 }));
         await ui(marker).toHaveCount(0);
         expect(errors).toEqual([]);
