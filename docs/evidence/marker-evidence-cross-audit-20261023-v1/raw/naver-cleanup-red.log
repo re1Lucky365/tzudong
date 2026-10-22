@@ -1,35 +1,7 @@
-bun test v1.4.0 (34cbb9a40)
-
-tests-unit/marker-pool.test.ts:
-172 |     events.removeListener = () => {
-173 |       attempts += 1;
-174 |       throw new TypeError("Cannot read properties of null (reading 'isArray')");
-175 |     };
-176 |     try {
-177 |       expect(() => markerPool.clear()).not.toThrow();
-                                                 ^
-error: expect(received).not.toThrow()
-
-Error name: "TypeError"
-Error message: "Cannot read properties of null (reading 'isArray')"
-
-      at <anonymous> (/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/apps/web/tests-unit/marker-pool.test.ts:177:44)
-(fail) marker pool > provider listener teardown failure does not strand the remaining markers or pool state [0.86ms]
-(pass) marker pool > exports the same singleton and creates one marker/listener for a new id [0.17ms]
-(pass) marker pool > reuses an active marker and updates only changed map, position, icon, and click handler [0.15ms]
-(pass) marker pool > releases after the fade delay and reuses the pooled marker for a new id [0.12ms]
-(pass) marker pool > reclaims a fading marker instead of creating a second node [0.04ms]
-(pass) marker pool > updates active markers and treats unknown ids as safe no-ops [0.04ms]
-(pass) marker pool > a returning batch reuses its restaurant identities and updated click handlers without rebuilding icons [0.16ms]
-(pass) marker pool > releaseExcept and releaseAll keep only the requested active ids before delayed cleanup [0.07ms]
-(pass) marker pool > clear cancels a release that was already scheduled [0.04ms]
-(pass) marker pool > clear leaves the pool empty for markers that were still active [0.01ms]
-(pass) marker pool > keeps the category image when only the review bubble changes [0.25ms]
-(pass) pool reuse and changed visit badges update static marker content even with the same image [0.12ms]
-(pass) detached SDK clicks cannot dispatch stale data and reuse keeps one owned listener [0.12ms]
-(pass) disposal stays bounded across cache capacity and repeated clear [1.52ms]
-
- 13 pass
- 1 fail
- 1113 expect() calls
-Ran 14 tests across 1 file. [66.00ms]
+code=NAVER_LISTENER_CLEANUP_FAILED
+regression=marker_pool_cleanup_continuation
+result=failed_before_fix
+pass=13
+fail=1
+assertions=1113
+raw_provider_diagnostic=not_republished

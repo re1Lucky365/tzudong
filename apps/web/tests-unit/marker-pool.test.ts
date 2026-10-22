@@ -171,7 +171,7 @@ describe('marker pool', () => {
     const remove = events.removeListener;
     events.removeListener = () => {
       attempts += 1;
-      throw new TypeError("Cannot read properties of null (reading 'isArray')");
+      throw new TypeError('PROVIDER_LISTENER_CLEANUP_FAILED');
     };
     try {
       expect(() => markerPool.clear()).not.toThrow();

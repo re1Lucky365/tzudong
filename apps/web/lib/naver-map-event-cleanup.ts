@@ -12,3 +12,16 @@ export function removeNaverMapListener<T>(
         return false;
     }
 }
+
+/** A provider may retain an idle handler even when removal fails. */
+export function createNaverOneShotCallback(callback: () => void) {
+    let active = true;
+    return {
+        handle() {
+            if (!active) return;
+            active = false;
+            callback();
+        },
+        cancel() { active = false; },
+    };
+}

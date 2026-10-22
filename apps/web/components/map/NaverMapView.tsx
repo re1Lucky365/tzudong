@@ -1,6 +1,6 @@
 'use client';
 import { syncRetainedMarkerAccessibility } from '@/lib/retained-marker-accessibility';
-import { removeNaverMapListener } from '@/lib/naver-map-event-cleanup';
+import { createNaverOneShotCallback, removeNaverMapListener } from '@/lib/naver-map-event-cleanup';
 
 import { Suspense, lazy, useEffect, useRef, useState, memo, useMemo, useCallback } from "react";
 import type { CSSProperties } from "react";
@@ -3461,6 +3461,7 @@ const NaverMapView = memo(({
         let targetZoomLevel = map.getZoom();
         let lastWheelTime = 0;
         let pendingAnchorAdjustListener: unknown = null;
+        let cancelPendingAnchorAdjust: (() => void) | undefined;
         let isAnchorAdjusting = false;
 
         let queuedWheelInput: NaverWheelInput | null = null;
@@ -3586,7 +3587,8 @@ const NaverMapView = memo(({
                     }
 
                     // 투영이 아직 이전 줌이면 idle 이후에 한 번만 보정한다.
-                    pendingAnchorAdjustListener = naver.maps.Event.addListener(map, 'idle', () => {
+                    cancelPendingAnchorAdjust?.();
+                    const anchorCompletion = createNaverOneShotCallback(() => {
                         pendingAnchorAdjustListener = clearNaverPendingAnchorAdjustListener({
                             pendingAnchorAdjustListener,
                             removeListener: (listener) => { removeNaverMapListener(naver.maps.Event, listener); },
@@ -3600,6 +3602,8 @@ const NaverMapView = memo(({
                             finishAnchorCorrection();
                         }
                     });
+                    cancelPendingAnchorAdjust = anchorCompletion.cancel;
+                    pendingAnchorAdjustListener = naver.maps.Event.addListener(map, 'idle', anchorCompletion.handle);
                 } catch (error) {
                     console.error("휠 줌 포인터 고정 처리 실패:");
                     map.setZoom(nextZoom, true);
@@ -3649,6 +3653,7 @@ const NaverMapView = memo(({
             : [];
 
         return () => {
+            cancelPendingAnchorAdjust?.();
             if (pendingAnchorAdjustListener && window.naver?.maps?.Event) {
                 pendingAnchorAdjustListener = clearNaverPendingAnchorAdjustListener({
                     pendingAnchorAdjustListener,
