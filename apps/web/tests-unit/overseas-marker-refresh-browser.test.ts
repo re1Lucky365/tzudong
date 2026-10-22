@@ -12,13 +12,14 @@ async function fixtureBundle() {
     import { createRoot } from 'react-dom/client';
     import OverseasMap from './components/map/OverseasMap';
     const initial = { id: 'refresh-marker', name: '처음 식당', lat: 35, lng: 139, categories: ['한식'], popularity_tier: 'fire' };
-    globalThis.__rows = [initial]; globalThis.__sdk = { creations: 0, jumps: [], clicks: [] };
+    globalThis.__rows = [initial]; globalThis.__sdk = { creations: 0, additions: 0, visibleIds: [], jumps: [], clicks: [] };
     function App() {
       const [version, update] = useState(0);
       globalThis.__refresh = patch => { globalThis.__rows = [{ ...globalThis.__rows[0], ...patch }]; update(v => v + 1); };
       return <OverseasMap filters={{ categories: [], minRating: 0, minReviews: 0, minUserVisits: 0, minJjyangVisits: 0 }} selectedCountry={null} searchedRestaurant={null}
         selectedRestaurant={globalThis.__rows[0]} refreshTrigger={version} mapFocusZoom={12 + version}
         onMapReady={move => { globalThis.__externalMove = move; }}
+        onVisibleRestaurantsChange={rows => { globalThis.__sdk.visibleIds = rows.map(row => row.id); }}
         onRestaurantSelect={row => globalThis.__sdk.clicks.push({ kind: 'select', name: row.name, version })}
         onMarkerClick={row => globalThis.__sdk.clicks.push({ kind: 'marker', name: row.name, version })} />;
     }
@@ -37,7 +38,7 @@ async function fixtureBundle() {
       constructor({element}) { this.element = element; globalThis.__sdk.creations++; }
       getElement() { return this.element; }
       setLngLat(value) { this.element.dataset.coordinates = JSON.stringify(value); return this; }
-      addTo(map) { map.container.append(this.element); return this; }
+      addTo(map) { globalThis.__sdk.additions++; map.container.append(this.element); return this; }
       remove() { this.element.remove(); }
     }
   `;
@@ -79,7 +80,7 @@ async function fixtureBundle() {
         await ui(marker).toHaveClass(/selected/);
         await marker.click();
         expect(await page.evaluate(() => (window as unknown as { __sdk: unknown }).__sdk)).toMatchObject({
-          creations: 1, clicks: [{ kind: 'select', name: '최신 식당', version: 1 }, { kind: 'marker', name: '최신 식당', version: 1 }],
+          creations: 1, additions: 1, visibleIds: ['refresh-marker'], clicks: [{ kind: 'select', name: '최신 식당', version: 1 }, { kind: 'marker', name: '최신 식당', version: 1 }],
         });
         await marker.locator('img').evaluate(element => { (window as unknown as { __image: Element }).__image = element; });
         await page.evaluate(() => (window as unknown as { __refresh: (row: object) => void }).__refresh({}));
@@ -106,6 +107,7 @@ async function fixtureBundle() {
         expect(await page.evaluate(() => (window as unknown as { __sdk: { jumps: object[] } }).__sdk.jumps.at(-1))).toMatchObject({ center: [126, 37], zoom: 15 });
         await page.evaluate(() => (window as unknown as { __refresh: (row: object) => void }).__refresh({ lat: 0, lng: 0 }));
         await ui(marker).toHaveCount(0);
+        expect(await page.evaluate(() => (window as unknown as { __sdk: { visibleIds: string[]; additions: number } }).__sdk)).toMatchObject({ visibleIds: [], additions: 1 });
         expect(errors).toEqual([]);
       } finally { await page.close(); }
     }
