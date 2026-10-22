@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { createNaverOneShotCallback, removeNaverMapListener } from '../lib/naver-map-event-cleanup';
+import { clearNaverDeviceLocationMarker, createNaverCancellableCallback, createNaverOneShotCallback, removeNaverMapListener } from '../lib/naver-map-event-cleanup';
 
 test('listener removal preserves the provider receiver and handle', () => {
     const handle = { id: 'listener' };
@@ -50,4 +50,30 @@ test('cleanup cancels a still-pending idle correction even if the provider retai
     oneShot.cancel();
     oneShot.handle();
     expect(corrections).toBe(0);
+});
+
+test('canceled provider callbacks cannot dispatch stale props after failed listener removal', () => {
+    const calls: string[] = [];
+    const old = createNaverCancellableCallback(() => { calls.push('old'); });
+    const current = createNaverCancellableCallback(() => { calls.push('current'); });
+    const events = { removeListener: () => { throw new Error('NAVER_LISTENER_CLEANUP_FAILED'); } };
+    old.cancel();
+    removeNaverMapListener(events, old.handle);
+    old.handle(); current.handle();
+    expect(calls).toEqual(['current']);
+});
+
+test('clearing location removes its visual and retains a failed SDK handle until retry succeeds', () => {
+    let attempts = 0;
+    let visible = true;
+    const marker = { setMap: () => {
+        if (++attempts === 1) throw new Error('NAVER_MARKER_DETACH_FAILED');
+    } };
+    const removeVisual = () => { visible = false; };
+    const pending = clearNaverDeviceLocationMarker(marker, removeVisual);
+    expect(pending).toBe(marker);
+    expect(visible).toBe(false);
+    expect(clearNaverDeviceLocationMarker(pending, removeVisual)).toBe(null);
+    expect(attempts).toBe(2);
+    expect(visible).toBe(false);
 });
