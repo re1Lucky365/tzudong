@@ -8636,6 +8636,8 @@ function AdminSidebar({
             size="sm"
             className="h-8 shrink-0 rounded-md px-2.5 text-xs font-bold"
             aria-pressed={isSidebarOrderEditMode}
+            aria-expanded={isSidebarOrderEditMode}
+            aria-controls={`admin-sidebar-order-options-${placement}`}
             data-admin-sidebar-order-edit-toggle="true"
             onClick={() => {
               setIsSidebarOrderEditMode((current) => !current);
@@ -8681,7 +8683,8 @@ function AdminSidebar({
         </p>
       )}
 
-      <div className="space-y-2">
+      {isSidebarOrderEditMode && (
+      <div id={`admin-sidebar-order-options-${placement}`} className="space-y-2">
         {orderedSidebarSections.map((section, sectionIndex) => (
           <div
             key={section.label}
@@ -8812,6 +8815,7 @@ function AdminSidebar({
           </div>
         ))}
       </div>
+      )}
 
       <p
         className="admin-detail-section mt-2 bg-muted/30 px-2.5 py-2 text-xs leading-5 text-muted-foreground"
