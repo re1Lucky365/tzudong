@@ -121,6 +121,7 @@ class PlatformModernizationReconciliationTests(unittest.TestCase):
         self.assertEqual(counts["candidate_transformed_present"], 113)
         for path in (
             "backend/DATA_CONTRACTS.md",
+            "backend/pipeline_control/tests/test_metrics.py",
             "backend/bin/schema_mirror_report.py",
             "backend/bin/tests/test_schema_mirror_pbt.py",
             "backend/pipeline_control/log_retention.py",

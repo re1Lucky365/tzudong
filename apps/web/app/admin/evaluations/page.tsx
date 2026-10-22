@@ -160,16 +160,6 @@ const EVALUATION_FILTER_KEYS = [
   'category_TF',
   'status',
 ] as const;
-const ADMIN_SUBMISSION_ITEM_SELECT = [
-  'id',
-  'submission_id',
-  'youtube_link',
-  'tzuyang_review',
-  'target_restaurant_id',
-  'item_status',
-  'rejection_reason',
-  'created_at',
-].join(', ');
 const ADMIN_REVIEW_SELECT = [
   'id',
   'user_id',
@@ -1648,26 +1638,16 @@ function AdminEvaluationPage({
         cache: 'no-store',
       });
       if (!response.ok) throw new Error('admin-submissions-failed');
-      const payload = await response.json().catch(() => null) as { submissions?: unknown } | null;
-      if (!payload || !Array.isArray(payload.submissions)) throw new Error('admin-submissions-invalid');
+      const payload = await response.json().catch(() => null) as { submissions?: unknown; items?: unknown } | null;
+      if (!payload || !Array.isArray(payload.submissions) || !Array.isArray(payload.items)) {
+        throw new Error('admin-submissions-invalid');
+      }
       const typedSubmissions = parseValidatedRows(payload.submissions, isSubmissionRow);
       if (!typedSubmissions.length) return [];
-      const submissionIds = typedSubmissions.map(s => s.id);
       const userIds = [...new Set(typedSubmissions.map(s => s.user_id))];
 
-      // 2. items / profile summaries 병렬 조회
-      const [{ data: itemsData, error: itemsError }, profilesLookup] = await Promise.all([
-        supabase
-          .from('restaurant_submission_items')
-          .select(ADMIN_SUBMISSION_ITEM_SELECT)
-          .in('submission_id', submissionIds)
-          .order('created_at', { ascending: true })
-          .overrideTypes<Record<string, unknown>[], { merge: false }>(),
-        fetchAdminProfileSummariesLookup(userIds),
-      ]);
-
-      if (itemsError || !Array.isArray(itemsData)) throw new Error('admin-submission-items-failed');
-      const typedItemsData = parseValidatedRows(itemsData, isSubmissionItem);
+      const typedItemsData = parseValidatedRows(payload.items, isSubmissionItem);
+      const profilesLookup = await fetchAdminProfileSummariesLookup(userIds);
 
       const itemsMap = new Map<string, SubmissionItem[]>();
       typedItemsData.forEach((item) => {
