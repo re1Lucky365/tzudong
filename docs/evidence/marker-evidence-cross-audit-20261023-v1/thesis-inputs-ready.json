@@ -129,18 +129,18 @@
       "apps/web/tsconfig.json",
       "apps/web/types/restaurant.ts"
     ],
-    "prompt_path": "/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/docs/evidence/marker-evidence-cross-audit-20261023-v1/thesis-prompt.txt",
+    "prompt_path": "docs/evidence/marker-evidence-cross-audit-20261023-v1/thesis-prompt.txt",
     "prompt_sha256": "9882ad8859c39891c20ac83f0955a48f130488ab2c6624b9e2ca84c56d062bfd",
     "attachments": [
       {
-        "path": "/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/docs/evidence/marker-evidence-cross-audit-20261023-v1/source_bundle.txt",
+        "path": "docs/evidence/marker-evidence-cross-audit-20261023-v1/source_bundle.txt",
         "basename": "source_bundle.txt",
         "sha256": "6edea509e566107a4a4bbced53055aed79ea3ca3c1094367a468bf7cb0f047e5",
         "bytes": 704328,
         "reason": "Necessary scoped current code/dependencies/config/tests or canonical material-delta brief; no assumed GitHub access"
       },
       {
-        "path": "/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/docs/evidence/marker-evidence-cross-audit-20261023-v1/review-brief.md",
+        "path": "docs/evidence/marker-evidence-cross-audit-20261023-v1/review-brief.md",
         "basename": "review-brief.md",
         "sha256": "dc958fa23a667d9e6a0e3d797732996247616976b4ad2473ff43f69252d9e649",
         "bytes": 4893,

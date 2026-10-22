@@ -13,7 +13,7 @@ error: expect(received).toBe(expected)
 Expected: 6
 Received: 12
 
-      at <anonymous> (/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/apps/web/tests-unit/overseas-marker-refresh-browser.test.ts:104:118)
+      at <anonymous> (apps/web/tests-unit/overseas-marker-refresh-browser.test.ts:104:118)
 (fail) retained overseas markers refresh content, location and click data without recreating or losing selection [5721.78ms]
 
  0 pass
