@@ -8,8 +8,8 @@
     },
     {
       "path": "LOCAL-RUNTIME-01-resolution.json",
-      "bytes": 1934,
-      "sha256": "6e3cb8f448ffa1b104aec8f0d134aaf651933e680499e12ce95eec615b3d3175"
+      "bytes": 2586,
+      "sha256": "b0b76f464c58e99270dc98be6f0a389e6f2a1817af0e149a318773dfd2cee891"
     },
     {
       "path": "REV-M-01-resolution.json",
@@ -180,6 +180,21 @@
       "path": "raw/naver-cleanup-green.log",
       "bytes": 3464,
       "sha256": "5f1a521f7b6d07272880801414bc9dd384875ec184d3287a23151f1e8b5ac7e9"
+    },
+    {
+      "path": "raw/naver-cleanup-invalid-lint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/naver-cleanup-invalid-sdk.log",
+      "bytes": 4396,
+      "sha256": "72632cfe036c891df9a4556e96ac13cb9e276dcb1a5e4392d8999abaeb8e39ca"
+    },
+    {
+      "path": "raw/naver-cleanup-invalid-types.log",
+      "bytes": 510,
+      "sha256": "b27ea8a5c87cbe38edad391190d12a8b57f0843289a09020de969845129b3070"
     },
     {
       "path": "raw/naver-cleanup-lint.log",
