@@ -72,14 +72,14 @@
       "sha256": "55fff34edfd1dcdd2f112ee7752e18454e35dc68159d8ce9f85e1101e2cac8c9"
     },
     {
-      "bytes": 21109,
+      "bytes": 21337,
       "path": ".github/workflows/web-admin-ci.yml",
-      "sha256": "89e821d65b8cc1a28d42b0f674be9e9d05715a244f003fd11016b3597aab9198"
+      "sha256": "c4f55e4635a6b6f182b2e5f7c1aff99c4260efe3baa2e3837e3de06131d5a064"
     },
     {
-      "bytes": 168157,
+      "bytes": 168154,
       "path": ".kiro/specs/crawler-pipeline-operational-readiness/platform-modernization-reconciliation.v1.json",
-      "sha256": "d8fca20e987dd54ba515006ee6c5f9493e208d85bac3879ffc5801640902f598"
+      "sha256": "7b5b81f04c5f170d6e3563a2792249e4af70bb8b2ce25ca8b6617c23a504a258"
     },
     {
       "bytes": 1034,
@@ -412,9 +412,9 @@
       "sha256": "f7baefbedefeadd7751c480e5e5a3ae26a9faadb948c4f293c2673c116484223"
     },
     {
-      "bytes": 83136,
+      "bytes": 84038,
       "path": "apps/web/tests-unit/nightly-regression-workflow.test.ts",
-      "sha256": "d4b259553eeebcd6aeb951815dbd11e0070be1a62fdfc8b18889c13bb46c69f9"
+      "sha256": "4a1878ebff4784c7162fb8fc9a2f9e3ac014fb2967fb16d8e114bec589a9bb4a"
     },
     {
       "bytes": 16654,
