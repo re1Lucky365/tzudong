@@ -54,6 +54,7 @@ DASHBOARD = (
 PINNED_REQUIREMENTS = "\n".join(
     [
         "kafka-python==3.0.11",
+        "psycopg2-binary==2.9.13",
         "opentelemetry-api==1.45.1",
         "opentelemetry-sdk==1.45.1",
         "opentelemetry-exporter-otlp-proto-http==1.45.1",
