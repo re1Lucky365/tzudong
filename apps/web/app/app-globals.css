@@ -727,10 +727,15 @@ All colors MUST be HSL.
     --border: 220 13% 24%;
     --input: 220 13% 32%;
     --ring: 18 100% 63%;
+    --brand-cream: 32 14% 18%;
+    --brand-tangerine-tint: 18 32% 18%;
+    --brand-tangerine-ink: 18 100% 74%;
+    --brand-garden-tint: 146 18% 16%;
+    --brand-garden-text: 146 42% 68%;
     --sidebar-background: 220 16% 12%;
     --sidebar-foreground: 220 20% 96%;
     --sidebar-primary: 18 100% 63%;
-    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-primary-foreground: 0 0% 11%;
     --sidebar-accent: 220 14% 18%;
     --sidebar-accent-foreground: 220 20% 96%;
     --sidebar-border: 220 13% 24%;

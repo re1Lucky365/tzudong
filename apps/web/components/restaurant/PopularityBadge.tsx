@@ -81,7 +81,7 @@ export function PopularityBadge({
   tier,
   experimental3D = false,
 }: {
-  tier: "fire" | "rainbow" | "standard";
+  tier: "fire" | "ember" | "rainbow" | "standard";
   experimental3D?: boolean;
 }) {
   const performance = useDevicePerformance();
@@ -104,7 +104,7 @@ export function PopularityBadge({
     restoreBadgeViewerFocus(openerRef.current);
   }, [open]);
 
-  if (tier === "standard" || assetFailed) return null;
+  if (tier === "standard" || tier === "ember" || assetFailed) return null;
   const phase = badgeViewerPhase(experimental3D, open);
   return (
     <section
@@ -130,7 +130,7 @@ export function PopularityBadge({
         className="h-10 w-10 shrink-0"
       />
       <div className="min-w-0 flex-1">
-        <p className="text-2xs font-bold tracking-wide text-brand-garden">쯔양 영상 인기 맛집</p>
+        <p className="text-2xs font-bold tracking-wide text-brand-garden-text">쯔양 영상 인기 맛집</p>
         <p className="text-sm font-black tracking-tight">{tier === "fire" ? "영상 조회수 최상위 맛집" : "영상 조회수 상위권 맛집"}</p>
         <p className="text-xs text-muted-foreground">2026년 6–7월 수집 기준 · 맛 평가가 아니에요</p>
       </div>

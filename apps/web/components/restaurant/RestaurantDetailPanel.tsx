@@ -27,8 +27,6 @@ import {
     ChevronLeft
 } from "lucide-react";
 import { OperationalCautionNotice, cautionForDetailPanel } from "@/components/restaurant/OperationalCautionNotice";
-import { PopularityBadge } from "@/components/restaurant/PopularityBadge";
-import { resolvePublishedPopularityTier } from "@/lib/evidence-engineering/published-popularity";
 import { RestaurantEvidenceCarousel } from "@/components/restaurant/RestaurantEvidenceCarousel";
 import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1130,11 +1128,6 @@ export function RestaurantDetailPanel({
                 />
                 {viewMode === 'detail' && (
                     <div className="shrink-0 border-b border-border px-3 py-2 empty:hidden">
-                                        <PopularityBadge
-                                            key={`${restaurant.id}:${resolvePublishedPopularityTier(restaurant)}`}
-                                            tier={resolvePublishedPopularityTier(restaurant)}
-                                            experimental3D
-                                        />
                                         <OperationalCautionNotice
                                             caution={cautionForDetailPanel(restaurant)}
                                             shopName={restaurant.name}
@@ -1595,7 +1588,7 @@ export function RestaurantDetailPanel({
                                                 isMobile ? "rounded-lg" : "rounded-xl"
                                             )}
                                         >
-                                            <Navigation className="h-4 w-4 shrink-0 text-brand-tangerine" aria-hidden="true" />
+                                            <Navigation className="h-4 w-4 shrink-0 text-brand-tangerine dark:text-brand-ink" aria-hidden="true" />
                                             <span>길찾기</span>
                                         </Button>
                                     ) : null}

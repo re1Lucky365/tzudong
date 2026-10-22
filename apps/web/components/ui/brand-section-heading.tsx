@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface BrandSectionHeadingProps {
-  eyebrow: string;
+  eyebrow?: string;
   title: ReactNode;
   emoji?: string;
   description?: ReactNode;
@@ -23,7 +23,7 @@ export function BrandSectionHeading({
 }: BrandSectionHeadingProps) {
   return (
     <div className={cn("min-w-0", className)} data-brand-section-heading="true">
-      <p className="text-2xs font-bold tracking-wide text-brand-garden">{eyebrow}</p>
+      {eyebrow ? <p className="text-2xs font-bold tracking-wide text-brand-garden-text">{eyebrow}</p> : null}
       <Heading
         className={cn(
           "mt-0.5 flex min-w-0 items-center gap-1.5 font-black tracking-tight text-foreground",
