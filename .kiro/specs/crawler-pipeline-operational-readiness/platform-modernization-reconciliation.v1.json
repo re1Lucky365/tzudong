@@ -3,12 +3,12 @@
   "kind": "platform_modernization_reconciliation",
   "baseCommit": "3f4ca55742aa33869b776291e0d035a16024eef1",
   "sourceCommit": "880bf06d375dbc6ebe8dcf108419c3f455048a97",
-  "candidateContentSha256": "ef79ee497a3420d6203f232c1f2788d05a3030c41748c141ed8f5fcbee146180",
+  "candidateContentSha256": "442a31fe64ee5fbdbba9094bbc3c2d64719bc1cd5f642fc705dce8e714b9f0b0",
   "candidateWorkingTreeStateIncluded": true,
   "sourceDeltaEntryCount": 207,
   "dispositionCounts": {
-    "candidate_transformed_present": 112,
-    "current_layout_adaptation_reviewed": 7,
+    "candidate_transformed_present": 113,
+    "current_layout_adaptation_reviewed": 6,
     "current_layout_retained": 16,
     "deferred_empty_scaffold": 2,
     "deferred_layout_migration": 1,
@@ -16,9 +16,9 @@
     "superseded_spec_source": 5
   },
   "contentStateCounts": {
-    "base_exact": 7,
+    "base_exact": 6,
     "candidate_absent": 8,
-    "candidate_transformed": 118,
+    "candidate_transformed": 119,
     "source_and_base_exact": 10,
     "source_exact": 64
   },
@@ -33,7 +33,7 @@
       "candidatePresentAtInspectionPath": true,
       "baseGitBlobSha1": "8c1a03d04ae85c4f8589489b775d64f3dd3acf88",
       "sourceGitBlobSha1": "add4d38e9d83fbab5380f553cc6dcdc87951ca7b",
-      "candidateGitBlobSha1": "7ba590d28932eed931c96789afb18de52bdaa65d",
+      "candidateGitBlobSha1": "a8234febcd44c762d8d1c494a827e6204621beec",
       "contentState": "candidate_transformed",
       "disposition": "candidate_transformed_present",
       "rationale": "The candidate differs from both Git endpoints because current-layout, security, or compatibility hardening has been applied."
@@ -61,7 +61,7 @@
       "candidatePresentAtInspectionPath": true,
       "baseGitBlobSha1": "4d409898342291ad17243294761af73fecb087a9",
       "sourceGitBlobSha1": "ea5d570c971db7cb583d5890baa477c87a627f84",
-      "candidateGitBlobSha1": "9655c52bb69f9e072a3371951f80d1c159fbdbdd",
+      "candidateGitBlobSha1": "997906f726223d9cabcddd22632632700b86478e",
       "contentState": "candidate_transformed",
       "disposition": "candidate_transformed_present",
       "rationale": "The candidate differs from both Git endpoints because current-layout, security, or compatibility hardening has been applied."
@@ -285,7 +285,7 @@
       "candidatePresentAtInspectionPath": true,
       "baseGitBlobSha1": "de811d4372906260e9b1a8f5f3fce16c7e83fadf",
       "sourceGitBlobSha1": "a144eda086d596807eb9a3fd43a0d087a2c5a075",
-      "candidateGitBlobSha1": "ef9c834ce8759d7b190d5c0d3d41983708b3f39a",
+      "candidateGitBlobSha1": "710a11198b35ec1e1d266f81d31e333ddb039858",
       "contentState": "candidate_transformed",
       "disposition": "candidate_transformed_present",
       "rationale": "The candidate differs from both Git endpoints because current-layout, security, or compatibility hardening has been applied."
@@ -1265,7 +1265,7 @@
       "candidatePresentAtInspectionPath": true,
       "baseGitBlobSha1": "92ba461990acd75a9677171814de9849838f97ee",
       "sourceGitBlobSha1": "92ba461990acd75a9677171814de9849838f97ee",
-      "candidateGitBlobSha1": "261350685ec082b46522123205b14f69e832aa9b",
+      "candidateGitBlobSha1": "7a5d77b1a5c65ae358e0c3a40ec07dde947990ef",
       "contentState": "candidate_transformed",
       "disposition": "current_layout_retained",
       "rationale": "The parked path move or deletion stays unapplied so backend/pipeline-control remains the sole owned compose tree."
@@ -2301,10 +2301,10 @@
       "candidatePresentAtInspectionPath": true,
       "baseGitBlobSha1": "8f7359fb50d8af96b16824c7052f12eae2f03a9c",
       "sourceGitBlobSha1": "da8332abd4abdea49383cddbd17893f11742ae8a",
-      "candidateGitBlobSha1": "8f7359fb50d8af96b16824c7052f12eae2f03a9c",
-      "contentState": "base_exact",
-      "disposition": "current_layout_adaptation_reviewed",
-      "rationale": "The parked byte change only adopts the rejected deploy/pipeline-control path; the current-path base bytes are intentionally retained."
+      "candidateGitBlobSha1": "cd73a751ba4373ea2aee852c2f633362b55c41e5",
+      "contentState": "candidate_transformed",
+      "disposition": "candidate_transformed_present",
+      "rationale": "The candidate differs from both Git endpoints because current-layout, security, or compatibility hardening has been applied."
     },
     {
       "sourceStatus": "A",

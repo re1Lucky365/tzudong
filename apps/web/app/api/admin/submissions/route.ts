@@ -21,6 +21,16 @@ const SUBMISSION_SELECT = [
   "created_at",
   "updated_at",
 ].join(",");
+const SUBMISSION_ITEM_SELECT = [
+  "id",
+  "submission_id",
+  "youtube_link",
+  "tzuyang_review",
+  "target_restaurant_id",
+  "item_status",
+  "rejection_reason",
+  "created_at",
+].join(",");
 
 function privateNoStoreJson(body: unknown, init: ResponseInit = {}) {
   const response = NextResponse.json(body, init);
@@ -41,10 +51,24 @@ export async function GET() {
       .from("restaurant_submissions")
       .select(SUBMISSION_SELECT)
       .in("status", ["pending", "partially_approved"])
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .overrideTypes<Array<{ id: string }>, { merge: false }>();
 
-    if (error) return privateNoStoreJson({ code: "submission_read_failed" }, { status: 500 });
-    return privateNoStoreJson({ submissions: data ?? [] });
+    if (error || !Array.isArray(data)) {
+      return privateNoStoreJson({ code: "submission_read_failed" }, { status: 500 });
+    }
+    if (!data.length) return privateNoStoreJson({ submissions: [], items: [] });
+
+    const { data: items, error: itemsError } = await supabase
+      .from("restaurant_submission_items")
+      .select(SUBMISSION_ITEM_SELECT)
+      .in("submission_id", data.map((submission) => submission.id))
+      .order("created_at", { ascending: true });
+
+    if (itemsError || !Array.isArray(items)) {
+      return privateNoStoreJson({ code: "submission_read_failed" }, { status: 500 });
+    }
+    return privateNoStoreJson({ submissions: data, items });
   } catch {
     return privateNoStoreJson({ code: "submission_read_failed" }, { status: 500 });
   }
