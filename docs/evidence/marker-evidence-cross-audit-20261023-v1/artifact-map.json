@@ -7,9 +7,19 @@
       "sha256": "b4d1bd8d9a7a8f1bd7ee02006afedec1107c5d685fb5a70fcd1df6b06cf2e68e"
     },
     {
+      "path": "LOCAL-RUNTIME-01-resolution.json",
+      "bytes": 1507,
+      "sha256": "2adc26bfc86eecdbe6b0659dd0ded3e6cd468feb0ab7659fd19bca4f377fb797"
+    },
+    {
       "path": "REV-M-01-resolution.json",
       "bytes": 1168,
       "sha256": "c876bc27ed38248e20fbfebcdbdd43d5fe0bacbbd78d6e1e98f4f1f77dd80724"
+    },
+    {
+      "path": "artifact-map.json.sha256",
+      "bytes": 65,
+      "sha256": "f6afa22ba6b52147e3c81a9b0f1a7c065635b1a46345ee364682ec150add07a7"
     },
     {
       "path": "chatgpt_master_plan.md",
@@ -38,8 +48,8 @@
     },
     {
       "path": "completion-manifest.json",
-      "bytes": 2949,
-      "sha256": "26bb852bae1060ccf3559845d7086f5f2610b0e05fe8ab7baad444edfd68594b"
+      "bytes": 3136,
+      "sha256": "a712f7277faa0c6ca957d82de462fedd472773ea4ddce65f0d030a615fe4d497"
     },
     {
       "path": "finding-adjudication-working.json",
@@ -155,6 +165,26 @@
       "path": "preflight-checkpoint.json",
       "bytes": 1226,
       "sha256": "18f45665632aa4e01f377554721bed65628eade745d2df33f08169e5d3afdaec"
+    },
+    {
+      "path": "raw/naver-cleanup-green.log",
+      "bytes": 3464,
+      "sha256": "5f1a521f7b6d07272880801414bc9dd384875ec184d3287a23151f1e8b5ac7e9"
+    },
+    {
+      "path": "raw/naver-cleanup-lint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/naver-cleanup-red.log",
+      "bytes": 2123,
+      "sha256": "2f398fe5ce3243d68bb4b42125e147414a0212404fef59083b95c2e9e78f54e8"
+    },
+    {
+      "path": "raw/naver-cleanup-typecheck.log",
+      "bytes": 510,
+      "sha256": "243e41dd322846583b3901f88f610d4a0db5586812e6ea379f93a85b9540d1e1"
     },
     {
       "path": "reverse-accepted-byte-readback.json",

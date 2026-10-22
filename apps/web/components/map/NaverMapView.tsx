@@ -1,5 +1,6 @@
 'use client';
 import { syncRetainedMarkerAccessibility } from '@/lib/retained-marker-accessibility';
+import { removeNaverMapListener } from '@/lib/naver-map-event-cleanup';
 
 import { Suspense, lazy, useEffect, useRef, useState, memo, useMemo, useCallback } from "react";
 import type { CSSProperties } from "react";
@@ -1093,7 +1094,7 @@ const NaverMapView = memo(({
         });
 
         return () => {
-            maps.Event.removeListener(listener);
+            removeNaverMapListener(maps.Event, listener);
         };
     }, [activateNoncriticalMapEffects, isMapInitialized, onMapBlankClick, onMapInteraction]);
 
@@ -1135,7 +1136,7 @@ const NaverMapView = memo(({
 
         return () => {
             mapEventListeners.forEach((listener) => {
-                maps.Event.removeListener(listener);
+                removeNaverMapListener(maps.Event, listener);
             });
 
             if (mapElement) {
@@ -2383,8 +2384,8 @@ const NaverMapView = memo(({
 
         return () => {
             disposed = true;
-            maps.Event.removeListener(idleListener);
-            maps.Event.removeListener(resizeListener);
+            removeNaverMapListener(maps.Event, idleListener);
+            removeNaverMapListener(maps.Event, resizeListener);
         };
     }, [clusterIndexVersion, displayRestaurants, expandedClusterRestaurantIds.length, isMapInitialized, mapOptimization.idleDebounceMs]);
 
@@ -3588,7 +3589,7 @@ const NaverMapView = memo(({
                     pendingAnchorAdjustListener = naver.maps.Event.addListener(map, 'idle', () => {
                         pendingAnchorAdjustListener = clearNaverPendingAnchorAdjustListener({
                             pendingAnchorAdjustListener,
-                            removeListener: (listener) => naver.maps.Event.removeListener(listener),
+                            removeListener: (listener) => { removeNaverMapListener(naver.maps.Event, listener); },
                         }).nextPendingAnchorAdjustListener;
 
                         try {
@@ -3651,7 +3652,7 @@ const NaverMapView = memo(({
             if (pendingAnchorAdjustListener && window.naver?.maps?.Event) {
                 pendingAnchorAdjustListener = clearNaverPendingAnchorAdjustListener({
                     pendingAnchorAdjustListener,
-                    removeListener: (listener) => window.naver!.maps.Event.removeListener(listener),
+                    removeListener: (listener) => { removeNaverMapListener(window.naver?.maps?.Event, listener); },
                 }).nextPendingAnchorAdjustListener;
             }
             const cleanupState = resolveNaverWheelCleanupState();
@@ -3660,7 +3661,7 @@ const NaverMapView = memo(({
             mapElement.removeEventListener('wheel', handleWheel);
             if (window.naver?.maps?.Event) {
                 for (const listener of interactionListeners) {
-                    window.naver.maps.Event.removeListener(listener);
+                    removeNaverMapListener(window.naver.maps.Event, listener);
                 }
             }
             markMapSettled();
