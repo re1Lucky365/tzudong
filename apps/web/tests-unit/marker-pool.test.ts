@@ -162,6 +162,29 @@ afterAll(() => {
 });
 
 describe('marker pool', () => {
+  test('provider listener teardown failure does not strand the remaining markers or pool state', () => {
+    const markers = ['teardown-a', 'teardown-b'].map(id =>
+      markerPool.acquire(id, makePosition(id), { content: id }, 'map'),
+    );
+    let attempts = 0;
+    const events = window.naver.maps.Event;
+    const remove = events.removeListener;
+    events.removeListener = () => {
+      attempts += 1;
+      throw new TypeError('PROVIDER_LISTENER_CLEANUP_FAILED');
+    };
+    try {
+      expect(() => markerPool.clear()).not.toThrow();
+      expect(attempts).toBe(2);
+      expect(markers.every(marker => marker.getMap() === null)).toBe(true);
+      expect(markerPool.getStats()).toMatchObject({ activeCount: 0, poolSize: 0 });
+      markerPool.clear();
+      expect(attempts).toBe(2);
+    } finally {
+      events.removeListener = remove;
+    }
+  });
+
   test('exports the same singleton and creates one marker/listener for a new id', () => {
     expect(MarkerPool.getInstance()).toBe(markerPool);
     const onClick = () => undefined;

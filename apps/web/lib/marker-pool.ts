@@ -12,6 +12,7 @@
  */
 
 import { syncRetainedMarkerAccessibility } from './retained-marker-accessibility';
+import { removeNaverMapListener } from './naver-map-event-cleanup';
 
 type MarkerClickEvent = unknown;
 
@@ -168,7 +169,7 @@ export class MarkerPool {
                     marker.__onClick(e);
                 }
             });
-            if (listener) marker.__disposeClickListener = () => events.removeListener(listener);
+            if (listener) marker.__disposeClickListener = () => { removeNaverMapListener(events, listener); };
         }
 
         // [PERFORMANCE] 불필요한 DOM 조작/렌더링 방지
