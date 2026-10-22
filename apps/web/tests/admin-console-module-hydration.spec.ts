@@ -471,6 +471,19 @@ test.describe('admin console module hydration smoke', () => {
 
     await menuTrigger.click();
     await expect(dropdown).toBeVisible();
+    const orderEditor = dropdown.locator('[data-admin-sidebar-order-editor]');
+    const orderToggle = orderEditor.locator('[data-admin-sidebar-order-edit-toggle="true"]');
+    const moveControls = orderEditor.getByRole('button', { name: / (메뉴|섹션) (앞으로|뒤로)$/ });
+    await expect(orderToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(moveControls).toHaveCount(0);
+    const lockedEditorHeight = await orderEditor.evaluate(element => element.getBoundingClientRect().height);
+    expect(lockedEditorHeight).toBeLessThan(250);
+    await orderToggle.click();
+    await expect(orderToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(orderEditor.getByRole('button', { name: '대시보드 (KPI) 메뉴 뒤로', exact: true })).toBeVisible();
+    await orderToggle.click();
+    await expect(orderToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(moveControls).toHaveCount(0);
     await expect(routeMenuItem).toBeVisible();
     await routeMenuItem.click();
 
