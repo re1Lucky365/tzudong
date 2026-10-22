@@ -116,7 +116,18 @@ const geoJsonCache = new WeakMap<Restaurant[], RestaurantFeature[]>();
 export const restaurantsToGeoJSON = (restaurants: Restaurant[]): RestaurantFeature[] => {
     // 캐시 확인
     const cached = geoJsonCache.get(restaurants);
-    if (cached) {
+    let featureIndex = 0;
+    const current = cached && restaurants.every((restaurant) => {
+        if (restaurant.lat == null || restaurant.lng == null) return true;
+        const feature = cached[featureIndex++];
+        return feature?.properties.restaurantId === restaurant.id
+            && feature.properties.category === (Array.isArray(restaurant.categories) ? restaurant.categories[0] : restaurant.category || '기타')
+            && feature.properties.address === restaurant.address
+            && feature.properties.popularityTier === publicPopularityTier(restaurant.popularity_tier)
+            && Object.is(feature.geometry.coordinates[0], restaurant.lng)
+            && Object.is(feature.geometry.coordinates[1], restaurant.lat);
+    }) && featureIndex === cached.length;
+    if (current) {
         return cached;
     }
 
@@ -442,6 +453,7 @@ type RestaurantClusterEntry = {
     lng: Restaurant['lng'];
     /** 이전 구현과 동일한 카테고리 값. 문자열이 아닐 수 있어 Map 키로 그대로 씁니다. */
     categoryLabel: string;
+    popularityTier: "fire" | "ember" | "rainbow" | "standard";
     hasCoordinates: boolean;
     region?: string | null;
     district?: string | null;
@@ -467,6 +479,7 @@ const createClusterEntry = (restaurant: Restaurant): RestaurantClusterEntry => {
         lat,
         lng,
         categoryLabel: clusterCategoryLabel(restaurant),
+        popularityTier: publicPopularityTier(restaurant.popularity_tier),
         hasCoordinates: Boolean(lat) && Boolean(lng),
     };
 };
@@ -476,7 +489,8 @@ const isClusterEntryCurrent = (restaurant: Restaurant, entry: RestaurantClusterE
     && entry.address === clusterAddressOf(restaurant)
     && Object.is(entry.lat, restaurant.lat)
     && Object.is(entry.lng, restaurant.lng)
-    && entry.categoryLabel === clusterCategoryLabel(restaurant);
+    && entry.categoryLabel === clusterCategoryLabel(restaurant)
+    && entry.popularityTier === publicPopularityTier(restaurant.popularity_tier);
 
 /**
  * 캐시된 항목 배열이 지금 목록과 같은지 확인합니다.
