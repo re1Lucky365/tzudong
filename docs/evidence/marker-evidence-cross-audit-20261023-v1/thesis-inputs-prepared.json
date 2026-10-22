@@ -3,7 +3,7 @@
   "repository": "https://github.com/twoimo/tzudong",
   "commit": "ac80e35da566db242420a62bbf3e3320b5c00e76",
   "bundle_sha256": "6edea509e566107a4a4bbced53055aed79ea3ca3c1094367a468bf7cb0f047e5",
-  "prompt_path": "/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/docs/evidence/marker-evidence-cross-audit-20261023-v1/thesis-prompt.txt",
+  "prompt_path": "docs/evidence/marker-evidence-cross-audit-20261023-v1/thesis-prompt.txt",
   "prompt_sha256": "9882ad8859c39891c20ac83f0955a48f130488ab2c6624b9e2ca84c56d062bfd",
   "required_paths": [
     "apps/web/app/api/public-popularity/route.ts",
@@ -132,7 +132,7 @@
   "source_selector_evidence": "Direct scoped attachments prepared; no receiving-surface source access claimed.",
   "attachments": [
     {
-      "path": "/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/docs/evidence/marker-evidence-cross-audit-20261023-v1/source_bundle.txt",
+      "path": "docs/evidence/marker-evidence-cross-audit-20261023-v1/source_bundle.txt",
       "basename": "source_bundle.txt",
       "bytes": 704328,
       "sha256": "6edea509e566107a4a4bbced53055aed79ea3ca3c1094367a468bf7cb0f047e5",
@@ -140,7 +140,7 @@
       "provider_name": "source_bundle(20261022-201719).txt"
     },
     {
-      "path": "/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/docs/evidence/marker-evidence-cross-audit-20261023-v1/review-brief.md",
+      "path": "docs/evidence/marker-evidence-cross-audit-20261023-v1/review-brief.md",
       "basename": "review-brief.md",
       "bytes": 4893,
       "sha256": "dc958fa23a667d9e6a0e3d797732996247616976b4ad2473ff43f69252d9e649",

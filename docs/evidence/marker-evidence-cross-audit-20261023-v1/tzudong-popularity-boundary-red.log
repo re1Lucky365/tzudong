@@ -13,7 +13,7 @@ error: expect(received).rejects.toThrow(expected)
 Expected promise that rejects
 Received promise that resolved: Promise { <resolved> }
 
-      at <anonymous> (/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/apps/web/tests-unit/popularity-input-boundary.test.ts:22:45)
+      at <anonymous> (apps/web/tests-unit/popularity-input-boundary.test.ts:22:45)
 (fail) rejects unapproved source rows before merge rather than granting a public tier [2.60ms]
 23 |   }
 24 | });
@@ -27,7 +27,7 @@ error: expect(received).rejects.toThrow(expected)
 Expected promise that rejects
 Received promise that resolved: Promise { <resolved> }
 
-      at <anonymous> (/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/apps/web/tests-unit/popularity-input-boundary.test.ts:28:40)
+      at <anonymous> (apps/web/tests-unit/popularity-input-boundary.test.ts:28:40)
 (fail) rejects missing, blank, nonfinite and out-of-range source coordinates before merge coerces them [0.87ms]
 29 |   }
 30 | });
@@ -41,7 +41,7 @@ error: expect(received).toBe(expected)
 Expected: "승인 식당명"
 Received: "한식당"
 
-      at <anonymous> (/Users/twoimo/.codex/worktrees/marker-evidence-live-20261021/tzudong/apps/web/tests-unit/popularity-input-boundary.test.ts:34:42)
+      at <anonymous> (apps/web/tests-unit/popularity-input-boundary.test.ts:34:42)
 (fail) preserves approved names and records the actual P98/P95/P85 policy for valid inputs [0.82ms]
 
  0 pass
