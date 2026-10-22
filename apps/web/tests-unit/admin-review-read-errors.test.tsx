@@ -89,25 +89,26 @@ test('primary review transport error has a fixed client boundary', async () => {
 
 function submissionQuery(items: QueryResult) {
   const submission = { id: 'submission-fixture', user_id: 'user-fixture', submission_type: 'new', status: 'pending', restaurant_name: '합성 신규 식당' };
-  const chain = { select() { return this; }, in() { return this; }, order() { return this; }, overrideTypes: () => Promise.resolve(items) };
   const dependencies = {
-    user: { id: 'admin-fixture' }, isAdmin: true, ADMIN_SUBMISSION_ITEM_SELECT: '',
-    fetch: async () => new Response(JSON.stringify({ submissions: [submission] }), { status: 200 }),
-    supabase: { from(table: string) { if (table !== 'restaurant_submission_items') throw new Error(`UNEXPECTED_TABLE:${table}`); return chain; } },
+    user: { id: 'admin-fixture' }, isAdmin: true,
+    fetch: async () => new Response(JSON.stringify(items.error
+      ? { code: 'submission_read_failed' }
+      : { submissions: [submission], items: items.data }), { status: items.error ? 500 : 200 }),
+    supabase: { from() { throw new Error('UNEXPECTED_BROWSER_READ'); } },
     parseValidatedRows: (rows: unknown) => rows,
     isSubmissionRow: () => true, isSubmissionItem: () => true, isRestaurantLookupRow: () => true,
     fetchAdminProfileSummariesLookup: async () => ({ summaries: {}, ok: true }),
     resolveAdminReviewerDisplay: () => ({ nickname: '합성 제보자' }),
   };
-  return new Function('dependencies', `const { user, isAdmin, ADMIN_SUBMISSION_ITEM_SELECT, fetch, supabase, parseValidatedRows, isSubmissionRow, isSubmissionItem, isRestaurantLookupRow, fetchAdminProfileSummariesLookup, resolveAdminReviewerDisplay } = dependencies; ${submissionQueryFn} return queryFn;`)(dependencies) as () => Promise<Array<{ items: unknown[] }>>;
+  return new Function('dependencies', `const { user, isAdmin, fetch, supabase, parseValidatedRows, isSubmissionRow, isSubmissionItem, isRestaurantLookupRow, fetchAdminProfileSummariesLookup, resolveAdminReviewerDisplay } = dependencies; ${submissionQueryFn} return queryFn;`)(dependencies) as () => Promise<Array<{ items: unknown[] }>>;
 }
 
 test('submission query fails closed when its item read fails instead of returning item-less submissions', async () => {
   const item = { id: 'item-fixture', submission_id: 'submission-fixture', youtube_link: '', tzuyang_review: '', target_restaurant_id: null, item_status: 'pending', created_at: '2026-10-01T00:00:00Z' };
   expect((await submissionQuery({ data: [item], error: null })())[0].items).toHaveLength(1);
   expect((await submissionQuery({ data: [], error: null })())[0].items).toEqual([]);
-  await expect(submissionQuery({ data: null, error: { message: 'provider detail' } })()).rejects.toThrow('admin-submission-items-failed');
-  await expect(submissionQuery({ data: null, error: null })()).rejects.toThrow('admin-submission-items-failed');
+  await expect(submissionQuery({ data: null, error: { message: 'provider detail' } })()).rejects.toThrow('admin-submissions-failed');
+  await expect(submissionQuery({ data: null, error: null })()).rejects.toThrow('admin-submissions-invalid');
 });
 
 test('moderation list renders loading, error and genuine empty review states separately', async () => {
