@@ -13,13 +13,28 @@ async function bundle(initialView: 'evaluations' | 'submissions' = 'evaluations'
     import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
     import AdminEvaluationRoutePage from './app/admin/evaluations/page';
     import { AppToaster } from './components/ui/app-toaster';
-    const fixture = { page: 'fail', pageReads: 0, hold: false, waiters: [], release() { const pending = this.waiters.splice(0); for (const resolve of pending) resolve(); } };
+    const fixture = { page: 'fail', pageReads: 0, submissions: 'fail', submissionReads: 0, itemReads: 0, originalReads: 0, profileReads: 0, hold: false, waiters: [], release() { const pending = this.waiters.splice(0); for (const resolve of pending) resolve(); } };
     globalThis.__fixture = fixture;
     const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
     const emptyPage = { records: [], revision: '1', filteredTotal: 0, nextCursor: null, warnings: {},
       stats: { total: 0, pending: 0, approved: 0, hold: 0, db_conflict: 0, ready_for_approval: 0, unconfirmed_map: 0, missing: 0, not_selected: 0, deleted: 0 } };
     globalThis.fetch = async (input) => {
       const url = new URL(String(input), location.href);
+      if (url.pathname === '/api/admin/submissions') {
+        fixture.submissionReads++;
+        if (fixture.submissions === 'fail') return json({ code: 'submission_read_failed' }, 500);
+        if (fixture.submissions === 'empty') return json({ submissions: [], items: [] });
+        const submissions = [{ id: 'submission-fixture', user_id: '00000000-0000-4000-8000-000000000123', submission_type: 'new', status: 'pending',
+          restaurant_name: '합성 서버 제보', restaurant_address: null, restaurant_phone: null, restaurant_categories: [], admin_notes: null,
+          rejection_reason: null, resolved_by_admin_id: null, reviewed_at: null, created_at: '2026-10-23T00:00:00Z', updated_at: '2026-10-23T00:00:00Z' }];
+        if (fixture.submissions === 'missing-items') return json({ submissions });
+        return json({ submissions, items: [{ id: 'item-fixture', submission_id: 'submission-fixture', youtube_link: 'https://www.youtube.com/watch?v=fixture1234',
+          tzuyang_review: '합성 리뷰', target_restaurant_id: 'restaurant-fixture', item_status: 'pending', rejection_reason: null, created_at: '2026-10-23T00:00:00Z' }] });
+      }
+      if (url.pathname === '/api/admin/profile-summaries') {
+        fixture.profileReads++;
+        return json({ code: 'ADMIN_PROFILE_SUMMARIES_UNAVAILABLE' }, 502);
+      }
       if (url.pathname === '/api/admin/evaluations' && url.searchParams.get('view') === 'page') {
         fixture.pageReads++;
         if (fixture.hold) await new Promise(resolve => { fixture.waiters.push(resolve); });
@@ -29,6 +44,7 @@ async function bundle(initialView: 'evaluations' | 'submissions' = 'evaluations'
       return new Response('', { status: 503 });
     };
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
+    fixture.queryClient = client;
     createRoot(document.body.appendChild(document.createElement('div'))).render(
       <QueryClientProvider client={client}><main style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}><AdminEvaluationRoutePage.Embedded embedded initialView="${initialView}" /></main><AppToaster /></QueryClientProvider>);
   `;
@@ -48,7 +64,19 @@ async function bundle(initialView: 'evaluations' | 'submissions' = 'evaluations'
       builder.onResolve({ filter: /^@\// }, args => ({ path: Bun.resolveSync(`./${args.path.slice(2)}`, appRoot) }));
       builder.onLoad({ filter: /.*/, namespace: 'inert' }, args => ({ loader: 'tsx', contents: {
         auth: "const value = { user: { id: 'admin-self' }, isAdmin: true, isLoading: false, profileNickname: '관리자' }; export const useAuth = () => value; export const AuthProvider = ({ children }) => children;",
-        client: "export const supabase = { channel() { return { on() { return this; }, subscribe() { return this; } }; }, removeChannel() {}, from() { throw new Error('OFFLINE_ONLY'); }, storage: { from() { throw new Error('OFFLINE_ONLY'); } }, auth: { getSession: async () => ({ data: { session: null } }) } };",
+        client: `export const supabase = {
+          channel() { return { on() { return this; }, subscribe() { return this; } }; }, removeChannel() {},
+          from(table) {
+            if (table === 'restaurant_submission_items') { globalThis.__fixture.itemReads++; throw new Error('NO_BROWSER_ITEM_READ'); }
+            if (table !== 'restaurants') throw new Error('OFFLINE_ONLY');
+            globalThis.__fixture.originalReads++;
+            const builder = { select() { return builder; }, in() { return builder; }, overrideTypes: async () => ({ data: [{
+              id: 'restaurant-fixture', unique_id: 'trace-fixture', name: '합성 원래 식당', road_address: null, jibun_address: null,
+              phone: null, categories: [], youtube_link: null, tzuyang_review: null, youtube_meta: null }], error: null }) };
+            return builder;
+          },
+          storage: { from() { throw new Error('OFFLINE_ONLY'); } }, auth: { getSession: async () => ({ data: { session: null } }) }
+        };`,
         navigation: "const params = new URLSearchParams('module=evaluations'); const router = { push() {}, replace() {}, refresh() {}, prefetch() {} }; export const useRouter = () => router; export const usePathname = () => '/admin'; export const useSearchParams = () => params;",
         image: "import React from 'react'; export default function Image(props) { return <img alt={props.alt || ''} />; }",
         link: "import React from 'react'; export default React.forwardRef(function Link({ href, ...props }, ref) { return <a ref={ref} href={String(href)} {...props} />; });",
@@ -62,6 +90,65 @@ async function bundle(initialView: 'evaluations' | 'submissions' = 'evaluations'
 
 const setFixture = (page: Page, patch: Record<string, unknown>) =>
   page.evaluate(next => Object.assign((globalThis as unknown as { __fixture: object }).__fixture, next), patch);
+
+(existsSync(chrome) ? test : test.skip)('submission retry uses server items, retains original restaurant reads and profile fallback, and accepts empty results', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle('submissions');
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    try {
+      const page = await context.newPage();
+      page.setDefaultTimeout(8_000);
+      const pageErrors: string[] = [];
+      let externalRequests = 0;
+      page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
+      await page.route('**/*', route => {
+        if (route.request().url() === 'https://submissions.test/admin') {
+          return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
+        }
+        externalRequests++;
+        return route.abort();
+      });
+      await page.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
+      await page.goto('https://submissions.test/admin');
+      await page.addScriptTag({ content: script });
+
+      const error = page.getByText('신규 제보 목록을 불러오지 못했습니다.');
+      const refresh = page.getByRole('button', { name: '목록 새로고침' });
+      await playwrightExpect(error).toBeVisible();
+      await setFixture(page, { submissions: 'ok' });
+      await refresh.click();
+      await playwrightExpect(page.getByText('합성 서버 제보', { exact: true })).toBeVisible();
+      await playwrightExpect(error).toHaveCount(0);
+      await playwrightExpect(page.getByText('닉네임을 불러올 수 없음', { exact: true })).toBeVisible();
+
+      const readback = await page.evaluate(() => {
+        const fixture = (globalThis as unknown as { __fixture: {
+          itemReads: number; originalReads: number; profileReads: number;
+          queryClient: { getQueryData(key: unknown[]): Array<{ items: Array<{ id: string; original_restaurant: { name: string } }> }> };
+        } }).__fixture;
+        const rows = fixture.queryClient.getQueryData(['admin-submissions-inline', 'admin-self', true]);
+        return { itemReads: fixture.itemReads, originalReads: fixture.originalReads, profileReads: fixture.profileReads,
+          itemId: rows[0]?.items[0]?.id, originalName: rows[0]?.items[0]?.original_restaurant?.name };
+      });
+      expect(readback).toEqual({ itemReads: 0, originalReads: 1, profileReads: 1, itemId: 'item-fixture', originalName: '합성 원래 식당' });
+
+      await setFixture(page, { submissions: 'missing-items' });
+      await refresh.click();
+      await playwrightExpect(error).toBeVisible();
+      await setFixture(page, { submissions: 'empty' });
+      await refresh.click();
+      await playwrightExpect(error).toHaveCount(0);
+      await playwrightExpect(page.getByText('합성 서버 제보', { exact: true })).toHaveCount(0);
+      expect(pageErrors).toEqual([]);
+      expect(externalRequests).toBe(0);
+    } finally {
+      await context.close();
+    }
+  } finally {
+    await browser.close();
+  }
+}, 60_000);
 
 (existsSync(chrome) ? test : test.skip)('a failed review-list read reports once and keeps the retry control focused', async () => {
   const browser = await chromium.launch({ executablePath: chrome, headless: true });

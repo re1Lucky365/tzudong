@@ -11,8 +11,10 @@ describe('admin submission read', () => {
 
     expect(page).toContain("fetch('/api/admin/submissions'");
     expect(page).not.toContain(".from('restaurant_submissions')");
+    expect(page).not.toContain(".from('restaurant_submission_items')");
     expect(route).toContain('requireAdmin()');
     expect(route).toContain('from("restaurant_submissions")');
+    expect(route).toContain('from("restaurant_submission_items")');
     expect(route).toContain('private, no-store, max-age=0');
     expect(route).toContain('["pending", "partially_approved"]');
   });
