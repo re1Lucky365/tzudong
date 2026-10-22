@@ -29,14 +29,14 @@ export async function buildPublicPopularity(sourcePath: string, metricsPath: str
   const thresholds = ['domestic', 'overseas'].map((cohort) => {
     const counts = groups.filter((g) => g.cohort === cohort && g.viewCount !== null).map((g) => g.viewCount!).sort((a, b) => a - b);
     const percentile = (p: number) => counts.length ? counts[Math.max(0, Math.ceil(counts.length * p) - 1)] : null;
-    return { cohort, knownGroups: counts.length, fireAt: percentile(0.95), rainbowAt: percentile(0.85) };
+    return { cohort, knownGroups: counts.length, fireAt: percentile(0.98), emberAt: percentile(0.95), rainbowAt: percentile(0.85) };
   });
   const entries = groups.map((group) => {
     const cut = thresholds.find((c) => c.cohort === group.cohort)!;
-    const tier = group.viewCount === null || cut.fireAt === null ? 'standard' : group.viewCount >= cut.fireAt ? 'fire' : group.viewCount >= cut.rainbowAt! ? 'rainbow' : 'standard';
+    const tier = group.viewCount === null || cut.fireAt === null ? 'standard' : group.viewCount >= cut.fireAt ? 'fire' : group.viewCount >= cut.emberAt! ? 'ember' : group.viewCount >= cut.rainbowAt! ? 'rainbow' : 'standard';
     return { restaurantId: group.restaurantId, memberRestaurantIds: group.memberRestaurantIds, tier };
   }).sort((a, b) => a.restaurantId.localeCompare(b.restaurantId));
-  const publication = parsePublicPopularityPublication({ schemaVersion: 2, publicationVersion: 'video-views-20261021-v1', sourceRevision: revision, entries });
+  const publication = parsePublicPopularityPublication({ schemaVersion: 2, publicationVersion: 'video-views-20261022-v1', sourceRevision: revision, entries });
   const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
   return { publication, evidence: { policy: 'map-cohort-max-linked-video-views-nearest-rank-p95-p85-v1', definition: 'Most-viewed linked video per merged restaurant, ranked separately within domestic and overseas approved restaurant cohorts. This measures video reach, not food quality.', sourceSha256: sha(sourceBytes), metricsSha256: sha(metricBytes), thresholds, groups } };
 }

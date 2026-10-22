@@ -81,7 +81,7 @@ export function PopularityBadge({
   tier,
   experimental3D = false,
 }: {
-  tier: "fire" | "rainbow" | "standard";
+  tier: "fire" | "ember" | "rainbow" | "standard";
   experimental3D?: boolean;
 }) {
   const performance = useDevicePerformance();
@@ -104,7 +104,7 @@ export function PopularityBadge({
     restoreBadgeViewerFocus(openerRef.current);
   }, [open]);
 
-  if (tier === "standard" || assetFailed) return null;
+  if (tier === "standard" || tier === "ember" || assetFailed) return null;
   const phase = badgeViewerPhase(experimental3D, open);
   return (
     <section

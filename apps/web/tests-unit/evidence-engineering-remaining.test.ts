@@ -230,7 +230,10 @@ describe("evidence engineering remaining tasks", () => {
     expect(panel).not.toContain('<PopularityBadge tier="standard" />');
     const rainbow = wrapMarkerWithPopularityTier("<span>pin</span>", "rainbow");
     expect(rainbow.match(/class="tz-popularity-flame"/g)).toHaveLength(1);
-    expect(rainbow).toContain("fill: #d4a017");
+    expect(rainbow).toContain("fill: #2f6bff");
+    const ember = wrapMarkerWithPopularityTier("<span>pin</span>", "ember");
+    expect(ember.match(/class="tz-popularity-flame"/g)).toHaveLength(1);
+    expect(ember).toContain("fill: #ff7b43");
     const attributes = new Map<string, string>();
     const element = {
       setAttribute: (name: string, value: string) => attributes.set(name, value),
