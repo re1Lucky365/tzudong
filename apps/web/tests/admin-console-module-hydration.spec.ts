@@ -678,6 +678,84 @@ test.describe('admin console module hydration smoke', () => {
     expect(runtimeErrors).toEqual([]);
   });
 
+  test('restaurant list uses one count summary and keeps its final row reachable at both widths', async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    const runtimeErrors: string[] = [];
+    attachRuntimeErrorCollectors(page, runtimeErrors);
+    const records = Array.from({ length: 50 }, (_, index) => ({
+      id: `footer-fixture-${index}`,
+      name: `합성 검수 식당 ${index}`,
+      status: 'approved',
+      categories: ['한식'],
+      created_at: '2026-10-01T00:00:00.000Z',
+      updated_at: '2026-10-01T00:00:00.000Z',
+      geocoding_success: true,
+    }));
+    let releaseNextPage = () => {};
+    let nextPageGate = Promise.resolve();
+    await page.route('**/api/**', async route => {
+      const request = route.request();
+      if (request.method() === 'GET' && new URL(request.url()).pathname === '/api/admin/evaluations') {
+        const isNextPage = new URL(request.url()).searchParams.has('cursor');
+        if (isNextPage) await nextPageGate;
+        return route.fulfill({ json: {
+          revision: '1', records: isNextPage ? records.slice(40) : records.slice(0, 40),
+          filteredTotal: records.length, nextCursor: isNextPage ? null : 'synthetic-next-page',
+          stats: { total: 50, approved: 50, pending: 0, hold: 0, db_conflict: 0, missing: 0, not_selected: 0, deleted: 0 },
+          warnings: Object.fromEntries(records.map(record => [record.id, {
+            sameVideo: { count: 0, candidates: [], message: '' }, identity: [],
+          }])),
+        } });
+      }
+      return route.fulfill({ status: 503, json: { code: 'local_synthetic_render' } });
+    });
+    await installE2EAdminShellBypass(page);
+    await page.setExtraHTTPHeaders({
+      [E2E_ADMIN_ROUTE_BYPASS_HEADER]: '1',
+      [E2E_ADMIN_ROUTE_BYPASS_TOKEN_HEADER]: getE2EAdminRouteBypassToken(testInfo),
+    });
+    const observations = [];
+    for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+      nextPageGate = new Promise<void>(resolve => { releaseNextPage = resolve; });
+      await page.setViewportSize(viewport);
+      await gotoAndHidePopup(page, '/admin?module=restaurants');
+      const summary = viewport.width > 1024
+        ? page.locator('#scroll-container .admin-cms-footer')
+        : page.locator('[data-admin-evaluation-mobile-filter-actions]');
+      await expect(summary).toHaveCount(1);
+      await expect(summary).toContainText('40 / 50개');
+      await page.getByText('합성 검수 식당 39', { exact: true }).scrollIntoViewIfNeeded();
+      const progress = page.locator('#scroll-container [role="status"]').filter({ hasText: '불러오는 중' });
+      await expect(progress).toBeVisible();
+      await progress.scrollIntoViewIfNeeded();
+      const progressBox = await progress.boundingBox();
+      expect(progressBox!.y).toBeGreaterThanOrEqual(0);
+      expect(progressBox!.y + progressBox!.height).toBeLessThanOrEqual(viewport.height);
+      releaseNextPage();
+      await expect(summary).toContainText('50 / 50개');
+      await expect(page.getByText('불러오는 중', { exact: true })).toHaveCount(0);
+      await expect(page.getByText(/모든 레코드를 불러왔습니다|전체 조건/, { exact: false })).toHaveCount(0);
+      const finalRow = page.getByText('합성 검수 식당 49', { exact: true });
+      await finalRow.scrollIntoViewIfNeeded();
+      await expect(finalRow).toBeVisible();
+      const rowBox = await finalRow.boundingBox();
+      expect(rowBox).not.toBeNull();
+      expect(rowBox!.y).toBeGreaterThanOrEqual(0);
+      expect(rowBox!.y + rowBox!.height).toBeLessThanOrEqual(viewport.height);
+      observations.push({ viewport, summary: await summary.textContent(), loadingStatus: progressBox, finalRow: rowBox });
+      const artifactDir = process.env.ADMIN_HYDRATION_ARTIFACT_DIR?.trim();
+      if (artifactDir) {
+        mkdirSync(resolve(artifactDir), { recursive: true });
+        await page.screenshot({ path: resolve(artifactDir, `restaurant-footer-${viewport.width}.png`) });
+      }
+    }
+    expect(runtimeErrors).toEqual([]);
+    const artifactDir = process.env.ADMIN_HYDRATION_ARTIFACT_DIR?.trim();
+    if (artifactDir) writeFileSync(resolve(artifactDir, 'restaurant-footer-render.json'), JSON.stringify({
+      evidence: 'local-development-shell-with-synthetic-api', observations, runtimeErrors,
+    }, null, 2));
+  });
+
   test('responsive storyboard shell exposes both stacked panels to the admin canvas', async ({ page }, testInfo) => {
     test.setTimeout(120_000);
 
