@@ -7,7 +7,7 @@ frames/{video_id}/{recollect_id}/{순번}_{시작초}_{끝초}/*.jpg 디렉터�
 frame-caption/{video_id}.jsonl로 저장합니다.
 
 저장 형식 (JSONL):
-- 각 줄: {"video_id": ..., "recollect_id": ..., "rank": ..., "start_sec": ..., "end_sec": ..., "frames": [...], "caption": ...}
+- 각 줄: {"video_id": ..., "recollect_id": ..., "rank": ..., "start_sec": ..., "end_sec": ..., "frames": [...], "file_names": [...], "frame_count": ..., "caption": ...}
 
 사용법:
     python 06-frame-caption.py --youtuber tzuyang
@@ -35,8 +35,12 @@ BACKEND_ROOT = SCRIPT_DIR.parents[1]
 REPO_ROOT = BACKEND_ROOT.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
 from backend.utils.privacy_log import safe_error_name
+from caption_file_contract import caption_file_contract
+from detected_place_names import project_detected_place_names
 
 STORYBOARD_AGENT_SRC = (SCRIPT_DIR / "../../storyboard-agent/src").resolve()
 if str(STORYBOARD_AGENT_SRC) not in sys.path:
@@ -347,8 +351,9 @@ def process_video_frames(
                     locale="ko-KR",
                 )
             )
-            result = caption_result.to_jsonl_record()
+            result = project_detected_place_names(caption_result.to_jsonl_record())
             result["frames"] = frame_paths
+            result.update(caption_file_contract(frame_paths))
             print(f"op=caption_task_generated frames={len(frame_paths)}")
 
             with open(caption_path, "a", encoding="utf-8") as f:

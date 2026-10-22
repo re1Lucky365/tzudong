@@ -172,7 +172,7 @@ function getTierFromModel(model: string | null): PerformanceTier | null {
 /**
  * CPU 코어 수와 메모리로 성능 티어 추정
  */
-function getTierFromHardware(cpuCores: number, memoryGB: number | null): PerformanceTier {
+export function getTierFromHardware(cpuCores: number, memoryGB: number | null): PerformanceTier {
     // 메모리 기반 (Chrome/Edge)
     if (memoryGB !== null) {
         if (memoryGB >= 6) return 'HIGH';

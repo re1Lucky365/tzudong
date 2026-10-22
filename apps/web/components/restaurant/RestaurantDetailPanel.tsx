@@ -26,6 +26,8 @@ import {
     Play,
     ChevronLeft
 } from "lucide-react";
+import { OperationalCautionNotice, cautionForDetailPanel } from "@/components/restaurant/OperationalCautionNotice";
+import { RestaurantEvidenceCarousel } from "@/components/restaurant/RestaurantEvidenceCarousel";
 import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
@@ -364,6 +366,18 @@ export function RestaurantDetailPanel({
         return entries;
     }, [restaurant, siblingTzuyangReviewQuery.data]);
     const youtubeMetas = mergedMedia.youtubeMetas;
+    const advertisementLabels = useMemo(() => {
+        const labels = youtubeMetas.flatMap((meta) => {
+            if (!meta || typeof meta !== 'object' || !('ads_info' in meta)) return [];
+            const adsInfo = (meta as { ads_info?: unknown }).ads_info;
+            if (!adsInfo || typeof adsInfo !== 'object') return [];
+            const { is_ads, what_ads } = adsInfo as { is_ads?: unknown; what_ads?: unknown };
+            return is_ads === true && Array.isArray(what_ads)
+                ? what_ads.filter((ad): ad is string => typeof ad === 'string')
+                : [];
+        });
+        return Array.from(new Set(labels));
+    }, [youtubeMetas]);
     const youtubeCopy = useMemo(
         () => buildRestaurantDetailMediaCopy('youtube', youtubeVideos.length, isYoutubeExpanded),
         [isYoutubeExpanded, youtubeVideos.length],
@@ -1055,6 +1069,19 @@ export function RestaurantDetailPanel({
                             <Image src={getCategoryImagePath(categories[0] || '')} alt="" fill sizes="16px" className="object-contain" />
                         </span>
                     ) : undefined}
+                    titleAddon={viewMode === 'detail' && categories.length > 0 ? (
+                        <span className="flex shrink-0 items-center gap-1" data-restaurant-detail-categories="true">
+                            {categories.map((cat, index) => (
+                                <Badge
+                                    key={`${cat}-${index}`}
+                                    variant={index === 0 ? "default" : "secondary"}
+                                    className="shrink-0 whitespace-nowrap px-2 py-0.5 text-2xs"
+                                >
+                                    {cat}
+                                </Badge>
+                            ))}
+                        </span>
+                    ) : undefined}
                     onClose={viewMode === 'reviews' ? handleBackToDetail : onClose}
                     closeLabel={viewMode === 'reviews' ? '상세 정보로 돌아가기' : (showDesktopBackButton && !isMobile ? '이전 목록으로 돌아가기' : isMobile ? '이전 화면으로 돌아가기' : '맛집 상세 닫기')}
                     closeAction={viewMode === 'reviews' || showDesktopBackButton || isMobile ? 'back' : 'close'}
@@ -1081,7 +1108,7 @@ export function RestaurantDetailPanel({
                             {viewMode === 'detail' && (
                                 <BookmarkButton
                                     restaurantId={restaurant.id}
-                                    className="h-8 w-8 shrink-0 rounded-full shadow-none"
+                                    className="h-9 w-9 shrink-0 rounded-lg shadow-none"
                                     onRequireAuth={handleBookmarkRequireAuth}
                                 />
                             )}
@@ -1100,54 +1127,27 @@ export function RestaurantDetailPanel({
                     )}
                 />
                 {viewMode === 'detail' && (
-                    <div className="shrink-0 border-b border-border px-3 py-2">
-                                        <ScrollableTagContainer className="mb-1" maxWidth="100%">
-                                            {categories.map((cat, index) => (
-                                                <Badge
-                                                    key={index}
-                                                    variant={index === 0 ? "default" : "secondary"}
-                                                    className="text-xs whitespace-nowrap"
-                                                >
-                                                    {cat}
-                                                </Badge>
-                                            ))}
-
-                                            {/* 광고 태그 - 모든 병합된 영상에서 수집 */}
-                                            {(() => {
-                                                const allAds: string[] = [];
-                                                const metas: unknown[] = youtubeMetas;
-
-                                                metas.forEach((meta) => {
-                                                    if (!meta || typeof meta !== 'object') return;
-                                                    if (!('ads_info' in meta)) return;
-
-                                                    const adsInfo = (meta as { ads_info?: unknown }).ads_info;
-                                                    if (!adsInfo || typeof adsInfo !== 'object') return;
-
-                                                    const { is_ads, what_ads } = adsInfo as { is_ads?: unknown; what_ads?: unknown };
-                                                    if (is_ads === true && Array.isArray(what_ads)) {
-                                                        const normalizedAds = what_ads.filter((ad): ad is string => typeof ad === 'string');
-                                                        allAds.push(...normalizedAds);
-                                                    }
-                                                });
-
-                                                const uniqueAds = Array.from(new Set(allAds));
-
-                                                return uniqueAds.length > 0 ? (
-                                                    <>
-                                                        {uniqueAds.map((ad: string, index: number) => (
-                                                            <Badge
-                                                                key={index}
-                                                                variant="outline"
-                                                                className="text-xs bg-orange-50 text-orange-700 border-orange-300 whitespace-nowrap"
-                                                            >
-                                                                📢 {ad}
-                                                            </Badge>
-                                                        ))}
-                                                    </>
-                                                ) : null;
-                                            })()}
-                                        </ScrollableTagContainer>
+                    <div className="shrink-0 border-b border-border px-3 py-2 empty:hidden">
+                                        <OperationalCautionNotice
+                                            caution={cautionForDetailPanel(restaurant)}
+                                            shopName={restaurant.name}
+                                        />
+                                        <RestaurantEvidenceCarousel
+                                            frames={[mergedMedia.evidenceFrames ?? []]}
+                                        />
+                                        {advertisementLabels.length > 0 && (
+                                            <ScrollableTagContainer className="mb-1" maxWidth="100%">
+                                                {advertisementLabels.map((ad) => (
+                                                    <Badge
+                                                        key={ad}
+                                                        variant="outline"
+                                                        className="text-xs bg-orange-50 text-orange-700 border-orange-300 whitespace-nowrap"
+                                                    >
+                                                        📢 {ad}
+                                                    </Badge>
+                                                ))}
+                                            </ScrollableTagContainer>
+                                        )}
                     </div>
                 )}
 
@@ -1584,11 +1584,11 @@ export function RestaurantDetailPanel({
                                         <Button
                                             onClick={handleGetDirections}
                                             className={cn(
-                                                "h-14 min-w-0 flex-col gap-1 bg-primary px-1.5 text-xs font-semibold leading-tight text-primary-foreground shadow-sm hover:bg-primary/90",
+                                                "h-14 min-w-0 flex-col gap-1 bg-primary px-1.5 text-xs font-bold leading-tight text-primary-foreground shadow-sm hover:bg-primary/90",
                                                 isMobile ? "rounded-lg" : "rounded-xl"
                                             )}
                                         >
-                                            <Navigation className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                            <Navigation className="h-4 w-4 shrink-0 text-brand-tangerine dark:text-brand-ink" aria-hidden="true" />
                                             <span>길찾기</span>
                                         </Button>
                                     ) : null}

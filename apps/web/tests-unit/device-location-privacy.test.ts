@@ -352,6 +352,48 @@ test('monotonic expiry cannot be revived by replaying an earlier clock value', a
   expect(locationGateSource).not.toContain('Date.now()');
 });
 
+test('fractional monotonic timestamps retain authorization until exact expiry and never revive it', async () => {
+  const grantedTimes = [262144.02702702704, 262144.1081081081, 262144.1621621622];
+  for (const [index, grantedAt] of grantedTimes.entries()) {
+    const clock = { value: grantedAt };
+    const original = Object.getOwnPropertyDescriptor(globalThis.performance, 'now');
+    let gate: typeof import('../lib/privacy/location-gate');
+    Object.defineProperty(globalThis.performance, 'now', {
+      configurable: true,
+      value: () => clock.value,
+    });
+    try {
+      gate = await import(`../lib/privacy/location-gate.ts?fractional-clock=${index}`);
+    } finally {
+      if (original) Object.defineProperty(globalThis.performance, 'now', original);
+      else delete (globalThis.performance as { now?: () => number }).now;
+    }
+
+    await withReadinessResponse(READY_AVAILABLE, async () => {
+      const authorization = await gate.acquireDeviceLocationUseAuthorization();
+      if (isPublicRestrictedMode) {
+        expect(authorization).toBeNull();
+        return;
+      }
+      expect(authorization).not.toBeNull();
+      if (!authorization) throw new Error('Expected ready authorization.');
+      const use = () => gate.evaluateLocationUse({
+        purpose: 'home-map-device-marker',
+        destination: 'network',
+        networkSink: DEVICE_LOCATION_NETWORK_SINK,
+        authorization,
+      });
+      expect(use().allowed).toBe(true);
+      clock.value = authorization.expiresAt - 0.001;
+      expect(use().allowed).toBe(true);
+      clock.value = authorization.expiresAt;
+      expect(use().allowed).toBe(false);
+      clock.value = grantedAt;
+      expect(use().allowed).toBe(false);
+    });
+  }
+});
+
 test('tracking lifecycle revokes the genuine capability exactly once on every stop path', async () => {
   await withReadinessResponse(READY_AVAILABLE, async () => {
     const stopFor = async (
@@ -442,7 +484,7 @@ test('home client revokes retained capabilities on readiness failure, lifecycle 
   expect(visibilitySource).toContain('clearDeviceLocationState();');
 });
 
-test('home client keeps the capability boundary before disclosure and confines rendering to Naver', () => {
+test('home client keeps the capability boundary before permission and confines rendering to Naver', () => {
   const handlerStart = homeClientSource.indexOf(
     'const handleDeviceLocationClick = useCallback',
   );
@@ -455,26 +497,19 @@ test('home client keeps the capability boundary before disclosure and confines r
     'const authorization = await acquireDeviceLocationUseAuthorization()',
   );
   const deniedGuardIndex = handlerSource.indexOf('if (!authorization)');
-  const disclosureIndex = handlerSource.indexOf(
-    'window.confirm(DEVICE_LOCATION_DISCLOSURE)',
-  );
   const geolocationIndex = handlerSource.indexOf(
     'navigator.geolocation.getCurrentPosition',
   );
 
   expect(authorizationIndex).toBeGreaterThan(-1);
   expect(deniedGuardIndex).toBeGreaterThan(authorizationIndex);
-  expect(disclosureIndex).toBeGreaterThan(deniedGuardIndex);
-  expect(geolocationIndex).toBeGreaterThan(disclosureIndex);
+  expect(geolocationIndex).toBeGreaterThan(deniedGuardIndex);
   expect(homeClientSource).toContain('networkSink: DEVICE_LOCATION_NETWORK_SINK');
   expect(homeClientSource).toContain(
     'deviceLocation={mapMode === "domestic" ? deviceLocation : null}',
   );
   expect(homeClientSource).toContain(
     'if (mapMode === "overseas") {\n      clearDeviceLocationState();',
-  );
-  expect(homeClientSource).toContain(
-    '현재 위치 좌표는 현재 React 메모리에만 보관되며 Tzudong에 저장되지 않습니다. 브라우저 지도 렌더링 및 화면 이동은 승인된 지도 제공자 경계를 통과할 수 있습니다.',
   );
   expect(homeClientSource).toContain(
     '현재 위치를 지금 표시하지 못했어요. 잠시 후 다시 시도해 주세요.',

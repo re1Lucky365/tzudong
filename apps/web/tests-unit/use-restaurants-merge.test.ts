@@ -8,6 +8,7 @@ import * as overseasMatching from '../lib/overseas-region-matching';
 import * as restClient from '../lib/supabase-rest-client';
 import * as homeMapThemeFilters from '../lib/home-map-theme-filters';
 import type { Restaurant } from '../types/restaurant';
+import * as publishedPopularity from '../lib/evidence-engineering/published-popularity';
 
 type MergeInput = Array<Record<string, unknown>>;
 
@@ -99,6 +100,7 @@ function regionQueryFixture(regions = OVERSEAS_REGIONS) {
             enrichRestaurantsWithHomeMapYoutubeKpiMetrics: async (restaurants: Restaurant[]) => restaurants,
         },
         '@/lib/debug-log': { describeErrorCodeForLog: unexpected },
+        '@/lib/evidence-engineering/published-popularity': publishedPopularity,
     };
     const source = readFileSync(resolve(import.meta.dir, '../hooks/use-restaurants.tsx'), 'utf8');
     const compiled = ts.transpileModule(source, { compilerOptions: {

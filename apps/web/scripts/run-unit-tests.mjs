@@ -4,6 +4,9 @@ import path from 'node:path';
 
 const root = path.resolve('tests-unit');
 const isolated = new Set([
+  // This partial React Query mock omits keepPreviousData and must not replace
+  // the real module used by the lazy overlay import boundary test.
+  'ad-banner-stored-read.test.ts',
   'admin-evaluation-page-api.test.ts',
   'admin-evaluation-page-server.test.ts',
   // Its module imports fail only in the combined mock-heavy group; keep the
@@ -15,7 +18,6 @@ const isolated = new Set([
   'admin-storyboard-generator.test.ts',
   'admin-storyboard-langgraph.test.ts',
   'admin-storyboard-caption-provenance.test.ts',
-  'admin-storyboard-local-bridge.test.ts',
   // Its authenticated worker and Supabase transport mocks must stay in one process.
   'storyboard-gemini-rag.test.ts',
   'admin-youtube-thumbnail-readiness-gate.test.ts',
@@ -34,6 +36,10 @@ const isolated = new Set([
   // This capability contract replaces process-global fetch and performance.now.
   // Keep those readback and monotonic-clock probes out of the shared mock group.
   'device-location-privacy.test.ts',
+  // These child-process contracts fail in the mock-heavy combined process
+  // and pass unchanged alone. Keep their real runtime checks intact.
+  'local-supabase-runtime.test.ts',
+  'review-media-sql-successor-workflow-contract.test.ts',
 ]);
 
 const files = readdirSync(root, { recursive: true, withFileTypes: true })
