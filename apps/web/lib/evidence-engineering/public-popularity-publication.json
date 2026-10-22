@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "publicationVersion": "video-views-20261021-v1",
+  "publicationVersion": "video-views-20261022-v1",
   "sourceRevision": "13ded67a820549ae51f5b966104bf900c22aeb1a",
   "entries": [
     {
@@ -175,7 +175,7 @@
         "08284ff2-e888-4bac-8737-52f0010fbe9c",
         "ec32068f-64fc-4b44-bce3-7c4396485392"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "08b97acb-75ca-4a5c-a4be-cc3b46f14678",
@@ -189,7 +189,7 @@
       "memberRestaurantIds": [
         "09797927-0b79-496c-b7f0-996418802dd9"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "099dfbee-231a-40cd-a360-9eb301a4ca9b",
@@ -296,7 +296,7 @@
         "0e0fb0fc-ccff-44d2-908b-e902d4b0232c",
         "28d54dc5-820b-46f8-96ba-89f7515ae24d"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "0e4811c4-48fb-4b71-9b39-6d9cb07e39a8",
@@ -415,7 +415,7 @@
       "memberRestaurantIds": [
         "1448a3ea-33a4-41ee-a726-4ae7166b930b"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "144906e9-619a-4e09-a076-f5a56b07e5e9",
@@ -986,7 +986,7 @@
       "memberRestaurantIds": [
         "30295fdc-ed71-42fa-9996-e57ab7cbb5a8"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "30e5f1ea-ec1d-4616-9f6a-d41a0407748a",
@@ -1411,7 +1411,7 @@
       "memberRestaurantIds": [
         "43ceefd7-4539-4a35-bb39-54b5e04e478a"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "44130576-a856-4ee7-98ff-2ce3ee5ca3ab",
@@ -1432,7 +1432,7 @@
       "memberRestaurantIds": [
         "452e0179-99bd-456a-9e9c-7c35c5d395f9"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "4542bd17-2ff4-49b9-9f62-7a84294a9bc3",
@@ -1523,7 +1523,7 @@
       "memberRestaurantIds": [
         "4887d42c-d4a9-44fa-8307-a6edbe9271a3"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "48b183e3-5872-47cd-ab7e-f90aca07f510",
@@ -1712,7 +1712,7 @@
       "memberRestaurantIds": [
         "53240eca-28fd-44f0-abc2-3f8067df3ea4"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "536a9a62-ebfd-4026-b922-b282f5a9b388",
@@ -2042,7 +2042,7 @@
       "memberRestaurantIds": [
         "61634e42-e7f7-4433-b865-56d3536d8f45"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "623d6882-9720-45e0-afae-b443a3935bbf",
@@ -2337,7 +2337,7 @@
       "memberRestaurantIds": [
         "733131e4-5376-4bbc-80e8-a7a5e0f0c2ee"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "738a7bd8-467f-4d31-93f3-f1df0dfb480a",
@@ -3406,7 +3406,7 @@
       "memberRestaurantIds": [
         "a6ccf23f-1e28-495b-84cf-8ff365f2b25c"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "a793b273-4644-4fd1-9df6-58ed1cda1157",
@@ -3483,7 +3483,7 @@
       "memberRestaurantIds": [
         "ad6f2474-412e-4fbf-9652-6b1d70d7889e"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "ae7b40aa-512b-4bb6-bfa3-3405fb479a64",
@@ -3877,7 +3877,7 @@
       "memberRestaurantIds": [
         "c09e916d-4dfe-4614-8c89-f8d2e916745b"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "c1375bb8-e48f-42df-a127-4803538ea41d",
@@ -3968,7 +3968,7 @@
       "memberRestaurantIds": [
         "c6f03349-6503-48bc-9437-f2598556fba8"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "c7556965-965a-4afb-ae37-869ff9e51096",
@@ -3996,7 +3996,7 @@
       "memberRestaurantIds": [
         "c9ca08ea-d9c3-46a9-9183-14658d3ded9e"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "cb050ec5-1d2f-41ff-b030-53b993ae5544",
@@ -4144,7 +4144,7 @@
       "memberRestaurantIds": [
         "d10d55a5-c475-4595-9d53-340cbd41038e"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "d1fbd692-6c83-4a1e-9106-ef693947230f",
@@ -4298,7 +4298,7 @@
       "memberRestaurantIds": [
         "d7522c6f-ae8c-40f0-acd3-eaf4fab95d61"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "d7f12833-2131-49c0-ac4f-bbc57b123177",
@@ -4781,7 +4781,7 @@
       "memberRestaurantIds": [
         "ec1d53d8-8da3-42e2-8389-ebd3acae8af3"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "ec339e9a-71d8-45a3-98bb-d1b27d040c5b",
@@ -4809,7 +4809,7 @@
       "memberRestaurantIds": [
         "ec90e564-447c-4308-bd50-dc5de4909281"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "ed572dec-1904-4603-9747-6a1744916dd5",
@@ -5034,7 +5034,7 @@
       "memberRestaurantIds": [
         "f9355cc6-19ec-488d-a978-948cc7922b0d"
       ],
-      "tier": "fire"
+      "tier": "ember"
     },
     {
       "restaurantId": "f978622c-069f-4db5-a069-b7efdf68bbbe",

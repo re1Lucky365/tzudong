@@ -729,6 +729,7 @@ function AdminNaverMapSurface({
           count: feature.properties.point_count || 0,
           currentIndex:
             getClusterVisualKey(clusterId) % markerCategories.length,
+          popularityTier: feature.properties.popularityTier,
           position: { lat, lng },
         });
         const marker = new maps.Marker({
