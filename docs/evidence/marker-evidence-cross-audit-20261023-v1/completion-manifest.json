@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "status": "AUDIT_AND_NATIVE_FIXES_COMPLETE_DELIVERY_PENDING",
+  "updated_at": "2026-10-22T21:26:52.134597+00:00",
+  "scope": "Real published map flames and approved video context frames; retained marker refresh and robust public detail boundaries",
+  "reports": [
+    {
+      "path": "chatgpt_master_plan.md",
+      "bytes": 44976,
+      "sha256": "f0b823f93ffc1052e041843f3fbdd50c11b4c66a04f7f67ec7b23b60bd48564f"
+    },
+    {
+      "path": "gemini_4_argon_deescalated_report.md",
+      "bytes": 36989,
+      "sha256": "ee80bb70bc97d76dfde57566f59e91c5deb81e1e920f9823fe90c20426e08409"
+    },
+    {
+      "path": "chatgpt_reverse_report.md",
+      "bytes": 9631,
+      "sha256": "8991d6769c60a3d0dc95d3756f698f69aa3101d4fa8625b3c4fac5650a96c05d"
+    }
+  ],
+  "thesis_source_revision": "ac80e35da566db242420a62bbf3e3320b5c00e76",
+  "reverse_reviewed_revision": "8d47c225afcff1aa1cc5d4a2d8578911c945e217",
+  "reverse_new_finding_remedy_commit": "71494494caffe2f140e70b1b2fa2c171882262f2",
+  "candidate_integration_head": "0d66e15f32edcb239561fcd6daa4f2a5ce8e6f79",
+  "valid_findings": "All applicable demonstrated TH/GEM/REV code findings corrected and native verified; rejected proposals/counterproof and residual conditions in adjudication andREV-M-01-resolution",
+  "verification": {
+    "affected_batch": "83pass/12files/1252assertions/0fail/0skip at8d47",
+    "reverse_remedy": "6pass/2files/84assertions/0fail/0skip afteractual6invalidjumps redreproducer",
+    "typecheck_parity": "native+compat0diagnostics bothcandidate andremedy",
+    "lint": "scopedexit0",
+    "build": "Next16.3.8compileTS56routesCSSpass at8d47 beforeguardremedy andupstreamintegration; CInewhead required",
+    "public_assets": "All12liveWebPfullhashesmatch,4approvedownervideomappings;735JSONunchanged",
+    "local_runtime": "SSR/clienthydration shell observed; actualhosteddata path locally401, NOT full localHOST_TESTED"
+  },
+  "delivery": {
+    "state": "pending protected PR/CI/develop-data-main/exactSHA-READY-alias-URLreadback",
+    "previous_observed_live_sha": "ac80e35da566db242420a62bbf3e3320b5c00e76",
+    "newer_staged_production_sha": "6e6cad4e3891b3ed64a79c9a04ec38e41e53c4fb",
+    "note": "Other owner READYdeployment preserved; freshlive rollback identity required before ourpromotion."
+  },
+  "nightly": {
+    "run": "39457197351",
+    "state": "HISTORICAL_FAILURE_NOT_RERUN",
+    "separate_from_delivery": true,
+    "rootcause": "Not reasserted from Gemini OCR description"
+  },
+  "limits": [
+    "Context scenes4restaurants/12frames, notL1/allrestaurant coverage",
+    "HistoricalJune-Julyvideo reach, notfoodquality/livefreshness",
+    "No physical-device/field/performance proof",
+    "Trusted owner-controlled frame staging, no concurrent untrusted writer; no batch atomicity claim",
+    "Other owners/actualquota preserved; Pstack owner settlement request stillpending atlastsharedreadback, Telegramownercancelled"
+  ]
+}
