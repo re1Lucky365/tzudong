@@ -224,8 +224,13 @@ describe("evidence engineering remaining tasks", () => {
     expect(publicPopularityTier(null)).toBe("standard");
     expect(publicPopularityTier("shadow")).toBe("standard");
     const panel = readFileSync(resolve(import.meta.dir, "../components/restaurant/RestaurantDetailPanel.tsx"), "utf8");
-    expect(panel).toContain("resolvePublishedPopularityTier(restaurant)");
+    expect(panel).not.toContain("resolvePublishedPopularityTier(restaurant)");
+    expect(panel).not.toContain("PopularityMention");
+    expect(panel).not.toContain("제일 맛있는 맛집");
     expect(panel).not.toContain('<PopularityBadge tier="standard" />');
+    const rainbow = wrapMarkerWithPopularityTier("<span>pin</span>", "rainbow");
+    expect(rainbow.match(/class="tz-popularity-flame"/g)).toHaveLength(1);
+    expect(rainbow).toContain("fill: #d4a017");
     const attributes = new Map<string, string>();
     const element = {
       setAttribute: (name: string, value: string) => attributes.set(name, value),
