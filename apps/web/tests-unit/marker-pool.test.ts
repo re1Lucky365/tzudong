@@ -162,6 +162,20 @@ afterAll(() => {
 });
 
 describe('marker pool', () => {
+  test('failed provider detachment is discarded and does not strand clear or reuse a corrupt marker', () => {
+    const broken = markerPool.acquire('broken', makePosition('a'), { content: 'a' }, 'map');
+    const valid = markerPool.acquire('valid', makePosition('b'), { content: 'b' }, 'map');
+    broken.setMap = () => { throw new Error('NAVER_MARKER_DETACH_FAILED'); };
+    expect(() => markerPool.release('broken')).not.toThrow();
+    expect(markerPool.getStats()).toMatchObject({ activeCount: 1, poolSize: 0 });
+    const next = markerPool.acquire('new', makePosition('c'), { content: 'c' }, 'map');
+    expect(next).not.toBe(broken);
+    next.setMap = () => { throw new Error('NAVER_MARKER_DETACH_FAILED'); };
+    expect(() => markerPool.clear()).not.toThrow();
+    expect(valid.getMap()).toBe(null);
+    expect(markerPool.getStats()).toMatchObject({ activeCount: 0, poolSize: 0 });
+  });
+
   test('provider listener teardown failure does not strand the remaining markers or pool state', () => {
     const markers = ['teardown-a', 'teardown-b'].map(id =>
       markerPool.acquire(id, makePosition(id), { content: id }, 'map'),

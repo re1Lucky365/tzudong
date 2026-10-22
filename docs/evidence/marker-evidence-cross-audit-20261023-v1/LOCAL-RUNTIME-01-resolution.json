@@ -27,5 +27,17 @@
   "followup": {
     "PR3488-P2": "Locally one-shot and cancelable idle correction prevents retained SDK callbacks from reapplying stale wheel anchors.",
     "PR3488-P1": "Provider diagnostic and stack replaced by bounded fixed code in committed evidence. Private raw output retained outside Git; prior commits are not rewritten."
+  },
+  "preview_followup": {
+    "deployment": "dpl_4RCLPLhv8KXKEL3v84he6WGJxRq7",
+    "sha": "ad61e2fc0d2895af7182bfd846735cd8fa5f3474",
+    "at": "2026-10-22T22:08:45Z",
+    "codes": [
+      "NAVER_RESIZE_SDK_UNAVAILABLE",
+      "NAVER_MARKER_DETACH_FAILED"
+    ],
+    "state": "Root boundary remained; production promotion kept on hold",
+    "fix": "Read current SDK availability in delayed resize callbacks; isolate marker detach failures and discard corrupted SDK objects instead of pooling them. Device marker teardown shares the same boundary.",
+    "native": "41 tests /5 files /1169 assertions /0fail /0skip; typecheck/lint receipts separate"
   }
 }
