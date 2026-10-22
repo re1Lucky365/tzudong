@@ -264,8 +264,8 @@ describe('mobile home map regression guards', () => {
 
         expect(naverMapSource).toContain('onMapInteraction?: () => void;');
         expect(naverMapSource).toContain('onMapInteraction?.();');
-        // Registration may wrap the callback for cancellation. Failure/retained-listener
-        // behavior is exercised in naver-map-event-cleanup.test.ts.
+        // SDK registration and retained-listener dispatch are executed in
+        // naver-map-event-wiring.test.ts, without requiring inline callback syntax.
         expect(naverMapSource).toContain('onMapBlankClick, onMapInteraction');
         expect(overseasMapSource).toContain('onMapInteraction?: () => void;');
         expect(overseasMapSource).toContain('onMapInteractionRef.current?.();');
