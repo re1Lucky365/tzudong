@@ -1,4 +1,7 @@
-import { isLevel1SourceObserved, parseEvidenceFrame, unionApprovedEvidenceFrames } from "@/lib/evidence-engineering/frames";
+"use client";
+
+import { useState } from "react";
+import { isLevel1SourceObserved, parseEvidenceFrame, approvedEvidenceFramesOrEmpty } from "@/lib/evidence-engineering/frames";
 import type { RestaurantEvidenceFrame } from "@/lib/evidence-engineering/types";
 
 export function evidenceFrameEmbedRow(item: unknown): unknown {
@@ -38,7 +41,7 @@ export function publicReviewedVideoFrames(groups: readonly unknown[][]): Restaur
       return [];
     }
   }));
-  return unionApprovedEvidenceFrames(parsed).filter(
+  return approvedEvidenceFramesOrEmpty(parsed).filter(
     (frame) => frame.evidence_level === "SOURCE_OBSERVED",
   );
 }
@@ -68,13 +71,25 @@ export function publicFramePresentation(frame: RestaurantEvidenceFrame): {
   };
 }
 
+function EvidenceFrameImage({ frame }: { frame: RestaurantEvidenceFrame }) {
+  const [failed, setFailed] = useState(false);
+  const presentation = publicFramePresentation(frame);
+  if (failed) return <span role="status" className="flex aspect-video items-center justify-center rounded-t-xl bg-muted px-3 text-center text-xs text-muted-foreground">장면 이미지를 불러오지 못했어요. 원본 영상에서 확인해 주세요.</span>;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- Immutable reviewed frames use native lazy images.
+    <img src={publicEvidenceImageSource(frame)} alt={frame.detected_shop_name ?? frameLabel(frame)}
+      width={640} height={360} loading={presentation.loading} decoding="async" onError={() => setFailed(true)}
+      className="aspect-video w-full rounded-t-xl object-cover" />
+  );
+}
+
 export function RestaurantEvidenceCarousel({ frames }: { frames: readonly RestaurantEvidenceFrame[][] }) {
   const visible = publicReviewedVideoFrames(frames);
   if (visible.length === 0) return null;
   return (
     <section className="py-2 pb-[env(safe-area-inset-bottom)]" aria-label="쯔양 영상 근거와 방문 장면">
       <p className="text-2xs font-bold tracking-wide text-brand-garden-text">쯔양 영상 속 그 장면</p>
-      <h3 className="mb-2 text-sm font-black tracking-tight">영상에서 확인한 간판·방문 장면 📸</h3>
+      <h3 className="mb-2 text-sm font-black tracking-tight">{visible.some(isLevel1SourceObserved) ? "영상에서 확인한 간판·방문 장면 📸" : "영상에서 확인한 방문·현장 장면 📸"}</h3>
       {visible.some((frame) => !isLevel1SourceObserved(frame)) && (
         <p className="mb-2 text-xs text-muted-foreground">현장 장면은 영상의 맥락을 보여주며, 매장 신원을 확인하는 간판·매장 안내와 구분해요.</p>
       )}
@@ -90,16 +105,7 @@ export function RestaurantEvidenceCarousel({ frames }: { frames: readonly Restau
             className="block w-[min(68vw,18rem)] shrink-0 rounded-xl border border-border bg-card sm:w-64 lg:w-72"
             aria-label={`${frameLabel(frame)} ${Math.floor(frame.timestamp_ms / 60000)}분 ${Math.floor(frame.timestamp_ms / 1000) % 60}초 영상 열기`}
           >
-              {/* eslint-disable-next-line @next/next/no-img-element -- Immutable reviewed frames use native lazy images. */}
-              <img
-                src={publicEvidenceImageSource(frame)}
-                alt={frame.detected_shop_name ?? frameLabel(frame)}
-                width={640}
-                height={360}
-                loading={presentation.loading}
-                decoding="async"
-                className="aspect-video w-full rounded-t-xl object-cover"
-              />
+              <EvidenceFrameImage key={`${frame.storage_object_key}:${publicEvidenceImageSource(frame)}`} frame={frame} />
               <span className="flex items-center justify-between gap-2 px-2 py-2 text-xs">
                 <span>{frameLabel(frame)}</span>
                 <span className="tabular-nums text-muted-foreground">{Math.floor(frame.timestamp_ms / 60000)}:{String(Math.floor(frame.timestamp_ms / 1000) % 60).padStart(2, "0")}</span>

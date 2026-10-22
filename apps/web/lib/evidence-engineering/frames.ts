@@ -176,6 +176,16 @@ function sameIdentity(left: RestaurantEvidenceFrame, right: RestaurantEvidenceFr
   );
 }
 
+// Public detail rendering must fail closed without taking down the restaurant panel.
+export function approvedEvidenceFramesOrEmpty(groups: readonly RestaurantEvidenceFrame[][]): RestaurantEvidenceFrame[] {
+  try {
+    return unionApprovedEvidenceFrames(groups);
+  } catch (error) {
+    if (error instanceof EvidenceContractError) return [];
+    throw error;
+  }
+}
+
 export function unionApprovedEvidenceFrames(groups: readonly RestaurantEvidenceFrame[][]): RestaurantEvidenceFrame[] {
   const grouped = new Map<string, RestaurantEvidenceFrame[]>();
   for (const group of groups) {
