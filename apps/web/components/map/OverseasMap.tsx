@@ -127,7 +127,7 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
     const { data: restaurants = [], isLoading: isLoadingRestaurants } = useRestaurants(restaurantsOptions);
 
     const restaurantsToShow = useMemo(() => {
-        return mergeOverseasRestaurants(restaurants, searchedRestaurant);
+        return mergeOverseasRestaurants(restaurants, searchedRestaurant).filter(hasRenderableOverseasCoordinates);
     }, [restaurants, searchedRestaurant]);
 
     useEffect(() => {
@@ -355,7 +355,7 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
     useEffect(() => {
         if (!map.current || !isMapLoaded) return;
 
-        const renderableRestaurants = restaurantsToShow.filter(hasRenderableOverseasCoordinates);
+        const renderableRestaurants = restaurantsToShow;
         const currentMarkerIds = new Set(renderableRestaurants.map(r => r.id));
 
         // 1. Remove markers that are no longer in the list
@@ -369,6 +369,7 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
         // 2. Add or update markers
         renderableRestaurants.forEach(restaurant => {
             let marker = markersRef.current.get(restaurant.id);
+            const isNewMarker = !marker;
             if (!marker) {
                 const el = document.createElement('div');
                 el.id = `marker-${restaurant.id}`;
@@ -391,7 +392,8 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
                 onMarkerClick?.(restaurant);
                 moveToRestaurant(restaurant);
             };
-            marker.setLngLat([Number(restaurant.lng), Number(restaurant.lat)]).addTo(map.current!);
+            marker.setLngLat([Number(restaurant.lng), Number(restaurant.lat)]);
+            if (isNewMarker) marker.addTo(map.current!);
             const activeId = getOverseasMarkerActiveId({ searchedRestaurantId: searchedRestaurant?.id, selectedRestaurantId: selectedRestaurant?.id });
             applyOverseasMarkerSelectedState({ container: element.querySelector('.marker-container'), isSelected: restaurant.id === activeId, markerElement: element });
         });

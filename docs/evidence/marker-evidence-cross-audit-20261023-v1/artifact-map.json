@@ -12,6 +12,11 @@
       "sha256": "b0b76f464c58e99270dc98be6f0a389e6f2a1817af0e149a318773dfd2cee891"
     },
     {
+      "path": "PR3490-final-finding-resolutions.json",
+      "bytes": 2638,
+      "sha256": "3195cdaff41c9abcb80b547d5d6f12cbf7c1bc2532af06a58999b088f688ec21"
+    },
+    {
       "path": "REV-M-01-resolution.json",
       "bytes": 1168,
       "sha256": "c876bc27ed38248e20fbfebcdbdd43d5fe0bacbbd78d6e1e98f4f1f77dd80724"
@@ -165,6 +170,21 @@
       "path": "public-receipt-redaction.json",
       "bytes": 1424,
       "sha256": "2302e08207a6afe5ba8ffca90d519b4f6e426e27c2d28b7c8e1abcff4ea4bb29"
+    },
+    {
+      "path": "raw/final-review-findings.log",
+      "bytes": 6542,
+      "sha256": "018f1e8af5e4c83e9756da3617ddacbc3dd1eddfbe62b92d5553825d66a5de5d"
+    },
+    {
+      "path": "raw/final-review-lint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/final-review-types.log",
+      "bytes": 510,
+      "sha256": "9dc8a41476d3c541177852643ad068716a85d3e97135a7740629163caf66f4af"
     },
     {
       "path": "raw/naver-cleanup-followup-lint.log",
