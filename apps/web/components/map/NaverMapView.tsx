@@ -85,7 +85,6 @@ import {
     buildClusterMarkerFeature,
     buildNaverClusterAnimationIconPlan,
     buildNaverClusterMarkerRenderPlan,
-    shouldReplaceNaverMarkerIcon,
 } from "@/lib/naver-map-cluster-visuals";
 import { perfMonitor } from "@/lib/performance-monitor";
 import { useMapOptimization } from "@/hooks/useMapOptimization";
@@ -3150,34 +3149,15 @@ const NaverMapView = memo(({
         // 애니메이션 업데이트 시 클러스터 마커 HTML 갱신
         const cleanup = clusterAnimationManager.addListener(() => {
             const applyClusterIcon = (
-                marker: {
-                    getElement?: () => HTMLElement | null;
-                    getIcon: () => { content?: unknown; anchor?: { x?: number; y?: number } | null } | null;
-                    setIcon: (icon: { content?: unknown; anchor?: { x: number; y: number } | null }) => void;
-                },
+                markerId: string,
                 iconPlan: { content: string; anchor: { x: number; y: number } },
             ) => {
-                const element = marker.getElement?.() ?? null;
-                const source = element?.querySelector("picture source") as HTMLElement | null;
-                const nextSource = iconPlan.content.match(/srcset="([^"]+)"/)?.[1];
-                if (source && nextSource) {
-                    if (source.getAttribute("srcset") === nextSource) return;
-                    const applyLoadedIcon = () => {
-                        if (source.dataset.clusterIconPending !== nextSource) return;
-                        source.setAttribute("srcset", nextSource);
-                    };
-                    const preload = new Image();
-                    source.dataset.clusterIconPending = nextSource;
-                    preload.onload = applyLoadedIcon;
-                    preload.src = nextSource;
-                    if (preload.complete) applyLoadedIcon();
-                    return;
-                }
-                if (!shouldReplaceNaverMarkerIcon(marker.getIcon(), iconPlan)) return;
-                marker.setIcon({
+                // The pool owns rendered content and accessibility state. Direct
+                // srcset writes left its descriptor stale on a later reacquire.
+                markerPool.update(markerId, { icon: {
                     content: iconPlan.content,
                     anchor: new window.naver.maps.Point(iconPlan.anchor.x, iconPlan.anchor.y),
-                });
+                } });
             };
 
             if (isRegionalClusterMode) {
@@ -3197,7 +3177,7 @@ const NaverMapView = memo(({
                             uniqueKey: cluster.region,
                         });
 
-                        applyClusterIcon(marker, iconPlan);
+                        applyClusterIcon(markerId, iconPlan);
                     }
                 });
             }
@@ -3218,7 +3198,7 @@ const NaverMapView = memo(({
                             position: cluster.center,
                             uniqueKey: cluster.region,
                         });
-                        applyClusterIcon(marker, iconPlan);
+                        applyClusterIcon(markerId, iconPlan);
                     }
                 });
             }
@@ -3251,7 +3231,7 @@ const NaverMapView = memo(({
                                 uniqueKey: clusterId,
                             });
 
-                            applyClusterIcon(marker, iconPlan);
+                            applyClusterIcon(markerId, iconPlan);
                         }
                     }
                 });

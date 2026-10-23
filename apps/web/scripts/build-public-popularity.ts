@@ -15,11 +15,14 @@ export async function buildPublicPopularity(sourcePath: string, metricsPath: str
   const metrics = JSON.parse(metricBytes.toString()) as { rows: Array<{ video_id: string; view_count: number | string; fetched_at: string; bucket_started_at: string }> };
   const byVideo = new Map<string, typeof metrics.rows[number]>();
   for (const row of metrics.rows) {
-    const previous = byVideo.get(row.video_id);
-    if (previous && safeCount(previous.view_count, Number.MAX_SAFE_INTEGER) !== safeCount(row.view_count, Number.MAX_SAFE_INTEGER)) {
+    const videoId = extractCanonicalYouTubeVideoId(row.video_id);
+    if (!videoId) throw new Error('popularity_metrics_video_invalid');
+    const previous = byVideo.get(videoId);
+    if (previous && (safeCount(previous.view_count, Number.MAX_SAFE_INTEGER) !== safeCount(row.view_count, Number.MAX_SAFE_INTEGER)
+      || (previous.fetched_at || previous.bucket_started_at) !== (row.fetched_at || row.bucket_started_at))) {
       throw new Error('popularity_metrics_video_conflict');
     }
-    byVideo.set(row.video_id, row);
+    byVideo.set(videoId, { ...row, video_id: videoId });
   }
   const rows = source.rows.map((r) => {
     if (r.status !== 'approved') throw new Error('popularity_source_not_approved');
@@ -56,7 +59,7 @@ export async function buildPublicPopularity(sourcePath: string, metricsPath: str
     const tier = group.viewCount === null || cut.fireAt === null ? 'standard' : group.viewCount >= cut.fireAt ? 'fire' : group.viewCount >= cut.emberAt! ? 'ember' : group.viewCount >= cut.rainbowAt! ? 'rainbow' : 'standard';
     return { restaurantId: group.restaurantId, memberRestaurantIds: group.memberRestaurantIds, tier };
   }).sort((a, b) => a.restaurantId.localeCompare(b.restaurantId));
-  const publication = parsePublicPopularityPublication({ schemaVersion: 2, publicationVersion: 'video-views-20261022-v1', sourceRevision: revision, entries });
+  const publication = parsePublicPopularityPublication({ schemaVersion: 2, publicationVersion: 'video-views-20261023-v2', sourceRevision: revision, entries });
   const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
   return { publication, evidence: { policy: 'map-cohort-max-linked-video-views-nearest-rank-p98-p95-p85-v2', definition: 'Most-viewed linked video per merged restaurant, ranked separately within domestic and overseas approved restaurant cohorts. This measures video reach, not food quality.', sourceSha256: sha(sourceBytes), metricsSha256: sha(metricBytes), thresholds, groups } };
 }

@@ -12,10 +12,12 @@ const executablePath = existsSync(chrome) ? chrome : chromium.executablePath();
 // parsed and compared by Chromium, not by a copy of the production patcher.
 const entry = `
 import { markerPool } from './lib/marker-pool';
+import { syncRetainedMarkerAccessibility } from './lib/retained-marker-accessibility';
 import { wrapMarkerWithPopularityTier } from './lib/evidence-engineering/popularity-marker';
 import { wrapNaverMarkerContentWithReviewBubble } from './lib/visible-marker-review-bubbles';
 const map = document.body.appendChild(document.createElement('main'));
 let clicks = [];
+let cloneIcons = false;
 class Marker {
   constructor({position, icon, map: target}) {
     this.position = position; this.icon = icon; this.map = target;
@@ -27,7 +29,7 @@ class Marker {
     this.map = target; this.element.remove(); target?.append(this.element); }
   getPosition() { return this.position; }
   setPosition(position) { this.position = position; }
-  getIcon() { return this.icon; }
+  getIcon() { return cloneIcons ? {...this.icon} : this.icon; }
   setIcon(icon) { this.icon = icon; this.element.innerHTML = icon.content; this.iconChanges++; }
   getElement() { return this.element; }
   setZIndex() {}
@@ -46,7 +48,7 @@ function html(id, value) {
   const content = wrapMarkerWithPopularityTier('<div data-testid="marker" data-restaurant-id="' + id + '" style="width:32px" role="button" tabindex="0" aria-label="식당">'
     + '<span data-tzuyang-visit-count-badge="true">' + value.visits + '</span><img src="/same.webp" alt="설명 ' + value.alt + '"></div>', value.tier);
   let bubble = value.bubble ? {
-    restaurantId: id, reviewId: 'review-' + value.bubble, userName: '검증 사용자', content: reviewContent(value), photoUrl: null,
+    restaurantId: id, reviewId: 'review-' + value.bubble, userName: '검증 사용자', content: reviewContent(value), photoUrl: value.bubble === 2 ? 'https://example.com/p.webp' : null,
   } : undefined;
   if (bubble && reuseBubbleIdentity) {
     const previous = mutableBubbles.get(id);
@@ -62,7 +64,7 @@ function view(marker, requested) {
   const element = marker.getElement();
   return { tier: element.querySelector('[data-popularity-tier]')?.getAttribute('data-popularity-tier'),
     flames: element.querySelectorAll('svg.tz-popularity-flame').length,
-    alt: element.querySelector('img')?.getAttribute('alt'),
+    alt: element.querySelector('[data-testid="marker"] img')?.getAttribute('alt'),
     visits: element.querySelector('[data-tzuyang-visit-count-badge]')?.textContent,
     bubbles: element.querySelectorAll('[data-visible-marker-review-bubble]').length,
     currentReview: !requested.bubble || Boolean(element.querySelector('[data-visible-marker-review-bubble]')?.textContent.includes(reviewContent(requested))) };
@@ -85,12 +87,43 @@ window.__formal = {
   },
   bubbleIdentity() {
     markerPool.clear(); const marker = acquire('a', {...variants[0], bubble: 1});
-    const image = marker.getElement().querySelector('img');
+    const image = marker.getElement().querySelector('[data-testid="marker"] img');
     const changes = marker.iconChanges;
     const after = {...variants[0], bubble: 2};
     acquire('a', after);
-    const retained = image === marker.getElement().querySelector('img');
+    const retained = image === marker.getElement().querySelector('[data-testid="marker"] img');
     const result = {retained, iconChanges: marker.iconChanges - changes, ...view(marker, after)};
+    markerPool.clear(); return result;
+  },
+  reviewBoundaries() {
+    markerPool.clear(); reuseBubbleIdentity = false; cloneIcons = true;
+    const first = {...variants[0], bubble: 1};
+    const second = {...variants[0], bubble: 2};
+    const marker = acquire('a', first);
+    syncRetainedMarkerAccessibility(marker, false, map);
+    marker.getElement().querySelector('[data-visible-marker-review-bubble]').style.marginLeft = '23px';
+    acquire('a', second);
+    const root = marker.getElement().querySelector('[data-visible-marker-review-bubble-anchor]');
+    const hiddenAfterPatch = root?.getAttribute('aria-hidden');
+    const clampAfterPatch = marker.getElement().querySelector('[data-visible-marker-review-bubble]').style.marginLeft;
+    const photoAfterPatch = marker.getElement().querySelector('[data-visible-marker-review-bubble] img')?.getAttribute('src');
+    acquire('a', first);
+    const reverted = view(marker, first).currentReview;
+    markerPool.update('a', {icon: {content: html('a', second), anchor: {x: 18, y: 18}}});
+    const hiddenAfterReplacement = marker.getElement().querySelector('[data-visible-marker-review-bubble-anchor]')?.getAttribute('aria-hidden');
+    const anchor = marker.getIcon().anchor;
+    marker.failDetach = true; markerPool.release('a');
+    const evicted = markerPool.getStats().poolSize === 0 && marker.providerClick === undefined;
+    cloneIcons = false; markerPool.clear();
+    return {hiddenAfterPatch, clampAfterPatch, photoAfterPatch, reverted, hiddenAfterReplacement, anchor, evicted};
+  },
+  clusterReacquisition() {
+    markerPool.clear();
+    const icon = (frame, count) => ({content: '<div data-testid="marker" data-restaurant-id="cluster" role="button" tabindex="0" aria-label="cluster"><picture><source srcset="/' + frame + '.webp"><img src="/fallback.webp"></picture><b>' + count + '</b></div>', anchor: {x: 14, y: 14}});
+    const marker = markerPool.acquire('cluster', position, icon('a', 2), map);
+    markerPool.update('cluster', {icon: icon('b', 3)});
+    markerPool.acquire('cluster', position, icon('a', 4), map);
+    const result = {srcset: marker.getElement().querySelector('source').getAttribute('srcset'), count: marker.getElement().querySelector('b').textContent};
     markerPool.clear(); return result;
   },
   ownershipTraces() {
@@ -176,5 +209,20 @@ test('every pool/click action sequence through depth four keeps current callback
     expect(result.failure).toBeNull();
     expect(result.checked).toBe(18056);
     console.log('FORMAL_OWNERSHIP_STEPS', result.checked);
+  });
+}, 60000);
+
+test('review patches preserve retained masking, clamp and clone-descriptor round trips', async () => {
+  await withFixture(async page => {
+    expect(await page.evaluate(() => window.__formal.reviewBoundaries())).toEqual({
+      hiddenAfterPatch: 'true', clampAfterPatch: '23px', photoAfterPatch: 'https://example.com/p.webp',
+      reverted: true, hiddenAfterReplacement: 'true', anchor: {x: 18, y: 18}, evicted: true,
+    });
+  });
+}, 60000);
+
+test('cluster frames updated through the pool restore the requested frame and count', async () => {
+  await withFixture(async page => {
+    expect(await page.evaluate(() => window.__formal.clusterReacquisition())).toEqual({srcset: '/a.webp', count: '4'});
   });
 }, 60000);

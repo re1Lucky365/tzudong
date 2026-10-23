@@ -40,6 +40,18 @@ const mutants = [
     before: '        marker.__onClick = undefined;\n        syncRetainedMarkerAccessibility(marker, true);',
     after: '        syncRetainedMarkerAccessibility(marker, true);',
     test: tests[0], failure: 'every pool/click action sequence through depth four' },
+  { id: 'retained-review-mask', file: 'lib/marker-pool.ts',
+    before: '        const element = marker.getElement();\n        const patched =',
+    after: '        syncRetainedMarkerAccessibility(marker, true);\n        const element = marker.getElement();\n        const patched =',
+    test: tests[0], failure: 'review patches preserve retained masking, clamp and clone-descriptor round trips' },
+  { id: 'cloned-icon-descriptor', file: 'lib/marker-pool.ts',
+    before: '        const currentIcon = this.renderedIcons.get(marker) ?? marker.getIcon();',
+    after: '        const currentIcon = marker.getIcon();',
+    test: tests[0], failure: 'review patches preserve retained masking, clamp and clone-descriptor round trips' },
+  { id: 'review-viewport-clamp', file: 'lib/marker-pool.ts',
+    before: '        nextBubbles[0].style.marginLeft = currentBubbles[0].style.marginLeft;',
+    after: '        nextBubbles[0].style.marginLeft = "";',
+    test: tests[0], failure: 'review patches preserve retained masking, clamp and clone-descriptor round trips' },
   { id: 'half-life-overflow', file: 'lib/evidence-engineering/scoring.ts',
     before: removeFiniteGuard('halfLife'), after: '', test: tests[1], failure: 'finite inputs cannot leak infinity' },
   { id: 'visit-multiplier-overflow', file: 'lib/evidence-engineering/scoring.ts',
@@ -59,7 +71,7 @@ if (baseline.exitCode !== 0) {
   process.stderr.write(baseline.output);
   throw new Error('FORMAL_BASELINE_FAILED');
 }
-console.log('Bounded native baseline passed. Checking eight isolated broken variants.');
+console.log('Bounded native baseline passed. Checking eleven isolated broken variants.');
 const mutations = [];
 for (const mutant of mutants) {
   const scratch = await mkdtemp(join(tmpdir(), 'tzudong-formal-mutation-'));

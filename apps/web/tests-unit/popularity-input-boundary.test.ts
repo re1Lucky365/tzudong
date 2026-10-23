@@ -74,3 +74,17 @@ test('nearest-rank has no ember at n=19 but separates P95 and P98 at n=20', asyn
     expect(result.publication.entries.filter(entry => entry.tier === 'ember')).toHaveLength(size === 19 ? 0 : 1);
   }
 });
+
+test('duplicate observations reject timestamp conflicts in either order and normalize video identity', async () => {
+  const later = {...metric, fetched_at: '2026-07-02T00:00:00Z'};
+  for (const rows of [[metric, later], [later, metric]]) {
+    await expect(build({}, rows)).rejects.toThrow('popularity_metrics_video_conflict');
+  }
+  const aliased = {...metric, video_id: 'https://youtu.be/abc123DEF45'};
+  for (const rows of [[metric, aliased], [aliased, metric]]) {
+    const result = await build({}, rows);
+    expect(result.evidence.groups[0].observed).toEqual([{videoId: metric.video_id, count: 123, observedAt: metric.fetched_at}]);
+  }
+  expect((await build({}, [aliased])).evidence.groups[0].viewCount).toBe(123);
+  await expect(build({}, [{...metric, video_id: 'invalid'}])).rejects.toThrow('popularity_metrics_video_invalid');
+});
