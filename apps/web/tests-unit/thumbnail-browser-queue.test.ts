@@ -49,6 +49,36 @@ function fixture() {
 }
 
 describe('Gemini thumbnail browser queue protocol', () => {
+  test('a persisted cancellation intent is delivered when the original enqueue appears after null and reload', async () => {
+    const f = fixture(), q = f.queue(); f.mode = 'ack-lost';
+    await expect(q.enqueue(f.draft, 4, f.requestId)).rejects.toThrow('unconfirmed');
+    f.mode = 'absent'; expect(await q.cancel()).toBeNull();
+    expect(q.state.handle?.cancelRequested).toBe(true); expect(f.cancellations).toBe(0);
+    f.mode = 'normal'; const restored = f.queue();
+    expect((await restored.resume())?.state).toBe('cancelled');
+    expect(f.posts).toBe(1); expect(f.cancellations).toBe(1);
+    await restored.resume(); expect(f.cancellations).toBe(1);
+    expect(restored.canAutoApply(f.jobId, 4)).toBe(false);
+  });
+  test('an idle open tab adopts another tab receipt for observation without a second POST or auto apply', async () => {
+    const f = fixture(), idle = f.queue(), submitting = f.queue();
+    await submitting.enqueue(f.draft, 7, f.requestId);
+    expect(idle.state.handle).toBeNull(); await idle.resume();
+    expect(idle.state.handle?.requestId).toBe(f.requestId);
+    f.succeed(); await idle.resume();
+    expect(idle.canAutoApply(f.jobId, 7)).toBe(false); expect(f.posts).toBe(1);
+    expect(f.calls.every((call) => new Headers(call.init?.headers).get('X-Thumbnail-Owner') === f.ownerId)).toBe(true);
+  });
+  test('an unresolved local request is retained when unrelated storage is replaced', async () => {
+    const f = fixture(), q = f.queue(); f.mode = 'ack-lost';
+    await expect(q.enqueue(f.draft, 3, f.requestId)).rejects.toThrow('unconfirmed');
+    const alien = { requestId: randomUUID(), model: f.draft.model, editorSessionId: randomUUID(), editorRevision: 4, cancelRequested: false };
+    f.storage.setItem(`thumbnail-gemini-request:${f.ownerId}`, JSON.stringify(alien));
+    f.mode = 'normal'; await q.resume();
+    expect(q.state.handle?.requestId).toBe(f.requestId);
+    expect(JSON.parse(f.storage.getItem(`thumbnail-gemini-request:${f.ownerId}`)!).requestId).toBe(alien.requestId);
+    expect(f.posts).toBe(1);
+  });
   test('two controllers cannot delete another in-flight request receipt after a pre-insert rejection', async () => {
     const f = fixture(); let release!: (response: Response) => void; let entered!: () => void;
     const started = new Promise<void>((resolve) => { entered = resolve; });

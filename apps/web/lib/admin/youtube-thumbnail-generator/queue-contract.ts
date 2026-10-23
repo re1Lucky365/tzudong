@@ -14,8 +14,29 @@ export const thumbnailBrief = z.object({
   stylePreset: z.enum(['tzuyang-food-travel-collage', 'night-market-reaction', 'convenience-store-haul',
     'grilled-meat-feast', 'sushi-seafood-table']),
 }).strict();
+const editorColor = z.string().regex(/^#(?:[a-f0-9]{3}|[a-f0-9]{4}|[a-f0-9]{6}|[a-f0-9]{8})$/i);
+export const thumbnailEditorDocument = z.object({ schemaVersion: z.literal(1), topic: z.string().max(400),
+  headline: z.string().max(80), subHeadline: z.string().max(120),
+  textLayers: z.array(z.object({ id: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/), content: z.string().max(80),
+    x: z.number().min(-1280).max(2560), y: z.number().min(-720).max(1440),
+    fontFamily: z.string().min(1).max(160).regex(/^[A-Za-z0-9 ,"'_-]+$/),
+    fontSize: z.number().min(1).max(400), fontWeight: z.number().min(100).max(1000), fill: editorColor, stroke: editorColor,
+    strokeWidth: z.number().min(0).max(40), shadow: z.string().max(120).regex(/^(?:none|[0-9pxrgba(),. %\-]+)$/i),
+    align: z.enum(['left', 'center', 'right']), rotation: z.number().min(-360).max(360),
+    zIndex: z.number().int().min(-1000).max(1000) }).strict()).max(64)
+    .refine((layers) => new Set(layers.map((layer) => layer.id)).size === layers.length),
+}).strict().refine((document) => new TextEncoder().encode(JSON.stringify(document)).length <= 48_000);
+export type ThumbnailEditorDocument = z.infer<typeof thumbnailEditorDocument>;
 export const thumbnailEnqueue = z.object({ requestId: thumbnailUuid, model: thumbnailModel,
-  brief: thumbnailBrief, roles: z.array(thumbnailRole).max(8) }).strict();
+  brief: thumbnailBrief, roles: z.array(thumbnailRole).max(8), editor: thumbnailEditorDocument.optional() }).strict()
+  .refine((request) => !request.editor || (request.editor.topic === request.brief.topic
+    && request.editor.headline === request.brief.headline && request.editor.subHeadline === (request.brief.subHeadline ?? '')));
+export const TZUYANG_THUMBNAIL_CHANNEL_ID = 'UCfpaSruWW3S4dibonKXENjA';
+export const thumbnailCollectedReferences = z.object({ channelId: z.literal(TZUYANG_THUMBNAIL_CHANNEL_ID),
+  channelVerified: z.boolean(), bucketStartedAt: z.iso.datetime({ offset: true }).nullable(),
+  candidates: z.array(z.object({ videoId: z.string().regex(/^[A-Za-z0-9_-]{11}$/),
+    title: z.string().max(200) }).strict()).max(32) }).strict()
+  .refine((result) => result.channelVerified || result.candidates.length === 0);
 const dimensions = { width: z.number().int().min(1).max(16_000_000), height: z.number().int().min(1).max(16_000_000) };
 export const thumbnailAsset = z.object({ path: z.string().max(256), sha256: thumbnailHash,
   mimeType: thumbnailMime, bytes: z.number().int().min(16).max(THUMBNAIL_IMAGE_BYTES), ...dimensions }).strict()

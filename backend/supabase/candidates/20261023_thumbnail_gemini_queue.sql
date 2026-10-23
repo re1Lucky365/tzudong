@@ -156,10 +156,32 @@ CREATE FUNCTION public.thumbnail_production_admin(
   p_owner_id uuid,p_action text,p_job_id uuid DEFAULT NULL,p_request_id uuid DEFAULT NULL,
   p_input_sha256 text DEFAULT NULL,p_model text DEFAULT NULL,p_input jsonb DEFAULT NULL
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $$
-DECLARE j public.admin_thumbnail_jobs; listing jsonb; before_time timestamptz; before_id uuid;
+DECLARE j public.admin_thumbnail_jobs; listing jsonb; before_time timestamptz; before_id uuid; reference_bucket timestamptz;
 BEGIN
   PERFORM storyboard_control.assert_owner(p_owner_id);
-  IF p_action='enqueue' THEN
+  IF p_action='reference_candidates' THEN
+    -- Bounded response from the declared channel's collected API metadata, not a claim of
+    -- complete bucket coverage, independent per-video ownership, face detection or extraction.
+    IF NOT EXISTS(SELECT 1 FROM public.youtube_channel_kpi_snapshots c
+      WHERE c.channel_id='UCfpaSruWW3S4dibonKXENjA' AND c.source='youtube-data-api'
+      AND lower(c.channel_handle) IN ('@tzuyang6145','tzuyang6145')) THEN
+      PERFORM storyboard_control.assert_owner(p_owner_id);
+      RETURN jsonb_build_object('channelId','UCfpaSruWW3S4dibonKXENjA','channelVerified',false,
+        'bucketStartedAt',NULL,'candidates','[]'::jsonb);
+    END IF;
+    SELECT v.bucket_started_at INTO reference_bucket FROM public.youtube_video_kpi_snapshots v
+      WHERE v.channel_id='UCfpaSruWW3S4dibonKXENjA' AND v.source='youtube-data-api'
+      ORDER BY v.bucket_started_at DESC LIMIT 1;
+    SELECT coalesce(jsonb_agg(jsonb_build_object('videoId',r.video_id,'title',r.title)
+      ORDER BY r.view_count DESC,r.video_id),'[]'::jsonb) INTO listing FROM (
+      SELECT v.video_id,left(v.title,200) title,v.view_count FROM public.youtube_video_kpi_snapshots v
+      WHERE v.channel_id='UCfpaSruWW3S4dibonKXENjA' AND v.source='youtube-data-api'
+      AND v.bucket_started_at=reference_bucket AND v.video_id ~ '^[A-Za-z0-9_-]{11}$'
+      ORDER BY v.view_count DESC,v.video_id LIMIT 32) r;
+    PERFORM storyboard_control.assert_owner(p_owner_id);
+    RETURN jsonb_build_object('channelId','UCfpaSruWW3S4dibonKXENjA','channelVerified',true,
+      'bucketStartedAt',reference_bucket,'candidates',listing);
+  ELSIF p_action='enqueue' THEN
     IF p_request_id IS NULL OR p_input_sha256 IS NULL OR p_input_sha256 !~ '^[a-f0-9]{64}$'
       OR p_model IS NULL OR p_model NOT IN ('gemini-3.1-flash-image','gemini-3-pro-image')
       OR NOT thumbnail_control.valid_input(p_owner_id,p_request_id,p_model,p_input) THEN RAISE EXCEPTION 'invalid_input'; END IF;

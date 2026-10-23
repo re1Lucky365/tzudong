@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import sharp from 'sharp';
 import { ThumbnailPrivateStore, readThumbnailStream, type ThumbnailDatabase, type ThumbnailStorage,
   type AuthenticatedThumbnailWorker } from '../lib/admin/youtube-thumbnail-generator/private-store';
-import { ThumbnailQueueError, thumbnailJob, type ThumbnailJob, type ThumbnailAttempt } from '../lib/admin/youtube-thumbnail-generator/queue-contract';
+import { ThumbnailQueueError, thumbnailJob, thumbnailEditorDocument, type ThumbnailJob, type ThumbnailAttempt } from '../lib/admin/youtube-thumbnail-generator/queue-contract';
 import { createThumbnailQueueApi, readThumbnailMultipart } from '../lib/admin/youtube-thumbnail-generator/queue-api';
 
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -104,6 +104,30 @@ function fixture() {
 }
 
 describe('thumbnail immutable private storage and checkpoints', () => {
+  test('typed editor document survives storage ACK loss, is immutable, and is bound to the owned input', async () => {
+    const f = fixture(); f.uploadMode = 'lost-after';
+    const editor = thumbnailEditorDocument.parse({ schemaVersion: 1, topic: 'Food-only', headline: 'Original', subHeadline: '',
+      textLayers: [{ id: 'headline', content: 'Original', x: 20, y: 50, fontFamily: 'Impact', fontSize: 90,
+        fontWeight: 900, fill: '#fff', stroke: '#000000', strokeWidth: 8, shadow: 'none', align: 'left', rotation: 0, zIndex: 1 }] });
+    const job = await f.store.enqueue(f.owner, f.requestId, content, editor);
+    expect(await f.store.editor(f.owner, job.id)).toEqual(editor);
+    expect(f.uploads).toEqual([`${f.owner}/${f.requestId}/input/editor.json`]);
+    await expect(f.store.enqueue(f.owner, f.requestId, content, { ...editor, headline: 'Changed' })).rejects.toThrow('request_conflict');
+    expect(f.calls.filter((call) => call.endsWith(':enqueue'))).toHaveLength(1);
+    const path = f.uploads[0], original = f.objects.get(path)!;
+    for (const bytes of [Buffer.from('{'), Buffer.from(JSON.stringify({ ...JSON.parse(original.toString()), ownerId: randomUUID() })),
+      Buffer.from(JSON.stringify({ ...JSON.parse(original.toString()), inputSha256: 'f'.repeat(64) }))]) {
+      f.objects.set(path, bytes);
+      await expect(f.store.editor(f.owner, job.id)).rejects.toThrow('object_conflict');
+    }
+    f.objects.set(path, original); expect(await f.store.editor(f.owner, job.id)).toEqual(editor);
+    const unavailable = fixture(); unavailable.uploadMode = 'lost-before';
+    await expect(unavailable.store.enqueue(unavailable.owner, unavailable.requestId, content, editor)).rejects.toThrow('write_unconfirmed');
+    expect(unavailable.calls.filter((call) => call.endsWith(':enqueue'))).toHaveLength(0);
+    for (const fill of ['#fffff', '#fffffff', 'url(https://invalid.test)']) {
+      expect(thumbnailEditorDocument.safeParse({ ...editor, textLayers: [{ ...editor.textLayers[0], fill }] }).success).toBe(false);
+    }
+  });
   test('enqueue ACK loss recovers exactly owner + request and does not enqueue twice', async () => {
     const f = fixture(); f.enqueueMode = 'lost-after';
     const job = await f.store.enqueue(f.owner, f.requestId, content);
@@ -270,6 +294,17 @@ describe('thumbnail immutable private storage and checkpoints', () => {
 });
 
 describe('thumbnail queue API boundaries', () => {
+  test('an account switch is rejected before reading metadata or an enqueue body', async () => {
+    const f = fixture(); const api = createThumbnailQueueApi({ store: f.store,
+      authorize: (async () => ({ ok: true, userId: f.owner })) as never });
+    for (const action of [api.referenceCandidatesPOST, api.listPOST]) {
+      const request = new Request('https://thumbnail.test/api/admin/youtube-thumbnail-generator/jobs', { method: 'POST',
+        headers: { Origin: 'https://thumbnail.test', 'X-Thumbnail-Owner': randomUUID() }, body: 'never consume' });
+      const response = await action(request); expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ error: 'owner_forbidden' }); expect(request.bodyUsed).toBe(false);
+    }
+    expect(f.calls).toHaveLength(0);
+  });
   const authorize = (owner: string) => async () => ({ ok: true as const, userId: owner });
   const makeForm = (requestId: string, extra: Record<string, unknown> = {}) => {
     const form = new FormData(); form.set('request', JSON.stringify({ requestId, model: content.model,

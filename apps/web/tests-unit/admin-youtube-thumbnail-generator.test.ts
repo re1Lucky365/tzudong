@@ -1238,14 +1238,19 @@ describe("admin youtube thumbnail generator", () => {
     );
   });
 
-  test("requires a host/person reference before generating a Tzuyang-like host visual", () => {
-    const routeSource = readFileSync(new URL("../app/api/admin/youtube-thumbnail-generator/route.ts", import.meta.url), "utf8");
-    const componentSource = readFileSync(new URL("../components/admin/thumbnail-generator/AdminYoutubeThumbnailGenerator.tsx", import.meta.url), "utf8");
-    expect(routeSource.indexOf("host_reference_required")).toBeGreaterThan(routeSource.indexOf("readThumbnailRetrievalReferenceImages"));
-    expect(routeSource).toContain("shouldUseTzuyangHostReferences");
-    expect(routeSource).toContain("payload.stylePreset === TZUYANG_CHANNEL_PRESET");
-    expect(componentSource).toContain("shouldBlockSpecificCreatorGenerationRequest");
-    expect(routeSource).toContain("allowHostPersonFromRetrievedThumbnails: requestsSpecificCreatorHost");
+  test("requires a host/person reference before generating a Tzuyang-like host visual", async () => {
+    const { createThumbnailQueueApi } = await import('../lib/admin/youtube-thumbnail-generator/queue-api');
+    const api = createThumbnailQueueApi({ authorize: (async () => ({ ok: true,
+      userId: '6f5d42d6-d122-4d32-b8bb-2779de58b423' })) as never,
+      store: { enqueue: () => { throw new Error('Unreferenced likeness must never enqueue.'); } } as never });
+    const form = new FormData();
+    form.set('request', JSON.stringify({ requestId: 'eef65708-f0ea-4a0e-8598-05665d5e4f87',
+      model: 'gemini-3.1-flash-image', brief: { topic: '쯔양 야시장 먹방', headline: '역대급 먹방',
+        stylePreset: 'tzuyang-food-travel-collage', acknowledgedSafety: true }, roles: [] }));
+    const response = await api.listPOST(new Request('https://thumbnail.test/api/admin/youtube-thumbnail-generator/jobs', {
+      method: 'POST', headers: { Origin: 'https://thumbnail.test' }, body: form }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: 'invalid_request' });
 
     const promptWithoutReference = buildYoutubeThumbnailPrompt({
       ...safePayload,
@@ -5437,72 +5442,23 @@ test('keeps thumbnail provenance labels honest for preview, history, and exact g
   expect(componentSource).toContain('data-thumbnail-history-source-label="true"');
   expect(componentSource).toContain('data-thumbnail-history-provenance-label="true"');
 });
-test("keeps thumbnail provider credentials in synchronously clearable component refs without Web Storage", () => {
-  const componentSource = readFileSync(
-    new URL(
-      "../components/admin/thumbnail-generator/AdminYoutubeThumbnailGenerator.tsx",
-      import.meta.url,
-    ),
-    "utf8",
-  );
-  const legacyStorageAliases = [
-    "THUMBNAIL_BROWSER_MODEL_KEYS_STORAGE_KEY",
-    "THUMBNAIL_LOCAL_BRIDGE_SESSION_STORAGE_KEY",
-    "readThumbnailBrowserModelKeysCache",
-    "writeThumbnailBrowserModelKeysCache",
-    "readThumbnailLocalBridgeSessionCache",
-    "writeThumbnailLocalBridgeSessionCache",
-    "browser_local_storage_only",
-    "browser_session_storage_only",
-  ];
-
-  for (const alias of legacyStorageAliases) {
-    expect(componentSource).not.toContain(alias);
-  }
-  expect(componentSource).not.toMatch(/\b(?:localStorage|sessionStorage)\b/);
-  expect(componentSource).toContain(
-    'data-thumbnail-browser-api-key-settings="memory-only"',
-  );
-  expect(componentSource).toContain(
-    'data-thumbnail-local-bridge-persistence="none"',
-  );
-  expect(componentSource).toContain(
-    "function handleApplyThumbnailBrowserOpenAIApiKey()",
-  );
-  expect(componentSource).toContain("const browserOpenAIApiKeyRef = useRef<string | null>(null);");
-  expect(componentSource).toContain("const thumbnailLocalBridgeTokenRef = useRef<string | null>(null);");
-  expect(componentSource).toContain("ref={browserOpenAIApiKeyInputRef}");
-  expect(componentSource).toContain("ref={thumbnailLocalBridgeTokenInputRef}");
-  const browserKeyInputSource = componentSource.slice(
-    componentSource.indexOf('id="thumbnail-browser-openai-api-key"'),
-    componentSource.indexOf('data-thumbnail-browser-api-key-input="true"'),
-  );
-  const localBridgeTokenInputSource = componentSource.slice(
-    componentSource.indexOf('id="thumbnail-local-bridge-token"'),
-    componentSource.indexOf('data-thumbnail-local-bridge-token-input="true"'),
-  );
-  expect(browserKeyInputSource).not.toContain("value=");
-  expect(localBridgeTokenInputSource).not.toContain("value=");
-  expect(componentSource).not.toContain("const [browserOpenAIApiKey, setBrowserOpenAIApiKey]");
-  expect(componentSource).not.toContain("const [browserOpenAIApiKeyDraft, setBrowserOpenAIApiKeyDraft]");
-  expect(componentSource).not.toContain("const [thumbnailLocalBridgeToken, setThumbnailLocalBridgeToken]");
-  expect(componentSource).not.toContain("const [thumbnailLocalBridgeTokenDraft, setThumbnailLocalBridgeTokenDraft]");
-  expect(componentSource).toContain('if (value.length <= 8) return "적용됨";');
-  expect(componentSource).toContain("browserOpenAIApiKeyRef.current = normalizedKey;");
-  expect(componentSource).toContain("thumbnailLocalBridgeTokenRef.current = token;");
-  expect(componentSource).toContain("browserOpenAIApiKeyRef.current = null;");
-  expect(componentSource).toContain("thumbnailLocalBridgeTokenRef.current = null;");
-  expect(componentSource).toContain('browserOpenAIApiKeyInputRef.current.value = "";');
-  expect(componentSource).toContain('thumbnailLocalBridgeTokenInputRef.current.value = "";');
-  expect(componentSource).toContain('window.addEventListener("pagehide", clearForPageLifecycle);');
-  expect(componentSource).toContain('window.addEventListener("pageshow", clearForPageLifecycle);');
-  expect(componentSource).toContain("clearThumbnailCredentialLifecycle();");
-  expect(componentSource).toContain("thumbnailLocalBridgeStatusAbortControllerRef.current?.abort();");
-  expect(componentSource).toContain("resetThumbnailLocalBridgeHelperTransport({ closePopup: true });");
-  expect(componentSource).toContain('cache: "no-store",');
-  expect(componentSource).toContain(
-    'method: "POST",\n        cache: "no-store",\n        signal: controller.signal,\n        body: formData,',
-  );
-  expect(componentSource).toContain("invokeThumbnailLocalBridgeHelper,\n        controller.signal,");
-  expect(componentSource).toContain("화면을 닫으면 키가 제거됩니다.");
+test("legacy image generation is retired before reading browser credentials or generation bodies", async () => {
+  const { createRetiredThumbnailGenerationApi } = await import('../lib/admin/youtube-thumbnail-generator/retired-api');
+  const authorized = createRetiredThumbnailGenerationApi(async () => ({ ok: true, userId: 'synthetic-admin' }));
+  const request = new Request('https://www.tzudong.app/api/admin/youtube-thumbnail-generator', {
+    method: 'POST', headers: { Origin: 'https://www.tzudong.app', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ legacyCredentialInput: 'synthetic-noncredential-marker', providerId: 'openai-gpt-image-2' }),
+  });
+  const response = await authorized.POST(request);
+  expect(response.status).toBe(410); expect(request.bodyUsed).toBe(false);
+  expect((await response.json()).error).toBe('thumbnail_legacy_generation_retired');
+  expect(response.headers.get('cache-control')).toBe('private, no-store');
+  const rejected = await authorized.POST(new Request(request.url, { method: 'POST', headers: { Origin: 'https://other.invalid' } }));
+  expect(rejected.status).toBe(403);
+  const unauthenticated = createRetiredThumbnailGenerationApi(async () => ({ ok: false,
+    response: Response.json({ error: 'Unauthorized' }, { status: 401 }) as never }));
+  expect((await unauthenticated.POST(new Request(request.url, { method: 'POST' }))).status).toBe(401);
+  const policy = await (await authorized.GET()).json();
+  expect(policy.providerId).toBe('gemini-api'); expect(policy.availability).toBe('unverified');
+  expect(policy.models.map((model: { id: string }) => model.id)).toEqual(['gemini-3.1-flash-image', 'gemini-3-pro-image']);
 });

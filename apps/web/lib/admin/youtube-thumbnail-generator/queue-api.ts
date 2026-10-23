@@ -7,7 +7,7 @@ import { ThumbnailGenerationError } from './types';
 import { ThumbnailGeminiError } from './gemini-worker-client';
 import { ThumbnailPrivateStore, type AuthenticatedThumbnailWorker } from './private-store';
 import { THUMBNAIL_FAILURES, THUMBNAIL_IMAGE_BYTES, ThumbnailQueueError, parseThumbnail,
-  thumbnailAttempt, thumbnailEnqueue, thumbnailMime, thumbnailProvenance, thumbnailUuid, thumbnailWorker } from './queue-contract';
+  thumbnailAttempt, thumbnailEnqueue, thumbnailMime, thumbnailProvenance, thumbnailUuid, thumbnailWorker, thumbnailBrief } from './queue-contract';
 
 if (typeof window !== 'undefined') throw new Error('Thumbnail queue API is server-only.');
 const headers = { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff', Vary: 'Cookie, Authorization' };
@@ -103,6 +103,10 @@ export function createThumbnailQueueApi(options: {
       if (!auth.ok) return new Response(auth.response.body, { status: auth.response.status,
         headers: { ...Object.fromEntries(auth.response.headers), ...headers } });
       const owner = parseThumbnail(thumbnailUuid, auth.userId, 'owner_forbidden');
+      const expectedOwner = request.headers.get('X-Thumbnail-Owner');
+      if (expectedOwner !== null && parseThumbnail(thumbnailUuid, expectedOwner, 'owner_forbidden') !== owner) {
+        throw new ThumbnailQueueError('owner_forbidden');
+      }
       if (!['GET', 'HEAD'].includes(request.method)) sameOrigin(request);
       return await work(owner);
     } catch (error) { return thumbnailQueueFailure(error); }
@@ -112,6 +116,17 @@ export function createThumbnailQueueApi(options: {
     catch (error) { return thumbnailQueueFailure(error); }
   }
   return {
+    referenceCandidatesPOST: (request: Request) => admin(request, async (owner) => {
+      const input = parseThumbnail(z.object({ brief: thumbnailBrief, slots: z.number().int().min(0).max(8) }).strict(), await boundedJson(request));
+      const collected = await store.referenceCandidates(owner);
+      const words = `${input.brief.topic} ${input.brief.headline}`.toLocaleLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? [];
+      const score = (title: string) => words.reduce((sum, word) => sum + Number(title.toLocaleLowerCase().includes(word)), 0);
+      const ranked = collected.candidates.map((candidate, index) => ({ ...candidate, index, score: score(candidate.title) }))
+        .sort((a, b) => b.score - a.score || a.index - b.index).slice(0, Math.min(input.slots, 2));
+      return json({ channelId: collected.channelId, bucketStartedAt: collected.bucketStartedAt,
+        references: ranked.map(({ videoId, title }) => ({ videoId, title,
+          role: requestsSpecificCreatorHost(input.brief) ? 'host' : 'other' })) });
+    }),
     listGET: (request: Request) => admin(request, async (owner) => {
       const query = new URL(request.url).searchParams;
       const requestId = query.get('requestId');
@@ -126,8 +141,8 @@ export function createThumbnailQueueApi(options: {
     }),
     listPOST: (request: Request) => admin(request, async (owner) => {
       const allowed = new Set(['request', ...Array.from({ length: 8 }, (_, index) => `reference${index}`)]);
-      const form = await readThumbnailMultipart(request, 32 * 1024 * 1024 + 32_768, allowed);
-      const input = parseThumbnail(thumbnailEnqueue, await formJson(form, 'request'));
+      const form = await readThumbnailMultipart(request, 32 * 1024 * 1024 + 65_536, allowed);
+      const input = parseThumbnail(thumbnailEnqueue, await formJson(form, 'request', 65_536));
       if ([...form.keys()].length !== input.roles.length + 1) throw new ThumbnailQueueError('invalid_request');
       const references = [];
       for (const [index, role] of input.roles.entries()) {
@@ -136,16 +151,17 @@ export function createThumbnailQueueApi(options: {
       if (requestsSpecificCreatorHost(input.brief) && !references.some((ref) => ['host', 'person'].includes(ref.role))) {
         throw new ThumbnailQueueError('invalid_request');
       }
-      const prompt = buildYoutubeThumbnailPrompt(input.brief, references.map((ref, index) => ({
+      const prompt = buildYoutubeThumbnailPrompt({ ...input.brief, textLayers: input.editor?.textLayers }, references.map((ref, index) => ({
         ...ref, mime: ref.mimeType, name: `uploaded-reference-${index}`,
       })));
-      return json({ job: await store.enqueue(owner, input.requestId, { model: input.model, prompt, references }) });
+      return json({ job: await store.enqueue(owner, input.requestId, { model: input.model, prompt, references }, input.editor) });
     }),
     jobGET: (request: Request, context: JobContext) => admin(request, async (owner) => {
       const jobId = parseThumbnail(thumbnailUuid, (await context.params).jobId);
       const query = new URL(request.url).searchParams;
       if (!query.size) return json({ job: await store.get(owner, jobId) });
       if (query.size !== 1) throw new ThumbnailQueueError('invalid_request');
+      if (query.get('document') === '1') return json({ document: await store.editor(owner, jobId) });
       const variant = query.get('variant');
       const image = variant === 'original' || variant === 'normalized' ? await store.resultImage(owner, jobId, variant)
         : query.has('reference') ? await store.reference(owner, jobId, parseThumbnail(referenceIndex, query.get('reference')))

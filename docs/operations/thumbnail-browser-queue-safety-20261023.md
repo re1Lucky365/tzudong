@@ -1,6 +1,38 @@
-# Gemini thumbnail browser queue — candidate, not operating UI
+# Gemini thumbnail browser queue — connected local candidate
 
-이 변경은 기존 편집기·히스토리를 새 Gemini 작업 큐에 연결하기 위한 브라우저 접수·복구 경계다. **기존 `AdminYoutubeThumbnailGenerator.tsx`는 아직 이 client를 호출하지 않는다.** 자동 쯔양 참조 선택, 레거시 실행 제거, 운영 SQL/Storage/worker 설치, 보호 브랜치 반영 및 운영 검증은 완료되지 않았다. 새 source를 운영 기능 완료로 세지 않는다.
+기존 `AdminYoutubeThumbnailGenerator.tsx`의 이미지 생성·상태·취소·이력을 새 Gemini 작업 큐에 연결했다. 자동 참조는 고정 쯔양 채널의 수집 메타데이터에서 최대 32개 후보를 읽고 실제 이미지 최대 2장을 준비한다. 전체 썸네일 참조이며 얼굴 추출 결과가 아니다. **운영 SQL/Storage/worker 설치·보호 브랜치 반영·운영 검증은 미완료다.** 레거시 텍스트 채팅 backend는 별도 Gemini 이행이 남아 있으며, 이미지 API 폐기만으로 모든 LLM 이행 완료를 주장하지 않는다.
+
+## 편집기 연결 후 취소 반례
+
+| 실제 순서 | 위험 | 수정·재현 검증 |
+| --- | --- | --- |
+| A 접수 ACK 지연 → 중단 → B 계정/receipt 복원 → A 응답 | 늦은 UI callback이 현재 B queue를 취소 | submit의 finally가 캡처한 A queue만 사용. 오래된 cancel callback도 owner 변경 뒤 무동작. 실제 React hook/Chrome의 성공·503 ACK 두 경우에 B 취소 POST 0회. 제거된 late-current-cancel 대조군은 B 취소 1회를 검출 |
+| ACK 유실 → cancel의 조회 null → 취소 intent 저장 → 늦은 queued commit → reload/resume | intent가 화면만 보호하고 서버에는 전달되지 않음 | 같은 owner/request/model readback 뒤 저장된 취소를 별도 POST. 새로운 generation POST 없이 cancelled readback. 시작 전 취소와 시작 후 취소 flag는 구별 |
+
+```mermaid
+sequenceDiagram
+  participant U as 기존 편집 화면
+  participant A as A 소유 queue
+  participant B as B 소유 queue
+  participant S as 관리자 API
+  U->>A: 접수 (ACK 대기)
+  U->>A: abort intent
+  U->>B: 계정 변경 / B receipt 복원
+  S-->>A: 지연된 성공 또는 실패
+  A->>S: 원래 owner A로 취소 readback
+  Note over A,S: 새 로그인 B라면 owner 불일치 거부, A intent 유지
+  Note over B: A 후속 callback의 B 취소 0회
+```
+
+편집 문서는 최대 64개 레이어·48,000 UTF-8 bytes의 고정 schema로 검사하고 immutable private `input/editor.json`을 enqueue 전에 저장·readback한다. 실패하면 새 job을 접수하지 않는다. prompt/참조 digest와 owner/request가 일치하는 문서만 이력에서 복원한다. 원본·정규화 이미지와 편집 레이어를 분리하므로 원본 다운로드와 PNG 편집 export를 유지한다.
+
+모든 레이어·문구·원본 변경과 이력 선택은 동기 revision을 증가시킨다. 실제 편집기/Canvas/프로젝트 CSS를 격리 Chrome에서 실행해 같은 revision 결과만 자동 적용, 뒤늦은 결과의 새 편집 보호, reload의 자동 적용 차단, 저장 문서 복원, PNG export와 취소 readback을 검증한다. 1440/768/390px에서 document 가로 넘침과 캔버스 최소 표시 크기를 검사한다. 모바일 도구는 한 줄 스크롤로 바꿔 버튼 그리드가 캔버스를 밀어내는 문제를 수정했다.
+
+taste inspector 원본 결과는 보관한다. 그 도구의 `few-pictures`/`still-page` FAIL은 canvas 편집 도구를 랜딩 페이지로 평가한 규칙으로, 사진 4장·자동 진입 애니메이션을 추가하지 않았다. 이는 inspector pass가 아니다. Auth/API·생성 결과는 합성 seam이고 Next Image는 얇은 img seam이므로 전체 Next runtime·운영 로그인·Storage·실제 모델 호출의 증거가 아니다.
+
+이번 연결의 수치: 대상 Bun 14파일 **226 pass / 0 fail / 1,787 assertions**, 실제 PG17.11 **27 methods pass / 0 fail**, native/compat type parity **3,417 logical inputs / diagnostics 0**, 대상 ESLint 오류·경고 0. Chrome의 document/viewport 폭은 각각 **1440/1440, 768/768, 390/390px**이며 캔버스 표시 크기는 **970×544.75, 638×358, 348×194.875px**였다. 이전 모바일 화면에서는 도구가 캔버스를 밀어내고 있었으며, 이 비교는 같은 기능 후보의 렌더링 결함 확인이다. 실행 시간은 검증 영수증에 보관하며 속도·비용·쿼타 절감의 대조 실험이 아니다. 무작위 표본이 없는 결정적 회귀 결과에 95% 신뢰구간을 붙이지 않는다.
+
+재실행은 `apps/web`에서 `bun tests-unit/fixtures/thumbnail-editor-browser.ts`, `bun tests-unit/fixtures/thumbnail-hook-owner-browser.ts`, `bun tests-unit/fixtures/thumbnail-browser-locks.ts`를 사용한다. 첫 fixture에 `THUMBNAIL_RUN_TASTE_INSPECTOR=1`을 주면 원본 inspector 결과도 보관한다. PG 검증은 프로젝트 Python으로 `backend/supabase/tests/test_thumbnail_gemini_queue_pg17.py`를 실행하고 소유 cluster 종료·PID/socket 부재·TCP 닫힘을 별도로 확인한다. 증거와 source hash는 `thumbnail-editor-connected-20261023/` 체크포인트에 결속한다.
 
 ## 재현과 수정
 
@@ -34,11 +66,11 @@ stateDiagram-v2
 
 저장하는 필드는 requestId, model, editorSessionId, editorRevision, cancelRequested뿐이다. prompt, File bytes/name, 키, cookie와 session token은 browser receipt에 넣지 않는다. 생성 input/original은 기존 server-side immutable 계약을 따른다. receipt storage는 UI의 기존 세션 정책에 맞게 선택해야 하며, 임의 보관 기간이나 자동 삭제를 추가하지 않았다.
 
-자동 적용은 같은 job, 같은 editor instance/session, 같은 revision, 취소 intent 없음, 그리고 해당 instance가 성공한 enqueue 응답을 직접 받은 경우에만 허용된다. reload나 불확실 ACK 뒤 복구한 결과는 이력에서 사용자가 선택한다. **UI 호출자는 레이어·문구·원본·히스토리 선택을 포함한 모든 편집에 revision을 증가시켜야 한다.** 이 연결이 아직 없으므로 사용자 화면의 덮어쓰기 문제가 운영에서 해결됐다고 하지 않는다.
+자동 적용은 같은 job, 같은 editor instance/session, 같은 revision, 취소 intent 없음, 그리고 해당 instance가 성공한 enqueue 응답을 직접 받은 경우에만 허용된다. reload나 불확실 ACK 뒤 복구한 결과는 이력에서 사용자가 선택한다. UI 연결의 로컬 검증과 사용자 운영 화면의 해결 여부는 별개다. 서버 또는 polling 지연 사이에 worker가 이미 시작할 수 있으므로 모든 취소가 비용 없이 실행된다는 주장은 하지 않는다.
 
 owner Web Lock은 전체 receipt 변경과 단일 네트워크 시도를 감싼다. 잠금을 사용할 수 없으면 fail closed하며 per-instance mutex로 조용히 낮추지 않는다. `admission` 주입은 검증 harness용이다. 운영 UI는 이를 주입하지 않고 native 잠금을 사용해야 한다. 잠금 의미는 [Web Locks draft](https://www.w3.org/TR/web-locks/)와 [request API](https://developer.mozilla.org/en-US/docs/Web/API/LockManager/request)를 확인했다. 이 잠금은 같은 origin의 협력하는 context에 대한 것이며, 다른 브라우저·root/www origin·device·비참여 script 전체에 대한 전역 exactly-once 보장은 아니다.
 
-## 최종 실행 증거
+## 이전 ec61a46c 프로토콜 체크포인트의 실행 증거
 
 원본 증거 폴더: `/Users/twoimo/.codex/visualizations/2026/10/18/01a14e99-c202-7fa1-90c1-2e9cb7da815f/thumbnail-outbound-worker-20261023`.
 

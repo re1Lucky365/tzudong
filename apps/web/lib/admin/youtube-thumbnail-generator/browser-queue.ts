@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { thumbnailBrief, thumbnailEnqueue, thumbnailJob, thumbnailSummary, thumbnailUuid,
-  THUMBNAIL_REFERENCE_BYTES, type ThumbnailJob } from './queue-contract';
+  THUMBNAIL_REFERENCE_BYTES, thumbnailEditorDocument, type ThumbnailEditorDocument, type ThumbnailJob } from './queue-contract';
 
 type Reference = { file: File; role: z.infer<typeof thumbnailEnqueue>['roles'][number] };
 export type ThumbnailBrowserDraft = {
   model: z.infer<typeof thumbnailEnqueue>['model'];
   brief: z.infer<typeof thumbnailBrief>;
   references: readonly Reference[];
+  editor?: ThumbnailEditorDocument;
 };
 const handleSchema = z.object({ requestId: thumbnailUuid, model: thumbnailEnqueue.shape.model,
   editorSessionId: thumbnailUuid, editorRevision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
@@ -66,6 +67,20 @@ export class ThumbnailBrowserQueue {
       throw new ThumbnailBrowserQueueError('unresolved_request');
     }
   }
+  private syncReceipt() {
+    let actual: string | null;
+    try { actual = this.options.storage.getItem(this.storageKey); }
+    catch { throw new ThumbnailBrowserQueueError('receipt_unavailable'); }
+    if (actual === (this.current.handle ? JSON.stringify(this.current.handle) : null)) return;
+    // A different tab's handle can be observed without permission to enqueue. Never discard
+    // our own unresolved request merely because another script changed storage.
+    if (this.current.handle && (!this.current.job || !settled(this.current.job))) return;
+    let handle: ThumbnailBrowserHandle | null = null;
+    try { handle = actual === null ? null : handleSchema.parse(JSON.parse(actual)); }
+    catch { throw new ThumbnailBrowserQueueError('receipt_unavailable'); }
+    this.autoApplyRequestId = null;
+    this.change({ handle, job: null, phase: handle ? 'unconfirmed' : 'idle' });
+  }
   private async exclusive<T>(work: () => Promise<T>) {
     if (this.busy) throw new ThumbnailBrowserQueueError('busy');
     this.busy = true;
@@ -81,8 +96,9 @@ export class ThumbnailBrowserQueue {
   }
   private async request(path: string, init: RequestInit = {}) {
     try {
+      const headers = new Headers(init.headers); headers.set('X-Thumbnail-Owner', this.owner);
       const response = await (this.options.fetch ?? fetch)(path, { ...init, credentials: 'same-origin',
-        cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(20_000) });
+        headers, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(20_000) });
       // The server returns bounded jobs; cap even a misconfigured intermediary before JSON buffering.
       if (!response.body) throw new ThumbnailBrowserQueueError('invalid_response');
       const reader = response.body.getReader(); let size = 0; const chunks: Uint8Array[] = [];
@@ -130,7 +146,7 @@ export class ThumbnailBrowserQueue {
   /** A user action may submit a new request only after the previous request's terminal state is read back. */
   async enqueue(draft: ThumbnailBrowserDraft, editorRevision: number, requestId = crypto.randomUUID()) {
   const parsed = thumbnailEnqueue.safeParse({ requestId, model: draft.model, brief: draft.brief,
-    roles: draft.references.map((ref) => ref.role) });
+    roles: draft.references.map((ref) => ref.role), ...(draft.editor ? { editor: draft.editor } : {}) });
   const handle = handleSchema.safeParse({ requestId, model: draft.model, editorSessionId: this.editorSessionId,
     editorRevision, cancelRequested: false });
   if (!parsed.success || !handle.success || draft.references.some((ref) => !(ref.file instanceof File)
@@ -173,15 +189,22 @@ export class ThumbnailBrowserQueue {
       }
     });
   }
-  /** Read-only recovery also handles reload/ACK loss. A null response never authorizes a new paid request. */
-  resume() {
-    return this.exclusive(async () => {
+  /** Recovery reads the original request and may deliver its persisted cancel intent.
+   * A null response never authorizes a new paid request. */
+  async resume() {
+    this.syncReceipt();
+    return await this.exclusive(async () => {
       const handle = this.current.handle; if (!handle) return null;
       const value = await this.request(`${base}?requestId=${encodeURIComponent(handle.requestId)}`);
       const parsed = z.object({ job: thumbnailJob.nullable() }).strict().safeParse(value);
       if (!parsed.success) throw new ThumbnailBrowserQueueError('invalid_response');
       if (!parsed.data.job) { this.change({ handle, job: null, phase: 'unconfirmed' }); return null; }
-      return this.accept(value, handle);
+      const job = this.accept(value, handle);
+      if (handle.cancelRequested && !job.cancelRequested && !settled(job)) {
+        return this.accept(await this.request(`${base}/${job.id}`, { method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'cancel' }) }), handle);
+      }
+      return job;
     });
   }
   /** Aborting observation/unmounting is not cancellation. Cancellation requires its own persisted server readback. */
@@ -213,6 +236,22 @@ export class ThumbnailBrowserQueue {
     const parsed = z.object({ jobs: z.array(thumbnailSummary).max(32) }).strict().safeParse(value);
     if (!parsed.success) throw new ThumbnailBrowserQueueError('invalid_response');
     return parsed.data.jobs;
+  }
+  async read(jobId: string) {
+    const id = thumbnailUuid.safeParse(jobId);
+    if (!id.success) throw new ThumbnailBrowserQueueError('invalid_input');
+    const result = z.object({ job: thumbnailJob }).strict().safeParse(await this.request(`${base}/${id.data}`));
+    if (!result.success || result.data.job.id !== id.data || result.data.job.ownerId !== this.owner) {
+      throw new ThumbnailBrowserQueueError('invalid_response');
+    }
+    return result.data.job;
+  }
+  async editor(jobId: string) {
+    const id = thumbnailUuid.safeParse(jobId); if (!id.success) throw new ThumbnailBrowserQueueError('invalid_input');
+    const result = z.object({ document: thumbnailEditorDocument.nullable() }).strict()
+      .safeParse(await this.request(`${base}/${id.data}?document=1`));
+    if (!result.success) throw new ThumbnailBrowserQueueError('invalid_response');
+    return result.data.document;
   }
   resultUrls(job: ThumbnailJob) {
     const parsed = thumbnailJob.safeParse(job);

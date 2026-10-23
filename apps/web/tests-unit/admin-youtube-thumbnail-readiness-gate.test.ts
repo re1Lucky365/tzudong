@@ -57,10 +57,6 @@ async function multipartThumbnailRequest(payload: unknown) {
   }) as unknown as NextRequest;
 }
 
-async function loadDirectRoute() {
-  return import(`../app/api/admin/youtube-thumbnail-generator/route.ts?cache=${Math.random()}`);
-}
-
 async function loadChatRoute() {
   return import(`../app/api/admin/youtube-thumbnail-generator/chat/route.ts?cache=${Math.random()}`);
 }
@@ -90,7 +86,7 @@ describe('thumbnail AnyCap gpt-image-2 readiness gate', () => {
     });
   });
 
-  test('direct POST returns typed 503 before retrieval or provider generation', async () => {
+  test('retired direct POST cannot start readiness probes, retrieval or any provider generation', async () => {
     let readinessCalls = 0;
     let retrievalCalls = 0;
     let providerCalls = 0;
@@ -129,22 +125,17 @@ describe('thumbnail AnyCap gpt-image-2 readiness gate', () => {
     }));
 
     try {
-      const route = await loadDirectRoute();
+      // Auth is an explicit seam. A cached default factory must not depend on
+      // global module mocks or try to read Next cookies outside request scope.
+      const { createRetiredThumbnailGenerationApi } = await import('../lib/admin/youtube-thumbnail-generator/retired-api');
+      const route = createRetiredThumbnailGenerationApi((async () => ({ ok: true,
+        userId: '6f5d42d6-d122-4d32-b8bb-2779de58b423' })) as never);
       const response = await route.POST(await multipartThumbnailRequest(safePayload));
       const payload = await response.json();
 
-      expect(response.status).toBe(503);
-      expect(payload).toMatchObject({
-        error: 'provider_unavailable',
-        code: 'thumbnail_anycap_gpt_image_2_not_ready',
-        readiness: {
-          providerId: 'anycap',
-          model: 'gpt-image-2',
-          fallbackAllowed: false,
-          status: 'auth_required',
-        },
-      });
-      expect(readinessCalls).toBe(1);
+      expect(response.status).toBe(410);
+      expect(payload).toMatchObject({ error: 'thumbnail_legacy_generation_retired' });
+      expect(readinessCalls).toBe(0);
       expect(retrievalCalls).toBe(0);
       expect(providerCalls).toBe(0);
       expect(backendAgentCalls).toBe(0);

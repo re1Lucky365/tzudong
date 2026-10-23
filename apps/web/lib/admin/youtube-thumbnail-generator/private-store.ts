@@ -8,8 +8,9 @@ import { prepareThumbnailGeminiContent, type ThumbnailGeminiContent } from './ge
 import {
   THUMBNAIL_FAILURES, THUMBNAIL_IMAGE_BYTES, THUMBNAIL_PRIVATE_BUCKET, THUMBNAIL_REFERENCE_BYTES,
   ThumbnailQueueError, extension, inputPath, parseThumbnail, resultPrefix, thumbnailAttempt,
-  thumbnailHash, thumbnailInput, thumbnailJob, thumbnailProvenance, thumbnailResult, thumbnailSummary, thumbnailStartReceipt,
+  thumbnailHash, thumbnailInput, thumbnailJob, thumbnailProvenance, thumbnailResult, thumbnailSummary, thumbnailStartReceipt, thumbnailCollectedReferences,
   thumbnailUuid, thumbnailWorker, validResultIdentity,
+  thumbnailEditorDocument, type ThumbnailEditorDocument,
   type ThumbnailAttempt, type ThumbnailInput, type ThumbnailJob, type ThumbnailResult, type ThumbnailWorker,
 } from './queue-contract';
 
@@ -154,6 +155,10 @@ export class ThumbnailPrivateStore {
     const input = cursor ? parseThumbnail(z.object({ beforeCreatedAt: z.iso.datetime({ offset: true }), beforeId: thumbnailUuid }).strict(), cursor) : null;
     return parseThumbnail(z.array(thumbnailSummary).max(32), await this.admin(owner, 'list', { p_input: input }), 'persistence_unavailable');
   }
+  async referenceCandidates(owner: string) {
+    return parseThumbnail(thumbnailCollectedReferences,
+      await this.admin(owner, 'reference_candidates', {}), 'persistence_unavailable');
+  }
   private async immutable(path: string, bytes: Buffer, mime: string) {
     const existing = await this.storage.read(path, bytes.length);
     if (existing) {
@@ -168,8 +173,9 @@ export class ThumbnailPrivateStore {
     if (!actual) throw new ThumbnailQueueError('write_unconfirmed');
     if (!actual.equals(bytes)) throw new ThumbnailQueueError('object_conflict');
   }
-  async enqueue(owner: string, requestId: string, content: ThumbnailGeminiContent) {
+  async enqueue(owner: string, requestId: string, content: ThumbnailGeminiContent, editor?: ThumbnailEditorDocument) {
     owner = parseThumbnail(thumbnailUuid, owner); requestId = parseThumbnail(thumbnailUuid, requestId);
+    const document = editor ? parseThumbnail(thumbnailEditorDocument, editor) : undefined;
     const prepared = await prepareThumbnailGeminiContent(content);
     const input: ThumbnailInput = parseThumbnail(thumbnailInput, { contract: 'thumbnail-gemini-image-v1', model: prepared.model,
       prompt: prepared.prompt, references: prepared.references.map((ref, index) => ({
@@ -181,7 +187,14 @@ export class ThumbnailPrivateStore {
     const prior = await this.request(owner, requestId);
     if (prior) {
       if (!same(prior)) throw new ThumbnailQueueError('request_conflict');
+      if (document && !isDeepStrictEqual(await this.editor(owner, prior.id), document)) {
+        throw new ThumbnailQueueError('request_conflict');
+      }
       return prior;
+    }
+    if (document) {
+      await this.immutable(`${owner}/${requestId}/input/editor.json`, Buffer.from(JSON.stringify({ ownerId: owner,
+        requestId, inputSha256: prepared.inputSha256, document })), 'application/json');
     }
     for (const [index, reference] of prepared.references.entries()) {
       await this.immutable(input.references[index].path, reference.bytes, reference.mimeType);
@@ -198,6 +211,20 @@ export class ThumbnailPrivateStore {
       if (recovered && same(recovered)) return recovered;
       throw new ThumbnailQueueError('write_unconfirmed');
     }
+  }
+  async editor(owner: string, jobId: string) {
+    const job = await this.get(owner, jobId);
+    const bytes = await this.storage.read(`${job.ownerId}/${job.requestId}/input/editor.json`, 65_536);
+    if (!bytes) return null;
+    let value: unknown;
+    try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
+    catch { throw new ThumbnailQueueError('object_conflict'); }
+    const parsed = parseThumbnail(z.object({ ownerId: thumbnailUuid, requestId: thumbnailUuid,
+      inputSha256: thumbnailHash, document: thumbnailEditorDocument }).strict(), value, 'object_conflict');
+    if (parsed.ownerId !== job.ownerId || parsed.requestId !== job.requestId || parsed.inputSha256 !== job.inputSha256) {
+      throw new ThumbnailQueueError('object_conflict');
+    }
+    return parsed.document;
   }
   async cancel(owner: string, jobId: string) {
     const job = this.owned(parseThumbnail(thumbnailUuid, owner), await this.admin(owner, 'cancel', { p_job_id: parseThumbnail(thumbnailUuid, jobId) }, true));

@@ -27,11 +27,12 @@ PG = Path('/opt/homebrew/Cellar/postgresql@17/17.11_1/bin')
 SQL = ROOT/'backend/supabase/candidates/20261023_thumbnail_gemini_queue.sql'
 SELF = Path(__file__).resolve()
 BRIDGE = ROOT/'backend/supabase/migrations/20261003182338_storyboard_service_role_bridge.sql'
+KPI = ROOT/'backend/supabase/migrations/20260812000100_local_runtime_schema_convergence.sql'
 TS = ROOT/'apps/web/tests-unit/fixtures/thumbnail-queue-pg17.ts'
 CLIENT = ROOT/'apps/web/lib/admin/youtube-thumbnail-generator/gemini-worker-client.ts'
 PRIVATE_TS = ROOT/'apps/web/tests-unit/fixtures/thumbnail-private-store-pg17.ts'
 PRIVATE_LIB = ROOT/'apps/web/lib/admin/youtube-thumbnail-generator'
-SOURCES = [SQL, SELF, BRIDGE, TS, CLIENT, PRIVATE_TS,
+SOURCES = [SQL, SELF, BRIDGE, KPI, TS, CLIENT, PRIVATE_TS,
            *[PRIVATE_LIB/name for name in ['queue-contract.ts','private-store.ts','queue-api.ts','prompt.ts','safety.ts',
                                          'worker-outbox.ts','outbound-worker.ts','browser-queue.ts']],
            ROOT/'apps/web/scripts/thumbnail-gemini-worker.ts',ROOT/'apps/web/package.json']
@@ -69,6 +70,8 @@ class ThumbnailQueuePg17(unittest.TestCase):
             bridge=BRIDGE.read_text();start=bridge.index('CREATE OR REPLACE FUNCTION storyboard_control.assert_owner')
             end=bridge.index('DO $bridge$\n',start)
             owner_source=bridge[start:end];cls.owner_hash=hashlib.sha256(owner_source.encode()).hexdigest()
+            # Execute the real KPI table/index/RLS definitions, not a permissive mock.
+            kpi=KPI.read_text(); cursor.execute(kpi[:kpi.index('CREATE TABLE IF NOT EXISTS public.youtube_thumbnail_releases')])
             cursor.execute(owner_source);cursor.execute(SQL.read_text())
         print('THUMBNAIL_QUEUE_PG17_EVIDENCE='+str(cls.root),flush=True)
 
@@ -101,7 +104,7 @@ class ThumbnailQueuePg17(unittest.TestCase):
         self.owner=str(uuid.uuid4());self.other=str(uuid.uuid4())
         self.workers=[sha('synthetic-worker-'+str(uuid.uuid4())) for _ in range(3)]
         with self.connection(admin=True) as connection,connection.cursor() as cursor:
-            cursor.execute('TRUNCATE public.admin_thumbnail_events,public.admin_thumbnail_jobs,public.admin_thumbnail_workers;')
+            cursor.execute('TRUNCATE public.admin_thumbnail_events,public.admin_thumbnail_jobs,public.admin_thumbnail_workers,public.youtube_channel_kpi_snapshots,public.youtube_video_kpi_snapshots;')
             for owner in [self.owner,self.other]:
                 cursor.execute("INSERT INTO auth.users VALUES(%s); INSERT INTO public.user_roles VALUES(%s,'admin'); INSERT INTO public.user_account_status VALUES(%s,'active')",(owner,owner,owner))
             for index,token in enumerate(self.workers):
@@ -149,6 +152,28 @@ class ThumbnailQueuePg17(unittest.TestCase):
     def assert_rpc_error(self,code,work):
         with self.assertRaises(psycopg2.Error) as caught:work()
         self.assertEqual(code,caught.exception.diag.message_primary)
+
+    def test_collected_references_are_channel_source_bucket_scoped_and_bounded(self):
+        channel='UCfpaSruWW3S4dibonKXENjA'; bucket='2026-10-23T12:00:00Z'
+        self.assertFalse(self.admin('reference_candidates')['channelVerified'])
+        with self.connection(admin=True) as connection,connection.cursor() as cursor:
+            cursor.execute('INSERT INTO public.youtube_channel_kpi_snapshots(channel_id,channel_handle,bucket_started_at) VALUES(%s,%s,%s)',(channel,'@tzuyang6145',bucket))
+            for index in range(40):
+                cursor.execute('INSERT INTO public.youtube_video_kpi_snapshots(video_id,channel_id,title,view_count,bucket_started_at) VALUES(%s,%s,%s,%s,%s)',
+                               (f'video{index:06d}',channel,'가'*240,index,bucket))
+            for video_id,source,other_channel,other_bucket in [('other000001','youtube-data-api','foreign',bucket),
+                    ('source00001','untrusted',channel,bucket),('old00000001','youtube-data-api',channel,'2026-10-22T12:00:00Z'),
+                    ('invalid/id','youtube-data-api',channel,bucket)]:
+                cursor.execute('INSERT INTO public.youtube_video_kpi_snapshots(video_id,channel_id,view_count,bucket_started_at,source) VALUES(%s,%s,999999,%s,%s)',
+                               (video_id,other_channel,other_bucket,source))
+        result=self.admin('reference_candidates')
+        self.assertTrue(result['channelVerified']); self.assertEqual(32,len(result['candidates']))
+        self.assertEqual([f'video{index:06d}' for index in range(39,7,-1)], [row['videoId'] for row in result['candidates']])
+        self.assertTrue(all(len(row['title'])==200 for row in result['candidates']))
+        with self.connection(admin=True) as connection,connection.cursor() as cursor:
+            cursor.execute("UPDATE public.user_account_status SET account_status='suspended' WHERE user_id=%s",(self.owner,))
+        self.assert_rpc_error('owner_forbidden',lambda:self.admin('reference_candidates'))
+        self.observations['collected_references']={'responseRows':32,'titleCharacters':200,'channelSourceBucketFiltered':True,'queryCpuBoundProven':False}
 
     def test_request_idempotency_and_changed_input_conflict(self):
         request=str(uuid.uuid4());first=self.enqueue(request=request)
