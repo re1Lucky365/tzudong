@@ -33,6 +33,9 @@ const isolated = new Set([
   // for later image-boundary tests. Keep this route's mocks in their own process.
   'short-url-page-runtime.test.ts',
   'local-loopback-mutation-origin.test.ts',
+  // This capability contract replaces process-global fetch and performance.now.
+  // Keep those readback and monotonic-clock probes out of the shared mock group.
+  'device-location-privacy.test.ts',
   // These child-process contracts fail in the mock-heavy combined process
   // and pass unchanged alone. Keep their real runtime checks intact.
   'local-supabase-runtime.test.ts',

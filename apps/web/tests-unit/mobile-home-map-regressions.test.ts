@@ -264,7 +264,8 @@ describe('mobile home map regression guards', () => {
 
         expect(naverMapSource).toContain('onMapInteraction?: () => void;');
         expect(naverMapSource).toContain('onMapInteraction?.();');
-        expect(naverMapSource).toContain("const listener = maps.Event.addListener(mapInstanceRef.current, 'click', () => {");
+        // SDK registration and retained-listener dispatch are executed in
+        // naver-map-event-wiring.test.ts, without requiring inline callback syntax.
         expect(naverMapSource).toContain('onMapBlankClick, onMapInteraction');
         expect(overseasMapSource).toContain('onMapInteraction?: () => void;');
         expect(overseasMapSource).toContain('onMapInteractionRef.current?.();');
@@ -273,7 +274,6 @@ describe('mobile home map regression guards', () => {
         expect(naverMapSource).toContain('onUserInteraction: () => {');
         expect(naverMapSource).toContain('const interactionListenerPlan = buildNaverMapInteractionListenerPlan();');
         expect(naverMapSource).toContain('interactionListenerPlan.domListeners.forEach(({ eventName, handlerKey }) => {');
-        expect(naverMapSource).toContain('maps.Event.addListener(map, eventName, handleSearchReleaseInteraction)');
         expect(source('lib/naver-map-interaction-helpers.ts')).toContain("mapEventNames: ['dragstart', 'pinchstart'] as const");
         expect(overseasMapSource).toContain("mapInstance.on('dragstart', () => {");
         expect(overseasMapSource).toContain("mapInstance.on('zoomstart', () => {");

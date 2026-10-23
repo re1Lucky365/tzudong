@@ -6,6 +6,7 @@ import {
     getDistance,
     getRegionalClusters,
     getSeoulDistrictClusters,
+    restaurantsToGeoJSON,
 } from '../lib/clustering';
 import type { Restaurant } from '../types/restaurant';
 
@@ -36,6 +37,24 @@ const makeSeoulRow = (id: string, district: string, overrides: Partial<Restauran
         ...overrides,
     });
 };
+
+test('tier-only mutations invalidate retained Seoul and GeoJSON caches without promoting unknown tiers', () => {
+    const rows = [makeSeoulRow('tier-a', '강남구', { popularity_tier: 'standard' }), makeSeoulRow('tier-b', '강남구')];
+    getRegionalClusters(rows);
+    expect(getSeoulDistrictClusters(rows, 1).clusters[0].popularityTier).toBe('standard');
+    const original = restaurantsToGeoJSON(rows);
+    rows[0].popularity_tier = 'fire';
+    getRegionalClusters(rows);
+    expect(getSeoulDistrictClusters(rows, 1).clusters[0].popularityTier).toBe('fire');
+    const changed = restaurantsToGeoJSON(rows);
+    expect(changed).not.toBe(original);
+    expect(changed[0].properties.popularityTier).toBe('fire');
+    expect(restaurantsToGeoJSON(rows)).toBe(changed);
+    rows[0].popularity_tier = 'unreviewed' as Restaurant['popularity_tier'];
+    getRegionalClusters(rows);
+    expect(getSeoulDistrictClusters(rows, 1).clusters[0].popularityTier).toBe('standard');
+    expect(restaurantsToGeoJSON(rows)[0].properties.popularityTier).toBe('standard');
+});
 
 describe('getRegionalClusters', () => {
     test('빈 목록은 빈 배열을 돌려준다', () => {

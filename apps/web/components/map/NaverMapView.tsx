@@ -1,5 +1,6 @@
 'use client';
 import { syncRetainedMarkerAccessibility } from '@/lib/retained-marker-accessibility';
+import { clearNaverDeviceLocationMarker, createNaverCancellableCallback, createNaverOneShotCallback, removeNaverMapListener } from '@/lib/naver-map-event-cleanup';
 
 import { Suspense, lazy, useEffect, useRef, useState, memo, useMemo, useCallback } from "react";
 import type { CSSProperties } from "react";
@@ -818,6 +819,12 @@ const NaverMapView = memo(({
         setIcon: (icon: unknown) => void;
     } | null>(null);
     const lastFocusedDeviceLocationRequestRef = useRef<number | null>(null);
+    const clearDeviceLocationMarker = useCallback(() => {
+        deviceLocationMarkerRef.current = clearNaverDeviceLocationMarker(deviceLocationMarkerRef.current, () => {
+            mapRef.current?.querySelectorAll('[data-tzudong-device-location-marker="true"]').forEach(node => node.remove());
+        });
+        return deviceLocationMarkerRef.current === null;
+    }, []);
     const isInitialLoadFromUrlRef = useRef<boolean>(false); // URL 파라미터로 초기화되었는지 추적 (공유 URL 지원)
 
     // [Cluster] Supercluster 인덱스 및 클러스터 상태
@@ -1086,14 +1093,16 @@ const NaverMapView = memo(({
         const maps = window.naver?.maps;
         if (!maps?.Event) return;
 
-        const listener = maps.Event.addListener(mapInstanceRef.current, 'click', () => {
+        const click = createNaverCancellableCallback(() => {
             activateNoncriticalMapEffects();
             onMapInteraction?.();
             onMapBlankClick();
         });
+        const listener = maps.Event.addListener(mapInstanceRef.current, 'click', click.handle);
 
         return () => {
-            maps.Event.removeListener(listener);
+            click.cancel();
+            removeNaverMapListener(maps.Event, listener);
         };
     }, [activateNoncriticalMapEffects, isMapInitialized, onMapBlankClick, onMapInteraction]);
 
@@ -1114,10 +1123,9 @@ const NaverMapView = memo(({
             releaseSearchSelectionOnUserInteraction,
         });
         const interactionListenerPlan = buildNaverMapInteractionListenerPlan();
-        const interactionHandlers = {
-            searchRelease: handleSearchReleaseInteraction,
-            userInteraction: handleUserInteraction,
-        };
+        const searchRelease = createNaverCancellableCallback(handleSearchReleaseInteraction);
+        const userInteraction = createNaverCancellableCallback(handleUserInteraction);
+        const interactionHandlers = { searchRelease: searchRelease.handle, userInteraction: userInteraction.handle };
 
         if (mapElement) {
             interactionListenerPlan.domListeners.forEach(({ eventName, handlerKey }) => {
@@ -1130,12 +1138,14 @@ const NaverMapView = memo(({
         }
 
         const mapEventListeners = interactionListenerPlan.mapEventNames.map((eventName) =>
-            maps.Event.addListener(map, eventName, handleSearchReleaseInteraction)
+            maps.Event.addListener(map, eventName, searchRelease.handle)
         );
 
         return () => {
+            searchRelease.cancel();
+            userInteraction.cancel();
             mapEventListeners.forEach((listener) => {
-                maps.Event.removeListener(listener);
+                removeNaverMapListener(maps.Event, listener);
             });
 
             if (mapElement) {
@@ -1152,25 +1162,22 @@ const NaverMapView = memo(({
 
     // Renders authorized device coordinates at the approved map-provider boundary.
     useEffect(() => {
+        const clearWithRetry = () => {
+            lastFocusedDeviceLocationRequestRef.current = null;
+            if (clearDeviceLocationMarker()) return;
+            const timer = window.setTimeout(clearDeviceLocationMarker, 250);
+            return () => window.clearTimeout(timer);
+        };
+        if (!deviceLocation) return clearWithRetry();
         if (!isMapInitialized || !mapInstanceRef.current || !window.naver?.maps) return;
 
         const { naver } = window;
         if (!naver.maps.LatLng || !naver.maps.Point || !naver.maps.Marker) return;
         const map = mapInstanceRef.current;
 
-        if (!deviceLocation) {
-            deviceLocationMarkerRef.current?.setMap(null);
-            deviceLocationMarkerRef.current = null;
-            lastFocusedDeviceLocationRequestRef.current = null;
-            return;
-        }
-
         const currentZoom = map.getZoom();
         if (!hasValidNaverDeviceLocation(deviceLocation, currentZoom) || !Number.isFinite(currentZoom)) {
-            deviceLocationMarkerRef.current?.setMap(null);
-            deviceLocationMarkerRef.current = null;
-            lastFocusedDeviceLocationRequestRef.current = null;
-            return;
+            return clearWithRetry();
         }
 
         // Provider boundary: keep coordinates in React state memory, and only apply validated updates to the Naver map.
@@ -1203,11 +1210,11 @@ const NaverMapView = memo(({
             map.setCenter(position);
             map.setZoom(deviceLocationRenderPlan.focusZoom);
         }
-    }, [deviceLocation, isMapInitialized]);
+    }, [clearDeviceLocationMarker, deviceLocation, isMapInitialized]);
 
     useEffect(() => () => {
-        deviceLocationMarkerRef.current?.setMap(null);
-    }, []);
+        clearDeviceLocationMarker();
+    }, [clearDeviceLocationMarker]);
 
     const handleDetailPanelMouseDownCapture = useMemo(
         () => buildNaverMapDetailPanelMouseDownCaptureHandler(onPanelClick),
@@ -1828,11 +1835,11 @@ const NaverMapView = memo(({
         if (!mapRef.current || !mapInstanceRef.current || !isMapInitialized) return;
 
         const map = mapInstanceRef.current;
-        const { naver } = window;
 
         const handleResize = () => {
+            if (!window.naver?.maps?.Event) return;
             // 1. 지도 리사이즈 트리거
-            naver.maps.Event.trigger(map, 'resize');
+            window.naver.maps.Event.trigger(map, 'resize');
 
             const { urlLat, urlLng, urlZoom } = parseNaverMapUrlState(window.location.search);
             if (
@@ -1900,7 +1907,7 @@ const NaverMapView = memo(({
         const { cancel, observerCallback } = buildNaverResizeObserverHandler({
             runAfterTransition: handleResize,
             triggerResize: () => {
-                naver.maps.Event.trigger(map, 'resize');
+                window.naver?.maps?.Event?.trigger(map, 'resize');
             },
         });
         const resizeObserver = new ResizeObserver(observerCallback);
@@ -1921,7 +1928,7 @@ const NaverMapView = memo(({
         const { cancel, handleWindowResize } = buildNaverWindowResizeHandler({
             getMap: () => mapInstanceRef.current,
             triggerResize: (map) => {
-                naver.maps.Event.trigger(map, 'resize');
+                window.naver?.maps?.Event?.trigger(map, 'resize');
             },
         });
 
@@ -2383,8 +2390,8 @@ const NaverMapView = memo(({
 
         return () => {
             disposed = true;
-            maps.Event.removeListener(idleListener);
-            maps.Event.removeListener(resizeListener);
+            removeNaverMapListener(maps.Event, idleListener);
+            removeNaverMapListener(maps.Event, resizeListener);
         };
     }, [clusterIndexVersion, displayRestaurants, expandedClusterRestaurantIds.length, isMapInitialized, mapOptimization.idleDebounceMs]);
 
@@ -3460,6 +3467,7 @@ const NaverMapView = memo(({
         let targetZoomLevel = map.getZoom();
         let lastWheelTime = 0;
         let pendingAnchorAdjustListener: unknown = null;
+        let cancelPendingAnchorAdjust: (() => void) | undefined;
         let isAnchorAdjusting = false;
 
         let queuedWheelInput: NaverWheelInput | null = null;
@@ -3585,10 +3593,11 @@ const NaverMapView = memo(({
                     }
 
                     // 투영이 아직 이전 줌이면 idle 이후에 한 번만 보정한다.
-                    pendingAnchorAdjustListener = naver.maps.Event.addListener(map, 'idle', () => {
+                    cancelPendingAnchorAdjust?.();
+                    const anchorCompletion = createNaverOneShotCallback(() => {
                         pendingAnchorAdjustListener = clearNaverPendingAnchorAdjustListener({
                             pendingAnchorAdjustListener,
-                            removeListener: (listener) => naver.maps.Event.removeListener(listener),
+                            removeListener: (listener) => { removeNaverMapListener(naver.maps.Event, listener); },
                         }).nextPendingAnchorAdjustListener;
 
                         try {
@@ -3599,6 +3608,8 @@ const NaverMapView = memo(({
                             finishAnchorCorrection();
                         }
                     });
+                    cancelPendingAnchorAdjust = anchorCompletion.cancel;
+                    pendingAnchorAdjustListener = naver.maps.Event.addListener(map, 'idle', anchorCompletion.handle);
                 } catch (error) {
                     console.error("휠 줌 포인터 고정 처리 실패:");
                     map.setZoom(nextZoom, true);
@@ -3637,21 +3648,24 @@ const NaverMapView = memo(({
 
         // passive: false여야 preventDefault()가 동작함
         mapElement.addEventListener('wheel', handleWheel, { passive: false });
-        const markMapInteracting = () => syncPopularityMarkerInteraction(mapElement, true);
-        const markMapSettled = () => syncPopularityMarkerInteraction(mapElement, false);
+        const interacting = createNaverCancellableCallback(() => syncPopularityMarkerInteraction(mapElement, true));
+        const settled = createNaverCancellableCallback(() => syncPopularityMarkerInteraction(mapElement, false));
         const interactionListeners = window.naver?.maps?.Event
             ? [
-                window.naver.maps.Event.addListener(map, "dragstart", markMapInteracting),
-                window.naver.maps.Event.addListener(map, "idle", markMapSettled),
-                window.naver.maps.Event.addListener(map, "zoom_changed", markMapInteracting),
+                window.naver.maps.Event.addListener(map, "dragstart", interacting.handle),
+                window.naver.maps.Event.addListener(map, "idle", settled.handle),
+                window.naver.maps.Event.addListener(map, "zoom_changed", interacting.handle),
             ]
             : [];
 
         return () => {
+            interacting.cancel();
+            settled.cancel();
+            cancelPendingAnchorAdjust?.();
             if (pendingAnchorAdjustListener && window.naver?.maps?.Event) {
                 pendingAnchorAdjustListener = clearNaverPendingAnchorAdjustListener({
                     pendingAnchorAdjustListener,
-                    removeListener: (listener) => window.naver!.maps.Event.removeListener(listener),
+                    removeListener: (listener) => { removeNaverMapListener(window.naver?.maps?.Event, listener); },
                 }).nextPendingAnchorAdjustListener;
             }
             const cleanupState = resolveNaverWheelCleanupState();
@@ -3660,10 +3674,10 @@ const NaverMapView = memo(({
             mapElement.removeEventListener('wheel', handleWheel);
             if (window.naver?.maps?.Event) {
                 for (const listener of interactionListeners) {
-                    window.naver.maps.Event.removeListener(listener);
+                    removeNaverMapListener(window.naver.maps.Event, listener);
                 }
             }
-            markMapSettled();
+            syncPopularityMarkerInteraction(mapElement, false);
         };
     }, [activateNoncriticalMapEffects, isMapInitialized]);
 

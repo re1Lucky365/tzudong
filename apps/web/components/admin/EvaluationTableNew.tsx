@@ -76,6 +76,7 @@ interface EvaluationTableProps {
   onRequestDetails?: (record: EvaluationRecord) => Promise<boolean>;
   hasMore?: boolean;
   isLoadingMore?: boolean;
+  totalCount?: number;
 }
 
 const FILTER_TOOLTIPS = {
@@ -641,7 +642,11 @@ export function EvaluationTable({
   onRequestDetails,
   hasMore = false,
   isLoadingMore = false,
+  totalCount,
 }: EvaluationTableProps) {
+  const recordCountLabel = totalCount === undefined
+    ? `${records.length}개`
+    : `${records.length} / ${totalCount}개`;
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showMobileAdvancedFilters, setShowMobileAdvancedFilters] = useState(false);
   const [isDesktopLayout, setIsDesktopLayout] = useState<boolean | null>(null);
@@ -1009,7 +1014,7 @@ export function EvaluationTable({
             ) : readFailed && records.length === 0 ? (
               <strong className="ml-1 text-sm font-bold text-foreground">미확인</strong>
             ) : (
-              <strong className="ml-1 text-sm font-bold text-foreground">{records.length}개</strong>
+              <strong className="ml-1 text-sm font-bold text-foreground">{recordCountLabel}</strong>
             )}
             {activeFilterCount > 0 && (
               <>
@@ -1793,8 +1798,14 @@ export function EvaluationTable({
         </Table>
         <div className="h-8" /> {/* 마지막 레코드가 잘리지 않도록 충분한 하단 여백 */}
           </div>
-          <div className="admin-cms-footer shrink-0 justify-between"><span>{readFailed && records.length === 0 ? '미확인' : `${records.length}개 표시`}</span><span>{activeFilterCount > 0 ? `필터 ${activeFilterCount}개 적용` : '전체 조건'}</span></div>
+          <div className="admin-cms-footer shrink-0 justify-between" role="status" aria-busy={isLoadingMore || (loading && records.length === 0)}>
+            <span>{records.length === 0 && readFailed ? '미확인' : records.length === 0 && loading ? '조회 중' : recordCountLabel}</span>
+            <span>{isLoadingMore ? '불러오는 중' : activeFilterCount > 0 ? `필터 ${activeFilterCount}개 적용` : ''}</span>
           </div>
+          </div>
+        )}
+        {shouldRenderMobile && isLoadingMore && (
+          <div className="shrink-0 py-2 text-center text-xs text-muted-foreground" role="status">불러오는 중</div>
         )}
         {loadMoreSentinel}
       </div>

@@ -28,6 +28,7 @@ import {
     applyOverseasMarkerSelectedState,
     buildOverseasMarkerHtml,
     getOverseasMarkerActiveId,
+    hasRenderableOverseasCoordinates,
 } from '@/lib/overseas-map-marker-helpers';
 import {
     mergeOverseasRestaurants,
@@ -91,6 +92,7 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<maplibregl.Map | null>(null);
     const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+    const markerHtmlRef = useRef(new WeakMap<HTMLElement, string>());
     const deviceLocationMarkerRef = useRef<maplibregl.Marker | null>(null);
     const lastFocusedDeviceLocationRequestRef = useRef<number | null>(null);
     const mapPaddingRef = useRef(mapPadding);
@@ -125,7 +127,7 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
     const { data: restaurants = [], isLoading: isLoadingRestaurants } = useRestaurants(restaurantsOptions);
 
     const restaurantsToShow = useMemo(() => {
-        return mergeOverseasRestaurants(restaurants, searchedRestaurant);
+        return mergeOverseasRestaurants(restaurants, searchedRestaurant).filter(hasRenderableOverseasCoordinates);
     }, [restaurants, searchedRestaurant]);
 
     useEffect(() => {
@@ -322,7 +324,7 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
     }, [mapAttempt]);
 
     const moveToRestaurant = useCallback((restaurant: Restaurant) => {
-        if (!map.current) return;
+        if (!map.current || !hasRenderableOverseasCoordinates(restaurant)) return;
 
         // [New] 강제 줌 레벨이 있으면 사용, 없으면 현재 줌 유지
         const targetZoom = mapFocusZoom ?? map.current.getZoom();
@@ -353,7 +355,8 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
     useEffect(() => {
         if (!map.current || !isMapLoaded) return;
 
-        const currentMarkerIds = new Set(restaurantsToShow.map(r => r.id));
+        const renderableRestaurants = restaurantsToShow;
+        const currentMarkerIds = new Set(renderableRestaurants.map(r => r.id));
 
         // 1. Remove markers that are no longer in the list
         markersRef.current.forEach((marker, id) => {
@@ -364,43 +367,35 @@ const OverseasMap: React.FC<OverseasMapProps> = ({
         });
 
         // 2. Add or update markers
-        restaurantsToShow.forEach(restaurant => {
-            if (!markersRef.current.has(restaurant.id)) {
-                const imagePath = getRestaurantCategoryIcon(restaurant);
-
+        renderableRestaurants.forEach(restaurant => {
+            let marker = markersRef.current.get(restaurant.id);
+            const isNewMarker = !marker;
+            if (!marker) {
                 const el = document.createElement('div');
                 el.id = `marker-${restaurant.id}`;
                 el.style.width = `32px`;
                 el.style.height = `32px`;
                 el.style.cursor = 'pointer';
-                el.innerHTML = buildOverseasMarkerHtml({
-                    imagePath,
-                    name: restaurant.name,
-                    popularityTier: restaurant.popularity_tier,
-                });
-
-                el.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    onRestaurantSelect?.(restaurant);
-                    onMarkerClick?.(restaurant);
-                    moveToRestaurant(restaurant);
-                });
-
-                const marker = new maplibregl.Marker({ element: el })
-                    .setLngLat([Number(restaurant.lng), Number(restaurant.lat)])
-                    .addTo(map.current!);
-
+                marker = new maplibregl.Marker({ element: el });
                 markersRef.current.set(restaurant.id, marker);
-            } else {
-                const marker = markersRef.current.get(restaurant.id)!;
-                const element = marker.getElement();
-                const tier = restaurant.popularity_tier ?? 'standard';
-                if (element.querySelector('[data-popularity-tier]')?.getAttribute('data-popularity-tier') !== tier) {
-                    element.innerHTML = buildOverseasMarkerHtml({ imagePath: getRestaurantCategoryIcon(restaurant), name: restaurant.name, popularityTier: tier });
-                    const activeId = getOverseasMarkerActiveId({ searchedRestaurantId: searchedRestaurant?.id, selectedRestaurantId: selectedRestaurant?.id });
-                    applyOverseasMarkerSelectedState({ container: element.querySelector('.marker-container'), isSelected: restaurant.id === activeId, markerElement: element });
-                }
             }
+            const element = marker.getElement();
+            const html = buildOverseasMarkerHtml({ imagePath: getRestaurantCategoryIcon(restaurant), name: restaurant.name, popularityTier: restaurant.popularity_tier });
+            if (markerHtmlRef.current.get(element) !== html) {
+                element.innerHTML = html;
+                markerHtmlRef.current.set(element, html);
+            }
+            // The retained SDK marker must use the current row and callbacks after a refresh.
+            element.onclick = (event) => {
+                event.stopPropagation();
+                onRestaurantSelect?.(restaurant);
+                onMarkerClick?.(restaurant);
+                moveToRestaurant(restaurant);
+            };
+            marker.setLngLat([Number(restaurant.lng), Number(restaurant.lat)]);
+            if (isNewMarker) marker.addTo(map.current!);
+            const activeId = getOverseasMarkerActiveId({ searchedRestaurantId: searchedRestaurant?.id, selectedRestaurantId: selectedRestaurant?.id });
+            applyOverseasMarkerSelectedState({ container: element.querySelector('.marker-container'), isSelected: restaurant.id === activeId, markerElement: element });
         });
     }, [restaurantsToShow, isMapLoaded, moveToRestaurant, onRestaurantSelect, onMarkerClick, searchedRestaurant, selectedRestaurant]);
 

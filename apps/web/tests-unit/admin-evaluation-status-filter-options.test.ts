@@ -198,7 +198,7 @@ describe('PRIMARY_STATUS_FILTER_OPTIONS', () => {
     expect(tableSource).toContain('<div className="min-w-0 truncate px-0.5 text-xs text-muted-foreground">');
     expect(tableSource).toContain('<span>검수 항목</span>');
     expect(tableSource).toContain('loading && records.length === 0');
-    expect(tableSource).toContain('<strong className="ml-1 text-sm font-bold text-foreground">{records.length}개</strong>');
+    // Displayed/total counts and loading/error states are exercised in admin-evaluation-list-progress-browser.test.ts.
     expect(tableSource).toContain('필터 {activeFilterCount}개');
     expect(tableSource).toContain('data-admin-evaluation-mobile-filter-actions="true"');
     expect(tableSource).toContain('data-layout-primitives="cluster"');
