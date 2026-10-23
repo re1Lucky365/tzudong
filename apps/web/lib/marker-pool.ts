@@ -234,11 +234,12 @@ export class MarkerPool {
             && patchStableMarkerReviewBubble(element, currentIcon?.content, icon.content);
         if (!patched) {
             const wasHidden = Boolean(marker.__tzudongRetainedMarkerAriaHidden);
-            // Only SDK replacement changes the root. An in-place review patch
-            // keeps its existing accessibility owner and hidden state intact.
-            syncRetainedMarkerAccessibility(marker, true);
+            const rootReadyTarget = element?.parentElement;
+            // Keep a hidden marker's pending root registry across deferred SDK
+            // insertion; clearing visibility would cancel that observer/target.
+            if (!wasHidden) syncRetainedMarkerAccessibility(marker, true);
             marker.setIcon(icon);
-            if (wasHidden) syncRetainedMarkerAccessibility(marker, false);
+            if (wasHidden) syncRetainedMarkerAccessibility(marker, false, rootReadyTarget);
         }
         this.renderedIcons.set(marker, { ...icon, anchor: icon.anchor ? { ...icon.anchor } : icon.anchor });
     }

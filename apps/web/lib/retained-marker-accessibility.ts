@@ -70,7 +70,9 @@ export function syncRetainedMarkerAccessibility(
     // The review bubble is a sibling of the marker inside this app-owned
     // anchor, so hide the complete overlay rather than only its image node.
     const root = markerRoot?.closest<HTMLElement>(OVERLAY_SELECTOR) ?? markerRoot;
-    if (!root) {
+    // Some SDKs keep returning the removed old root until its replacement is
+    // inserted. A disconnected root cannot carry the live marker's mask.
+    if (!root || root.isConnected === false) {
         marker.__tzudongRetainedMarkerAriaHidden = hidden;
         const target = rootTargets.get(marker);
         if (hidden && target) watchPendingRoot(marker, target);

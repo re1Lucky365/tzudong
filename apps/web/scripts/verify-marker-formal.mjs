@@ -52,6 +52,9 @@ const mutants = [
     before: '        nextBubbles[0].style.marginLeft = currentBubbles[0].style.marginLeft;',
     after: '        nextBubbles[0].style.marginLeft = "";',
     test: tests[0], failure: 'review patches preserve retained masking, clamp and clone-descriptor round trips' },
+  { id: 'deferred-sdk-root', file: 'lib/retained-marker-accessibility.ts',
+    before: '    if (!root || root.isConnected === false) {', after: '    if (!root) {',
+    test: tests[0], failure: 'a deferred SDK root receives the retained mask after disconnected-root replacement' },
   { id: 'half-life-overflow', file: 'lib/evidence-engineering/scoring.ts',
     before: removeFiniteGuard('halfLife'), after: '', test: tests[1], failure: 'finite inputs cannot leak infinity' },
   { id: 'visit-multiplier-overflow', file: 'lib/evidence-engineering/scoring.ts',
@@ -71,7 +74,7 @@ if (baseline.exitCode !== 0) {
   process.stderr.write(baseline.output);
   throw new Error('FORMAL_BASELINE_FAILED');
 }
-console.log('Bounded native baseline passed. Checking eleven isolated broken variants.');
+console.log('Bounded native baseline passed. Checking twelve isolated broken variants.');
 const mutations = [];
 for (const mutant of mutants) {
   const scratch = await mkdtemp(join(tmpdir(), 'tzudong-formal-mutation-'));

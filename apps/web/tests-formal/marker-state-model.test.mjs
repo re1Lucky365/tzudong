@@ -18,6 +18,7 @@ import { wrapNaverMarkerContentWithReviewBubble } from './lib/visible-marker-rev
 const map = document.body.appendChild(document.createElement('main'));
 let clicks = [];
 let cloneIcons = false;
+let deferIcons = false;
 class Marker {
   constructor({position, icon, map: target}) {
     this.position = position; this.icon = icon; this.map = target;
@@ -30,7 +31,16 @@ class Marker {
   getPosition() { return this.position; }
   setPosition(position) { this.position = position; }
   getIcon() { return cloneIcons ? {...this.icon} : this.icon; }
-  setIcon(icon) { this.icon = icon; this.element.innerHTML = icon.content; this.iconChanges++; }
+  setIcon(icon) {
+    this.icon = icon; this.iconChanges++;
+    if (deferIcons) {
+      this.element.remove();
+      queueMicrotask(() => {
+        this.element = document.createElement('div'); this.element.innerHTML = icon.content;
+        this.map?.append(this.element);
+      });
+    } else this.element.innerHTML = icon.content;
+  }
   getElement() { return this.element; }
   setZIndex() {}
 }
@@ -116,6 +126,18 @@ window.__formal = {
     const evicted = markerPool.getStats().poolSize === 0 && marker.providerClick === undefined;
     cloneIcons = false; markerPool.clear();
     return {hiddenAfterPatch, clampAfterPatch, photoAfterPatch, reverted, hiddenAfterReplacement, anchor, evicted};
+  },
+  async delayedRootMask() {
+    markerPool.clear(); cloneIcons = false; reuseBubbleIdentity = false;
+    const marker = acquire('delayed', {...variants[0], bubble: 1});
+    syncRetainedMarkerAccessibility(marker, false, map);
+    deferIcons = true;
+    markerPool.update('delayed', {icon: {content: html('delayed', {...variants[0], bubble: 2, alt: 1}), anchor: {x: 18, y: 18}}});
+    deferIcons = false;
+    await Promise.resolve(); await Promise.resolve();
+    const root = marker.getElement().querySelector('[data-visible-marker-review-bubble-anchor]');
+    const result = {connected: root?.isConnected, hidden: root?.getAttribute('aria-hidden'), owner: root?.getAttribute('data-tzudong-retained-marker-hidden')};
+    markerPool.clear(); return result;
   },
   clusterReacquisition() {
     markerPool.clear();
@@ -224,5 +246,11 @@ test('review patches preserve retained masking, clamp and clone-descriptor round
 test('cluster frames updated through the pool restore the requested frame and count', async () => {
   await withFixture(async page => {
     expect(await page.evaluate(() => window.__formal.clusterReacquisition())).toEqual({srcset: '/a.webp', count: '4'});
+  });
+}, 60000);
+
+test('a deferred SDK root receives the retained mask after disconnected-root replacement', async () => {
+  await withFixture(async page => {
+    expect(await page.evaluate(() => window.__formal.delayedRootMask())).toEqual({connected: true, hidden: 'true', owner: 'true'});
   });
 }, 60000);
