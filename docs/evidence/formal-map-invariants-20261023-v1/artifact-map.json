@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "sourceRevision": "c881785db10582e8acd663d8c8fb532758168500",
+  "sourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
   "files": [
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/AUDIT.md",
-      "bytes": 10345,
-      "sha256": "a84dafa1820c1db458379e8fd60fda446aea3fd4dc8212a9de646c140a7445c9"
+      "bytes": 11689,
+      "sha256": "d8ebd0a56dba87affc0bde9466c5e4219632179cf42ca7cf7266aa2d6ff81310"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/actual-wrapper-counterexample.txt",
@@ -14,8 +14,13 @@
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/affected-regressions.txt",
-      "bytes": 10453,
-      "sha256": "ae3137b0a996c76172480ebdfd9d1b9b0dee33449901c711792320632df77384"
+      "bytes": 10566,
+      "sha256": "2fcc009f3454d2eb0f2fc327467994f4be434ba7fca83409896c3022b8e8f0f3"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/artifact-map.json.sha256",
+      "bytes": 84,
+      "sha256": "a9c241d853561cf0dbe4a3cdacb1236186ba274e947c944f6ff714b0e0544cf9"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/boundary-counterexamples.txt",
@@ -24,18 +29,23 @@
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/completion-manifest.json",
-      "bytes": 1694,
-      "sha256": "b0c70d256c7ad7bb281651dfcea0d12a3127f307334ee6183810fadabb785125"
+      "bytes": 1857,
+      "sha256": "6feadb176f6448a5d9a7c1c8cef5258fec1b2e81ced2182af19a8ba508e84e3f"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/external-review-checkpoint.json",
-      "bytes": 1465,
-      "sha256": "1697c8c0ffd82d77d170d6e5f5af22a46eb5421ffd4571744a8bfbdedc524055"
+      "bytes": 3015,
+      "sha256": "f29213237e62a47048a964018c4e9ae26fb36cce57eeea2472d9b5641b27b2a5"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/mutable-cache-counterexample.txt",
+      "bytes": 5287,
+      "sha256": "4f1c2f691b18c46d645827054e8a2dffcc4e3f36121fb90475150a0473df3c14"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/native-and-mutation-checks.json",
-      "bytes": 17277,
-      "sha256": "725e26a794f783575a34ca5ca44d85197cc1b94b260f87432fc0189d53c8749a"
+      "bytes": 20130,
+      "sha256": "9d6fc4e45079c6f54e1721b3a70a9ef25503d7e100906c80c26831b21a3b3903"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/pstack-upstream-observation.json",
@@ -49,28 +59,28 @@
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/review-input-manifest.json",
-      "bytes": 6113,
-      "sha256": "daec0a3bf90be4948e537740b37718b563dcfc399165edb86b8e61b728615fd9"
+      "bytes": 6302,
+      "sha256": "25afccbe2ba54cb0543570853d5fe4d90197b74abe0a2a47ea9d2e996e4f838c"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/review-question.txt",
-      "bytes": 1249,
-      "sha256": "7b2aa5cca8284ee899e0b45e441a76821d5fd6378c42c542bdb022715702614b"
+      "bytes": 1310,
+      "sha256": "7549fdaea4bb23290958732ca72a3d8682ce72f871d1bbd02a8d0493fbb99d08"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/source_bundle.txt",
-      "bytes": 369606,
-      "sha256": "da6c12e54019c2975fd8db8f53e5713c6140f34a6b28375d059415bbdbc78c4d"
+      "bytes": 374176,
+      "sha256": "c3fb6be051942230565e8e551f6f9988d6c0da2175c2a9df553a5398e6865f23"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/state-transitions.mmd",
-      "bytes": 772,
-      "sha256": "c3f079544e98744ea9a40487dd404e52f3a20cf52f4e76ccb2bc54570fbc51ba"
+      "bytes": 769,
+      "sha256": "0e61726647c80835cc03e65f85f8b683cb264cc8c76c346c2fad8f51f870bffd"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/verification.json",
       "bytes": 1262,
-      "sha256": "c918a1442a032f8f96d56b0caf4c06295faa40551ff334961013ed35d04d8548"
+      "sha256": "2cdf058cf42b4745eaae400b810c5ef99bded33d1e4b4478952eaa644bd00023"
     },
     {
       "path": ".gitignore",
@@ -79,8 +89,8 @@
     },
     {
       "path": ".agents/skills/tzudong-formal-map-check/SKILL.md",
-      "bytes": 5262,
-      "sha256": "fea86763693cb33a6c54fd4e46a3a6c35d0d01a9b6a9c1eec486f920414e76f2"
+      "bytes": 5394,
+      "sha256": "f379ae47e42aa5d38b6aac883ee80ba613c5047415e773aa30f787c77dd2c40c"
     },
     {
       "path": ".agents/skills/tzudong-formal-map-check/agents/openai.yaml",
@@ -181,13 +191,13 @@
     },
     {
       "path": "apps/web/tests-formal/marker-state-model.test.mjs",
-      "bytes": 9207,
-      "sha256": "78c772b4d7f22d4e4a0e7667da8a7a81326258ee581d59741265d34b6e052bc9"
+      "bytes": 9640,
+      "sha256": "7eafb3874e25d4019792cecabbf052374d8f66e4bf23b83a1d9c2526a4b0463c"
     },
     {
       "path": "apps/web/scripts/verify-marker-formal.mjs",
-      "bytes": 6588,
-      "sha256": "81741438f2a27615d74cffc2cf94cdcba35fe0f1791b0368cea59dffdea41249"
+      "bytes": 7013,
+      "sha256": "96364454f528669f191fba2fdc156008a3ad2b6799e11eba3fd880bf72934119"
     },
     {
       "path": "apps/web/tests-unit/evidence-numeric-bounds.test.ts",
@@ -221,8 +231,8 @@
     },
     {
       "path": "apps/web/lib/visible-marker-review-bubbles.ts",
-      "bytes": 11770,
-      "sha256": "e86d5ba4589c0678b47bc47de60dff68cda7c8ab8d35927d756169772c8c1911"
+      "bytes": 11862,
+      "sha256": "96ab311a5582f4498d13da0347973ba94cad2575418394f78036501b99218ddb"
     },
     {
       "path": "apps/web/lib/review-photo-url.ts",
@@ -238,7 +248,12 @@
       "path": "apps/web/lib/naver-map-marker-visuals.ts",
       "bytes": 9365,
       "sha256": "6b73821b062691fc9d1139448bca5ff7c690379e1ba9e50322f8b7c3a9ac83b8"
+    },
+    {
+      "path": "apps/web/tests-unit/visible-marker-review-bubbles.test.ts",
+      "bytes": 3456,
+      "sha256": "de9884b661b31e3b06274eb1c17fa5ea176b73d2f557a529d7e4333178b6391e"
     }
   ],
-  "scope": "actual-wrapper bounded native checks; external delta, live UI, deployment and Nightly remain separate"
+  "scope": "actual shared wrapper, retained-object cache and bounded native checks; external delta, live UI, deployment and Nightly remain separate"
 }

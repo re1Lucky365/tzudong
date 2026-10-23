@@ -6,7 +6,7 @@ stateDiagram-v2
     state "객체 폐기·재사용 금지" as Discarded
     [*] --> Empty
     Empty --> Active: 표시 요청 / 새 객체
-    Active --> Active: 기존 리뷰 내용 갱신 / 제자리 교체·이미지 유지
+    Active --> Active: 기존 리뷰 갱신 / 캐시 토큰 확인·제자리 교체
     Active --> Active: 불 등급·설명 변경 / 전체 아이콘 갱신
     Active --> Pooled: 제외 / SDK 해제 성공·풀 여유
     Active --> Discarded: SDK 해제 실패 또는 풀 가득 참

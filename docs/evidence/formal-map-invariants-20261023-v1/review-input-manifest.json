@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "sourceRevision": "c881785db10582e8acd663d8c8fb532758168500",
+  "sourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
   "baseRevision": "56427320a44fdd65a86dc49e7e63d80dd9935c2e",
-  "bundleSha256": "da6c12e54019c2975fd8db8f53e5713c6140f34a6b28375d059415bbdbc78c4d",
-  "bundleBytes": 369606,
+  "bundleSha256": "c3fb6be051942230565e8e551f6f9988d6c0da2175c2a9df553a5398e6865f23",
+  "bundleBytes": 374176,
   "coveredFiles": [
     {
       "path": "apps/web/lib/marker-pool.ts",
@@ -97,13 +97,13 @@
     },
     {
       "path": "apps/web/tests-formal/marker-state-model.test.mjs",
-      "bytes": 9207,
-      "sha256": "78c772b4d7f22d4e4a0e7667da8a7a81326258ee581d59741265d34b6e052bc9"
+      "bytes": 9640,
+      "sha256": "7eafb3874e25d4019792cecabbf052374d8f66e4bf23b83a1d9c2526a4b0463c"
     },
     {
       "path": "apps/web/scripts/verify-marker-formal.mjs",
-      "bytes": 6588,
-      "sha256": "81741438f2a27615d74cffc2cf94cdcba35fe0f1791b0368cea59dffdea41249"
+      "bytes": 7013,
+      "sha256": "96364454f528669f191fba2fdc156008a3ad2b6799e11eba3fd880bf72934119"
     },
     {
       "path": "apps/web/tests-unit/evidence-numeric-bounds.test.ts",
@@ -137,8 +137,8 @@
     },
     {
       "path": "apps/web/lib/visible-marker-review-bubbles.ts",
-      "bytes": 11770,
-      "sha256": "e86d5ba4589c0678b47bc47de60dff68cda7c8ab8d35927d756169772c8c1911"
+      "bytes": 11862,
+      "sha256": "96ab311a5582f4498d13da0347973ba94cad2575418394f78036501b99218ddb"
     },
     {
       "path": "apps/web/lib/review-photo-url.ts",
@@ -154,9 +154,14 @@
       "path": "apps/web/lib/naver-map-marker-visuals.ts",
       "bytes": 9365,
       "sha256": "6b73821b062691fc9d1139448bca5ff7c690379e1ba9e50322f8b7c3a9ac83b8"
+    },
+    {
+      "path": "apps/web/tests-unit/visible-marker-review-bubbles.test.ts",
+      "bytes": 3456,
+      "sha256": "de9884b661b31e3b06274eb1c17fa5ea176b73d2f557a529d7e4333178b6391e"
     }
   ],
-  "questionSha256": "7b2aa5cca8284ee899e0b45e441a76821d5fd6378c42c542bdb022715702614b",
+  "questionSha256": "7549fdaea4bb23290958732ca72a3d8682ce72f871d1bbd02a8d0493fbb99d08",
   "state": "LOCAL_PREPARED_NOT_UPLOADED",
   "actualResearch": null,
   "requiredStages": [
@@ -164,7 +169,7 @@
     "GPT-6 Pro reverse verification"
   ],
   "priorThreeReports": "../marker-evidence-cross-audit-20261023-v1/completion-manifest.json",
-  "externalStatus": "PENDING_SHARED_ADMISSION",
+  "externalStatus": "QUEUED_NOT_DISPATCHED",
   "hostUi": "UNVERIFIED",
   "deployment": "NOT_PERFORMED",
   "Nightly": "SEPARATE_HISTORICAL_FAILURE_39457197351",

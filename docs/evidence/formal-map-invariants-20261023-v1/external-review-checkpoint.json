@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-10-23T06:03:50.445345+00:00",
+  "observedAt": "2026-10-23T06:45:35.467151+00:00",
   "status": "queued",
-  "requestId": "d67857b8729060df39793aa4",
+  "requestId": "86eb51ad0f69dcedd3c5dd33",
   "owner": "01a14e99-77bf-7531-b29e-a612bd99b540",
-  "job": "tzudong-c881785d-formal-delta-v1",
+  "job": "tzudong-fe4b73da-formal-delta-v1",
   "provider": "gemini",
   "stage": "delta",
   "reservation": null,
-  "bundleSha256": "da6c12e54019c2975fd8db8f53e5713c6140f34a6b28375d059415bbdbc78c4d",
+  "bundleSha256": "c3fb6be051942230565e8e551f6f9988d6c0da2175c2a9df553a5398e6865f23",
   "requestedResearch": "off",
   "actualModel": null,
   "actualResearch": null,
@@ -19,19 +19,57 @@
     "Gemini maximum-thinking delta",
     "GPT-6 Pro reverse verification of actual delta artifact"
   ],
-  "hold": "NORMAL_SHARED_ADMISSION_QUEUED",
-  "nextAllowedAction": "Reconcile this queued request once eligible; verify actual account/model/reasoning, research OFF and quota before any upload/send. Preserve other owners.",
+  "hold": "DISPATCH_SERIALIZATION_PENDING",
+  "nextAllowedAction": "Reconcile the same queued request after the preceding dispatch is owner-confirmed answering; reuse the existing Tzudong-only human FIFO/slot approval. Observe actual requested mode/research OFF/quota fresh only when dispatch can be admitted; do not modify other owners.",
   "priorReports": "UNCHANGED_THREE_COMPLETE_REPORTS_REUSED",
   "hostUi": "UNVERIFIED",
   "release": "BLOCKED_PENDING_DELTA_REVIEW_AND_EXISTING_VERCEL_GATE",
   "Nightly": "SEPARATE_NO_RERUN",
-  "supersededLocalPlan": {
-    "job": "tzudong-ec1d3078-formal-delta-v1",
-    "requestId": "25480d7e5c1b70bc0bb3d879",
-    "bundleSha256": "33448972e3e363e72c3e0d1aa91f998e4d8230a442c27ce36c8907350d3a35b5",
-    "withdrawnQueuedPlans": 1,
-    "dispatches": 0,
-    "remoteCancellation": false,
-    "reason": "actual wrapper correspondence gap corrected before upload"
+  "sourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
+  "supersededLocalPlans": [
+    {
+      "job": "tzudong-ec1d3078-formal-delta-v1",
+      "requestId": "25480d7e5c1b70bc0bb3d879",
+      "bundleSha256": "33448972e3e363e72c3e0d1aa91f998e4d8230a442c27ce36c8907350d3a35b5",
+      "withdrawnQueuedPlans": 1,
+      "dispatches": 0,
+      "remoteCancellation": false,
+      "reason": "actual wrapper correspondence gap corrected before upload"
+    },
+    {
+      "job": "tzudong-c881785d-formal-delta-v1",
+      "requestId": "d67857b8729060df39793aa4",
+      "bundleSha256": "da6c12e54019c2975fd8db8f53e5713c6140f34a6b28375d059415bbdbc78c4d",
+      "dispatches": 0,
+      "withdrawnQueuedPlans": 1,
+      "remoteCancellation": false,
+      "reason": "same-object review mutation counterexample fixed before upload"
+    }
+  ],
+  "admission": {
+    "mode": "fifo",
+    "active_count": 1,
+    "free_slots": 0,
+    "dispatch_pending": true,
+    "vendor_concurrency_limit": null
+  },
+  "humanTzudongOverrideReused": true,
+  "bindingRule": {
+    "source": "canonical coordinate.py:201",
+    "requirement": "UI dispatch is serialized until the previous ordinary answer is actually answering.",
+    "overrideScope": "FIFO and slot exception; dispatch_pending remains binding"
+  },
+  "uiObservation": {
+    "observedAt": "2026-10-23T06:15:28.282329+00:00",
+    "sourceUrl": "https://gemini.google.com/app/d33ca8e24b4acf9d",
+    "account": "kss2740",
+    "model": "Gemini 4 Argon / 높음 (highest displayed)",
+    "research": "off",
+    "windowUsedPercent": 0.0,
+    "weeklyUsedPercent": 8.0,
+    "windowReset": "2026-10-23T17:20:00+09:00",
+    "weeklyReset": "2026-10-27T20:20:00+09:00",
+    "overallAccountUsage": "UNVERIFIED",
+    "freshForDispatch": "MUST_REOBSERVE_WHEN_ADMISSIBLE_IF_TTL_EXPIRED"
   }
 }

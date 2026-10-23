@@ -1,4 +1,4 @@
-Tzudong invariant delta at exact source c881785db10582e8acd663d8c8fb532758168500. Full scoped files, including actual Naver caller and shared review wrapper.
+Tzudong formal invariant delta at fe4b73dac510d4670517c7d3eca4f0c2470d4297. Full scoped source and actual Naver wrapper; fresh and in-place review object updates.
 
 
 ===== apps/web/lib/marker-pool.ts | bytes=13814 | SHA256=9741e8d286c0023b5204886b30dd789630f62eaad88eaed61d4e718162519a5b =====
@@ -3078,7 +3078,7 @@ export const OVERSEAS_REGIONS: Record<string, OverseasRegionConfig> = {
 export const OVERSEAS_REGION_LIST = Object.keys(OVERSEAS_REGIONS);
 
 
-===== apps/web/tests-formal/marker-state-model.test.mjs | bytes=9207 | SHA256=78c772b4d7f22d4e4a0e7667da8a7a81326258ee581d59741265d34b6e052bc9 =====
+===== apps/web/tests-formal/marker-state-model.test.mjs | bytes=9640 | SHA256=7eafb3874e25d4019792cecabbf052374d8f66e4bf23b83a1d9c2526a4b0463c =====
 /* global Bun */
 import { expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
@@ -3120,13 +3120,21 @@ window.naver = { maps: { Marker, Event: {
 const position = { equals: other => other === position };
 const tiers = ['standard', 'rainbow', 'ember', 'fire'];
 const variants = tiers.flatMap(tier => [0, 1].flatMap(alt => [1, 2].flatMap(visits => [0, 1, 2].map(bubble => ({tier, alt, visits, bubble})))));
+let reuseBubbleIdentity = false;
+const mutableBubbles = new Map();
 const reviewContent = value => value.bubble === 1 ? '처음 리뷰' : '갱신 리뷰';
 function html(id, value) {
   const content = wrapMarkerWithPopularityTier('<div data-testid="marker" data-restaurant-id="' + id + '" style="width:32px" role="button" tabindex="0" aria-label="식당">'
     + '<span data-tzuyang-visit-count-badge="true">' + value.visits + '</span><img src="/same.webp" alt="설명 ' + value.alt + '"></div>', value.tier);
-  return wrapNaverMarkerContentWithReviewBubble(content, value.bubble ? {
+  let bubble = value.bubble ? {
     restaurantId: id, reviewId: 'review-' + value.bubble, userName: '검증 사용자', content: reviewContent(value), photoUrl: null,
-  } : undefined, false);
+  } : undefined;
+  if (bubble && reuseBubbleIdentity) {
+    const previous = mutableBubbles.get(id);
+    if (previous) { Object.assign(previous, bubble); bubble = previous; }
+    else mutableBubbles.set(id, bubble);
+  }
+  return wrapNaverMarkerContentWithReviewBubble(content, bubble, false);
 }
 function acquire(id, value) {
   return markerPool.acquire(id, position, {content: html(id, value), anchor: {x: 1, y: 1}}, map, () => clicks.push(id + ':' + value.tier));
@@ -3143,7 +3151,8 @@ function view(marker, requested) {
 window.__formal = {
   visualPairs() {
     let checked = 0;
-    for (const before of variants) for (const after of variants) for (const released of [false, true]) {
+    for (const before of variants) for (const after of variants) for (const released of [false, true]) for (const sameBubbleIdentity of [false, true]) {
+      reuseBubbleIdentity = sameBubbleIdentity; mutableBubbles.clear();
       markerPool.clear();
       const marker = acquire('a', before);
       if (released) markerPool.release('a');
@@ -3151,7 +3160,7 @@ window.__formal = {
       const expected = {tier: after.tier, flames: after.tier === 'standard' ? 0 : 1,
         alt: '설명 ' + after.alt, visits: String(after.visits), bubbles: after.bubble ? 1 : 0, currentReview: true};
       checked++;
-      if (next !== marker || JSON.stringify(actual) !== JSON.stringify(expected)) return {checked, before, after, released, actual, expected};
+      if (next !== marker || JSON.stringify(actual) !== JSON.stringify(expected)) return {checked, before, after, released, sameBubbleIdentity, actual, expected};
     }
     markerPool.clear(); return {checked};
   },
@@ -3227,10 +3236,10 @@ async function withFixture(run) {
   } finally { await browser.close(); }
 }
 
-test('all 4,608 active/reacquired visual transitions show the current static marker and bubble', async () => {
+test('all 9,216 active/reacquired visual transitions show the current static marker and bubble', async () => {
   await withFixture(async page => {
     const result = await page.evaluate(() => window.__formal.visualPairs());
-    expect(result).toEqual({ checked: 4608 });
+    expect(result).toEqual({ checked: 9216 });
     console.log('FORMAL_VISUAL_TRANSITIONS', result.checked);
   });
 }, 60000);
@@ -3252,7 +3261,7 @@ test('every pool/click action sequence through depth four keeps current callback
 }, 60000);
 
 
-===== apps/web/scripts/verify-marker-formal.mjs | bytes=6588 | SHA256=81741438f2a27615d74cffc2cf94cdcba35fe0f1791b0368cea59dffdea41249 =====
+===== apps/web/scripts/verify-marker-formal.mjs | bytes=7013 | SHA256=96364454f528669f191fba2fdc156008a3ad2b6799e11eba3fd880bf72934119 =====
 import { mkdtemp, mkdir, readFile, writeFile, rm, symlink, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -3261,7 +3270,8 @@ import { dirname, join, resolve } from 'node:path';
 // is installed, and mutations are confined to disposable copies of named files.
 const root = resolve(import.meta.dir, '..');
 const tests = ['tests-formal/marker-state-model.test.mjs', 'tests-unit/evidence-numeric-bounds.test.ts',
-  'tests-unit/popularity-input-boundary.test.ts', 'tests-unit/evidence-cohort-shadow.test.ts'];
+  'tests-unit/popularity-input-boundary.test.ts', 'tests-unit/evidence-cohort-shadow.test.ts',
+  'tests-unit/visible-marker-review-bubbles.test.ts'];
 const copied = [
   'lib/marker-pool.ts', 'lib/retained-marker-accessibility.ts', 'lib/naver-map-event-cleanup.ts', 'lib/youtube-url.ts',
   'lib/visible-marker-review-bubbles.ts', 'lib/review-photo-url.ts', 'lib/profile-avatar-url.ts',
@@ -3281,11 +3291,15 @@ function removeFiniteGuard(variable) {
 const mutants = [
   { id: 'static-content-guard', file: 'lib/marker-pool.ts',
     before: '    if (!previous.content.isEqualNode(nextStatic)) return false;', after: '    void nextStatic;',
-    test: tests[0], failure: 'all 4,608 active/reacquired visual transitions' },
+    test: tests[0], failure: 'all 9,216 active/reacquired visual transitions' },
   { id: 'review-bubble-anchor', file: 'lib/marker-pool.ts',
     before: '    currentBubbles[0].replaceWith(nextBubbles[0]);',
     after: '    currentMarker.insertBefore(nextBubbles[0], currentMarker.firstChild);',
-    test: tests[0], failure: 'all 4,608 active/reacquired visual transitions' },
+    test: tests[0], failure: 'all 9,216 active/reacquired visual transitions' },
+  { id: 'in-place-review-cache', file: 'lib/visible-marker-review-bubbles.ts',
+    before: '    if (cached && cached.markerContent === markerContent && cached.renderToken === renderToken) {',
+    after: '    if (cached && cached.markerContent === markerContent) {',
+    test: tests[0], failure: 'all 9,216 active/reacquired visual transitions' },
   { id: 'released-callback', file: 'lib/marker-pool.ts',
     before: '        marker.__onClick = undefined;\n        syncRetainedMarkerAccessibility(marker, true);',
     after: '        syncRetainedMarkerAccessibility(marker, true);',
@@ -3309,7 +3323,7 @@ if (baseline.exitCode !== 0) {
   process.stderr.write(baseline.output);
   throw new Error('FORMAL_BASELINE_FAILED');
 }
-console.log('Bounded native baseline passed. Checking seven isolated broken variants.');
+console.log('Bounded native baseline passed. Checking eight isolated broken variants.');
 const mutations = [];
 for (const mutant of mutants) {
   const scratch = await mkdtemp(join(tmpdir(), 'tzudong-formal-mutation-'));
@@ -3339,7 +3353,7 @@ const restored = run(root, tests.slice(0, 2));
 if (restored.exitCode !== 0) throw new Error(`RESTORED_CHECK_FAILED\n${restored.output}`);
 const report = { schemaVersion: 1, evidence: 'BOUNDED_NATIVE_AND_SYNTHETIC_PROVIDER_CHECKS',
   startedAt, completedAt: new Date().toISOString(), bun: Bun.version,
-  bounds: { visualVariants: 48, visualTransitions: 4608, actionAlphabet: 8, maximumDepth: 4,
+  bounds: { visualVariants: 48, reviewIdentityModes: 2, visualTransitions: 9216, actionAlphabet: 8, maximumDepth: 4,
     ownershipTraces: 4681, ownershipSteps: 18056 },
   sourceHashes: Object.fromEntries(originalHashes), baseline, mutations, restored,
   exclusions: ['real Naver SDK', 'network', 'provider reentrancy within one synchronous call', 'fairness/liveness',
@@ -7584,7 +7598,7 @@ NaverMapView.displayName = 'NaverMapView';
 export default NaverMapView;
 
 
-===== apps/web/lib/visible-marker-review-bubbles.ts | bytes=11770 | SHA256=e86d5ba4589c0678b47bc47de60dff68cda7c8ab8d35927d756169772c8c1911 =====
+===== apps/web/lib/visible-marker-review-bubbles.ts | bytes=11862 | SHA256=96ab311a5582f4498d13da0347973ba94cad2575418394f78036501b99218ddb =====
 import type { Restaurant } from '@/types/restaurant';
 import { resolveReviewPhotoUrl } from '@/lib/review-photo-url';
 
@@ -7897,7 +7911,7 @@ export function buildVisibleMarkerReviewBubbleHtml(
 
 const reviewBubbleWrapCache = new WeakMap<VisibleMarkerReviewBubble, {
     markerContent: string;
-    mobile: boolean;
+    renderToken: string;
     wrapped: string;
 }>();
 
@@ -7908,8 +7922,9 @@ export function wrapNaverMarkerContentWithReviewBubble(
 ) {
     if (!bubble) return markerContent;
 
+    const renderToken = buildVisibleMarkerReviewBubbleRenderToken(bubble, isMobile);
     const cached = reviewBubbleWrapCache.get(bubble);
-    if (cached && cached.markerContent === markerContent && cached.mobile === isMobile) {
+    if (cached && cached.markerContent === markerContent && cached.renderToken === renderToken) {
         return cached.wrapped;
     }
 
@@ -7928,7 +7943,7 @@ export function wrapNaverMarkerContentWithReviewBubble(
           ${markerContent}
         </div>
     `;
-    reviewBubbleWrapCache.set(bubble, { markerContent, mobile: isMobile, wrapped });
+    reviewBubbleWrapCache.set(bubble, { markerContent, renderToken, wrapped });
     return wrapped;
 }
 
@@ -8897,3 +8912,86 @@ export function getNaverIndividualMarkerVisual(
     }
     return visual;
 }
+
+
+===== apps/web/tests-unit/visible-marker-review-bubbles.test.ts | bytes=3456 | SHA256=de9884b661b31e3b06274eb1c17fa5ea176b73d2f557a529d7e4333178b6391e =====
+import { describe, expect, test } from 'bun:test';
+
+import {
+  buildVisibleMarkerReviewBubbleMapSignature,
+  buildVisibleMarkerReviewBubbleRenderToken,
+  buildVisibleRestaurantIdSignature,
+  wrapNaverMarkerContentWithReviewBubble,
+  type VisibleMarkerReviewBubble,
+} from '../lib/visible-marker-review-bubbles';
+
+const baseBubble: VisibleMarkerReviewBubble = {
+  restaurantId: 'restaurant-1',
+  reviewId: 'review-1',
+  userName: '리뷰어',
+  content: '국물이 진하고 만두가 푸짐해요.',
+  photoUrl: 'https://example.com/review.jpg',
+};
+
+describe('visible marker review bubble signatures', () => {
+  test('in-place review field updates reach the wrapped HTML', () => {
+    const bubble = { ...baseBubble, photoUrl: null as string | null };
+    const marker = '<div data-testid="marker">식당</div>';
+    expect(wrapNaverMarkerContentWithReviewBubble(marker, bubble, false)).toContain(bubble.content);
+    bubble.content = '제자리에서 갱신한 리뷰';
+    expect(wrapNaverMarkerContentWithReviewBubble(marker, bubble, false)).toContain(bubble.content);
+    bubble.userName = '새 리뷰 작성자';
+    expect(wrapNaverMarkerContentWithReviewBubble(marker, bubble, false)).toContain(bubble.userName);
+    bubble.photoUrl = 'https://example.com/replaced-photo.webp';
+    expect(wrapNaverMarkerContentWithReviewBubble(marker, bubble, false)).toContain(bubble.photoUrl);
+  });
+  test('reuses the id signature for the same restaurant list', () => {
+    const restaurants = [{ id: 'a' }, { id: 'b' }];
+    const first = buildVisibleRestaurantIdSignature(restaurants);
+    expect(buildVisibleRestaurantIdSignature(restaurants)).toBe(first);
+    expect(first).toBe('a|b');
+    expect(buildVisibleRestaurantIdSignature([{ id: 'a' }, { id: 'b' }])).toBe('a|b');
+  });
+
+  test('changes when rendered bubble content changes under the same review id', () => {
+    const baseSignature = buildVisibleMarkerReviewBubbleMapSignature({
+      [baseBubble.restaurantId]: baseBubble,
+    });
+
+    for (const changedBubble of [
+      { ...baseBubble, userName: '다른 리뷰어' },
+      { ...baseBubble, content: '새로 동기화된 리뷰 내용' },
+      { ...baseBubble, photoUrl: 'https://example.com/updated-review.jpg' },
+      { ...baseBubble, photoUrl: null },
+    ]) {
+      expect(buildVisibleMarkerReviewBubbleMapSignature({
+        [changedBubble.restaurantId]: changedBubble,
+      })).not.toBe(baseSignature);
+    }
+  });
+
+  test('is stable regardless of record insertion order', () => {
+    const secondBubble: VisibleMarkerReviewBubble = {
+      ...baseBubble,
+      restaurantId: 'restaurant-2',
+      reviewId: 'review-2',
+    };
+
+    expect(buildVisibleMarkerReviewBubbleMapSignature({
+      [baseBubble.restaurantId]: baseBubble,
+      [secondBubble.restaurantId]: secondBubble,
+    })).toBe(buildVisibleMarkerReviewBubbleMapSignature({
+      [secondBubble.restaurantId]: secondBubble,
+      [baseBubble.restaurantId]: baseBubble,
+    }));
+  });
+
+  test('reuses one bubble render token until its fields change', () => {
+    const bubble = { ...baseBubble };
+    const first = buildVisibleMarkerReviewBubbleRenderToken(bubble, false);
+    expect(buildVisibleMarkerReviewBubbleRenderToken(bubble, false)).toBe(first);
+    expect(buildVisibleMarkerReviewBubbleRenderToken(bubble, true)).not.toBe(first);
+    bubble.content = '다른 내용';
+    expect(buildVisibleMarkerReviewBubbleRenderToken(bubble, false)).not.toBe(first);
+  });
+});

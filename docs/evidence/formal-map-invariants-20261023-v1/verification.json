@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceRevision": "c881785db10582e8acd663d8c8fb532758168500",
+  "sourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
   "scopedLint": {
     "exitCode": 0,
     "paths": "Naver caller, shared wrapper, changed runtime, tests and verifier"
@@ -11,7 +11,7 @@
     "diagnostics": 0,
     "logicalInputs": 3382,
     "logicalInputNamesSha256": "8bca375a887c3e737a5900a345fea55dbd30932285fae82dbb384d492e447925",
-    "nonLibraryContentSha256": "8ef5a55b79ad0cd888fb91e456a1505451df46d4ca68cc348b49250f08c96aae",
+    "nonLibraryContentSha256": "69b498eaebc85210325e69007de6eb8940b85a4105e7f489295884a3ca300731",
     "standardLibraryContentSha256": {
       "native": "d328ef5dcbac7d4c183cd37a26eb383e8e6921ab2147b20e5d73f3c149223a64",
       "compat": "82afdd90154e9b315a83eb66f2d4ee59972c492094bbf66d7f0791f584e41eb0"
@@ -27,9 +27,9 @@
     "No deployment or Nightly result is inferred."
   ],
   "affectedRegressions": {
-    "tests": 85,
+    "tests": 86,
     "files": 13,
-    "assertions": 1677,
+    "assertions": 1681,
     "failures": 0
   }
 }
