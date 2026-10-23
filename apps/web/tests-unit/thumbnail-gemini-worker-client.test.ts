@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { Database } from 'bun:sqlite';
 import sharp from 'sharp';
 import {
-  GeminiThumbnailWorkerClient, ThumbnailGeminiError, resolveThumbnailGeminiCreditsKey,
+  GeminiThumbnailWorkerClient, ThumbnailGeminiError, resolveThumbnailGeminiCreditsKey, prepareThumbnailGeminiContent,
   type ThumbnailGeminiDescriptor, type ThumbnailGeminiInput,
 } from '../lib/admin/youtube-thumbnail-generator/gemini-worker-client';
 
@@ -94,6 +94,24 @@ describe('thumbnail Gemini worker candidate', () => {
     for (const value of values) hashes.push((await client.prepare(value)).descriptor.inputSha256);
     expect(new Set(hashes).size).toBe(values.length);
     expect(fake.requests).toHaveLength(0);
+  });
+
+  test('metadata-only changes cannot bypass the digest of identical provider pixels', async () => {
+    const plain = await pixels('#112233', 32, 32);
+    const decorated = await sharp(plain).withMetadata({ exif: { IFD0: { Copyright: 'synthetic-metadata' } } }).png().toBuffer();
+    expect(hash(plain)).not.toBe(hash(decorated));
+    const requests: GenerateContentParameters[] = [];
+    const fake = fixture(async (request) => { requests.push(request); return response(await pixels()); });
+    const worker = new GeminiThumbnailWorkerClient({ client: fake.client, budget: directBudget });
+    const first = await worker.prepare(input({ references: [{ bytes: plain, mimeType: 'image/png', role: 'food' }] }));
+    const second = await worker.prepare(input({ references: [{ bytes: decorated, mimeType: 'image/png', role: 'food' }] }));
+    await first.run(admit); await second.run(admit);
+    const data = (request: GenerateContentParameters) => (request.contents as Array<{ parts: Array<{ inlineData?: { data: string } }> }>)[0].parts[2].inlineData!.data;
+    expect(data(requests[0])).toBe(data(requests[1]));
+    expect(first.descriptor.inputSha256).toBe(second.descriptor.inputSha256);
+    const prepared = await prepareThumbnailGeminiContent({ model: 'gemini-3.1-flash-image', prompt: input().prompt,
+      references: [{ bytes: decorated, mimeType: 'image/png', role: 'food' }] });
+    expect((await prepareThumbnailGeminiContent(prepared)).inputSha256).toBe(prepared.inputSha256);
   });
 
   test('rejects unsupported models, malformed identities and oversized input without provider work', async () => {

@@ -1,11 +1,11 @@
 # Gemini 썸네일 worker 후보
 
-기준 소스는 `40bc5d4d3d3db804d9869c9c61627bc94984914e`이다. 이번 변경은 단일 이미지의 Gemini 실행 클라이언트와 검증이며, API·UI·운영 큐에 아직 연결하지 않은 가역적 후보다. 스토리보드의 5~12개 장면 계약을 바꾸거나 가짜 장면을 만들지 않는다.
+기준 소스는 `40bc5d4d3d3db804d9869c9c61627bc94984914e`이다. 이 문서의 42개 검증은 초기 worker 후보 `121451f5` 기록이며, [후속 큐 구현·digest 정정 및 최신 검증](thumbnail-gemini-queue-20261023.md)을 함께 확인한다. API·UI·운영 큐에는 아직 연결하지 않았다. 스토리보드의 5~12개 장면 계약을 바꾸거나 가짜 장면을 만들지 않는다.
 
 ## 구현과 불변식
 
 - 기존 모델 정책의 Nano Banana 2 / Pro (`gemini-3.1-flash-image`, `gemini-3-pro-image`)만 허용한다. 키는 `GEMINI_CREDITS_API_KEY`만 선택하며 다른 프로젝트 키·LLM·모델로 fallback하지 않는다. Google의 현재 [모델 문서](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-image)와 [이미지 생성 문서](https://ai.google.dev/gemini-api/docs/image-generation)를 확인했다. 새 2.1 모델은 승인된 기존 pin을 바꾸지 않는다.
-- 첫 await 전에 선택 모델·확정 prompt·참조 이미지 bytes·역할을 복사한다. 실제 픽셀을 decode하고 MIME·장수·파일/합계 크기를 제한한 뒤 metadata 없는 PNG로 요청한다. 입력 digest는 모델·prompt·참조 순서/역할·원본/정규화 bytes SHA-256·출력 변환 계약을 포함한다.
+- 첫 await 전에 선택 모델·확정 prompt·참조 이미지 bytes·역할을 복사한다. 실제 픽셀을 decode하고 MIME·장수·파일/합계 크기를 제한한 뒤 metadata 없는 PNG로 요청한다. 현재 입력 digest는 모델·prompt·참조 순서/역할·실제 provider에 전달하는 정규화 bytes SHA-256·출력 변환 계약을 포함한다. 초기 후보의 원본 bytes SHA 포함은 metadata만 바꾼 중복 우회를 허용해 후속 변경에서 제거했다.
 - 기존 Python/SQLite 프로젝트 예산을 획득한 **뒤** owner/job/attempt/fence/input digest에 결속된 새로운 start receipt를 요구한다. 응답 유실 또는 일치하지 않는 receipt에는 SDK를 호출하지 않는다. `provider_started`의 과거 readback은 새로운 start 허가가 아니다.
 - prepared 객체 하나의 SDK 호출 수는 최대 1이다. `run()`은 첫 await 전에 소비되며, 잘못된 budget 구현이 callback을 두 번 호출해도 두 번째 SDK 호출을 막는다. SDK timeout 120초, attempts 1을 명시한다.
 - SDK 전송 후 오류는 `unknown`이며 원래 오류 본문을 노출하지 않는다. 이미 소비된 객체는 `already_consumed`로 구분한다. 재호출 오류를 `not_started`로 표시하여 원래 실행 상태를 덮는 오류를 독립 검토에서 발견하고 수정했다.
