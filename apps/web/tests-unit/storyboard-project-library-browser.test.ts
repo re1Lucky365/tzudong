@@ -58,7 +58,8 @@ createRoot(document.getElementById('root')).render(<LocalStoryboardWorkspace/>);
 `;
   const bundle = await Bun.build({
     entrypoints: ["storyboard-library-fixture"], target: "browser", format: "iife", write: false,
-    define: { "process.env.NODE_ENV": '"test"' },
+    // Isolated browser build: no Node process or operator environment is present.
+    define: { "process.env": "{}", "process.env.NODE_ENV": '"test"' },
     plugins: [{ name: "library-fixture", setup(builder) {
       builder.onResolve({ filter: /^storyboard-library-fixture$/ }, () => ({ path: "fixture.tsx", namespace: "fixture" }));
       builder.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({ contents: fixture, loader: "tsx", resolveDir: root }));
