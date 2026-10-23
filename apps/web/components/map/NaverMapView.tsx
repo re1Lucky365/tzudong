@@ -1537,7 +1537,10 @@ const NaverMapView = memo(({
 
     // [통합] 지도 중심 및 줌 조정 로직
     useEffect(() => {
-        if (!mapInstanceRef.current || isGridMode) return;
+        // Origin authorization may revoke the SDK after its script load event.
+        // A retained map instance alone does not authorize another SDK call.
+        const maps = window.naver?.maps;
+        if (!mapInstanceRef.current || !maps?.Event || !maps.LatLng || !maps.Point || isGridMode) return;
 
         // [Fix] URL 파라미터로 초기화된 경우 첫 번째 실행에서 줌 오버라이드 방지
         if (isInitialLoadFromUrlRef.current) {
@@ -1546,7 +1549,6 @@ const NaverMapView = memo(({
         }
 
         const map = mapInstanceRef.current;
-        const { naver } = window;
 
         // 1. selection 변경 여부 확인 (Ref와 비교)
         const currentSelectedId = selectedRestaurant?.id || null;
@@ -1749,7 +1751,7 @@ const NaverMapView = memo(({
 
         // 리사이즈 먼저 트리거
         const transitionResizePlan = resolveNaverCenteringTransitionResizePlan();
-        naver.maps.Event.trigger(map, transitionResizePlan.initialResizeEvent);
+        maps.Event.trigger(map, transitionResizePlan.initialResizeEvent);
 
         const newCenterLatLng = getAdjustedCenter(targetLat, targetLng, targetZoom, targetOffsetX, targetOffsetY);
         map.setZoom(targetZoom);
