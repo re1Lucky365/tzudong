@@ -4,8 +4,10 @@ import { isAbsolute, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
-import { thumbnailAsset, thumbnailJob, thumbnailProvenance, thumbnailStartReceipt, thumbnailUuid,
-  parseThumbnail, THUMBNAIL_IMAGE_BYTES, type ThumbnailJob } from './queue-contract';
+import { assertPrivacySafe } from '@/lib/privacy/sanitize';
+import { thumbnailAsset, thumbnailProvenance, thumbnailUuid, parseThumbnail, THUMBNAIL_IMAGE_BYTES } from './queue-contract';
+import { thumbnailChatResult, thumbnailExecutionIdentity, thumbnailExecutionJob } from './execution-contract';
+import { THUMBNAIL_CHAT_MODEL, thumbnailChatResponse } from './chat-contract';
 import type { ThumbnailGeminiDescriptor } from './gemini-worker-client';
 
 if (typeof window !== 'undefined') throw new Error('Thumbnail worker outbox is worker-only.');
@@ -19,13 +21,16 @@ export const thumbnailWorkerOrigin = z.string().max(100).refine((value) => {
         || (url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname) && Boolean(url.port)));
   } catch { return false; }
 });
-const identity = thumbnailStartReceipt.omit({ state: true, permission: true }).extend({ workerId: thumbnailUuid, origin: thumbnailWorkerOrigin }).strict();
+const identity = thumbnailExecutionIdentity.extend({ origin: thumbnailWorkerOrigin }).strict();
 export type ThumbnailOutboxIdentity = z.infer<typeof identity>;
 const original = z.object({ sha256: thumbnailAsset.shape.sha256, mimeType: thumbnailAsset.shape.mimeType,
   bytes: thumbnailAsset.shape.bytes, width: thumbnailAsset.shape.width, height: thumbnailAsset.shape.height }).strict()
   .refine((image) => image.width * image.height <= 16_000_000);
 const bundle = z.object({ original, provenance: thumbnailProvenance }).strict();
 export type ThumbnailOutboxBundle = z.infer<typeof bundle> & { bytes: Buffer };
+const chatBundle = z.object({ content: thumbnailChatResult.shape.content.omit({ path: true }),
+  provenance: thumbnailChatResult.shape.provenance }).strict();
+export type ThumbnailChatOutboxBundle = z.infer<typeof chatBundle> & { bytes: Buffer };
 type Row = { job_id: string; attempt_id: string; identity_json: string; phase: 'start_requested' | 'result_saved' | 'delivered';
   bundle_json: string | null; original: Uint8Array | null; delivered_json: string | null };
 const columns = 'job_id,attempt_id,identity_json,phase,bundle_json,original,delivered_json';
@@ -56,6 +61,17 @@ function checkedFile(file: string) {
 function snapshotIdentity(value: ThumbnailOutboxIdentity) { return parseThumbnail(identity, value); }
 function parseJson(value: string) {
   try { return JSON.parse(value) as unknown; } catch { throw new ThumbnailOutboxError('outbox_invalid'); }
+}
+function parseUtf8(bytes: Buffer) {
+  try { return parseJson(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
+  catch { throw new ThumbnailOutboxError('outbox_invalid'); }
+}
+function admitChatBytes(bytes: Buffer) {
+  try {
+    const result = thumbnailChatResponse.parse(parseUtf8(bytes));
+    assertPrivacySafe([result.assistantMessage, ...Object.values(result.canvasPatch),
+      ...result.textLayerPatches.map((patch) => patch.content ?? '')], { maxEntries: 128 });
+  } catch { throw new ThumbnailOutboxError('outbox_invalid'); }
 }
 
 /**
@@ -161,6 +177,9 @@ export class ThumbnailWorkerOutbox {
     if (copied.length !== info.original.bytes || hash(copied) !== info.original.sha256
       || info.provenance.model !== snapshot.model || info.provenance.attemptId !== snapshot.attemptId
       || info.provenance.inputSha256 !== snapshot.inputSha256) throw new ThumbnailOutboxError('outbox_conflict');
+    this.writeResult(snapshot, copied, info);
+  }
+  private writeResult(snapshot: ThumbnailOutboxIdentity, copied: Buffer, info: unknown) {
     try {
       this.db.exec('BEGIN IMMEDIATE;');
       const prior = this.row(snapshot); this.admit(prior, snapshot);
@@ -186,15 +205,44 @@ export class ThumbnailWorkerOutbox {
       || info.provenance.inputSha256 !== snapshot.inputSha256) throw new ThumbnailOutboxError('outbox_invalid');
     return { ...info, bytes };
   }
+  saveChat(value: ThumbnailOutboxIdentity, bytes: Uint8Array, metadata: z.infer<typeof chatBundle>) {
+    const snapshot = snapshotIdentity(value); const info = parseThumbnail(chatBundle, metadata);
+    if (snapshot.model !== THUMBNAIL_CHAT_MODEL || !(bytes instanceof Uint8Array)
+      || bytes.length !== info.content.bytes || hash(bytes) !== info.content.sha256
+      || info.provenance.model !== snapshot.model || info.provenance.attemptId !== snapshot.attemptId
+      || info.provenance.inputSha256 !== snapshot.inputSha256) throw new ThumbnailOutboxError('outbox_conflict');
+    const copied = Buffer.from(bytes);
+    admitChatBytes(copied);
+    this.writeResult(snapshot, copied, info);
+  }
+  chatResult(value: ThumbnailOutboxIdentity): ThumbnailChatOutboxBundle {
+    const snapshot = snapshotIdentity(value), row = this.row(snapshot); this.admit(row, snapshot);
+    if (snapshot.model !== THUMBNAIL_CHAT_MODEL || row.phase === 'start_requested' || !row.original || !row.bundle_json) {
+      throw new ThumbnailOutboxError('outbox_conflict');
+    }
+    const info = parseThumbnail(chatBundle, parseJson(row.bundle_json)), bytes = Buffer.from(row.original);
+    if (bytes.length !== info.content.bytes || hash(bytes) !== info.content.sha256
+      || info.provenance.model !== snapshot.model || info.provenance.attemptId !== snapshot.attemptId || info.provenance.inputSha256 !== snapshot.inputSha256) {
+      throw new ThumbnailOutboxError('outbox_invalid');
+    }
+    admitChatBytes(bytes);
+    return { ...info, bytes };
+  }
   delivered(value: ThumbnailOutboxIdentity, rawJob: unknown) {
-    const snapshot = snapshotIdentity(value); const job: ThumbnailJob = parseThumbnail(thumbnailJob, rawJob);
-    const saved = this.result(snapshot);
+    const snapshot = snapshotIdentity(value); const job = parseThumbnail(thumbnailExecutionJob, rawJob);
     if (job.id !== snapshot.jobId || job.ownerId !== snapshot.ownerId || job.workerId !== snapshot.workerId
       || job.attemptId !== snapshot.attemptId || job.fence !== snapshot.fence || job.inputSha256 !== snapshot.inputSha256
-      || job.model !== snapshot.model || job.state !== 'succeeded' || !job.result
-      || !isDeepStrictEqual(job.result.provenance, saved.provenance)
-      || !isDeepStrictEqual(({ ...job.result.original, path: undefined }), { ...saved.original, path: undefined })) {
+      || job.model !== snapshot.model || job.state !== 'succeeded' || !job.result) {
       throw new ThumbnailOutboxError('outbox_conflict');
+    }
+    if (job.model === THUMBNAIL_CHAT_MODEL) {
+      const saved = this.chatResult(snapshot);
+      if (!isDeepStrictEqual(job.result.provenance, saved.provenance)
+        || !isDeepStrictEqual({ ...job.result.content, path: undefined }, { ...saved.content, path: undefined })) throw new ThumbnailOutboxError('outbox_conflict');
+    } else {
+      const saved = this.result(snapshot);
+      if (!isDeepStrictEqual(job.result.provenance, saved.provenance)
+        || !isDeepStrictEqual({ ...job.result.original, path: undefined }, { ...saved.original, path: undefined })) throw new ThumbnailOutboxError('outbox_conflict');
     }
     try {
       this.db.prepare("UPDATE thumbnail_outbox SET phase='delivered',delivered_json=? WHERE job_id=? AND attempt_id=? AND phase IN ('result_saved','delivered')")

@@ -5,6 +5,9 @@ import { isTrustedSameOriginMutation } from '@/lib/security/same-origin-mutation
 import { buildYoutubeThumbnailPrompt, requestsSpecificCreatorHost } from './prompt';
 import { ThumbnailGenerationError } from './types';
 import { ThumbnailGeminiError } from './gemini-worker-client';
+import { ThumbnailChatGeminiError } from './chat-gemini-client';
+import { thumbnailChatContext, thumbnailChatProvenance } from './chat-contract';
+import { THUMBNAIL_CHAT_RESULT_BYTES } from './execution-contract';
 import { ThumbnailPrivateStore, type AuthenticatedThumbnailWorker } from './private-store';
 import { THUMBNAIL_FAILURES, THUMBNAIL_IMAGE_BYTES, ThumbnailQueueError, parseThumbnail,
   thumbnailAttempt, thumbnailEnqueue, thumbnailMime, thumbnailProvenance, thumbnailUuid, thumbnailWorker, thumbnailBrief } from './queue-contract';
@@ -16,7 +19,7 @@ const json = (value: unknown) => Response.json(value, { headers });
 const referenceIndex = z.string().regex(/^[0-7]$/).transform(Number);
 export function thumbnailQueueFailure(error: unknown) {
   const code = error instanceof ThumbnailQueueError ? error.code
-    : error instanceof ThumbnailGenerationError || error instanceof ThumbnailGeminiError ? 'invalid_request' : 'persistence_unavailable';
+    : error instanceof ThumbnailGenerationError || error instanceof ThumbnailGeminiError || error instanceof ThumbnailChatGeminiError ? 'invalid_request' : 'persistence_unavailable';
   return Response.json({ ok: false, error: code }, { status: THUMBNAIL_FAILURES[code], headers });
 }
 function sameOrigin(request: Request) {
@@ -25,8 +28,8 @@ function sameOrigin(request: Request) {
     throw new ThumbnailQueueError('origin_forbidden');
   }
 }
-async function boundedJson(request: Request) {
-  const result = await readBoundedJsonRequest(request, 32_768);
+async function boundedJson(request: Request, limit = 32_768) {
+  const result = await readBoundedJsonRequest(request, limit);
   if (!result.ok) throw new ThumbnailQueueError(result.code === BOUNDED_JSON_REQUEST_ERROR.bodyTooLarge ? 'request_too_large' : 'invalid_request');
   return result.value;
 }
@@ -89,7 +92,7 @@ async function imageFile(form: FormData, key: string, maxBytes: number) {
 const operation = z.discriminatedUnion('action', [
   z.object({ action: z.literal('models'), models: thumbnailWorker.shape.models }).strict(),
   z.object({ action: z.literal('claim') }).strict(),
-  ...(['start', 'heartbeat', 'unknown', 'recover'] as const).map((action) =>
+  ...(['start', 'heartbeat', 'unknown', 'recover', 'chat_recover'] as const).map((action) =>
     z.object({ action: z.literal(action), ...thumbnailAttempt.shape }).strict()),
 ]);
 
@@ -116,6 +119,27 @@ export function createThumbnailQueueApi(options: {
     catch (error) { return thumbnailQueueFailure(error); }
   }
   return {
+    chatLegacyPOST: (request: Request) => admin(request, async () => Response.json({ ok: false,
+      error: 'thumbnail_chat_route_retired', replacement: '/api/admin/youtube-thumbnail-generator/chat/jobs' }, { status: 410, headers })),
+    chatListPOST: (request: Request) => admin(request, async (owner) => {
+      const input = parseThumbnail(z.object({ requestId: thumbnailUuid, context: thumbnailChatContext }).strict(), await boundedJson(request, 68_000));
+      return json({ job: await store.enqueueChat(owner, input.requestId, input.context) });
+    }),
+    chatListGET: (request: Request) => admin(request, async (owner) => {
+      const query = new URL(request.url).searchParams;
+      if (query.size !== 1 || query.getAll('requestId').length !== 1) throw new ThumbnailQueueError('invalid_request');
+      return json({ job: await store.chatRequest(owner, parseThumbnail(thumbnailUuid, query.get('requestId'))) });
+    }),
+    chatJobGET: (request: Request, context: JobContext) => admin(request, async (owner) => {
+      const jobId = parseThumbnail(thumbnailUuid, (await context.params).jobId), query = new URL(request.url).searchParams;
+      if (!query.size) return json({ job: await store.chatGet(owner, jobId) });
+      if (query.size !== 1 || query.get('output') !== '1') throw new ThumbnailQueueError('invalid_request');
+      return json(await store.chatOutput(owner, jobId));
+    }),
+    chatJobPOST: (request: Request, context: JobContext) => admin(request, async (owner) => {
+      parseThumbnail(z.object({ action: z.literal('cancel') }).strict(), await boundedJson(request));
+      return json({ job: await store.chatCancel(owner, parseThumbnail(thumbnailUuid, (await context.params).jobId)) });
+    }),
     referenceCandidatesPOST: (request: Request) => admin(request, async (owner) => {
       const input = parseThumbnail(z.object({ brief: thumbnailBrief, slots: z.number().int().min(0).max(8) }).strict(), await boundedJson(request));
       const collected = await store.referenceCandidates(owner);
@@ -179,6 +203,9 @@ export function createThumbnailQueueApi(options: {
       if (op.action === 'recover') return json({ job: await store.recoverResult(identity, parseThumbnail(thumbnailAttempt, {
         jobId: op.jobId, attemptId: op.attemptId, fence: op.fence, inputSha256: op.inputSha256,
       })) });
+      if (op.action === 'chat_recover') return json({ job: await store.recoverChatResult(identity, parseThumbnail(thumbnailAttempt, {
+        jobId: op.jobId, attemptId: op.attemptId, fence: op.fence, inputSha256: op.inputSha256,
+      })) });
       const attempt = 'jobId' in op ? { jobId: op.jobId, attemptId: op.attemptId, fence: op.fence, inputSha256: op.inputSha256 } : undefined;
       return json({ result: await store.workerOperation(identity, op.action, attempt, 'models' in op ? op.models : undefined) });
     }),
@@ -199,6 +226,23 @@ export function createThumbnailQueueApi(options: {
       const proof = parseThumbnail(thumbnailProvenance, await formJson(form, 'provenance'));
       const original = await imageFile(form, 'original', THUMBNAIL_IMAGE_BYTES);
       return json({ job: await store.saveResult(identity, attempt, original.bytes, original.mimeType, proof) });
+    }),
+    workerChatGET: (request: Request) => worker(request, async (identity) => {
+      const query = new URL(request.url).searchParams, fields = ['jobId', 'attemptId', 'fence', 'inputSha256'];
+      if (query.size !== fields.length || fields.some((key) => query.getAll(key).length !== 1)) throw new ThumbnailQueueError('invalid_request');
+      const attempt = parseThumbnail(thumbnailAttempt, { jobId: query.get('jobId'), attemptId: query.get('attemptId'),
+        fence: Number(parseThumbnail(z.string().regex(/^[1-9]\d{0,15}$/), query.get('fence'))), inputSha256: query.get('inputSha256') });
+      return json(await store.workerChatContext(identity, attempt));
+    }),
+    workerChatPOST: (request: Request) => worker(request, async (identity) => {
+      const form = await readThumbnailMultipart(request, THUMBNAIL_CHAT_RESULT_BYTES + 16_384, new Set(['attempt', 'provenance', 'response']));
+      if ([...form.keys()].length !== 3) throw new ThumbnailQueueError('invalid_request');
+      const attempt = parseThumbnail(thumbnailAttempt, await formJson(form, 'attempt'));
+      const proof = parseThumbnail(thumbnailChatProvenance, await formJson(form, 'provenance'));
+      const file = form.get('response');
+      if (!(file instanceof File) || !/^application\/json(?:;\s*charset=utf-8)?$/i.test(file.type)
+        || file.size < 16 || file.size > THUMBNAIL_CHAT_RESULT_BYTES) throw new ThumbnailQueueError('invalid_request');
+      return json({ job: await store.saveChatResult(identity, attempt, new Uint8Array(await file.arrayBuffer()), proof) });
     }),
   };
 }

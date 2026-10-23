@@ -10,6 +10,8 @@ import { createThumbnailQueueApi } from '../../lib/admin/youtube-thumbnail-gener
 import { parseThumbnail, thumbnailJob, thumbnailStartReceipt } from '../../lib/admin/youtube-thumbnail-generator/queue-contract';
 import { OutboundThumbnailWorker, ThumbnailWorkerTransport } from '../../lib/admin/youtube-thumbnail-generator/outbound-worker';
 import { ThumbnailWorkerOutbox } from '../../lib/admin/youtube-thumbnail-generator/worker-outbox';
+import { GeminiThumbnailChatWorkerClient } from '../../lib/admin/youtube-thumbnail-generator/chat-gemini-client';
+import { ThumbnailChatBrowserQueue } from '../../lib/admin/youtube-thumbnail-generator/chat-browser-queue';
 import { ThumbnailBrowserQueue } from '../../lib/admin/youtube-thumbnail-generator/browser-queue';
 
 // Actual route handlers + store + PG + Gemini client; synthetic HTTP Storage and provider, egress denied except owned PG.
@@ -41,7 +43,7 @@ const database: ThumbnailDatabase = { rpc: async (name, args) => {
     completeCalls++; if (mode === 'checkpoint-ack-lost') throw new Error('synthetic completion committed ACK loss');
   }
   if (args.p_action === 'start') {
-    startCalls++; if (mode === 'start-ack-lost' || mode === 'outbound-start-ack-lost') throw new Error('synthetic start committed ACK loss');
+    startCalls++; if (mode === 'start-ack-lost' || mode === 'outbound-start-ack-lost' || mode === 'chat-start-ack-lost') throw new Error('synthetic start committed ACK loss');
   }
   return { data, error: null };
 } };
@@ -64,7 +66,72 @@ const store = new ThumbnailPrivateStore(database, storage);
 const api = createThumbnailQueueApi({ store, authorize: async () => ({ ok: true, userId: owner }) });
 const origin = 'http://127.0.0.1:3000'; const base = `${origin}/api/admin/youtube-thumbnail-generator`;
 const image = await sharp({ create: { width: 512, height: 288, channels: 3, background: '#b67821' } }).png().toBuffer();
-if (mode.startsWith('browser-')) {
+if (mode.startsWith('chat-')) {
+  const receipts = new Map<string, string>(); let posts = 0, deliveryLost = mode === 'chat-delivery-lost';
+  const directory = mkdtempSync('/private/tmp/thumbnail-chat-pg17-'); chmodSync(directory, 0o700);
+  const box = new ThumbnailWorkerOutbox(directory), stop = new AbortController();
+  const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
+    const path = new URL(request.url).pathname;
+    if (path.endsWith('/worker/chat')) {
+      if (request.method === 'GET') return api.workerChatGET(request);
+      const response = await api.workerChatPOST(request);
+      if (deliveryLost) { assert.equal(response.status, 200); return new Response(null, { status: 503 }); }
+      return response;
+    }
+    if (path.endsWith('/worker')) return api.workerPOST(request);
+    if (path.endsWith('/chat/jobs')) {
+      if (request.method === 'GET') return api.chatListGET(request);
+      posts++; return api.chatListPOST(request);
+    }
+    const context = { params: Promise.resolve({ jobId: path.split('/').at(-1)! }) };
+    return request.method === 'GET' ? api.chatJobGET(request, context) : api.chatJobPOST(request, context);
+  } });
+  try {
+    const workerOrigin = `http://127.0.0.1:${server.port}`;
+    const options = { ownerId: owner, admission: async <T>(work: () => Promise<T>) => work(), storage: {
+      getItem: (key: string) => receipts.get(key) ?? null, setItem: (key: string, value: string) => { receipts.set(key, value); },
+      removeItem: (key: string) => { receipts.delete(key); } }, fetch: (async (path, init) => fetch(`${workerOrigin}${path}`, { ...init,
+      headers: { ...Object.fromEntries(new Headers(init?.headers)), ...(init?.method === 'POST' ? { Origin: workerOrigin } : {}) } })) as typeof fetch };
+    const browser = new ThumbnailChatBrowserQueue(options);
+    await browser.enqueue({ message: '메인 문구를 간결하게 다듬어줘', chatRunId: 'run-pg', chatThreadId: 'thread-pg', currentHeadline: '기존 문구' }, 3);
+    const client = new GeminiThumbnailChatWorkerClient({ env: {}, budget: async (work) => await work(), client: { models: {
+      get: async ({ model }) => ({ name: `models/${model}` }), generateContent: async () => {
+        sdkCalls++; const value = new GenerateContentResponse(); value.modelVersion = 'gemini-3.8-flash'; value.responseId = 'synthetic-pg-chat';
+        value.candidates = [{ finishReason: 'STOP', content: { role: 'model', parts: [{ text: JSON.stringify({
+          assistantMessage: '주요 문구를 간결하게 정리했어요.', intent: 'edit', canvasPatch: { topic: '', headline: '간결한 문구', subHeadline: '' },
+          textLayerPatches: [], shouldGenerate: false, shouldReset: false }) }] } }];
+        if (mode === 'chat-stop-received') stop.abort(); return value;
+      },
+    } } });
+    const providerUnavailable = () => { throw new Error('provider unavailable during recovery'); };
+    const worker = new OutboundThumbnailWorker({ api: new ThumbnailWorkerTransport({ origin: workerOrigin, token }), outbox: box,
+      gemini: { models: async () => [], prepareStored: async () => { throw new Error('image SDK forbidden'); } }, chatGemini: client });
+    const first = await worker.runOnce(stop.signal);
+    if (mode === 'chat-start-ack-lost') {
+      assert.equal(first, 'held'); assert.equal(sdkCalls, 0); assert.equal(box.pending()[0].phase, 'start_requested');
+      assert.equal(await worker.runOnce(), 'held');
+    } else {
+      if (mode !== 'chat-normal') {
+        assert.equal(first, 'held'); assert.equal(box.pending()[0].phase, 'result_saved'); deliveryLost = false;
+        box.close(); const reopened = new ThumbnailWorkerOutbox(directory);
+        try { assert.equal(await new OutboundThumbnailWorker({ api: new ThumbnailWorkerTransport({ origin: workerOrigin, token }),
+          outbox: reopened, gemini: providerUnavailable, chatGemini: providerUnavailable }).runOnce(), 'succeeded'); }
+        finally { reopened.close(); }
+      } else assert.equal(first, 'succeeded');
+      const result = await browser.resume(); assert.equal(result!.state, 'succeeded');
+      assert.equal((await browser.output(result!.id)).response.canvasPatch.headline, '간결한 문구');
+      assert.ok(browser.consume(result!.id, 3, 'thread-pg', 'run-pg'));
+      assert.equal(browser.consume(result!.id, 3, 'thread-pg', 'run-pg'), null);
+      const restored = new ThumbnailChatBrowserQueue(options); await restored.resume();
+      assert.equal(restored.consume(result!.id, 3, 'thread-pg', 'run-pg'), null);
+      assert.equal(sdkCalls, 1);
+    }
+    assert.equal(posts, 1); assert.equal(enqueueCalls, 1); assert.equal(startCalls, 1);
+    process.stdout.write(JSON.stringify({ mode, actualApiHandlers: true, realPostgres: true, inputBound: true, actualHttp: true,
+      sdkCalls, startCalls, enqueueCalls, completeCalls, browserPosts: posts, externalProviderCalls: 0, storageSynthetic: true }) + '\n');
+  } finally { box.close(); await server.stop(true); rmSync(directory, { recursive: true, force: true }); }
+  process.exit(0);
+} else if (mode.startsWith('browser-')) {
   const receipts = new Map<string, string>(); let browserPosts = 0, cancelPosts = 0;
   const directory = mkdtempSync('/private/tmp/thumbnail-browser-pg17-'); chmodSync(directory, 0o700);
   const box = new ThumbnailWorkerOutbox(directory);
@@ -198,7 +265,7 @@ if (mode.startsWith('outbound-')) {
     const second = await new OutboundThumbnailWorker({ api: transport, outbox: box, gemini }).runOnce();
     const unknown = ['outbound-start-ack-lost', 'outbound-response-lost'].includes(mode);
     assert.equal(second, unknown ? 'held' : ['outbound-normal', 'outbound-concurrent-observer'].includes(mode) ? 'idle' : 'succeeded');
-    assert.equal(sdkCalls, mode === 'outbound-start-ack-lost' ? 0 : 1); assert.equal(startCalls, 1);
+    assert.equal(sdkCalls, mode === 'outbound-start-ack-lost' || mode === 'chat-start-ack-lost' ? 0 : 1); assert.equal(startCalls, 1);
     assert.equal(metadataCalls, 2); assert.equal(box.pending().length, unknown || mode === 'outbound-priority-recovery' ? 1 : 0);
     const current = await store.get(owner, queued.id); assert.equal(current.state, unknown ? 'unknown' : 'succeeded');
     if (!unknown) assert.deepEqual((await store.resultImage(owner, queued.id, 'original')).bytes, image);

@@ -67,6 +67,7 @@ import {
 
 import { AdminEmbeddedModuleShell } from "@/components/admin/AdminEmbeddedModuleShell";
 import { useThumbnailGeminiQueue, thumbnailGeminiMessage } from './useThumbnailGeminiQueue';
+import { useThumbnailChatQueue } from './useThumbnailChatQueue';
 import { STORYBOARD_GEMINI_IMAGE_MODELS } from '@/lib/admin/storyboard/gemini-models';
 import type { ThumbnailJob, ThumbnailEditorDocument } from '@/lib/admin/youtube-thumbnail-generator/queue-contract';
 
@@ -408,29 +409,6 @@ type ThumbnailChatTextLayerPatch = {
   zIndex?: number;
 };
 
-type ThumbnailChatAgentResult = {
-  assistantMessage: string;
-  canvasPatch: ThumbnailChatCanvasPatch;
-  textLayerPatches?: ThumbnailChatTextLayerPatch[];
-  providerId?: ProviderId;
-  generationMode?: GenerationMode;
-  shouldGenerate: boolean;
-  shouldReset: boolean;
-  diagnostics?: {
-    runtime?: string;
-    model?: string;
-    effort?: string;
-    streaming?: string;
-    chatIntent?: string;
-    canvasMutation?: boolean;
-  };
-};
-
-type ThumbnailChatSseEvent = {
-  event: string;
-  data: unknown;
-};
-
 type ThumbnailGenerationOverrides = Partial<{
   providerId: ProviderId;
   generationMode: GenerationMode;
@@ -625,63 +603,6 @@ function getThumbnailErrorAction(payload: ThumbnailApiErrorPayload | null) {
   return action;
 }
 
-function parseThumbnailChatSseBlock(block: string): ThumbnailChatSseEvent | null {
-  const event = block.match(/^event:\s*(.+)$/m)?.[1]?.trim() ?? "message";
-  const dataLines = block
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice("data:".length).trim());
-  if (!dataLines.length) return null;
-  try {
-    return { event, data: JSON.parse(dataLines.join("\n")) };
-  } catch {
-    return { event, data: dataLines.join("\n") };
-  }
-}
-
-function extractThumbnailChatSseEvents(buffer: string) {
-  const parts = buffer.split(/\n\n/);
-  const remainder = parts.pop() ?? "";
-  return {
-    events: parts.flatMap((part) => {
-      const parsed = parseThumbnailChatSseBlock(part.trim());
-      return parsed ? [parsed] : [];
-    }),
-    remainder,
-  };
-}
-
-function isThumbnailChatTextLayerPatch(value: unknown): value is ThumbnailChatTextLayerPatch {
-  if (!value || typeof value !== "object") return false;
-  const patch = value as Partial<ThumbnailChatTextLayerPatch>;
-  const validAlign = patch.align === undefined || patch.align === "left" || patch.align === "center" || patch.align === "right";
-  const validStrings = [patch.content, patch.fontFamily, patch.fill, patch.stroke, patch.shadow]
-    .every((item) => item === undefined || typeof item === "string");
-  const validNumbers = [patch.x, patch.y, patch.fontSize, patch.fontWeight, patch.strokeWidth, patch.rotation, patch.zIndex]
-    .every((item) => item === undefined || Number.isFinite(item));
-  return typeof patch.id === "string" && patch.id.trim().length > 0 && validAlign && validStrings && validNumbers;
-}
-
-function isThumbnailChatAgentResult(value: unknown): value is ThumbnailChatAgentResult {
-  if (!value || typeof value !== "object") return false;
-  const result = value as Partial<ThumbnailChatAgentResult>;
-  const patch = result.canvasPatch;
-  const textLayerPatches = result.textLayerPatches;
-  return (
-    typeof result.assistantMessage === "string" &&
-    Boolean(patch) &&
-    typeof patch?.topic === "string" &&
-    typeof patch?.headline === "string" &&
-    typeof patch?.subHeadline === "string" &&
-    (result.providerId === undefined || isProviderId(result.providerId)) &&
-    (result.generationMode === undefined || isGenerationMode(result.generationMode)) &&
-    (textLayerPatches === undefined || (
-      Array.isArray(textLayerPatches) &&
-      textLayerPatches.every((item) => isThumbnailChatTextLayerPatch(item))
-    ))
-  );
-}
-
 function loadThumbnailImage(dataUrl: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
@@ -691,7 +612,6 @@ function loadThumbnailImage(dataUrl: string) {
   });
 }
 
-const THUMBNAIL_CHAT_AGENT_STREAM_URL = "/api/admin/youtube-thumbnail-generator/chat";
 const THUMBNAIL_HISTORY_API_URL = "/api/admin/youtube-thumbnail-generator/history";
 const THUMBNAIL_RELEASE_CANDIDATES_API_URL = "/api/admin/youtube-thumbnail-generator/release-candidates";
 const THUMBNAIL_DURABLE_RELEASE_CURRENT_API_URL = "/api/admin/youtube-thumbnail-generator/releases/current";
@@ -2011,6 +1931,7 @@ export function AdminYoutubeThumbnailGenerator() {
   const editorRevisionRef = useRef(0);
   const advanceEditorRevision = useCallback(() => { editorRevisionRef.current += 1; }, []);
   const gemini = useThumbnailGeminiQueue();
+  const chatQueue = useThumbnailChatQueue();
   const geminiJob = gemini.state.job, geminiResult = gemini.result, refreshGeminiHistory = gemini.refreshHistory, refreshGeminiState = gemini.refresh;
   const [geminiModel, setGeminiModel] = useState<typeof STORYBOARD_GEMINI_IMAGE_MODELS[number]['id']>('gemini-3.1-flash-image');
   const appliedGeminiJobsRef = useRef(new Set<string>());
@@ -3543,7 +3464,7 @@ export function AdminYoutubeThumbnailGenerator() {
 
   function buildThumbnailReferenceImageAttachments(): ThumbnailChatReferenceImageAttachmentPayload[] {
     return files.map((file, index) => ({
-      id: `thumbnail-reference-${index + 1}-${file.name}-${file.size}`,
+      id: `thumbnail-reference-${index + 1}`,
       name: file.name.slice(0, 120),
       mime: file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/webp"
         ? file.type
@@ -3596,10 +3517,6 @@ export function AdminYoutubeThumbnailGenerator() {
       commitPendingTextLayerUndoSnapshot();
     }
     if (shouldUseStructuredEditPreview) applyExplicitStructuredChatPreview(submittedRequirement);
-    const previousGenerationCopy = {
-      headline,
-      subHeadline,
-    };
     const selectedLayerPrompt = isSelectedLayerChatPrompt(submittedRequirement);
     if (!selectedLayerPrompt && !shouldUseStructuredEditPreview && !nonMutatingPrompt) applyChatRequirementToCanvas(submittedRequirement);
     pendingChatGenerationRequirementRef.current = submittedHasGenerationIntent
@@ -3630,163 +3547,36 @@ export function AdminYoutubeThumbnailGenerator() {
     chatAbortControllerRef.current = controller;
     activeChatAssistantMessageIdRef.current = nextAssistantMessageId;
 
-    let finalResult: ThumbnailChatAgentResult | null = null;
+    const revision = editorRevisionRef.current;
     try {
-      const response = await fetch(THUMBNAIL_CHAT_AGENT_STREAM_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          chatRunId,
-          chatThreadId: thumbnailChatThreadIdRef.current,
-          message: submittedRequirement,
-          currentTopic: topic,
-          currentHeadline: headline,
-          currentSubHeadline: subHeadline,
-          activeLayerId: activeLayerIdRef.current,
-          editingLayerId,
-          lastCanvasActionLabel,
-          currentTextLayers: textLayersRef.current,
-          conversationMessages: buildThumbnailChatConversationMessages(),
-          focusContext: buildThumbnailChatFocusContext(),
-          referenceImageAttachments: buildThumbnailReferenceImageAttachments(),
-          providerId,
-          generationMode,
-        }),
-      });
-      if (!response.ok || !response.body) {
-        const payload = await response.json().catch(() => null) as ThumbnailApiErrorPayload | null;
-        throw new Error(getThumbnailErrorAction(payload));
+      const queued = await chatQueue.submit({
+        chatRunId, chatThreadId: thumbnailChatThreadIdRef.current, message: submittedRequirement,
+        currentTopic: topic, currentHeadline: headline, currentSubHeadline: subHeadline,
+        activeLayerId: activeLayerIdRef.current, editingLayerId, lastCanvasActionLabel,
+        currentTextLayers: textLayersRef.current, conversationMessages: buildThumbnailChatConversationMessages(),
+        focusContext: buildThumbnailChatFocusContext(), referenceImageAttachments: buildThumbnailReferenceImageAttachments(),
+      }, revision, controller.signal);
+      const response = queued.response;
+      // Consume once before applying either a patch or its follow-up image request.
+      const imageRequestId = queued.consume(editorRevisionRef.current, thumbnailChatThreadIdRef.current, chatRunId);
+      updateThumbnailChatMessage(nextAssistantMessageId, response.assistantMessage, "live");
+      if (!imageRequestId) {
+        updateThumbnailChatMessage(nextAssistantMessageId, `${response.assistantMessage}\n캔버스가 변경되어 자동 반영하지 않았습니다.`, "live");
+        return;
       }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let lastStatus = "요청을 처리하는 중이에요...";
-
-      const handleChatStreamEvent = (item: ThumbnailChatSseEvent) => {
-        if (item.event === "status" && item.data && typeof item.data === "object" && "message" in item.data) {
-          lastStatus = String((item.data as { message?: unknown }).message ?? lastStatus);
-          updateThumbnailChatMessage(nextAssistantMessageId, lastStatus, "stream");
-        }
-        if ((item.event === "patch" || item.event === "done") && isThumbnailChatAgentResult(item.data)) {
-          const shouldPreferSubmittedPromptCopy = item.data.shouldGenerate || shouldPreferSubmittedPromptCopyForGeneration(
-            submittedRequirement,
-            item.data.canvasPatch.topic,
-            item.data.canvasPatch.headline,
-            previousGenerationCopy.headline,
-          );
-          const generationSafeTextLayerPatches = item.data.shouldGenerate
-            ? (item.data.textLayerPatches ?? []).filter((patch) => (
-                patch.id !== "headline" &&
-                patch.id !== "subHeadline" &&
-                patch.id !== "accentBadge" &&
-                patch.id !== "contextCaption"
-              ))
-            : item.data.textLayerPatches;
-          const nextAgentResult = shouldPreferSubmittedPromptCopy
-            ? {
-              ...item.data,
-              canvasPatch: {
-                ...item.data.canvasPatch,
-                topic: submittedRequirement,
-                headline: deriveChatHeadline(submittedRequirement),
-                subHeadline: deriveChatSubHeadline(submittedRequirement),
-              },
-              textLayerPatches: generationSafeTextLayerPatches,
-            }
-            : {
-              ...item.data,
-              textLayerPatches: generationSafeTextLayerPatches,
-          };
-          finalResult = nextAgentResult;
-          const shouldApplyCanvasMutation = nextAgentResult.diagnostics?.canvasMutation !== false;
-          if (shouldApplyCanvasMutation) {
-            applyThumbnailChatResultToCanvas(
-              nextAgentResult.canvasPatch,
-              nextAgentResult.textLayerPatches ?? [],
-              {
-                preserveActiveLayer: Boolean(nextAgentResult.textLayerPatches?.length),
-                normalizeGeneratedLayout: Boolean(nextAgentResult.shouldGenerate || shouldPreferSubmittedPromptCopy),
-              },
-            );
-            if (nextAgentResult.providerId) {
-              setProviderId(nextAgentResult.providerId);
-            }
-            if (nextAgentResult.generationMode) {
-              setGenerationMode(nextAgentResult.generationMode);
-            }
-          }
-          updateThumbnailChatMessage(nextAssistantMessageId, nextAgentResult.assistantMessage, "live");
-        }
-        if (item.event === "error") {
-          const payload = item.data && typeof item.data === "object" ? item.data as ThumbnailApiErrorPayload : null;
-          throw new Error(getThumbnailErrorAction(payload));
-        }
-      };
-
-      while (true) {
-        if (controller.signal.aborted) {
-          updateThumbnailChatMessage(nextAssistantMessageId, getAbortNotice("chat"), "live");
-          return;
-        }
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parsed = extractThumbnailChatSseEvents(buffer);
-        buffer = parsed.remainder;
-
-        for (const item of parsed.events) {
-          handleChatStreamEvent(item);
-        }
-      }
-
-      const trailing = extractThumbnailChatSseEvents(`${buffer}${buffer.trim() ? "\n\n" : ""}`);
-      for (const item of trailing.events) {
-        handleChatStreamEvent(item);
-      }
-
-      const resolvedFinalResult = finalResult as ThumbnailChatAgentResult | null;
-      if (resolvedFinalResult?.shouldReset) {
+      if (response.shouldReset) {
         resetTextLayers();
-        updateThumbnailChatMessage(nextAssistantMessageId, `${resolvedFinalResult.assistantMessage} · 문구 레이어 초기화 완료`, "live");
+      } else if (response.intent === 'edit' || response.intent === 'generate') {
+        applyThumbnailChatResultToCanvas(response.canvasPatch, response.textLayerPatches, {
+          preserveActiveLayer: Boolean(response.textLayerPatches.length), normalizeGeneratedLayout: response.shouldGenerate,
+        });
       }
-      if (resolvedFinalResult?.shouldGenerate) {
+      if (response.shouldGenerate) {
         setIsChatAgentStreaming(false);
         const patchedTextLayers = createTextLayersWithChatTextLayerPatches(
-          createTextLayersWithChatPatch(textLayersRef.current, resolvedFinalResult.canvasPatch),
-          resolvedFinalResult.textLayerPatches ?? [],
-        );
-        const shouldPreserveSubmittedCreatorReference = requestsSpecificCreatorHost(submittedRequirement)
-          && !requestsSpecificCreatorHost(resolvedFinalResult.canvasPatch.topic);
-        const shouldPreferSubmittedPromptCopy = resolvedFinalResult.shouldGenerate || shouldPreferSubmittedPromptCopyForGeneration(
-          submittedRequirement,
-          resolvedFinalResult.canvasPatch.topic,
-          resolvedFinalResult.canvasPatch.headline,
-          previousGenerationCopy.headline,
-        );
-        const generationTopic = shouldPreserveSubmittedCreatorReference || shouldPreferSubmittedPromptCopy
-          ? submittedRequirement
-          : resolvedFinalResult.canvasPatch.topic;
-        const generationHeadline = shouldPreserveSubmittedCreatorReference || shouldPreferSubmittedPromptCopy
-          ? deriveChatHeadline(submittedRequirement)
-          : resolvedFinalResult.canvasPatch.headline;
-        const generationSubHeadline = shouldPreserveSubmittedCreatorReference || shouldPreferSubmittedPromptCopy
-          ? deriveChatSubHeadline(submittedRequirement)
-          : resolvedFinalResult.canvasPatch.subHeadline;
-        // Chat and archive metadata cannot select an alternate image provider; generation always uses the selected Gemini queue model.
-        await runThumbnailGeneration({
-          providerId: resolvedFinalResult.providerId ?? providerId,
-          generationMode: resolvedFinalResult.generationMode ?? generationMode,
-          topic: generationTopic,
-          headline: generationHeadline,
-          subHeadline: generationSubHeadline,
-          textLayers: createTextLayersWithChatPatch(patchedTextLayers, {
-            topic: generationTopic,
-            headline: generationHeadline,
-            subHeadline: generationSubHeadline,
-          }),
-        }, nextAssistantMessageId);
+          createTextLayersWithChatPatch(textLayersRef.current, response.canvasPatch), response.textLayerPatches);
+        await runThumbnailGeneration({ topic: response.canvasPatch.topic, headline: response.canvasPatch.headline,
+          subHeadline: response.canvasPatch.subHeadline, textLayers: patchedTextLayers }, nextAssistantMessageId, imageRequestId);
       }
     } catch (error) {
       if (controller.signal.aborted) {
@@ -4442,7 +4232,7 @@ export function AdminYoutubeThumbnailGenerator() {
     );
   }
 
-  async function runThumbnailGeneration(overrides: ThumbnailGenerationOverrides = {}, chatAssistantMessageId?: string) {
+  async function runThumbnailGeneration(overrides: ThumbnailGenerationOverrides = {}, chatAssistantMessageId?: string, requestId?: string) {
     if (!gemini.available) {
       const message = '이미지 만들기 상태를 확인하지 못해 다시 확인하고 있어요.';
       if (chatAssistantMessageId) updateThumbnailChatMessage(chatAssistantMessageId, message, 'live');
@@ -4471,7 +4261,7 @@ export function AdminYoutubeThumbnailGenerator() {
       if (chatAssistantMessageId) updateThumbnailChatMessage(chatAssistantMessageId, '실제 쯔양 참고 영상을 찾고 생성 요청을 접수합니다.', 'live');
       await gemini.submit({ model: geminiModel, brief: { topic: naturalGenerationCopy.topic, headline: naturalGenerationCopy.headline,
         subHeadline: naturalGenerationCopy.subHeadline, stylePreset: briefPreset, acknowledgedSafety: true }, editor,
-        references: files.map((file, index) => ({ file, role: referenceImageRoles[index] ?? 'other' })) }, revision, controller.signal);
+        references: files.map((file, index) => ({ file, role: referenceImageRoles[index] ?? 'other' })) }, revision, controller.signal, requestId);
       if (chatAssistantMessageId) updateThumbnailChatMessage(chatAssistantMessageId, controller.signal.aborted
         ? '중단을 요청했습니다. 작업 상태에서 결과를 확인해 주세요.' : '생성 요청을 접수했습니다. 페이지를 닫아도 기록에서 확인할 수 있습니다.', 'live');
       return true;
@@ -4900,6 +4690,14 @@ export function AdminYoutubeThumbnailGenerator() {
               </div>
             </div>
           </CardHeader>
+          {(chatQueue.state.handle || chatQueue.error) && <div className="flex min-w-0 items-center gap-2 border-b px-3 py-2 text-xs" data-thumbnail-chat-queue-status="true" role="status">
+            <span className="min-w-0 flex-1 truncate">{chatQueue.error ?? (chatQueue.state.job?.state === 'succeeded' ? '채팅 완료' : chatQueue.state.job?.state === 'cancelled' ? '채팅 중단됨' : chatQueue.state.job?.state === 'unknown' ? '채팅 처리 확인 필요' : '채팅 처리 중')}</span>
+            {chatQueue.state.job?.state === 'succeeded' && <button type="button" className="shrink-0 font-medium underline underline-offset-2" onClick={() => {
+              void chatQueue.output().then(({ response }) => appendThumbnailChatMessages([{ id: `assistant-chat-result-${chatMessageIdRef.current++}`, role: 'assistant', mode: 'live', content: response.assistantMessage }]), () => toast({ title: '채팅 결과 확인', description: '결과를 다시 확인해 주세요.' }));
+            }}>답변 보기</button>}
+            <button type="button" className="shrink-0 underline underline-offset-2" onClick={() => { void chatQueue.refresh(); }}>새로고침</button>
+            {chatQueue.state.handle && chatQueue.state.phase !== 'settled' && !isChatAgentStreaming && <button type="button" className="shrink-0 underline underline-offset-2" onClick={() => { void chatQueue.cancel(); }}>중단</button>}
+          </div>}
           {(gemini.state.handle || gemini.error || gemini.historyError) && <div className="flex min-w-0 items-center gap-2 bg-muted/20 px-3 py-2 text-xs" data-thumbnail-gemini-status="true" role="status">
             <span className="min-w-0 flex-1 truncate">{gemini.error ?? gemini.historyError ?? `${geminiStateLabel(gemini.state.job)}${gemini.state.job?.cancelRequested ? ' · 중단 요청됨' : ''}`}</span>
             {gemini.state.job?.state === 'succeeded' && <a className="shrink-0 font-medium underline underline-offset-2" href={`/api/admin/youtube-thumbnail-generator/jobs/${gemini.state.job.id}?variant=original`} download>원본</a>}
@@ -5209,7 +5007,7 @@ export function AdminYoutubeThumbnailGenerator() {
                       className={`h-9 shrink-0 rounded-full ${isChatAgentStreaming || isGenerating ? "px-3" : "w-9"}`}
                       onClick={isChatAgentStreaming ? abortThumbnailChatWork : isGenerating ? abortThumbnailGeneration : () => void handleThumbnailChatSubmit()}
                       disabled={isChatAgentStreaming || isGenerating ? false : !chatDraft.trim()}
-                      aria-label={isChatAgentStreaming ? "채팅 스트림 중단" : isGenerating ? "썸네일 생성 중단" : "요구사항 채팅 반영"}
+                      aria-label={isChatAgentStreaming ? "채팅 작업 중단" : isGenerating ? "썸네일 생성 중단" : "요구사항 채팅 반영"}
                       data-thumbnail-chat-submit={isChatAgentStreaming || isGenerating ? undefined : "true"}
                       data-thumbnail-chat-cancel={isChatAgentStreaming ? "true" : undefined}
                       data-thumbnail-generation-cancel={isGenerating ? "true" : undefined}

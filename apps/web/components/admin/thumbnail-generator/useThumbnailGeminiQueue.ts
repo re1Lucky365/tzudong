@@ -88,7 +88,7 @@ export function useThumbnailGeminiQueue() {
     return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', visible); };
   }, [state, refresh]);
 
-  const submit = useCallback(async (draft: ThumbnailBrowserDraft, editorRevision: number, signal: AbortSignal) => {
+  const submit = useCallback(async (draft: ThumbnailBrowserDraft, editorRevision: number, signal: AbortSignal, requestId?: string) => {
     const q = queue.current; const requestedOwner = ownerRef.current;
     if (!q || !requestedOwner) throw new ThumbnailBrowserQueueError('receipt_unavailable');
     const snapshot = { model: draft.model, brief: thumbnailBrief.parse(draft.brief),
@@ -97,7 +97,7 @@ export function useThumbnailGeminiQueue() {
     signal.throwIfAborted();
     if (q !== queue.current || requestedOwner !== ownerRef.current) throw new ThumbnailBrowserQueueError('request_rejected');
     try {
-      const job = await q.enqueue({ ...snapshot, references: prepared.references }, editorRevision);
+      const job = await q.enqueue({ ...snapshot, references: prepared.references }, editorRevision, requestId);
       if (q !== queue.current || requestedOwner !== ownerRef.current) throw new ThumbnailBrowserQueueError('request_rejected');
       setError(null); void refreshHistory(); return job;
     } finally {

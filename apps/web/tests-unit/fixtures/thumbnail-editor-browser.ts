@@ -8,6 +8,8 @@ import { chromium, expect } from '@playwright/test';
 import { compile } from '@tailwindcss/node';
 import { Scanner } from '@tailwindcss/oxide';
 import sharp from 'sharp';
+import { thumbnailChatJob, type ThumbnailChatJob } from '../../lib/admin/youtube-thumbnail-generator/execution-contract';
+import { thumbnailChatContext, type ThumbnailChatContext } from '../../lib/admin/youtube-thumbnail-generator/chat-contract';
 import { thumbnailJob, type ThumbnailJob, type ThumbnailEditorDocument } from '../../lib/admin/youtube-thumbnail-generator/queue-contract';
 
 const app = resolve(import.meta.dir, '../..');
@@ -17,7 +19,8 @@ const owner = randomUUID();
 const sourcePaths = ['components/admin/thumbnail-generator/AdminYoutubeThumbnailGenerator.tsx',
   'components/admin/thumbnail-generator/useThumbnailGeminiQueue.ts', 'lib/admin/youtube-thumbnail-generator/browser-queue.ts',
   'lib/admin/youtube-thumbnail-generator/browser-references.ts', 'lib/admin/youtube-thumbnail-generator/queue-contract.ts',
-  'app/globals.css', 'app/app-globals.css', 'styles/admin-ui.css'];
+  'components/admin/thumbnail-generator/useThumbnailChatQueue.ts', 'lib/admin/youtube-thumbnail-generator/chat-browser-queue.ts',
+  'lib/admin/youtube-thumbnail-generator/chat-contract.ts', 'lib/admin/youtube-thumbnail-generator/execution-contract.ts', 'app/globals.css', 'app/app-globals.css', 'styles/admin-ui.css'];
 const hashes = () => Object.fromEntries(sourcePaths.map((path) => [path, createHash('sha256').update(readFileSync(join(app, path))).digest('hex')]));
 const before = hashes();
 const entry = `import React from 'react'; import {createRoot} from 'react-dom/client';
@@ -45,6 +48,8 @@ const png = await sharp({ create: { width: 1280, height: 720, channels: 3, backg
 const refPng = await sharp({ create: { width: 640, height: 360, channels: 3, background: '#a36022' } }).png().toBuffer();
 let job: ThumbnailJob | null = null, editor: ThumbnailEditorDocument | undefined;
 const calls: Array<{ path: string; method: string; owner: string | null }> = [];
+let chatJob: ThumbnailChatJob | null = null, chatInput: ThumbnailChatContext | null = null;
+let chatPosts = 0, chatCancels = 0, chatAckLost = false, chatGenerate = false;
 let posts = 0, cancels = 0, referenceReads = 0, candidateReads = 0, ackLost = false;
 let lastSubmitted: { model: string; roles: string[]; editor?: ThumbnailEditorDocument } | undefined;
 const summary = (value: ThumbnailJob) => ({ id: value.id, requestId: value.requestId, model: value.model,
@@ -63,6 +68,25 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
       references: [{ videoId: 'video000001', title: '합성 검증용 참고 영상', role: 'host' }] });
   }
   if (path.endsWith('/reference-image')) { referenceReads++; return new Response(new Uint8Array(refPng), { headers: { 'Content-Type': 'image/png' } }); }
+  if (path === '/api/admin/youtube-thumbnail-generator/chat/jobs') {
+    if (method === 'POST') {
+      chatPosts++; const input = await request.json(); chatInput = thumbnailChatContext.parse(input.context);
+      const now = new Date().toISOString();
+      chatJob = thumbnailChatJob.parse({ id: randomUUID(), ownerId: owner, requestId: input.requestId, model: 'gemini-3.8-flash',
+        inputSha256: 'c'.repeat(64), input: { contract: 'thumbnail-gemini-chat-v1', model: 'gemini-3.8-flash', document: {
+          path: `${owner}/${input.requestId}/input/chat.json`, sha256: 'd'.repeat(64), bytes: 100, mimeType: 'application/json' } },
+        state: 'queued', workerId: null, attemptId: null, fence: 0, leaseExpiresAt: null, providerStartedAt: null,
+        cancelRequested: false, result: null, createdAt: now, updatedAt: now });
+      return chatAckLost ? new Response(null, { status: 503 }) : Response.json({ job: chatJob });
+    }
+    return Response.json({ job: chatJob?.requestId === url.searchParams.get('requestId') ? chatJob : null });
+  }
+  if (path.startsWith('/api/admin/youtube-thumbnail-generator/chat/jobs/')) {
+    if (!chatJob || path.split('/').at(-1) !== chatJob.id) return new Response(null, { status: 404 });
+    if (method === 'POST') { chatCancels++; chatJob = { ...chatJob, state: 'cancelled', cancelRequested: true }; }
+    if (url.searchParams.get('output') === '1') return Response.json({ response: chatAnswer(), provenance: chatJob.result!.provenance });
+    return Response.json({ job: chatJob });
+  }
   if (path.endsWith('/jobs')) {
     if (method === 'POST') {
       posts++; const form = await request.formData(); const input = JSON.parse(String(form.get('request')));
@@ -102,6 +126,20 @@ function succeed() {
       provenance: { providerId: 'gemini-api', model: job.model, responseModel: job.model, responseId: 'synthetic-editor',
         verification: 'official-api', modelEvidence: 'response', generatedAt: now, attemptId, inputSha256: job.inputSha256 } } });
 }
+function chatAnswer() {
+  assert.ok(chatInput);
+  return { assistantMessage: '합성 Gemini 답변: 제목을 더 간결하게 구성했어요.', intent: chatGenerate ? 'generate' : 'edit',
+    canvasPatch: { topic: chatInput.currentTopic, headline: 'Gemini 편집 검증', subHeadline: chatInput.currentSubHeadline },
+    textLayerPatches: [], shouldGenerate: chatGenerate, shouldReset: false };
+}
+function chatSucceed() {
+  assert.ok(chatJob); const now = new Date().toISOString(), attemptId = randomUUID();
+  const bytes = Buffer.from(JSON.stringify(chatAnswer()));
+  chatJob = thumbnailChatJob.parse({ ...chatJob, state: 'succeeded', workerId: randomUUID(), attemptId, fence: 1, providerStartedAt: now,
+    result: { content: { path: `${owner}/${chatJob.id}/${attemptId}/response.json`, sha256: createHash('sha256').update(bytes).digest('hex'),
+      bytes: bytes.length, mimeType: 'application/json' }, provenance: { providerId: 'gemini-api', model: 'gemini-3.8-flash', responseModel: 'gemini-3.8-flash',
+      responseId: 'synthetic-chat-editor', verification: 'official-api', modelEvidence: 'response', generatedAt: now, attemptId, inputSha256: chatJob.inputSha256 } } });
+}
 const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
 const origin = `http://127.0.0.1:${server.port}`;
 const errors: string[] = [], geometry: unknown[] = []; let externalRequests = 0;
@@ -136,6 +174,45 @@ try {
     assert.ok(frame && frame.width > 200 && frame.height > 100, `canvas must remain visible at ${width}`);
   }
   await page.setViewportSize({ width: 1440, height: 960 });
+  const chatComposer = page.getByPlaceholder('원하는 썸네일 내용을 입력해 주세요');
+  await chatComposer.fill('메인 문구를 더 간결하게 다듬어 줘'); await page.locator('[data-thumbnail-chat-submit]').click();
+  await expect.poll(() => chatPosts).toBe(1); chatSucceed();
+  await expect(page.locator('[data-thumbnail-chat-queue-status]')).toContainText('채팅 완료');
+  await expect(page.locator('[data-thumbnail-chat-cancel]')).toHaveCount(0);
+  await page.getByRole('button', { name: '메인 선택', exact: true }).click();
+  await page.getByRole('button', { name: '문구 수정', exact: true }).click();
+  await expect(page.locator('[data-thumbnail-canvas-inline-text-editor]')).toHaveText('Gemini 편집 검증');
+  await page.locator('[data-thumbnail-canvas-inline-text-editor]').press('Escape');
+  assert.equal(posts, 0); assert.equal(chatPosts, 1);
+  await page.locator('[data-thumbnail-chat-queue-status]').getByRole('button', { name: '답변 보기' }).click();
+  assert.equal(posts, 0); assert.equal(chatPosts, 1);
+  await chatComposer.fill('메인 문구의 가독성을 더 개선해 줘'); await page.locator('[data-thumbnail-chat-submit]').click();
+  await expect.poll(() => chatPosts).toBe(2);
+  // Edit the canvas while the independent text worker is pending.
+  await page.locator('[data-thumbnail-add-text-layer]').click();
+  await page.getByRole('button', { name: '문구 수정', exact: true }).click();
+  await page.locator('[data-thumbnail-canvas-inline-text-editor]').fill('채팅 늦은 결과 보호');
+  await page.locator('[data-thumbnail-canvas-inline-text-editor]').press('Escape'); chatSucceed();
+  await expect(page.locator('[data-thumbnail-chat-cancel]')).toHaveCount(0);
+  await expect(page.getByText('자동 반영하지 않았습니다.', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: '문구 수정', exact: true }).click();
+  await expect(page.locator('[data-thumbnail-canvas-inline-text-editor]')).toHaveText('채팅 늦은 결과 보호');
+  await page.locator('[data-thumbnail-canvas-inline-text-editor]').press('Escape');
+  assert.equal(posts, 0);
+  // Cancellation is explicit and is read back against the captured owner/request.
+  await chatComposer.fill('읽기 편한 제목 표현을 추천해 줘'); await page.locator('[data-thumbnail-chat-submit]').click();
+  await expect.poll(() => chatPosts).toBe(3); await page.locator('[data-thumbnail-chat-cancel]').click();
+  await expect.poll(() => chatCancels).toBe(1);
+  await expect(page.locator('[data-thumbnail-chat-queue-status]')).toContainText('채팅 중단됨');
+  chatAckLost = true; await chatComposer.fill('새 제목 표현을 검토해 줘'); await page.locator('[data-thumbnail-chat-submit]').click();
+  await expect.poll(() => chatPosts).toBe(4); await page.reload();
+  await expect(page.locator('[data-thumbnail-chat-queue-status]')).toBeVisible();
+  await expect.poll(() => calls.filter((call) => call.method === 'GET' && call.path.includes('/chat/jobs?requestId=')).length).toBeGreaterThan(0);
+  assert.equal(chatPosts, 4); chatSucceed();
+  await page.locator('[data-thumbnail-chat-queue-status]').getByRole('button', { name: '새로고침' }).click();
+  await expect(page.locator('[data-thumbnail-chat-queue-status]')).toContainText('채팅 완료');
+  assert.equal(posts, 0); assert.equal(chatPosts, 4);
+  await page.screenshot({ path: join(out, 'chat-recovered-1440.png'), fullPage: true });
   await page.getByRole('button', { name: '메인 선택', exact: true }).click();
   await page.getByRole('button', { name: '문구 수정', exact: true }).click();
   const editorField = page.locator('[data-thumbnail-canvas-inline-text-editor]');
@@ -181,12 +258,28 @@ try {
   await page.reload(); await expect(page.locator('[data-thumbnail-gemini-status]')).toBeVisible();
   await expect.poll(() => calls.filter((call) => call.method === 'GET' && call.path.includes('?requestId=')).length).toBeGreaterThan(0);
   assert.equal(posts, 4);
+  // A confirmed chat generation result owns one stable follow-up image request.
+  ackLost = false; chatAckLost = false;
+  await page.getByRole('button', { name: '중단 요청', exact: true }).click();
+  await expect.poll(() => job?.state).toBe('cancelled');
+  chatGenerate = true;
+  await chatComposer.fill('쯔양 제육볶음 새 썸네일을 생성해줘'); await page.locator('[data-thumbnail-chat-submit]').click();
+  await expect.poll(() => chatPosts).toBe(5); chatSucceed();
+  await expect.poll(() => posts).toBe(5);
+  const followUp = await page.evaluate((id) => JSON.parse(localStorage.getItem(`thumbnail-gemini-chat-request:${id}`)!).imageRequestId, owner);
+  assert.equal(job!.requestId, followUp);
+  await page.locator('[data-thumbnail-chat-queue-status]').getByRole('button', { name: '답변 보기' }).click();
+  await page.locator('[data-thumbnail-chat-queue-status]').getByRole('button', { name: '새로고침' }).click();
+  assert.equal(posts, 5); assert.equal(chatPosts, 5);
+  await page.reload(); await expect(page.locator('[data-thumbnail-chat-queue-status]')).toContainText('채팅 완료');
+  assert.equal(posts, 5); assert.equal(chatPosts, 5);
   assert.equal(calls.filter((call) => call.method === 'POST' && !call.path.endsWith('/jobs') && !call.path.includes('/jobs/')
     && !call.path.endsWith('/reference-candidates') && !call.path.endsWith('/reference-image')).length, 0);
   assert.equal(externalRequests, 0); assert.deepEqual(errors, []); assert.deepEqual(hashes(), before);
   writeFileSync(join(out, 'receipt.json'), JSON.stringify({ browser: browser.version(), sourceHashes: before, sourceStable: true,
     widths: [1440, 768, 390], geometry, realReactEditor: true, projectCss: true, nativeCanvas: true, reducedMotion: true,
-    autoReferenceDecode: true, editorPersisted: true, sameRevisionAutoApply: true, laterEditProtected: true,
+    autoReferenceDecode: true, editorPersisted: true, sameRevisionAutoApply: true, laterEditProtected: true, chatSameRevisionApply: true, chatLaterEditProtected: true,
+    chatCancelled: true, chatAckLostReloadPosts: 1, chatReloadNoAutoApply: true, chatPosts, chatFollowUpStableIdentity: true, chatFollowUpEnqueues: 1, repeatedResultNoEnqueue: true,
     reloadNotAutoApplied: true, historyDocumentRestored: true, pngExported: true, cancelReadback: true,
     ackLostReloadPosts: 1, totalEnqueuePosts: posts, externalRequests, providerCalls: 0,
     syntheticAuthAndApi: true, nextImageSeam: true, hostedAdminProof: false }, null, 2));

@@ -1,16 +1,19 @@
 import http from 'node:http';
 import https from 'node:https';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { open } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { readBoundedJsonRequest } from '@/lib/security/bounded-json-request';
 import { GeminiThumbnailWorkerClient, ThumbnailGeminiError, type ThumbnailGeminiImageModel } from './gemini-worker-client';
-import { parseThumbnail, thumbnailAttempt, thumbnailJob, thumbnailStartReceipt, THUMBNAIL_IMAGE_BYTES,
+import { parseThumbnail, thumbnailAttempt, thumbnailStartReceipt, THUMBNAIL_IMAGE_BYTES,
   type ThumbnailAttempt, type ThumbnailJob } from './queue-contract';
+import { GeminiThumbnailChatWorkerClient, ThumbnailChatGeminiError, prepareThumbnailChatContent } from './chat-gemini-client';
+import { THUMBNAIL_CHAT_MODEL, thumbnailChatContext, thumbnailChatStartReceipt } from './chat-contract';
+import { thumbnailExecutionJob, type ThumbnailChatJob, type ThumbnailExecutionJob } from './execution-contract';
 import { ThumbnailWorkerOutbox, ThumbnailOutboxError, thumbnailWorkerOrigin,
-  type ThumbnailOutboxBundle, type ThumbnailOutboxIdentity } from './worker-outbox';
+  type ThumbnailChatOutboxBundle, type ThumbnailOutboxBundle, type ThumbnailOutboxIdentity } from './worker-outbox';
 
 if (typeof window !== 'undefined') throw new Error('Thumbnail outbound worker is worker-only.');
 const base = '/api/admin/youtube-thumbnail-generator/worker';
@@ -22,7 +25,7 @@ export class ThumbnailWorkerError extends Error {
     | 'input_mismatch' | 'outbox_pending' | 'provider_outcome_unknown') { super(code); this.name = 'ThumbnailWorkerError'; }
 }
 export function thumbnailWorkerErrorCode(error: unknown): string {
-  if (error instanceof ThumbnailWorkerError || error instanceof ThumbnailOutboxError || error instanceof ThumbnailGeminiError) return error.code;
+  if (error instanceof ThumbnailWorkerError || error instanceof ThumbnailOutboxError || error instanceof ThumbnailGeminiError || error instanceof ThumbnailChatGeminiError) return error.code;
   return 'worker_delivery_unknown';
 }
 export interface ThumbnailWorkerApi {
@@ -30,6 +33,8 @@ export interface ThumbnailWorkerApi {
   operation(value: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>;
   reference(attempt: ThumbnailAttempt, index: number, expected: ThumbnailJob['input']['references'][number], signal?: AbortSignal): Promise<Buffer>;
   image(attempt: ThumbnailAttempt, result: ThumbnailOutboxBundle, signal?: AbortSignal): Promise<unknown>;
+  chatContext?(attempt: ThumbnailAttempt, signal?: AbortSignal): Promise<unknown>;
+  chat?(attempt: ThumbnailAttempt, result: ThumbnailChatOutboxBundle, signal?: AbortSignal): Promise<unknown>;
 }
 export async function readThumbnailWorkerFile(file: string, maxBytes: number): Promise<Buffer> {
   if (!isAbsolute(file)) throw new ThumbnailWorkerError('invalid_worker_configuration');
@@ -61,8 +66,9 @@ export class ThumbnailWorkerTransport implements ThumbnailWorkerApi {
     if (!Number.isInteger(this.timeoutMs) || this.timeoutMs < 1 || this.timeoutMs > 60_000) throw new ThumbnailWorkerError('invalid_worker_configuration');
   }
   private readonly timeoutMs: number;
-  private request(path: string, method: 'GET' | 'POST', body: Buffer | null, mime: string, maxBytes: number, signal?: AbortSignal): Promise<Buffer> {
-    if (!(path === base || path === `${base}/images` || path.startsWith(`${base}/references?`))
+  private request(path: string, method: 'GET' | 'POST', body: Buffer | null, mime: string, maxBytes: number, signal?: AbortSignal,
+    expectedMime = method === 'GET' ? 'image/png' : 'application/json'): Promise<Buffer> {
+    if (!(path === base || path === `${base}/images` || path === `${base}/chat` || path.startsWith(`${base}/chat?`) || path.startsWith(`${base}/references?`))
       || (body && body.length > THUMBNAIL_IMAGE_BYTES + 32_768)) throw new ThumbnailWorkerError('invalid_worker_configuration');
     if (signal?.aborted) return Promise.reject(new ThumbnailWorkerError('worker_stopped'));
     const target = new URL(this.origin);
@@ -76,7 +82,7 @@ export class ThumbnailWorkerTransport implements ThumbnailWorkerApi {
       const abort = () => { done(new ThumbnailWorkerError('worker_stopped')); request.destroy(); };
       const request = (target.protocol === 'https:' ? https : http).request({
         protocol: target.protocol, hostname: target.hostname.replace(/^\[|\]$/g, ''), port: target.port || 443,
-        path, method, agent: false, headers: { Authorization: `Bearer ${this.token}`, Accept: method === 'GET' ? 'image/png' : 'application/json',
+        path, method, agent: false, headers: { Authorization: `Bearer ${this.token}`, Accept: expectedMime,
           ...(body ? { 'Content-Type': mime, 'Content-Length': body.length } : {}) },
       }, (response) => {
         const status = response.statusCode ?? 0;
@@ -85,7 +91,6 @@ export class ThumbnailWorkerTransport implements ThumbnailWorkerApi {
             : status >= 300 && status < 400 ? 'worker_redirect_refused' : status === 409 || status === 400 ? 'worker_rejected' : 'worker_delivery_unknown'));
           response.destroy(); return;
         }
-        const expectedMime = method === 'GET' ? 'image/png' : 'application/json';
         if (response.headers['content-type']?.split(';')[0].trim().toLowerCase() !== expectedMime) {
           done(new ThumbnailWorkerError('invalid_worker_response')); response.destroy(); return;
         }
@@ -134,9 +139,24 @@ export class ThumbnailWorkerTransport implements ThumbnailWorkerApi {
       Buffer.from(result.bytes), Buffer.from(`\r\n--${boundary}--\r\n`));
     return this.json(`${base}/images`, Buffer.concat(pieces), `multipart/form-data; boundary=${boundary}`, signal);
   }
+  async chatContext(attempt: ThumbnailAttempt, signal?: AbortSignal) {
+    const query = new URLSearchParams({ ...attempt, fence: String(attempt.fence) });
+    const bytes = await this.request(`${base}/chat?${query}`, 'GET', null, '', 65_536, signal, 'application/json');
+    try { return thumbnailChatContext.parse(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))); }
+    catch { throw new ThumbnailWorkerError('invalid_worker_response'); }
+  }
+  chat(attempt: ThumbnailAttempt, result: ThumbnailChatOutboxBundle, signal?: AbortSignal) {
+    const boundary = `thumbnail-chat-${randomUUID()}`;
+    const fields = { attempt: JSON.stringify(attempt), provenance: JSON.stringify(result.provenance) };
+    const pieces = Object.entries(fields).map(([key, value]) => Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`));
+    pieces.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="response"; filename="response.json"\r\nContent-Type: application/json\r\n\r\n`),
+      Buffer.from(result.bytes), Buffer.from(`\r\n--${boundary}--\r\n`));
+    return this.json(`${base}/chat`, Buffer.concat(pieces), `multipart/form-data; boundary=${boundary}`, signal);
+  }
 }
 
 type Gemini = Pick<GeminiThumbnailWorkerClient, 'models' | 'prepareStored'>;
+type ChatGemini = Pick<GeminiThumbnailChatWorkerClient, 'models' | 'prepareStored'>;
 function resultField(raw: unknown, field: 'job' | 'result'): unknown {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) || Object.keys(raw).length !== 1 || !(field in raw)) {
     throw new ThumbnailWorkerError('invalid_worker_response');
@@ -146,7 +166,9 @@ function resultField(raw: unknown, field: 'job' | 'result'): unknown {
 export class OutboundThumbnailWorker {
   private running = false;
   private client?: Gemini;
+  private chatClient?: ChatGemini;
   constructor(private readonly options: { api: ThumbnailWorkerApi; outbox: ThumbnailWorkerOutbox; gemini: Gemini | (() => Gemini);
+    chatGemini?: ChatGemini | (() => ChatGemini);
     heartbeatMs?: number; onEvent?: (event: Event) => void }) {
     parseThumbnail(thumbnailWorkerOrigin, options.api.origin);
     if (!Number.isInteger(options.heartbeatMs ?? 30_000) || (options.heartbeatMs ?? 30_000) < 1 || (options.heartbeatMs ?? 30_000) > 30_000) {
@@ -154,14 +176,21 @@ export class OutboundThumbnailWorker {
     }
   }
   private gemini() { return this.client ??= typeof this.options.gemini === 'function' ? this.options.gemini() : this.options.gemini; }
+  private chatGemini() {
+    const source = this.options.chatGemini;
+    if (!source) throw new ThumbnailWorkerError('invalid_worker_configuration');
+    return this.chatClient ??= typeof source === 'function' ? source() : source;
+  }
   private event(event: Event) { try { this.options.onEvent?.(event); } catch { /* Telemetry cannot discard a paid result. */ } }
   private attempt(identity: ThumbnailOutboxIdentity): ThumbnailAttempt {
     return { jobId: identity.jobId, attemptId: identity.attemptId, fence: identity.fence, inputSha256: identity.inputSha256 };
   }
   private async deliver(identity: ThumbnailOutboxIdentity, signal?: AbortSignal): Promise<WorkerOutcome> {
     if (identity.origin !== this.options.api.origin) throw new ThumbnailWorkerError('invalid_worker_configuration');
-    const saved = this.options.outbox.result(identity);
-    const raw = await this.options.api.image(this.attempt(identity), saved, signal);
+    const raw = identity.model === THUMBNAIL_CHAT_MODEL
+      ? await this.options.api.chat?.(this.attempt(identity), this.options.outbox.chatResult(identity), signal)
+      : await this.options.api.image(this.attempt(identity), this.options.outbox.result(identity), signal);
+    if (!raw) throw new ThumbnailWorkerError('invalid_worker_configuration');
     this.options.outbox.delivered(identity, resultField(raw, 'job'));
     this.event({ event: 'delivered' }); return 'succeeded';
   }
@@ -177,18 +206,19 @@ export class OutboundThumbnailWorker {
         // Only the original run can report its settled unknown outcome; a tombstone grants no paid retry.
         this.event({ event: 'held', code: 'outbox_pending' }); return 'held';
       }
-      const models: ThumbnailGeminiImageModel[] = await this.gemini().models(signal);
+      const models: Array<ThumbnailGeminiImageModel | typeof THUMBNAIL_CHAT_MODEL> = await this.gemini().models(signal);
+      if (this.options.chatGemini) models.push(...await this.chatGemini().models(signal));
       await this.options.api.operation({ action: 'models', models }, signal);
       const claimed = resultField(await this.options.api.operation({ action: 'claim' }, signal), 'result');
       if (claimed === null) return 'idle';
-      const job = parseThumbnail(thumbnailJob, claimed);
+      const job = parseThumbnail(thumbnailExecutionJob, claimed);
       if (job.state !== 'claimed' || !job.workerId || !job.attemptId || !models.includes(job.model)) throw new ThumbnailWorkerError('invalid_worker_response');
       return await this.process(job, signal);
     } catch (error) {
       this.event({ event: 'held', code: thumbnailWorkerErrorCode(error) }); return 'held';
     } finally { this.running = false; }
   }
-  private async process(job: ThumbnailJob, stop?: AbortSignal): Promise<WorkerOutcome> {
+  private async process(job: ThumbnailExecutionJob, stop?: AbortSignal): Promise<WorkerOutcome> {
     const attempt = parseThumbnail(thumbnailAttempt, { jobId: job.id, attemptId: job.attemptId, fence: job.fence, inputSha256: job.inputSha256 });
     const scope = new AbortController(); const abort = () => scope.abort();
     stop?.addEventListener('abort', abort, { once: true }); if (stop?.aborted) abort();
@@ -197,7 +227,7 @@ export class OutboundThumbnailWorker {
       try {
         while (!heartbeat.signal.aborted) {
           await delay(this.options.heartbeatMs ?? 30_000, undefined, { signal: heartbeat.signal });
-          const current = parseThumbnail(thumbnailJob, resultField(await this.options.api.operation({ action: 'heartbeat', ...attempt }, heartbeat.signal), 'result'));
+          const current = parseThumbnail(thumbnailExecutionJob, resultField(await this.options.api.operation({ action: 'heartbeat', ...attempt }, heartbeat.signal), 'result'));
           if (current.id !== job.id || current.ownerId !== job.ownerId || current.workerId !== job.workerId
             || current.attemptId !== job.attemptId || current.fence !== job.fence || current.inputSha256 !== job.inputSha256
             || current.cancelRequested || !['claimed', 'provider_started'].includes(current.state)) scope.abort();
@@ -206,6 +236,9 @@ export class OutboundThumbnailWorker {
     })();
     this.event({ event: 'claimed' });
     try {
+      if (job.model === THUMBNAIL_CHAT_MODEL) {
+        return await this.processChat(job, attempt, scope.signal, stop, () => { intent = true; });
+      }
       const references = [];
       for (const [index, reference] of job.input.references.entries()) references.push({
         bytes: await this.options.api.reference(attempt, index, reference, scope.signal), mimeType: reference.mimeType, role: reference.role,
@@ -242,6 +275,31 @@ export class OutboundThumbnailWorker {
     } finally {
       heartbeat.abort(); scope.abort(); stop?.removeEventListener('abort', abort); await renew;
     }
+  }
+  private async processChat(job: ThumbnailChatJob, attempt: ThumbnailAttempt, signal: AbortSignal,
+    stop: AbortSignal | undefined, started: () => void): Promise<WorkerOutcome> {
+    if (!this.options.api.chatContext || !this.options.api.chat) throw new ThumbnailWorkerError('invalid_worker_configuration');
+    const context = await this.options.api.chatContext(attempt, signal);
+    const content = prepareThumbnailChatContent(context);
+    if (content.inputSha256 !== job.inputSha256 || content.documentSha256 !== job.input.document.sha256
+      || content.documentBytes.length !== job.input.document.bytes) throw new ThumbnailWorkerError('input_mismatch');
+    const prepared = await this.chatGemini().prepareStored({ context: content.context, ownerId: job.ownerId,
+      jobId: job.id, attemptId: job.attemptId!, fence: job.fence });
+    if (prepared.descriptor.inputSha256 !== job.inputSha256) throw new ThumbnailWorkerError('input_mismatch');
+    const identity: ThumbnailOutboxIdentity = { ...prepared.descriptor, workerId: job.workerId!, origin: this.options.api.origin };
+    const result = await prepared.run(async () => {
+      signal.throwIfAborted();
+      if (!this.options.outbox.begin(identity)) throw new ThumbnailWorkerError('outbox_pending');
+      started();
+      return parseThumbnail(thumbnailChatStartReceipt, resultField(await this.options.api.operation({ action: 'start', ...attempt }, signal), 'result'));
+    }, signal);
+    const metadata = { content: { sha256: createHash('sha256').update(result.bytes).digest('hex'),
+      mimeType: 'application/json' as const, bytes: result.bytes.length }, provenance: result.provenance };
+    try { this.options.outbox.saveChat(identity, result.bytes, metadata); }
+    catch { this.options.outbox.saveChat(identity, result.bytes, metadata); }
+    this.event({ event: 'result_saved' });
+    if (stop?.aborted) return 'held';
+    return await this.deliver(identity, stop);
   }
   async run(options: { signal?: AbortSignal; once?: boolean; pollMs?: number } = {}): Promise<WorkerOutcome> {
     const interval = options.pollMs ?? 5000;

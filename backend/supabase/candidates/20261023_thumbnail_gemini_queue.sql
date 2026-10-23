@@ -18,8 +18,8 @@ CREATE TABLE public.admin_thumbnail_workers (
   token_sha256 text NOT NULL UNIQUE CHECK (token_sha256 ~ '^[a-f0-9]{64}$'),
   disabled boolean NOT NULL DEFAULT false,
   revoked_at timestamptz,
-  models text[] NOT NULL DEFAULT '{}' CHECK (cardinality(models) <= 2
-    AND models <@ ARRAY['gemini-3.1-flash-image','gemini-3-pro-image']::text[]
+  models text[] NOT NULL DEFAULT '{}' CHECK (cardinality(models) <= 3
+    AND models <@ ARRAY['gemini-3.1-flash-image','gemini-3-pro-image','gemini-3.8-flash']::text[]
     AND array_position(models,NULL) IS NULL),
   last_seen_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
@@ -30,7 +30,7 @@ CREATE TABLE public.admin_thumbnail_jobs (
   owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   request_id uuid NOT NULL,
   input_sha256 text NOT NULL CHECK (input_sha256 ~ '^[a-f0-9]{64}$'),
-  model text NOT NULL CHECK (model IN ('gemini-3.1-flash-image','gemini-3-pro-image')),
+  model text NOT NULL CHECK (model IN ('gemini-3.1-flash-image','gemini-3-pro-image','gemini-3.8-flash')),
   input jsonb NOT NULL CHECK (jsonb_typeof(input)='object' AND octet_length(input::text)<=131072),
   state text NOT NULL DEFAULT 'queued' CHECK (state IN ('queued','claimed','provider_started','unknown','succeeded','cancelled')),
   worker_id uuid,
@@ -88,6 +88,19 @@ CREATE FUNCTION thumbnail_control.valid_input(p_owner uuid,p_request uuid,p_mode
 LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $$
 DECLARE ref jsonb; pos integer:=0; total bigint:=0; suffix text;
 BEGIN
+  IF p_model='gemini-3.8-flash' THEN
+    ref:=p_input->'document';
+    RETURN coalesce(jsonb_typeof(p_input)='object' AND octet_length(p_input::text)<=1024
+      AND p_input->>'contract'='thumbnail-gemini-chat-v1' AND p_input->>'model'=p_model
+      AND p_input-ARRAY['contract','model','document']::text[]='{}'::jsonb
+      AND jsonb_typeof(ref)='object' AND ref ?& ARRAY['path','sha256','bytes','mimeType']
+      AND ref-ARRAY['path','sha256','bytes','mimeType']::text[]='{}'::jsonb
+      AND jsonb_typeof(ref->'path')='string' AND ref->>'path'=p_owner::text||'/'||p_request::text||'/input/chat.json'
+      AND jsonb_typeof(ref->'sha256')='string' AND ref->>'sha256' ~ '^[a-f0-9]{64}$'
+      AND jsonb_typeof(ref->'bytes')='number' AND ref->>'bytes' ~ '^[0-9]{1,5}$'
+      AND CASE WHEN ref->>'bytes' ~ '^[0-9]{1,5}$' THEN (ref->>'bytes')::bigint BETWEEN 16 AND 65536 ELSE false END
+      AND ref->>'mimeType'='application/json',false);
+  END IF;
   IF p_input IS NULL OR jsonb_typeof(p_input) IS DISTINCT FROM 'object' OR octet_length(p_input::text)>131072
     OR p_input->>'contract' IS DISTINCT FROM 'thumbnail-gemini-image-v1'
     OR p_input->>'model' IS DISTINCT FROM p_model
@@ -183,7 +196,7 @@ BEGIN
       'bucketStartedAt',reference_bucket,'candidates',listing);
   ELSIF p_action='enqueue' THEN
     IF p_request_id IS NULL OR p_input_sha256 IS NULL OR p_input_sha256 !~ '^[a-f0-9]{64}$'
-      OR p_model IS NULL OR p_model NOT IN ('gemini-3.1-flash-image','gemini-3-pro-image')
+      OR p_model IS NULL OR p_model NOT IN ('gemini-3.1-flash-image','gemini-3-pro-image','gemini-3.8-flash')
       OR NOT thumbnail_control.valid_input(p_owner_id,p_request_id,p_model,p_input) THEN RAISE EXCEPTION 'invalid_input'; END IF;
     INSERT INTO public.admin_thumbnail_jobs(owner_id,request_id,input_sha256,model,input)
       VALUES(p_owner_id,p_request_id,p_input_sha256,p_model,p_input) ON CONFLICT DO NOTHING RETURNING * INTO j;
@@ -197,16 +210,17 @@ BEGIN
     END IF;
     PERFORM storyboard_control.assert_owner(p_owner_id);
     RETURN thumbnail_control.job_json(j);
-  ELSIF p_action='request' THEN
+  ELSIF p_action IN ('request','chat_request') THEN
     -- Recover a DB-generated job ID after enqueue ACK loss without inserting or
     -- issuing a start permission. A missing row is not proof of a rolled-back enqueue.
     IF p_request_id IS NULL THEN RAISE EXCEPTION 'invalid_input'; END IF;
     SELECT * INTO j FROM public.admin_thumbnail_jobs
-      WHERE owner_id=p_owner_id AND request_id=p_request_id FOR UPDATE;
+      WHERE owner_id=p_owner_id AND request_id=p_request_id
+        AND ((model='gemini-3.8-flash')=(p_action='chat_request')) FOR UPDATE;
     IF NOT FOUND THEN RETURN NULL; END IF;
     PERFORM storyboard_control.assert_owner(p_owner_id);
     RETURN thumbnail_control.job_json(j);
-  ELSIF p_action='list' THEN
+  ELSIF p_action IN ('list','chat_list') THEN
     IF p_input IS NOT NULL AND p_input <> '{}'::jsonb THEN
       IF jsonb_typeof(p_input) IS DISTINCT FROM 'object' OR octet_length(p_input::text)>256
         OR p_input-ARRAY['beforeCreatedAt','beforeId']::text[]<>'{}'::jsonb
@@ -221,19 +235,21 @@ BEGIN
       SELECT id,created_at,jsonb_build_object('id',id,'requestId',request_id,'model',model,'state',state,
         'cancelRequested',cancel_requested,'createdAt',created_at,'updatedAt',updated_at) AS item
       FROM public.admin_thumbnail_jobs WHERE owner_id=p_owner_id
+        AND ((model='gemini-3.8-flash')=(p_action='chat_list'))
         AND (before_time IS NULL OR (created_at,id)<(before_time,before_id))
       ORDER BY created_at DESC,id DESC LIMIT 32
     ) bounded;
     RETURN listing;
-  ELSIF p_action NOT IN ('snapshot','cancel') OR p_action IS NULL THEN RAISE EXCEPTION 'invalid_action'; END IF;
-  SELECT * INTO j FROM public.admin_thumbnail_jobs WHERE id=p_job_id AND owner_id=p_owner_id FOR UPDATE;
+  ELSIF p_action NOT IN ('snapshot','cancel','chat_snapshot','chat_cancel') OR p_action IS NULL THEN RAISE EXCEPTION 'invalid_action'; END IF;
+  SELECT * INTO j FROM public.admin_thumbnail_jobs WHERE id=p_job_id AND owner_id=p_owner_id
+    AND ((model='gemini-3.8-flash')=(p_action IN ('chat_snapshot','chat_cancel'))) FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'job_not_found'; END IF;
   PERFORM storyboard_control.assert_owner(p_owner_id);
-  IF p_action='cancel' AND j.state IN ('queued','claimed') THEN
+  IF p_action IN ('cancel','chat_cancel') AND j.state IN ('queued','claimed') THEN
     UPDATE public.admin_thumbnail_jobs SET state='cancelled',cancel_requested=true,worker_id=NULL,attempt_id=NULL,
       lease_expires_at=NULL,updated_at=clock_timestamp() WHERE id=j.id RETURNING * INTO j;
     INSERT INTO public.admin_thumbnail_events(job_id,owner_id,fence,operation) VALUES(j.id,j.owner_id,j.fence,'cancelled');
-  ELSIF p_action='cancel' AND j.state IN ('provider_started','unknown') AND NOT j.cancel_requested THEN
+  ELSIF p_action IN ('cancel','chat_cancel') AND j.state IN ('provider_started','unknown') AND NOT j.cancel_requested THEN
     UPDATE public.admin_thumbnail_jobs SET cancel_requested=true,updated_at=clock_timestamp() WHERE id=j.id RETURNING * INTO j;
     INSERT INTO public.admin_thumbnail_events(job_id,owner_id,attempt_id,fence,operation)
       VALUES(j.id,j.owner_id,j.attempt_id,j.fence,'cancel_requested');
@@ -245,6 +261,20 @@ CREATE FUNCTION thumbnail_control.valid_result(j public.admin_thumbnail_jobs,p_r
 LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $$
 DECLARE item jsonb; variant text; suffix text; proof jsonb; prefix text;
 BEGIN
+  IF j.model='gemini-3.8-flash' THEN
+    item:=p_result->'content';
+    IF p_result IS NULL OR jsonb_typeof(p_result) IS DISTINCT FROM 'object' OR octet_length(p_result::text)>16384
+      OR NOT(p_result ?& ARRAY['content','provenance'])
+      OR p_result-ARRAY['content','provenance']::text[]<>'{}'::jsonb
+      OR jsonb_typeof(item) IS DISTINCT FROM 'object' OR NOT(item ?& ARRAY['path','sha256','bytes','mimeType'])
+      OR item-ARRAY['path','sha256','bytes','mimeType']::text[]<>'{}'::jsonb
+      OR jsonb_typeof(item->'path') IS DISTINCT FROM 'string'
+      OR item->>'path' IS DISTINCT FROM j.owner_id::text||'/'||j.id::text||'/'||j.attempt_id::text||'/response.json'
+      OR jsonb_typeof(item->'sha256') IS DISTINCT FROM 'string' OR coalesce(item->>'sha256','') !~ '^[a-f0-9]{64}$'
+      OR jsonb_typeof(item->'bytes') IS DISTINCT FROM 'number' OR coalesce(item->>'bytes','') !~ '^[0-9]{1,5}$'
+      OR item->>'mimeType' IS DISTINCT FROM 'application/json' THEN RETURN false; END IF;
+    IF (item->>'bytes')::bigint NOT BETWEEN 16 AND 48000 THEN RETURN false; END IF;
+  ELSE
   IF p_result IS NULL OR jsonb_typeof(p_result) IS DISTINCT FROM 'object' OR octet_length(p_result::text)>16384
     OR NOT(p_result ?& ARRAY['original','normalized','provenance'])
     OR p_result-ARRAY['original','normalized','provenance']::text[] <> '{}'::jsonb THEN RETURN false; END IF;
@@ -264,6 +294,7 @@ BEGIN
     IF variant='normalized' AND (item->>'mimeType' IS DISTINCT FROM 'image/png'
       OR item->>'width' IS DISTINCT FROM '1280' OR item->>'height' IS DISTINCT FROM '720') THEN RETURN false; END IF;
   END LOOP;
+  END IF;
   proof:=p_result->'provenance';
   RETURN coalesce(jsonb_typeof(proof)='object'
     AND proof->>'providerId'='gemini-api' AND proof->>'model'=j.model
@@ -291,11 +322,11 @@ BEGIN
   UPDATE public.admin_thumbnail_workers SET last_seen_at=clock_timestamp() WHERE id=w.id;
   IF p_action='models' THEN
     IF p_payload IS NULL OR jsonb_typeof(p_payload->'models') IS DISTINCT FROM 'array'
-      OR jsonb_array_length(p_payload->'models')>2 OR p_payload-ARRAY['models']::text[]<>'{}'::jsonb
+      OR jsonb_array_length(p_payload->'models')>3 OR p_payload-ARRAY['models']::text[]<>'{}'::jsonb
       OR EXISTS(SELECT 1 FROM jsonb_array_elements(p_payload->'models') v WHERE jsonb_typeof(v)<>'string')
       THEN RAISE EXCEPTION 'invalid_models'; END IF;
     SELECT coalesce(array_agg(value),'{}'::text[]) INTO advertised_models FROM jsonb_array_elements_text(p_payload->'models');
-    IF NOT(advertised_models <@ ARRAY['gemini-3.1-flash-image','gemini-3-pro-image']::text[])
+    IF NOT(advertised_models <@ ARRAY['gemini-3.1-flash-image','gemini-3-pro-image','gemini-3.8-flash']::text[])
       OR cardinality(advertised_models)<>(SELECT count(DISTINCT value) FROM unnest(advertised_models) value) THEN RAISE EXCEPTION 'invalid_models'; END IF;
     UPDATE public.admin_thumbnail_workers SET models=advertised_models WHERE id=w.id;
     RETURN jsonb_build_object('models',advertised_models);

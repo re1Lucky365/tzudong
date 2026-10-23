@@ -26,6 +26,45 @@ export class ThumbnailBrowserQueueError extends Error {
     | 'busy' | 'receipt_unavailable' | 'request_rejected' | 'rejected_input' | 'not_succeeded') { super(code); }
 }
 
+export async function thumbnailBrowserRequest(owner: string, requestFetch: typeof fetch, path: string, init: RequestInit = {}) {
+    try {
+      const headers = new Headers(init.headers); headers.set('X-Thumbnail-Owner', owner);
+      const response = await requestFetch(path, { ...init, credentials: 'same-origin',
+        headers, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(20_000) });
+      // The server returns bounded jobs; cap even a misconfigured intermediary before JSON buffering.
+      if (!response.body) throw new ThumbnailBrowserQueueError('invalid_response');
+      const reader = response.body.getReader(); let size = 0; const chunks: Uint8Array[] = [];
+      try {
+        while (true) {
+          const part = await reader.read(); if (part.done) break;
+          size += part.value.byteLength;
+          if (size > 262_144) { void reader.cancel().catch(() => undefined); throw new ThumbnailBrowserQueueError('invalid_response'); }
+          chunks.push(part.value);
+        }
+      } finally { reader.releaseLock(); }
+      const bytes = new Uint8Array(size); let offset = 0;
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+      let value: unknown;
+      try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown; }
+      catch { throw new ThumbnailBrowserQueueError('invalid_response'); }
+      if (!response.ok) {
+        const rejection = z.object({ ok: z.literal(false), error: z.string() }).strict().safeParse(value);
+        // These fixed API codes are emitted before queue insertion. A 409, 5xx, missing/malformed
+        // body or transport failure cannot authorize discarding the original receipt.
+        if (rejection.success && ((response.status === 400 && rejection.data.error === 'invalid_request')
+          || (response.status === 413 && rejection.data.error === 'request_too_large')
+          || (response.status === 403 && ['origin_forbidden', 'owner_forbidden'].includes(rejection.data.error)))) {
+          throw new ThumbnailBrowserQueueError('rejected_input');
+        }
+        throw new ThumbnailBrowserQueueError(response.status >= 500 ? 'unconfirmed' : 'request_rejected');
+      }
+      return value;
+    } catch (error) {
+      if (error instanceof ThumbnailBrowserQueueError) throw error;
+      throw new ThumbnailBrowserQueueError('unconfirmed');
+    }
+}
+
 /** Stores only scoped request identity and cancellation intent, never prompt, file, key or session bytes. */
 export class ThumbnailBrowserQueue {
   private readonly owner: string;
@@ -94,43 +133,8 @@ export class ThumbnailBrowserQueue {
       });
     } finally { this.busy = false; }
   }
-  private async request(path: string, init: RequestInit = {}) {
-    try {
-      const headers = new Headers(init.headers); headers.set('X-Thumbnail-Owner', this.owner);
-      const response = await (this.options.fetch ?? fetch)(path, { ...init, credentials: 'same-origin',
-        headers, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(20_000) });
-      // The server returns bounded jobs; cap even a misconfigured intermediary before JSON buffering.
-      if (!response.body) throw new ThumbnailBrowserQueueError('invalid_response');
-      const reader = response.body.getReader(); let size = 0; const chunks: Uint8Array[] = [];
-      try {
-        while (true) {
-          const part = await reader.read(); if (part.done) break;
-          size += part.value.byteLength;
-          if (size > 262_144) { void reader.cancel().catch(() => undefined); throw new ThumbnailBrowserQueueError('invalid_response'); }
-          chunks.push(part.value);
-        }
-      } finally { reader.releaseLock(); }
-      const bytes = new Uint8Array(size); let offset = 0;
-      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-      let value: unknown;
-      try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown; }
-      catch { throw new ThumbnailBrowserQueueError('invalid_response'); }
-      if (!response.ok) {
-        const rejection = z.object({ ok: z.literal(false), error: z.string() }).strict().safeParse(value);
-        // These fixed API codes are emitted before queue insertion. A 409, 5xx, missing/malformed
-        // body or transport failure cannot authorize discarding the original receipt.
-        if (rejection.success && ((response.status === 400 && rejection.data.error === 'invalid_request')
-          || (response.status === 413 && rejection.data.error === 'request_too_large')
-          || (response.status === 403 && ['origin_forbidden', 'owner_forbidden'].includes(rejection.data.error)))) {
-          throw new ThumbnailBrowserQueueError('rejected_input');
-        }
-        throw new ThumbnailBrowserQueueError(response.status >= 500 ? 'unconfirmed' : 'request_rejected');
-      }
-      return value;
-    } catch (error) {
-      if (error instanceof ThumbnailBrowserQueueError) throw error;
-      throw new ThumbnailBrowserQueueError('unconfirmed');
-    }
+  private request(path: string, init: RequestInit = {}) {
+    return thumbnailBrowserRequest(this.owner, this.options.fetch ?? fetch, path, init);
   }
   private accept(value: unknown, handle: ThumbnailBrowserHandle) {
     const parsed = z.object({ job: thumbnailJob }).strict().safeParse(value);

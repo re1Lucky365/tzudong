@@ -34,7 +34,8 @@ PRIVATE_TS = ROOT/'apps/web/tests-unit/fixtures/thumbnail-private-store-pg17.ts'
 PRIVATE_LIB = ROOT/'apps/web/lib/admin/youtube-thumbnail-generator'
 SOURCES = [SQL, SELF, BRIDGE, KPI, TS, CLIENT, PRIVATE_TS,
            *[PRIVATE_LIB/name for name in ['queue-contract.ts','private-store.ts','queue-api.ts','prompt.ts','safety.ts',
-                                         'worker-outbox.ts','outbound-worker.ts','browser-queue.ts']],
+                                         'worker-outbox.ts','outbound-worker.ts','browser-queue.ts','chat-browser-queue.ts',
+                                         'chat-contract.ts','chat-gemini-client.ts','execution-contract.ts']],
            ROOT/'apps/web/scripts/thumbnail-gemini-worker.ts',ROOT/'apps/web/package.json']
 MODEL = 'gemini-3.1-flash-image'
 sha = lambda value: hashlib.sha256(value.encode()).hexdigest()
@@ -111,10 +112,10 @@ class ThumbnailQueuePg17(unittest.TestCase):
                 cursor.execute('INSERT INTO public.admin_thumbnail_workers(owner_id,token_sha256,models) VALUES(%s,%s,%s)',
                                (self.other if index==2 else self.owner,token,[MODEL]))
 
-    def admin(self,action,job=None,request=None,digest=None,payload=None,owner=None):
+    def admin(self,action,job=None,request=None,digest=None,payload=None,owner=None,model=MODEL):
         with self.connection() as connection,connection.cursor() as cursor:
             cursor.execute('SELECT public.thumbnail_production_admin(%s,%s,%s,%s,%s,%s,%s)',
-                           (owner or self.owner,action,job,request,digest,MODEL,Json(payload) if payload is not None else None))
+                           (owner or self.owner,action,job,request,digest,model,Json(payload) if payload is not None else None))
             return cursor.fetchone()[0]
 
     def enqueue(self,request=None,digest=None,prompt='synthetic food',owner=None):
@@ -180,6 +181,57 @@ class ThumbnailQueuePg17(unittest.TestCase):
         self.assertEqual(first['id'],self.enqueue(request=request)['id'])
         self.assert_rpc_error('request_conflict',lambda:self.enqueue(request=request,prompt='changed'))
         self.observations['request_idempotency']={'sameJob':True,'changedInputRejected':True}
+
+    def chat(self,request=None,**changes):
+        request=request or str(uuid.uuid4()); model='gemini-3.8-flash'
+        document={'path':f'{self.owner}/{request}/input/chat.json','sha256':sha('typed chat context'),
+                  'bytes':512,'mimeType':'application/json'}
+        document.update(changes)
+        return self.admin('enqueue',request=request,digest=sha('chat '+request),model=model,
+                          payload={'contract':'thumbnail-gemini-chat-v1','model':model,'document':document})
+
+    def chat_result(self,job):
+        proof=self.manifest(job)['provenance']; proof['model']=job['model']; proof['responseModel']=job['model']
+        return {'content':{'path':f"{job['ownerId']}/{job['id']}/{job['attemptId']}/response.json",
+                           'sha256':sha('typed chat result'),'bytes':512,'mimeType':'application/json'},'provenance':proof}
+
+    def test_chat_and_image_reads_cannot_substitute_jobs_or_history(self):
+        chat=self.chat(); image=self.enqueue();
+        self.assertIsNone(self.admin('request',request=chat['requestId']))
+        self.assertIsNone(self.admin('chat_request',request=image['requestId']))
+        self.assertEqual(chat,self.admin('chat_request',request=chat['requestId']))
+        self.assertEqual([image['id']],[row['id'] for row in self.admin('list')])
+        self.assertEqual([chat['id']],[row['id'] for row in self.admin('chat_list')])
+        self.assert_rpc_error('job_not_found',lambda:self.admin('cancel',job=chat['id']))
+        self.assert_rpc_error('job_not_found',lambda:self.admin('chat_cancel',job=image['id']))
+        self.assertEqual('cancelled',self.admin('chat_cancel',job=chat['id'])['state'])
+        self.assertEqual('queued',self.admin('snapshot',job=image['id'])['state'])
+
+    def test_chat_fresh_start_and_recovery_share_the_global_unknown_slot(self):
+        self.worker('models',payload={'models':[MODEL,'gemini-3.8-flash']})
+        enqueued=self.chat(); self.enqueue(); claimed=self.worker('claim')
+        self.assertEqual(enqueued['id'],claimed['id']); receipt=self.worker('start',claimed)
+        self.assertEqual('gemini-3.8-flash',receipt['model']); self.assertEqual('fresh-commit',receipt['permission'])
+        self.assert_rpc_error('start_not_confirmed',lambda:self.worker('start',claimed))
+        self.worker('unknown',claimed); self.assertIsNone(self.worker('claim',index=1))
+        self.assertNotIn('permission',self.admin('chat_snapshot',job=claimed['id']))
+        self.assert_rpc_error('invalid_result',lambda:self.worker('complete',claimed,payload=self.manifest(claimed)))
+        complete=self.worker('complete',claimed,payload=self.chat_result(claimed))
+        self.assertEqual('succeeded',complete['state']); self.assertEqual(complete,self.admin('chat_request',request=claimed['requestId']))
+        self.assertEqual(MODEL,self.worker('claim',index=1)['model'])
+        self.observations['chat_shared_slot']={'freshStarts':1,'snapshotPermissions':0,'unknownBlocksImages':True,'originalAttemptRecovery':True}
+
+    def test_chat_document_and_result_bounds_and_identity_are_strict(self):
+        for change in [{'bytes':65537},{'bytes':15},{'bytes':1.5},{'bytes':'512'}, {'path':'../chat.json'},
+                       {'mimeType':'text/plain'},{'sha256':'invalid'},{'unexpected':True}]:
+            self.assert_rpc_error('invalid_input',lambda:self.chat(**change))
+        self.worker('models',payload={'models':['gemini-3.8-flash']}); self.chat(); job=self.worker('claim');self.worker('start',job)
+        for field,value in [('bytes',48001),('path','../response.json'),('mimeType','image/png'),('sha256','invalid')]:
+            result=self.chat_result(job);result['content'][field]=value
+            self.assert_rpc_error('invalid_result',lambda:self.worker('complete',job,payload=result))
+        result=self.chat_result(job);result['provenance']['inputSha256']=sha('different')
+        self.assert_rpc_error('invalid_result',lambda:self.worker('complete',job,payload=result))
+        self.assertEqual('succeeded',self.worker('complete',job,payload=self.chat_result(job))['state'])
 
     def test_request_readback_recovers_generated_id_and_current_states(self):
         request=str(uuid.uuid4());enqueued=self.enqueue(request=request)
@@ -453,7 +505,8 @@ class ThumbnailQueuePg17(unittest.TestCase):
         for mode in ['normal','checkpoint-ack-lost','normalize-recovery','start-ack-lost',
                      'outbound-normal','outbound-delivery-lost','outbound-start-ack-lost',
                      'outbound-response-lost','outbound-stop-received','outbound-concurrent-observer','outbound-priority-recovery',
-                     'browser-normal','browser-ack-lost','browser-cancel-lost']:
+                     'browser-normal','browser-ack-lost','browser-cancel-lost',
+                     'chat-normal','chat-delivery-lost','chat-start-ack-lost','chat-stop-received']:
             with self.subTest(mode=mode):
                 with self.connection(admin=True) as connection,connection.cursor() as cursor:
                     cursor.execute('TRUNCATE public.admin_thumbnail_events,public.admin_thumbnail_jobs;')
@@ -469,7 +522,7 @@ class ThumbnailQueuePg17(unittest.TestCase):
                 self.assertEqual(0,result.returncode,result.stderr)
                 observed=json.loads(result.stdout);observations.append(observed)
                 self.assertTrue(observed['actualApiHandlers']);self.assertTrue(observed['inputBound'])
-                self.assertEqual(0 if mode in ['start-ack-lost','outbound-start-ack-lost','browser-cancel-lost'] else 1,observed['sdkCalls'])
+                self.assertEqual(0 if mode in ['start-ack-lost','outbound-start-ack-lost','browser-cancel-lost','chat-start-ack-lost'] else 1,observed['sdkCalls'])
                 self.assertEqual(0,observed['externalProviderCalls'])
         self.observations['actual_private_api_store_client']=observations
 

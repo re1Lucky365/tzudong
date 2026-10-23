@@ -2,6 +2,7 @@
 import { parseArgs } from 'node:util';
 import { parse } from 'dotenv';
 import { GeminiThumbnailWorkerClient } from '../lib/admin/youtube-thumbnail-generator/gemini-worker-client';
+import { GeminiThumbnailChatWorkerClient } from '../lib/admin/youtube-thumbnail-generator/chat-gemini-client';
 import { ThumbnailWorkerOutbox } from '../lib/admin/youtube-thumbnail-generator/worker-outbox';
 import { OutboundThumbnailWorker, ThumbnailWorkerTransport, readThumbnailWorkerFile,
   thumbnailWorkerErrorCode } from '../lib/admin/youtube-thumbnail-generator/outbound-worker';
@@ -23,7 +24,8 @@ try {
     const api = new ThumbnailWorkerTransport({ origin: values.origin, token });
     outbox = new ThumbnailWorkerOutbox(values['outbox-dir']);
     const gemini = () => new GeminiThumbnailWorkerClient({ env, onUsage: (usage) => console.log(JSON.stringify({ event: 'gemini_usage', ...usage })) });
-    const worker = new OutboundThumbnailWorker({ api, outbox, gemini, onEvent: (event) => console.log(JSON.stringify(event)) });
+    const chatGemini = () => new GeminiThumbnailChatWorkerClient({ env, onUsage: (usage) => console.log(JSON.stringify({ event: 'gemini_usage', ...usage })) });
+    const worker = new OutboundThumbnailWorker({ api, outbox, gemini, chatGemini, onEvent: (event) => console.log(JSON.stringify(event)) });
     console.log(JSON.stringify({ event: 'worker_started', provider: 'gemini-api', projectConcurrency: 1 }));
     if (await worker.run({ signal: stop.signal, once: values.once }) === 'held') process.exitCode = 1;
   }

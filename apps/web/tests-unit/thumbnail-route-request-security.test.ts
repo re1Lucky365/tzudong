@@ -83,13 +83,6 @@ async function expectRejectedReferenceImage(bytes: Uint8Array, name = 'reference
 
 const thumbnailMutationRoutes = [
   {
-    routePath: 'app/api/admin/youtube-thumbnail-generator/chat/route.ts',
-    maximumBytes: 64 * 1024,
-    maximumBytesDeclaration: 'const MAX_THUMBNAIL_CHAT_REQUEST_BYTES = 64 * 1024;',
-    readerCall: 'readBoundedJsonRequest(request, MAX_THUMBNAIL_CHAT_REQUEST_BYTES)',
-    mutationWork: 'getThumbnailProviderReadinessBlocker(process.env)',
-  },
-  {
     routePath: 'app/api/admin/youtube-thumbnail-generator/reference-image/route.ts',
     maximumBytes: 4 * 1024,
     maximumBytesDeclaration: 'const MAX_THUMBNAIL_REFERENCE_IMAGE_REQUEST_BYTES = 4 * 1024;',

@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { STORYBOARD_GEMINI_TEXT_MODEL } from '../storyboard/gemini-models';
 
 export const thumbnailUuid = z.uuid().transform((value) => value.toLowerCase());
 export const thumbnailHash = z.string().regex(/^[a-f0-9]{64}$/);
 export const thumbnailModel = z.enum(['gemini-3.1-flash-image', 'gemini-3-pro-image']);
+export const thumbnailExecutionModel = z.union([thumbnailModel, z.literal(STORYBOARD_GEMINI_TEXT_MODEL)]);
 export const thumbnailMime = z.enum(['image/png', 'image/jpeg', 'image/webp']);
 export const thumbnailRole = z.enum(['host', 'food', 'object', 'person', 'other']);
 export const THUMBNAIL_PRIVATE_BUCKET = 'youtube-thumbnail-jobs';
@@ -58,18 +60,24 @@ export const thumbnailInput = z.object({ contract: z.literal('thumbnail-gemini-i
   .refine((input) => input.references.reduce((total, ref) => total + ref.bytes, 0) <= 16 * 1024 * 1024);
 export const thumbnailState = z.enum(['queued', 'claimed', 'provider_started', 'unknown', 'succeeded', 'cancelled']);
 const time = z.iso.datetime({ offset: true });
-export const thumbnailJob = z.object({ id: thumbnailUuid, ownerId: thumbnailUuid, requestId: thumbnailUuid,
+export const thumbnailJobBase = z.object({ id: thumbnailUuid, ownerId: thumbnailUuid, requestId: thumbnailUuid,
   inputSha256: thumbnailHash, model: thumbnailModel, input: thumbnailInput, state: thumbnailState,
   workerId: thumbnailUuid.nullable(), attemptId: thumbnailUuid.nullable(), fence: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
   leaseExpiresAt: time.nullable(), providerStartedAt: time.nullable(), cancelRequested: z.boolean(),
-  result: thumbnailResult.nullable(), createdAt: time, updatedAt: time }).strict().superRefine((job, ctx) => {
+  result: thumbnailResult.nullable(), createdAt: time, updatedAt: time }).strict();
+export function validThumbnailExecutionState(job: { model: string; input: { model: string }; state: string;
+  leaseExpiresAt: string | null; workerId: string | null; attemptId: string | null;
+  providerStartedAt: string | null; fence: number; result: unknown }) {
   const leased = ['claimed', 'provider_started'].includes(job.state);
   const assigned = ['claimed', 'provider_started', 'unknown', 'succeeded'].includes(job.state);
   const started = ['provider_started', 'unknown', 'succeeded'].includes(job.state);
-  const valid = job.model === job.input.model && leased === Boolean(job.leaseExpiresAt)
+  return job.model === job.input.model && leased === Boolean(job.leaseExpiresAt)
     && assigned === Boolean(job.workerId) && assigned === Boolean(job.attemptId)
     && started === Boolean(job.providerStartedAt) && (job.state === 'succeeded') === Boolean(job.result)
-    && (!assigned || job.fence > 0)
+    && (!assigned || job.fence > 0);
+}
+export const thumbnailJob = thumbnailJobBase.superRefine((job, ctx) => {
+  const valid = validThumbnailExecutionState(job)
     && job.input.references.every((ref, index) => ref.path === inputPath(job.ownerId, job.requestId, index, ref.sha256, ref.mimeType))
     && (!job.result || validResultIdentity(job, job.result));
   if (!valid) ctx.addIssue({ code: 'custom', message: 'invalid_job' });
@@ -77,7 +85,7 @@ export const thumbnailJob = z.object({ id: thumbnailUuid, ownerId: thumbnailUuid
 export const thumbnailSummary = z.object({ id: thumbnailUuid, requestId: thumbnailUuid, model: thumbnailModel,
   state: thumbnailState, cancelRequested: z.boolean(), createdAt: time, updatedAt: time }).strict();
 export const thumbnailWorker = z.object({ id: thumbnailUuid, ownerId: thumbnailUuid,
-  models: z.array(thumbnailModel).max(2).refine((models) => new Set(models).size === models.length) }).strict();
+  models: z.array(thumbnailExecutionModel).max(3).refine((models) => new Set(models).size === models.length) }).strict();
 export const thumbnailAttempt = z.object({ jobId: thumbnailUuid, attemptId: thumbnailUuid,
   fence: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER), inputSha256: thumbnailHash }).strict();
 export const thumbnailStartReceipt = thumbnailAttempt.extend({ ownerId: thumbnailUuid, providerId: z.literal('gemini-api'),

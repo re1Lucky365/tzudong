@@ -3484,7 +3484,7 @@ process.stdin.on("end", () => {
     expect(componentSource).toContain("normalizeGeneratedLayout?: boolean");
     expect(componentSource).toContain("const nextLayers = options.normalizeGeneratedLayout");
     expect(componentSource).toContain("createTextLayersWithGenerationLayout(\n        patchedLayers,");
-    expect(componentSource).toContain("normalizeGeneratedLayout: Boolean(nextAgentResult.shouldGenerate || shouldPreferSubmittedPromptCopy)");
+    expect(componentSource).toContain("normalizeGeneratedLayout: response.shouldGenerate");
     expect(componentSource).toContain("function updateTextLayer(");
     const updateTextLayerStart = componentSource.indexOf("function updateTextLayer(");
     const updateTextLayerEnd = componentSource.indexOf("\n\n  function applyChatRequirementToCanvas", updateTextLayerStart);
@@ -3882,39 +3882,19 @@ setTimeout(() => {}, 30_000);
     }
   }, 15_000);
 
-  test("returns JSON 400 for malformed thumbnail chat payloads without invoking the backend-agent", async () => {
-    let backendAgentCalls = 0;
-
-    mock.module("@/lib/auth/require-admin", () => ({
-      requireAdmin: async () => ({ ok: true, userId: "admin-user" }),
-    }));
-    mock.module("@/lib/admin/youtube-thumbnail-generator/backend-agent", () => ({
-      generateYoutubeThumbnailChatWithBackendAgent: async () => {
-        backendAgentCalls += 1;
-        throw new Error("backend-agent should not be invoked for invalid chat payloads");
-      },
-    }));
-
-    try {
-      const routeModule = await import(`../app/api/admin/youtube-thumbnail-generator/chat/route.ts?cache=${Math.random()}`);
-      const response = await routeModule.POST(new Request("http://localhost/api/admin/youtube-thumbnail-generator/chat", {
-        method: "POST",
-        body: JSON.stringify({ message: "   " }),
-        headers: {
-          "Content-Type": "application/json",
-          Origin: "http://localhost",
-          "Sec-Fetch-Site": "same-origin",
-        },
-      }) as unknown as NextRequest);
-      const payload = await response.json() as { error: string; detail?: string };
-
-      expect(response.status).toBe(400);
-      expect(payload.error).toBe("thumbnail_chat_message_required");
-      expect(payload.detail).toContain("채팅 메시지");
-      expect(backendAgentCalls).toBe(0);
-    } finally {
-      mock.restore();
-    }
+  test("retires the legacy chat transport before body parsing or any backend-agent execution", async () => {
+    const { createThumbnailQueueApi } = await import('../lib/admin/youtube-thumbnail-generator/queue-api');
+    const api = createThumbnailQueueApi({ authorize: async () => ({ ok: true, userId: "6f5d42d6-d122-4d32-b8bb-2779de58b423" }) });
+    const request = new Request("http://localhost/api/admin/youtube-thumbnail-generator/chat", {
+      method: "POST", body: "malformed legacy input", headers: { Origin: "http://localhost", "Content-Type": "application/json" },
+    });
+    const response = await api.chatLegacyPOST(request);
+    expect(response.status).toBe(410);
+    expect(await response.json()).toMatchObject({ error: "thumbnail_chat_route_retired", replacement: "/api/admin/youtube-thumbnail-generator/chat/jobs" });
+    expect(response.headers.get("Cache-Control")).toContain("private, no-store");
+    expect(request.bodyUsed).toBe(false);
+    const route = readFileSync(new URL('../app/api/admin/youtube-thumbnail-generator/chat/route.ts', import.meta.url), 'utf8');
+    expect(route).toContain('thumbnailQueueApi.chatLegacyPOST');
   });
 
 
@@ -5365,14 +5345,8 @@ test("youtube thumbnail release candidates stay hidden and auto-seed the initial
   expect(component).toContain("await loadThumbnailHistory({ replaceInitialPreview: true, silent: true, actualOnlyPreview: true })");
   expect(component).toContain("if (isCancelled || latestHistoryRunKeyRef.current) return");
   expect(component).toContain("userCanvasResultLockedRef.current = true");
-  expect(component).toContain("shouldPreferSubmittedPromptCopyForGeneration");
-  expect(component).toContain("item.data.shouldGenerate || shouldPreferSubmittedPromptCopyForGeneration");
-  expect(component).toContain("resolvedFinalResult.shouldGenerate || shouldPreferSubmittedPromptCopyForGeneration");
-  expect(component).toContain("const generationSafeTextLayerPatches = item.data.shouldGenerate");
-  expect(component).toContain("const nextAgentResult = shouldPreferSubmittedPromptCopy");
-  expect(component).toContain('patch.id !== "headline"');
-  expect(component).toContain('patch.id !== "subHeadline"');
-  expect(component).toContain("shouldPreserveSubmittedCreatorReference || shouldPreferSubmittedPromptCopy");
+  expect(component).toContain("const imageRequestId = queued.consume(editorRevisionRef.current, thumbnailChatThreadIdRef.current, chatRunId)");
+  expect(component).toContain("nextAssistantMessageId, imageRequestId");
   expect(component).toContain("return pool[0] ?? null");
   expect(component).toContain("compareThumbnailHistoryRunsByRecency");
   expect(component).toContain("getThumbnailHistoryRunTime(right) - getThumbnailHistoryRunTime(left)");

@@ -4,11 +4,16 @@ import sharp from 'sharp';
 import { z } from 'zod';
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/service-role';
 import { createSupabaseStorageServerClient } from '@/lib/supabase/storage-server';
+import { assertPrivacySafe } from '@/lib/privacy/sanitize';
 import { prepareThumbnailGeminiContent, type ThumbnailGeminiContent } from './gemini-worker-client';
+import { prepareThumbnailChatContent } from './chat-gemini-client';
+import { thumbnailChatContext, thumbnailChatProvenance, validateThumbnailChatResponse, type ThumbnailChatContext } from './chat-contract';
+import { thumbnailChatInput, thumbnailChatJob, thumbnailChatResult, thumbnailExecutionJob, thumbnailExecutionStartReceipt,
+  THUMBNAIL_CHAT_DOCUMENT_BYTES, THUMBNAIL_CHAT_RESULT_BYTES, type ThumbnailChatJob, type ThumbnailChatResult } from './execution-contract';
 import {
   THUMBNAIL_FAILURES, THUMBNAIL_IMAGE_BYTES, THUMBNAIL_PRIVATE_BUCKET, THUMBNAIL_REFERENCE_BYTES,
   ThumbnailQueueError, extension, inputPath, parseThumbnail, resultPrefix, thumbnailAttempt,
-  thumbnailHash, thumbnailInput, thumbnailJob, thumbnailProvenance, thumbnailResult, thumbnailSummary, thumbnailStartReceipt, thumbnailCollectedReferences,
+  thumbnailHash, thumbnailInput, thumbnailJob, thumbnailProvenance, thumbnailResult, thumbnailSummary, thumbnailCollectedReferences,
   thumbnailUuid, thumbnailWorker, validResultIdentity,
   thumbnailEditorDocument, type ThumbnailEditorDocument,
   type ThumbnailAttempt, type ThumbnailInput, type ThumbnailJob, type ThumbnailResult, type ThumbnailWorker,
@@ -115,6 +120,19 @@ async function decode(bytes: Buffer, mime: string) {
     await sharp(bytes, decodeOptions).raw().toBuffer();
     return { width: meta.width, height: meta.height };
   } catch { throw new ThumbnailQueueError('invalid_result'); }
+}
+function jsonBytes(bytes: Buffer): unknown {
+  try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
+  catch { throw new ThumbnailQueueError('object_conflict'); }
+}
+function safeChatContext(context: ThumbnailChatContext) {
+  // Screen bounded typed text, not coordinate-like editor geometry or the raw HTTP envelope.
+  try { assertPrivacySafe([context.message, context.currentTopic, context.currentHeadline, context.currentSubHeadline,
+    ...context.currentTextLayers.map((layer) => layer.content), ...context.conversationMessages.map((turn) => turn.content),
+    context.lastCanvasActionLabel ?? '', context.focusContext?.label ?? '', context.focusContext?.promptContext ?? '',
+    context.focusContext?.detail ?? '', ...context.referenceImageAttachments.map((attachment) => attachment.name)],
+  { maxEntries: 256, maxStringLength: 24_000 }); }
+  catch { throw new ThumbnailQueueError('invalid_request'); }
 }
 
 export class ThumbnailPrivateStore {
@@ -226,6 +244,72 @@ export class ThumbnailPrivateStore {
     }
     return parsed.document;
   }
+  private ownedChat(owner: string, raw: unknown): ThumbnailChatJob {
+    const job = parseThumbnail(thumbnailChatJob, raw, 'persistence_unavailable');
+    if (job.ownerId !== owner) throw new ThumbnailQueueError('owner_forbidden');
+    return job;
+  }
+  async chatGet(owner: string, jobId: string) {
+    owner = parseThumbnail(thumbnailUuid, owner);
+    const job = this.ownedChat(owner, await this.admin(owner, 'chat_snapshot', { p_job_id: parseThumbnail(thumbnailUuid, jobId) }));
+    if (job.id !== jobId.toLowerCase()) throw new ThumbnailQueueError('persistence_unavailable');
+    return job;
+  }
+  async chatRequest(owner: string, requestId: string) {
+    owner = parseThumbnail(thumbnailUuid, owner); requestId = parseThumbnail(thumbnailUuid, requestId);
+    const raw = await this.admin(owner, 'chat_request', { p_request_id: requestId });
+    if (raw === null) return null;
+    const job = this.ownedChat(owner, raw);
+    if (job.requestId !== requestId) throw new ThumbnailQueueError('persistence_unavailable');
+    return job;
+  }
+  async enqueueChat(owner: string, requestId: string, rawContext: unknown) {
+    owner = parseThumbnail(thumbnailUuid, owner); requestId = parseThumbnail(thumbnailUuid, requestId);
+    const prepared = prepareThumbnailChatContent(rawContext); safeChatContext(prepared.context);
+    const input = parseThumbnail(thumbnailChatInput, { contract: 'thumbnail-gemini-chat-v1', model: prepared.model,
+      document: { path: `${owner}/${requestId}/input/chat.json`, sha256: prepared.documentSha256,
+        bytes: prepared.documentBytes.length, mimeType: 'application/json' } });
+    const same = (job: ThumbnailChatJob) => job.requestId === requestId && job.inputSha256 === prepared.inputSha256
+      && job.model === prepared.model && isDeepStrictEqual(job.input, input);
+    const prior = await this.chatRequest(owner, requestId);
+    if (prior) {
+      if (!same(prior)) throw new ThumbnailQueueError('request_conflict');
+      await this.chatContext(prior);
+      return prior;
+    }
+    await this.immutable(input.document.path, prepared.documentBytes, 'application/json');
+    try {
+      const job = this.ownedChat(owner, await this.admin(owner, 'enqueue', { p_request_id: requestId,
+        p_input_sha256: prepared.inputSha256, p_model: prepared.model, p_input: input }, true));
+      if (!same(job)) throw new ThumbnailQueueError('write_unconfirmed');
+      return job;
+    } catch (error) {
+      if (!(error instanceof ThumbnailQueueError) || error.code !== 'write_unconfirmed') throw error;
+      let recovered: ThumbnailChatJob | null = null;
+      try { recovered = await this.chatRequest(owner, requestId); } catch { /* GET only; no new provider permission. */ }
+      if (recovered && same(recovered)) return recovered;
+      throw new ThumbnailQueueError('write_unconfirmed');
+    }
+  }
+  private async chatContext(job: ThumbnailChatJob) {
+    const asset = job.input.document, bytes = await this.storage.read(asset.path, THUMBNAIL_CHAT_DOCUMENT_BYTES);
+    if (!bytes || bytes.length !== asset.bytes || hash(bytes) !== asset.sha256) throw new ThumbnailQueueError('object_conflict');
+    const context = parseThumbnail(thumbnailChatContext, jsonBytes(bytes), 'object_conflict'); safeChatContext(context);
+    const prepared = prepareThumbnailChatContent(context);
+    if (prepared.inputSha256 !== job.inputSha256 || prepared.documentSha256 !== asset.sha256) throw new ThumbnailQueueError('object_conflict');
+    return context;
+  }
+  async chatOutput(owner: string, jobId: string) {
+    const job = await this.chatGet(owner, jobId);
+    if (job.state !== 'succeeded' || !job.result) throw new ThumbnailQueueError('job_not_found');
+    return { response: await this.verifiedChatOutput(job, job.result), provenance: job.result.provenance };
+  }
+  async chatCancel(owner: string, jobId: string) {
+    owner = parseThumbnail(thumbnailUuid, owner); jobId = parseThumbnail(thumbnailUuid, jobId);
+    const job = this.ownedChat(owner, await this.admin(owner, 'chat_cancel', { p_job_id: jobId }, true));
+    if (job.id !== jobId || (!job.cancelRequested && job.state !== 'succeeded')) throw new ThumbnailQueueError('write_unconfirmed');
+    return job;
+  }
   async cancel(owner: string, jobId: string) {
     const job = this.owned(parseThumbnail(thumbnailUuid, owner), await this.admin(owner, 'cancel', { p_job_id: parseThumbnail(thumbnailUuid, jobId) }, true));
     if (job.id !== jobId.toLowerCase() || (!job.cancelRequested && job.state !== 'succeeded')) throw new ThumbnailQueueError('write_unconfirmed');
@@ -251,13 +335,14 @@ export class ThumbnailPrivateStore {
     if (raw === null && action === 'claim') return null;
     // Only the direct committed start response grants fresh permission. No snapshot/readback can grant it.
     if (action === 'start') {
-      const receipt = parseThumbnail(thumbnailStartReceipt, raw, 'write_unconfirmed');
+      const receipt = parseThumbnail(thumbnailExecutionStartReceipt, raw, 'write_unconfirmed');
       if (!attempt || receipt.ownerId !== worker.ownerId || !worker.models.includes(receipt.model)
         || receipt.jobId !== attempt.jobId || receipt.attemptId !== attempt.attemptId
         || receipt.fence !== attempt.fence || receipt.inputSha256 !== attempt.inputSha256) throw new ThumbnailQueueError('attempt_conflict');
       return receipt;
     }
-    const job = this.owned(worker.ownerId, raw);
+    const job = parseThumbnail(thumbnailExecutionJob, raw, 'persistence_unavailable');
+    if (job.ownerId !== worker.ownerId) throw new ThumbnailQueueError('owner_forbidden');
     if (job.workerId !== worker.id || (attempt && (job.id !== attempt.jobId || job.attemptId !== attempt.attemptId
       || job.fence !== attempt.fence || job.inputSha256 !== attempt.inputSha256))) throw new ThumbnailQueueError('attempt_conflict');
     return job;
@@ -272,6 +357,81 @@ export class ThumbnailPrivateStore {
       throw new ThumbnailQueueError('attempt_conflict');
     }
     return job;
+  }
+  private async workerChatJob(worker: AuthenticatedThumbnailWorker, attempt: ThumbnailAttempt, inputRead = false) {
+    worker = admittedWorker(worker); attempt = parseThumbnail(thumbnailAttempt, attempt);
+    const job = await this.chatGet(worker.ownerId, attempt.jobId);
+    if (job.workerId !== worker.id || job.attemptId !== attempt.attemptId || job.fence !== attempt.fence
+      || job.inputSha256 !== attempt.inputSha256 || !(inputRead ? ['claimed', 'provider_started', 'unknown', 'succeeded']
+        : ['provider_started', 'unknown', 'succeeded']).includes(job.state)) throw new ThumbnailQueueError('attempt_conflict');
+    return job;
+  }
+  async workerChatContext(worker: AuthenticatedThumbnailWorker, attempt: ThumbnailAttempt) {
+    return await this.chatContext(await this.workerChatJob(worker, attempt, true));
+  }
+  private async verifiedChatOutput(job: ThumbnailChatJob, result: ThumbnailChatResult) {
+    const bytes = await this.storage.read(result.content.path, THUMBNAIL_CHAT_RESULT_BYTES);
+    if (!bytes || bytes.length !== result.content.bytes || hash(bytes) !== result.content.sha256) throw new ThumbnailQueueError('object_conflict');
+    const context = await this.chatContext(job);
+    try {
+      const response = validateThumbnailChatResponse(jsonBytes(bytes), context);
+      assertPrivacySafe([response.assistantMessage, ...Object.values(response.canvasPatch),
+        ...response.textLayerPatches.map((patch) => patch.content ?? '')], { maxStringLength: 24_000, maxEntries: 128 });
+      return response;
+    } catch { throw new ThumbnailQueueError('invalid_result'); }
+  }
+  async saveChatResult(worker: AuthenticatedThumbnailWorker, attempt: ThumbnailAttempt, original: Uint8Array, rawProvenance: unknown) {
+    if (!(original instanceof Uint8Array) || original.length < 16 || original.length > THUMBNAIL_CHAT_RESULT_BYTES) throw new ThumbnailQueueError('invalid_result');
+    const bytes = Buffer.from(original); worker = admittedWorker(worker); attempt = parseThumbnail(thumbnailAttempt, attempt);
+    const proof = parseThumbnail(thumbnailChatProvenance, rawProvenance, 'invalid_result');
+    const job = await this.workerChatJob(worker, attempt), context = await this.chatContext(job);
+    try {
+      const response = validateThumbnailChatResponse(jsonBytes(bytes), context);
+      assertPrivacySafe([response.assistantMessage, ...Object.values(response.canvasPatch),
+        ...response.textLayerPatches.map((patch) => patch.content ?? '')], { maxStringLength: 24_000, maxEntries: 128 });
+    } catch { throw new ThumbnailQueueError('invalid_result'); }
+    if (proof.inputSha256 !== job.inputSha256 || proof.attemptId !== job.attemptId) throw new ThumbnailQueueError('attempt_conflict');
+    const result = parseThumbnail(thumbnailChatResult, { content: { path: `${resultPrefix(job)}response.json`, sha256: hash(bytes),
+      bytes: bytes.length, mimeType: 'application/json' }, provenance: proof }, 'invalid_result');
+    const recovery = { contract: 'thumbnail-chat-recovery-v1', ownerId: job.ownerId, jobId: job.id,
+      workerId: worker.id, attemptId: job.attemptId, fence: job.fence, inputSha256: job.inputSha256, result };
+    await this.immutable(`${resultPrefix(job)}recovery.json`, Buffer.from(JSON.stringify(recovery)), 'application/json');
+    await this.immutable(result.content.path, bytes, 'application/json');
+    return await this.completeChat(worker, job, result);
+  }
+  async recoverChatResult(worker: AuthenticatedThumbnailWorker, attempt: ThumbnailAttempt) {
+    worker = admittedWorker(worker); attempt = parseThumbnail(thumbnailAttempt, attempt);
+    const job = await this.workerChatJob(worker, attempt), bytes = await this.storage.read(`${resultPrefix(job)}recovery.json`, 16_384);
+    if (!bytes) throw new ThumbnailQueueError('write_unconfirmed');
+    const saved = parseThumbnail(z.object({ contract: z.literal('thumbnail-chat-recovery-v1'), ownerId: thumbnailUuid,
+      jobId: thumbnailUuid, workerId: thumbnailUuid, ...thumbnailAttempt.omit({ jobId: true }).shape,
+      result: thumbnailChatResult }).strict(), jsonBytes(bytes), 'object_conflict');
+    if (saved.ownerId !== job.ownerId || saved.jobId !== job.id || saved.workerId !== worker.id || saved.attemptId !== job.attemptId
+      || saved.fence !== job.fence || saved.inputSha256 !== job.inputSha256 || saved.result.provenance.attemptId !== job.attemptId
+      || saved.result.provenance.inputSha256 !== job.inputSha256 || saved.result.content.path !== `${resultPrefix(job)}response.json`) {
+      throw new ThumbnailQueueError('object_conflict');
+    }
+    await this.verifiedChatOutput(job, saved.result);
+    return await this.completeChat(worker, job, saved.result);
+  }
+  private async completeChat(worker: AuthenticatedThumbnailWorker, job: ThumbnailChatJob, result: ThumbnailChatResult) {
+    const same = (current: ThumbnailChatJob) => current.id === job.id && current.ownerId === job.ownerId
+      && current.workerId === worker.id && current.attemptId === job.attemptId && current.fence === job.fence
+      && current.inputSha256 === job.inputSha256 && current.model === job.model && current.state === 'succeeded'
+      && isDeepStrictEqual(current.result, result);
+    try {
+      const current = this.ownedChat(job.ownerId, await this.rpc('thumbnail_production_worker', {
+        p_token_sha256: worker.tokenHash, p_action: 'complete', p_job_id: job.id, p_attempt_id: job.attemptId,
+        p_fence: job.fence, p_input_sha256: job.inputSha256, p_payload: result }, true));
+      if (!same(current)) throw new ThumbnailQueueError('write_unconfirmed');
+      return current;
+    } catch (error) {
+      if (!(error instanceof ThumbnailQueueError) || error.code !== 'write_unconfirmed') throw error;
+      let current: ThumbnailChatJob | null = null;
+      try { current = await this.chatGet(job.ownerId, job.id); } catch { /* Preserve the original result on uncertain readback. */ }
+      if (current && same(current)) return current;
+      throw new ThumbnailQueueError('write_unconfirmed');
+    }
   }
   async workerReference(worker: AuthenticatedThumbnailWorker, attempt: ThumbnailAttempt, index: number) {
     worker = admittedWorker(worker);
