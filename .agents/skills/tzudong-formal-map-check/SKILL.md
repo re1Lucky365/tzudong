@@ -13,13 +13,13 @@ From `apps/web`, with Bun **1.4.0**, installed project dependencies and Google C
 bun scripts/verify-marker-formal.mjs --out /tmp/tzudong-formal-check.json
 ```
 
-The command fails if the browser is missing. It does not download a browser, change settings, contact the map provider or silently skip. It runs the actual TypeScript pool inside Chromium with a substituted SDK, checks eight deliberately broken source copies, removes only its scratch directories, verifies the original source hashes and checks the original again. A module/import/browser error is not successful mutation detection. Inspect `baseline`, every `mutations[].detected`, `restored` and `sourceHashes` in the JSON.
+The command fails if the browser is missing. It does not download a browser, change settings, contact the map provider or silently skip. It runs the actual TypeScript pool inside Chromium with a substituted SDK, checks eleven deliberately broken source copies, removes only its scratch directories, verifies the original source hashes and checks the original again. A module/import/browser error is not successful mutation detection. Inspect `baseline`, every `mutations[].detected`, `restored` and `sourceHashes` in the JSON.
 
-The browser fixture imports `wrapNaverMarkerContentWithReviewBubble` from the same module as NaverMapView. It does not hand-copy the review wrapper. Review states are none, existing text and refreshed text; adding/removing the outer wrapper is a structural update.
+The browser fixture imports `wrapNaverMarkerContentWithReviewBubble` from the same module as NaverMapView. It does not hand-copy the review wrapper. Review states are none, existing text and refreshed text with a photo; adding/removing the outer wrapper is a structural update.
 
 ## Coverage and synchronization
 
-Sync commit: `fe4b73dac510d4670517c7d3eca4f0c2470d4297`.
+Sync commit: `e2f60f7ea944776c81d538b5b042ed28ac9b04ae`.
 
 | Actual source | Promise checked |
 | --- | --- |
@@ -32,7 +32,7 @@ Sync commit: `fe4b73dac510d4670517c7d3eca4f0c2470d4297`.
 
 Harnesses: `apps/web/tests-formal/marker-state-model.test.mjs`, `apps/web/tests-unit/evidence-numeric-bounds.test.ts`, `popularity-input-boundary.test.ts`, `evidence-cohort-shadow.test.ts`, `visible-marker-review-bubbles.test.ts`. Read the actual code and its relevant callers before interpreting a failure. Existing marker-pool and foundation unit tests remain useful companion checks.
 
-Bounds: review fixtures have no photo; DOM/pixel layout and provider internals are outside this exploration. 48 visual variants, with fresh or in-place-mutated review objects, produce 9,216 ordered active/reacquired transitions. Eight pool/click actions are enumerated through depth four: 4,681 traces and 18,056 executed steps. Public operations are synchronous action boundaries; SDK reentrancy within an operation is excluded. Recycled physical handles belong to their **current** restaurant: an old variable name is not evidence that a click belongs to its former ID.
+Bounds: review fixtures include a photo URL/DOM branch with network blocked; photo pixels, layout and provider internals are outside this exploration. Targeted traces additionally cover cloned icon descriptors, hidden-root preservation, viewport clamp, changed anchors, failed detach and cluster update/reacquire. 48 visual variants, with fresh or in-place-mutated review objects, produce 9,216 ordered active/reacquired transitions. Eight pool/click actions are enumerated through depth four: 4,681 traces and 18,056 executed steps. Public operations are synchronous action boundaries; SDK reentrancy within an operation is excluded. Recycled physical handles belong to their **current** restaurant: an old variable name is not evidence that a click belongs to its former ID.
 
 These are bounded checks against real TS and DOM behavior with a synthetic provider, not an unbounded theorem or a TLA+ refinement proof. They establish neither eventual progress nor real SDK/network/device/production behavior. The arithmetic cases are regressions at named boundaries, not exhaustive floating-point verification.
 

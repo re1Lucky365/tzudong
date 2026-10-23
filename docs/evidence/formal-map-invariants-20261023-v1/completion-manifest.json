@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "status": "EIGHT_NATIVE_FIXES_AND_BOUNDED_CHECKS_COMPLETE_EXTERNAL_DELTA_QUEUED",
+  "status": "GEMINI_COMPLETE_FIXES_NATIVE_VERIFIED_PRO_REVERSE_PENDING",
   "overallComplete": false,
-  "sourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
+  "sourceRevision": "e2f60f7ea944776c81d538b5b042ed28ac9b04ae",
   "baseRevision": "56427320a44fdd65a86dc49e7e63d80dd9935c2e",
   "findingIds": [
     "FORMAL-01",
@@ -12,7 +12,13 @@
     "FORMAL-05",
     "FORMAL-06",
     "FORMAL-07",
-    "FORMAL-08"
+    "FORMAL-08",
+    "GEM-F-01",
+    "GEM-F-02",
+    "GEM-F-03",
+    "GEM-F-04",
+    "GEM-F-05",
+    "EVIDENCE-01"
   ],
   "findingsDecision": "ACCEPT_IMPLEMENTED_NATIVE_VERIFIED",
   "boundedChecks": {
@@ -20,24 +26,35 @@
     "ownershipTraceDepth": 4,
     "ownershipTraces": 4681,
     "ownershipSteps": 18056,
-    "mutantsDetected": 8
+    "mutantsDetected": 11
   },
   "wholeSystemProof": false,
   "tool": "Bun 1.4.0 + Chromium 156.0.8078.47; actual TS and DOM, synthetic provider",
   "priorThreeStageAudit": "UNCHANGED_VALID_REPORTS_REUSED",
-  "currentDeltaReview": "QUEUED_NOT_DISPATCHED",
+  "currentDeltaReview": "FULL_GEMINI_REPORT_VERIFIED_OWNER_RELEASED_PRO_REVERSE_PENDING",
   "queueRequestId": "86eb51ad0f69dcedd3c5dd33",
   "bundleSha256": "c3fb6be051942230565e8e551f6f9988d6c0da2175c2a9df553a5398e6865f23",
-  "sourceAccessRemote": "UNVERIFIED_NOT_UPLOADED",
+  "sourceAccessRemote": "MATCHED_SAMPLES_VERIFIED_COVERAGE_RESTRICTED",
   "productionDeployment": "NOT_PERFORMED",
   "VercelAdvisoryRecheck": "2026-10-24T07:37:06+09:00",
   "verifiedVercelReset": false,
   "Nightly": "SEPARATE_HISTORICAL_FAILURE_39457197351_NO_RERUN",
   "nextActions": [
-    "normal Gemini delta admission after owner-confirmed prior answering; existing human FIFO/slot exception reused without bypassing dispatch serialization",
-    "save full actual report and resolve valid findings",
-    "actual GPT-6 Pro reverse verification",
-    "final preview and protected release after verified Vercel capacity"
+    "actual GPT-6 Pro ordinary reverse with actual Gemini receipt and final scoped source",
+    "exact final-head CI",
+    "final preview/three viewport hosted verification after actual Vercel availability",
+    "protected develop -> data -> main with exact-SHA release evidence"
   ],
-  "sourceModelCorrespondence": "Actual Naver and browser model import the same wrapper; fresh and retained review-object updates are covered. Prior inline-only and fresh-object-only models were insufficient and remain historical evidence."
+  "sourceModelCorrespondence": "Actual Naver and browser model import the same wrapper; fresh and retained review-object updates are covered. Prior inline-only and fresh-object-only models were insufficient and remain historical evidence.",
+  "reviewedSourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
+  "currentVerification": {
+    "nativeTests": 48,
+    "assertions": 1254,
+    "files": 6,
+    "parityDiagnostics": 0,
+    "logicalInputs": 3382,
+    "mutantsDetected": 11,
+    "raw": "gemini-delta-native-and-mutation-checks.json",
+    "priorVerification": "verification.json belongs to the retained fe4 snapshot"
+  }
 }

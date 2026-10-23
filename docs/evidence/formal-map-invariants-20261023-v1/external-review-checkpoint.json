@@ -1,26 +1,25 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-10-23T06:45:35.467151+00:00",
-  "status": "queued",
+  "observedAt": "2026-10-23T08:48:06.231883+00:00",
+  "status": "GEMINI_COMPLETE_RELEASED_FIXES_NATIVE_VERIFIED_PRO_REVERSE_PENDING",
   "requestId": "86eb51ad0f69dcedd3c5dd33",
   "owner": "01a14e99-77bf-7531-b29e-a612bd99b540",
   "job": "tzudong-fe4b73da-formal-delta-v1",
   "provider": "gemini",
   "stage": "delta",
-  "reservation": null,
+  "reservation": "86eb51ad0f69dcedd3c5dd33",
   "bundleSha256": "c3fb6be051942230565e8e551f6f9988d6c0da2175c2a9df553a5398e6865f23",
   "requestedResearch": "off",
-  "actualModel": null,
-  "actualResearch": null,
-  "inputs": "LOCAL_PREPARED_NOT_UPLOADED",
-  "dispatches": 0,
-  "acceptedTurns": 0,
+  "actualModel": "Gemini 4 Argon / 높음 (highest displayed)",
+  "actualResearch": "off",
+  "inputs": "READABLE_SUBSTANTIVE_SAMPLES_VERIFIED",
+  "dispatches": 1,
+  "acceptedTurns": 1,
   "missingStages": [
-    "Gemini maximum-thinking delta",
-    "GPT-6 Pro reverse verification of actual delta artifact"
+    "GPT-6 Pro ordinary reverse of actual formal-delta artifact and new source"
   ],
-  "hold": "DISPATCH_SERIALIZATION_PENDING",
-  "nextAllowedAction": "Reconcile the same queued request after the preceding dispatch is owner-confirmed answering; reuse the existing Tzudong-only human FIFO/slot approval. Observe actual requested mode/research OFF/quota fresh only when dispatch can be admitted; do not modify other owners.",
+  "hold": "PRO_REVERSE_PENDING_AND_EXISTING_VERCEL_GATE",
+  "nextAllowedAction": "Prepare final delta source and actual Gemini artifact receipt/report; verify current Pro account/model/research OFF/quota, normal managed admission and exact accepted-turn ledger before reverse. Never replay completed Gemini.",
   "priorReports": "UNCHANGED_THREE_COMPLETE_REPORTS_REUSED",
   "hostUi": "UNVERIFIED",
   "release": "BLOCKED_PENDING_DELTA_REVIEW_AND_EXISTING_VERCEL_GATE",
@@ -46,13 +45,6 @@
       "reason": "same-object review mutation counterexample fixed before upload"
     }
   ],
-  "admission": {
-    "mode": "fifo",
-    "active_count": 1,
-    "free_slots": 0,
-    "dispatch_pending": true,
-    "vendor_concurrency_limit": null
-  },
   "humanTzudongOverrideReused": true,
   "bindingRule": {
     "source": "canonical coordinate.py reserve dispatch_pending gate; observed queued response retained",
@@ -72,5 +64,8 @@
     "weeklyReset": "2026-10-27T20:20:00+09:00",
     "overallAccountUsage": "UNVERIFIED",
     "freshForDispatch": "MUST_REOBSERVE_WHEN_ADMISSIBLE_IF_TTL_EXPIRED"
-  }
+  },
+  "reservationReleased": true,
+  "resolutionSource": "e2f60f7ea944776c81d538b5b042ed28ac9b04ae",
+  "receipt": "gemini-formal-delta-receipt.json"
 }
