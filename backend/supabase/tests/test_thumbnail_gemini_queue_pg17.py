@@ -29,7 +29,10 @@ SELF = Path(__file__).resolve()
 BRIDGE = ROOT/'backend/supabase/migrations/20261003182338_storyboard_service_role_bridge.sql'
 TS = ROOT/'apps/web/tests-unit/fixtures/thumbnail-queue-pg17.ts'
 CLIENT = ROOT/'apps/web/lib/admin/youtube-thumbnail-generator/gemini-worker-client.ts'
-SOURCES = [SQL, SELF, BRIDGE, TS, CLIENT]
+PRIVATE_TS = ROOT/'apps/web/tests-unit/fixtures/thumbnail-private-store-pg17.ts'
+PRIVATE_LIB = ROOT/'apps/web/lib/admin/youtube-thumbnail-generator'
+SOURCES = [SQL, SELF, BRIDGE, TS, CLIENT, PRIVATE_TS,
+           *[PRIVATE_LIB/name for name in ['queue-contract.ts','private-store.ts','queue-api.ts','prompt.ts','safety.ts']]]
 MODEL = 'gemini-3.1-flash-image'
 sha = lambda value: hashlib.sha256(value.encode()).hexdigest()
 
@@ -150,6 +153,55 @@ class ThumbnailQueuePg17(unittest.TestCase):
         self.assertEqual(first['id'],self.enqueue(request=request)['id'])
         self.assert_rpc_error('request_conflict',lambda:self.enqueue(request=request,prompt='changed'))
         self.observations['request_idempotency']={'sameJob':True,'changedInputRejected':True}
+
+    def test_request_readback_recovers_generated_id_and_current_states(self):
+        request=str(uuid.uuid4());enqueued=self.enqueue(request=request)
+        self.assertEqual(enqueued,self.admin('request',request=request))
+        claimed=self.worker('claim');self.assertEqual(claimed,self.admin('request',request=request))
+        self.worker('start',claimed)
+        started=self.admin('request',request=request)
+        self.assertEqual('provider_started',started['state']);self.assertNotIn('permission',started)
+        self.assertEqual(self.admin('snapshot',job=enqueued['id']),started)
+        unknown=self.worker('unknown',claimed);self.assertEqual(unknown,self.admin('request',request=request))
+        cancelled=self.admin('cancel',job=enqueued['id'])
+        self.assertTrue(cancelled['cancelRequested']);self.assertEqual(cancelled,self.admin('request',request=request))
+        ready=self.worker('complete',claimed,payload=self.manifest(claimed))
+        self.assertEqual(ready,self.admin('request',request=request));self.assertEqual(enqueued['id'],ready['id'])
+        self.observations['request_readback']={'generatedIdRecovered':True,'currentStatesPreserved':True,'freshPermissions':0}
+
+    def test_request_readback_is_owner_scoped_and_missing_is_null(self):
+        request=str(uuid.uuid4());first=self.enqueue(request=request)
+        self.assertIsNone(self.admin('request',request=request,owner=self.other))
+        self.assertIsNone(self.admin('request',request=str(uuid.uuid4())))
+        second=self.enqueue(request=request,owner=self.other)
+        self.assertNotEqual(first['id'],second['id'])
+        self.assertEqual(first,self.admin('request',request=request))
+        self.assertEqual(second,self.admin('request',request=request,owner=self.other))
+        self.observations['request_owner_scope']={'sameRequestDifferentOwners':True,'missingReturnsNull':True}
+
+    def test_request_readback_validates_request_id_and_active_owner(self):
+        self.assert_rpc_error('invalid_input',lambda:self.admin('request'))
+        with self.assertRaises(psycopg2.errors.InvalidTextRepresentation):self.admin('request',request='not-a-uuid')
+        job=self.enqueue()
+        with self.connection(admin=True) as connection,connection.cursor() as cursor:
+            cursor.execute("UPDATE public.user_account_status SET account_status='suspended' WHERE user_id=%s",(self.owner,))
+        for request in [job['requestId'],str(uuid.uuid4())]:
+            self.assert_rpc_error('owner_forbidden',lambda:self.admin('request',request=request))
+
+    def test_request_readback_observes_late_enqueue_commit_without_reinserting(self):
+        request=str(uuid.uuid4());connection=self.connection()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT public.thumbnail_production_admin(%s,%s,NULL,%s,%s,%s,%s)',
+                               (self.owner,'enqueue',request,sha('late enqueue'),MODEL,Json({
+                                   'contract':'thumbnail-gemini-image-v1','model':MODEL,'prompt':'late enqueue','references':[]})))
+                enqueued=cursor.fetchone()[0]
+            self.assertIsNone(self.admin('request',request=request))
+            connection.commit()
+        finally:connection.rollback();connection.close()
+        self.assertEqual(enqueued,self.admin('request',request=request))
+        self.assertEqual(1,len(self.admin('list')))
+        self.observations['request_late_commit']={'uncommittedReturnsNull':True,'lateCommitRecovered':True,'jobs':1}
 
     def test_same_digest_new_request_or_upload_path_cannot_bypass_unknown(self):
         self.enqueue();job=self.worker('claim');self.worker('start',job);self.worker('unknown',job)
@@ -289,7 +341,8 @@ class ThumbnailQueuePg17(unittest.TestCase):
 
     def test_browser_roles_have_no_table_or_rpc_access_and_owner_is_rechecked(self):
         for role in ['anon','authenticated','privacy_workflow_owner']:
-            for statement in ["SELECT * FROM public.admin_thumbnail_jobs", "SELECT public.thumbnail_production_auth_worker('marker')"]:
+            for statement in ["SELECT * FROM public.admin_thumbnail_jobs", "SELECT public.thumbnail_production_auth_worker('marker')",
+                              f"SELECT public.thumbnail_production_admin('{self.owner}','request',NULL,'{uuid.uuid4()}')"]:
                 connection=self.connection(admin=True)
                 try:
                     with connection.cursor() as cursor:
@@ -365,6 +418,29 @@ class ThumbnailQueuePg17(unittest.TestCase):
                 self.assertTrue(observed['inputBound']);self.assertTrue(observed['realPostgres'])
                 self.assertEqual(0 if mode=='start-ack-lost' else 1,observed['sdkCalls'])
         self.observations['actual_typescript_client']=observations
+
+    def test_actual_private_api_store_and_client_use_committed_pg_contract(self):
+        executable=Path('/Users/twoimo/.bun/bin/bun')
+        if not executable.is_file():self.skipTest('installed Bun required; no installation')
+        observations=[]
+        for mode in ['normal','checkpoint-ack-lost','normalize-recovery','start-ack-lost']:
+            with self.subTest(mode=mode):
+                with self.connection(admin=True) as connection,connection.cursor() as cursor:
+                    cursor.execute('TRUNCATE public.admin_thumbnail_events,public.admin_thumbnail_jobs;')
+                    # Reset only this test's synthetic worker identity, never an operating credential.
+                    cursor.execute('UPDATE public.admin_thumbnail_workers SET token_sha256=%s WHERE id=(SELECT id FROM public.admin_thumbnail_workers WHERE owner_id=%s ORDER BY created_at,id LIMIT 1)',(self.workers[0],self.owner))
+                env={**self.env,'FIXTURE_PSQL':str(PG/'psql'),'FIXTURE_PG_PORT':str(self.port),
+                     'FIXTURE_OWNER_ID':self.owner,'FIXTURE_TOKEN_0':self.workers[0]}
+                policy='(version 1)(allow default)(deny network*)(allow network-outbound (remote ip "localhost:*"))'
+                result=subprocess.run(['/usr/bin/sandbox-exec','-p',policy,str(executable),'--no-env-file','run',str(PRIVATE_TS),mode],
+                                      cwd=ROOT/'apps/web',env=env,text=True,capture_output=True,timeout=25)
+                (self.root/('private-'+mode+'.log')).write_text(result.stdout+'\n'+result.stderr)
+                self.assertEqual(0,result.returncode,result.stderr)
+                observed=json.loads(result.stdout);observations.append(observed)
+                self.assertTrue(observed['actualApiHandlers']);self.assertTrue(observed['inputBound'])
+                self.assertEqual(0 if mode=='start-ack-lost' else 1,observed['sdkCalls'])
+                self.assertEqual(0,observed['externalProviderCalls'])
+        self.observations['actual_private_api_store_client']=observations
 
 
 if __name__=='__main__':unittest.main()

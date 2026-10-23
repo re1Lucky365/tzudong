@@ -175,6 +175,15 @@ BEGIN
     END IF;
     PERFORM storyboard_control.assert_owner(p_owner_id);
     RETURN thumbnail_control.job_json(j);
+  ELSIF p_action='request' THEN
+    -- Recover a DB-generated job ID after enqueue ACK loss without inserting or
+    -- issuing a start permission. A missing row is not proof of a rolled-back enqueue.
+    IF p_request_id IS NULL THEN RAISE EXCEPTION 'invalid_input'; END IF;
+    SELECT * INTO j FROM public.admin_thumbnail_jobs
+      WHERE owner_id=p_owner_id AND request_id=p_request_id FOR UPDATE;
+    IF NOT FOUND THEN RETURN NULL; END IF;
+    PERFORM storyboard_control.assert_owner(p_owner_id);
+    RETURN thumbnail_control.job_json(j);
   ELSIF p_action='list' THEN
     IF p_input IS NOT NULL AND p_input <> '{}'::jsonb THEN
       IF jsonb_typeof(p_input) IS DISTINCT FROM 'object' OR octet_length(p_input::text)>256

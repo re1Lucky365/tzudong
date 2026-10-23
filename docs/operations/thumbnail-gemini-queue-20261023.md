@@ -58,6 +58,8 @@ fresh permission은 SQL 함수의 반환값만으로 commit 증명이 되지 않
 
 ## 아직 완료하지 않은 운영 연결
 
+후속 [비공개 저장/API 후보](thumbnail-private-store-20261023.md)에서 아래 1·2의 코드와 격리 DB 검증을 진행했다. 이 목록은 당시 상태를 보존한 것이며, 실제 Mac/UI·운영 설치/배포 완료를 뜻하지 않는다.
+
 1. 공통 preparation → 비공개 Storage의 비덮어쓰기 입력 upload/readback → enqueue adapter. worker는 읽은 실제 bytes로 digest를 재계산해야 한다.
 2. 새 worker 인증 endpoint·취소/heartbeat·결과 durable 보관·checkpoint ACK 복구. 불확실한 commit/row 부재는 파일 삭제나 새 유료 호출의 허가가 아니다. 현재 검증의 Storage manifest는 합성이므로 실제 파일 저장 성공을 주장하지 않는다.
 3. 현재 operating G014 catalog·권한에 맞춘 forward migration과 private bucket 설치. 후보 SQL 전체를 그대로 운영에 적용하면 안 된다. 새 credential 발급/권한 확대는 아직 실행하지 않았다.
