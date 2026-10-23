@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceRevision": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
+  "sourceRevision": "a62683bae44ce8d2036e7352f9ea7d40d8efd0e5",
   "reviewedSourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
   "files": [
     {
@@ -45,13 +45,13 @@
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/completion-manifest.json",
-      "bytes": 4291,
-      "sha256": "72d73a1743e58f15552bd1e3f0471a2c0392ad00a55e9dc8830f3aff5c181657"
+      "bytes": 4508,
+      "sha256": "83d52da4988a314885db88139db363e30f36674c19b8c16a939a8c9cd3e54ba2"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/delta-resolution.md",
-      "bytes": 10299,
-      "sha256": "347392f143b9ae673f07e0614c88ba265e7db2df24e1f40c3f3244e7476eedb4"
+      "bytes": 11212,
+      "sha256": "293db98248947898fb6e2e34a7c32bb3ac2255715c8ea6d2960ed772c106a16e"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/external-review-checkpoint.json",
@@ -262,6 +262,16 @@
       "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-parity.txt",
       "bytes": 428,
       "sha256": "5e9d180726647fa910a7e1e3cc090589778499806f327f66698a633b30e367ec"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/sdk-loss-followup.json",
+      "bytes": 1697,
+      "sha256": "a02f836d75c3989df322eb447ed97ce369325e593e98eaf9e1083a9dade9db02"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/sdk-loss-after-tests.txt",
+      "bytes": 1703,
+      "sha256": "01fbf99cbc8ad58f6f0c1551180c3229d1897244ea2b10fbc909c1622785f7fe"
     }
   ],
   "sourceFiles": [
@@ -392,8 +402,8 @@
     },
     {
       "path": "apps/web/components/map/NaverMapView.tsx",
-      "bytes": 172012,
-      "sha256": "95fea0e18e6806bb924e738df255dec596e7641505c4e108ae47cc158d1d2da9"
+      "bytes": 172218,
+      "sha256": "da5dd1884a9fa027027711307477723352c25781fd696498d7915954140da5b3"
     },
     {
       "path": "apps/web/lib/visible-marker-review-bubbles.ts",
@@ -444,9 +454,16 @@
       "path": "apps/web/tests-unit/evidence-publication-runtime.test.ts",
       "bytes": 6657,
       "sha256": "d9c475863c41902724e8309ea5893e3bfbd81109ba83470b13c44226adec4b01"
+    },
+    {
+      "path": "apps/web/tests-unit/naver-map-sdk-loss.test.ts",
+      "bytes": 3271,
+      "sha256": "624f75931280b2c9daa5dcbcefe41e2024a7f725f37cb9adb257781f0c27d474"
     }
   ],
   "scope": "Supplied-scope ordinary delta and native fixes complete at a1dd; routine CI expectation fix at ciTestRevision. New exact-head CI, hosted SDK/UI, protected release and Nightly remain separate.",
   "selfReference": "artifact-map.json and its detached digest are intentionally excluded to avoid a circular or stale digest claim",
-  "ciTestRevision": "1c0461bb114e9f6085d33c85a0eb911d0a98cab9"
+  "ciTestRevision": "1c0461bb114e9f6085d33c85a0eb911d0a98cab9",
+  "formalRuntimeRevision": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
+  "priorDeliveryMapSha256": "d89227abc214f5aa132d7b2d061eee85b5eb2cef39338b4a3c3475a5c71914eb"
 }
