@@ -26,3 +26,17 @@ The report incorrectly counts 21 source bodies; the immutable delivery manifest 
 ## EVIDENCE-01: detached artifact digest
 
 ACCEPT. Independent readback of delivery head `9a966add6d25005f0647a3bd57301e6e3c8fc0ab` found that the old map's recorded digest-file entry matched that file, but that file's digest did **not** match the map itself. It therefore could not establish the claimed complete detached-map integrity. The updated map excludes both itself and its detached digest from its file list, writes one detached hash afterward, and independently checks that hash plus every listed file/source. Historical native results and original report bytes are preserved; this correction does not turn the old digest into a valid receipt.
+
+## REV-F-01: deferred SDK root and final scoped reverse
+
+ACCEPT, implemented at `a1dd40016ff7cf23055073c8637d5b3ee00d6781`. The synthetic SDK removes the old root and returns that disconnected root until next-microtask insertion. Before the fix, the replacement was connected but both app owner and `aria-hidden` were absent. The correction preserves a hidden marker's pending target, captures the pane before removal, and treats an explicitly disconnected root as not ready. A genuine Chromium MutationObserver masks the newly connected root. A separate boundary check verifies that release/visible cancels the pending observer and does not mask a later replacement.
+
+Retained runs overlap and are not summed: targeted formal+unit29tests/3files/1162assertions, updated observer boundary24tests/2files/1163assertions, parity0diagnostics/3382inputs and scoped lint. The final full harness records baseline23pass, restored9pass, 9,216 visual transitions, 18,056 ownership steps, 12/12 mutants detected and unchanged originals. See `rev-f-01-*` raw files.
+
+The first actual Pro report is [retained in full](gpt6_pro_formal_reverse_report.visible.txt), 12,553bytes SHA256 `9b607abdc958702fdb1207b75b845dc469873cf998918f1758f4591ff171aeac`. It conditionally identified REV-F-01 and lacked the raw execution/map inputs. Its EVIDENCE-01 section initially discussed the wrong target. The [complete scoped follow-up](gpt6_pro_formal_root_followup_report.visible.txt), 10,773bytes SHA256 `ffedf822efa3011b98f0343fa7735faee687d0945d15e55471fb81afed4f10d2`, inspected the new source/raw evidence and explicitly corrected that target error. Final decisions: **REV-F-01 ACCEPT for the reproduced native boundary; EVIDENCE-01 ACCEPT for the exact corrected06d immutable snapshot**. No new concrete local correction was requested. Both full source-readable Pro artifacts were verified and owner-released; each actual user turn was ledgered once.
+
+- `REV-F-01-SDK`: DEFER. A synthetic next-microtask fixture is not actual Naver SDK parent/insertion/paint behavior. Hosted viewport/release/unmount and accessibility readback remain required.
+- `EVIDENCE-01-RELEASE`: DEFER. A valid old snapshot is not evidence of current-source CI, preview or deployment. A fresh current-source map is written and verified with this delivery.
+- Cluster pixel/flicker/performance remains UNVERIFIED after eliminating its direct preload-only DOM writer. Existing Nightly failure is unchanged.
+
+All three new reports use unedited complete rendered-text extraction with private original HTML backups because the browser Copy clipboard did not return content. They are not claimed as source Markdown exports. Original historical reports and frozen source bundles were not rewritten.

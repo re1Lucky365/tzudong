@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "observedAt": "2026-10-23T08:48:06.231883+00:00",
-  "status": "GEMINI_COMPLETE_RELEASED_FIXES_NATIVE_VERIFIED_PRO_REVERSE_PENDING",
+  "status": "SCOPED_GEMINI_PRO_REVERSE_AND_FOLLOWUP_COMPLETE_OWNER_RELEASED",
   "requestId": "86eb51ad0f69dcedd3c5dd33",
   "owner": "01a14e99-77bf-7531-b29e-a612bd99b540",
   "job": "tzudong-fe4b73da-formal-delta-v1",
@@ -15,11 +15,9 @@
   "inputs": "READABLE_SUBSTANTIVE_SAMPLES_VERIFIED",
   "dispatches": 1,
   "acceptedTurns": 1,
-  "missingStages": [
-    "GPT-6 Pro ordinary reverse of actual formal-delta artifact and new source"
-  ],
-  "hold": "PRO_REVERSE_PENDING_AND_EXISTING_VERCEL_GATE",
-  "nextAllowedAction": "Prepare final delta source and actual Gemini artifact receipt/report; verify current Pro account/model/research OFF/quota, normal managed admission and exact accepted-turn ledger before reverse. Never replay completed Gemini.",
+  "missingStages": [],
+  "hold": "FINAL_CI_AND_ACTUAL_HOST_RELEASE_GATES",
+  "nextAllowedAction": "Do not resend the completed formal audit. Verify exact final delivery head CI, then after Vercel advisory time verify real capacity and final source preview/three viewport SDK UI; keep historical Nightly separate.",
   "priorReports": "UNCHANGED_THREE_COMPLETE_REPORTS_REUSED",
   "hostUi": "UNVERIFIED",
   "release": "BLOCKED_PENDING_DELTA_REVIEW_AND_EXISTING_VERCEL_GATE",
@@ -66,6 +64,31 @@
     "freshForDispatch": "MUST_REOBSERVE_WHEN_ADMISSIBLE_IF_TTL_EXPIRED"
   },
   "reservationReleased": true,
-  "resolutionSource": "e2f60f7ea944776c81d538b5b042ed28ac9b04ae",
-  "receipt": "gemini-formal-delta-receipt.json"
+  "resolutionSource": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
+  "receipt": "gemini-formal-delta-receipt.json",
+  "sourceReadable": "Matched literal source samples at each new phase; actual SDK/host gaps remain explicit",
+  "proReverse": {
+    "job": "tzudong-e2f60f7e-formal-reverse-v1",
+    "reservation": "3aff6ff53a02eae709f394b0",
+    "userTurn": "5e769ffd-a586-4247-8018-c24ec31087ee",
+    "assistant": "c2311746-b78a-48ed-a4c4-39df12678365",
+    "actualModel": "GPT-6 / Pro",
+    "research": "off",
+    "report": "gpt6_pro_formal_reverse_report.visible.txt",
+    "sourceRevision": "e2f60f7ea944776c81d538b5b042ed28ac9b04ae",
+    "released": true,
+    "acceptedLedgerCount": 1
+  },
+  "proFollowup": {
+    "job": "tzudong-a1dd4001-formal-root-followup-v1",
+    "reservation": "2d588018b8ab7238c7191610",
+    "userTurn": "940228cf-6e1d-4a3a-bbda-05acc2b86297",
+    "assistant": "aceabad1-d9ba-410a-8a94-cdd3f3218870",
+    "actualModel": "GPT-6 / Pro",
+    "research": "off",
+    "report": "gpt6_pro_formal_root_followup_report.visible.txt",
+    "sourceRevision": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
+    "released": true,
+    "acceptedLedgerCount": 1
+  }
 }
