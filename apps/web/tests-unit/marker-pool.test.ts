@@ -435,86 +435,9 @@ describe('marker pool', () => {
     }
   });
 
-  test('keeps the category image when only the review bubble changes', () => {
-    const inserted: unknown[] = [];
-    const image = {
-      getAttribute: (name: string) => (name === 'src' ? '/marker.webp' : null),
-    };
-    const markerNode = {
-      getAttribute: (name: string) => (name === 'style' ? 'width:32px' : null),
-      querySelector: (selector: string) => (selector === 'img' ? image : null),
-      querySelectorAll: () => [],
-      insertBefore: (node: unknown) => {
-        inserted.push(node);
-      },
-      parentElement: null,
-    };
-    const element = {
-      querySelector: (selector: string) => (
-        selector === '[data-testid="marker"]' ? markerNode : null
-      ),
-      classList: FakeMarker.prototype ? {
-        add: () => undefined,
-        remove: () => undefined,
-      } : undefined,
-      style: { opacity: '' },
-    };
+  // Review-only image identity is exercised with real DOM parsing in
+  // tests-formal/marker-state-model.test.mjs, alongside static-content changes.
 
-    class BubbleMarker extends FakeMarker {
-      getElement() {
-        return element as unknown as HTMLElement;
-      }
-    }
-
-    const maps = (globalThis as { window: { naver: { maps: { Marker: typeof FakeMarker } } } }).window.naver.maps;
-    maps.Marker = BubbleMarker as unknown as typeof FakeMarker;
-
-    const bubble = { id: 'bubble' };
-    const previousDocument = (globalThis as { document?: Document }).document;
-    (globalThis as { document?: unknown }).document = {
-      createElement() {
-        const content = {
-          querySelector(selector: string) {
-            if (selector === '[data-testid="marker"]') {
-              return {
-                getAttribute: (name: string) => (name === 'style' ? 'width:32px' : null),
-                querySelector: (inner: string) => (inner === 'img' ? image : null),
-              };
-            }
-            if (selector === '[data-visible-marker-review-bubble="true"]') return bubble;
-            return null;
-          },
-        };
-        return { content, innerHTML: '' };
-      },
-    };
-
-    const base = '<div data-testid="marker" style="width:32px"><img src="/marker.webp"></div>';
-    const next = `<div data-visible-marker-review-bubble="true"></div>${base}`;
-
-    try {
-      const marker = markerPool.acquire(
-        'restaurant-bubble',
-        makePosition('p'),
-        { content: base, anchor: { x: 1, y: 1 } },
-        'map',
-      ) as unknown as FakeMarker;
-
-      markerPool.acquire(
-        'restaurant-bubble',
-        makePosition('p'),
-        { content: next, anchor: { x: 1, y: 1 } },
-        'map',
-      );
-
-      expect(marker.setIconCalls).toBe(0);
-      expect(inserted).toEqual([bubble]);
-      expect(marker.getIcon().content).toBe(next);
-    } finally {
-      (globalThis as { document?: Document }).document = previousDocument;
-      installFakeNaverMaps();
-    }
-  });
 });
 
 test('pool reuse and changed visit badges update static marker content even with the same image', () => {
