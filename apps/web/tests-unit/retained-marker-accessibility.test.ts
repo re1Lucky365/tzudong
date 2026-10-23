@@ -2,6 +2,7 @@ import { afterAll, beforeEach, expect, test } from 'bun:test';
 import { syncRetainedMarkerAccessibility } from '../lib/retained-marker-accessibility';
 
 class AppMarkerElement {
+    isConnected = true;
     attributes = new Map<string, string>();
     matches(selector: string) { return selector === '[data-testid="marker"]'; }
     querySelector() { return null; }
@@ -100,4 +101,21 @@ test('hides the app overlay anchor containing a sibling review button and restor
     syncRetainedMarkerAccessibility(marker,true);
     expect(anchor.getAttribute('aria-hidden')).toBeNull();
     expect(anchor.getAttribute('data-visible-marker-review-bubble-anchor')).toBe('true');
+});
+
+test('a disconnected old root stays pending and release cancels its insertion observer', () => {
+    for (const canceled of [false, true]) {
+        const target = {} as HTMLElement;
+        let root = new AppMarkerElement(); root.isConnected = false;
+        const marker = {getElement: () => root as unknown as HTMLElement};
+        syncRetainedMarkerAccessibility(marker, false, target);
+        const observer = FakeObserver.instances.at(-1)!;
+        expect(observer).toBeDefined();
+        expect(root.getAttribute('aria-hidden')).toBeNull();
+        if (canceled) syncRetainedMarkerAccessibility(marker, true);
+        root = new AppMarkerElement(); observer.fire();
+        expect(root.getAttribute('aria-hidden')).toBe(canceled ? null : 'true');
+        expect(observer.disconnected).toBe(true);
+        syncRetainedMarkerAccessibility(marker, true);
+    }
 });
