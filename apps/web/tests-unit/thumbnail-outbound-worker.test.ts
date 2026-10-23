@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { chmodSync, mkdtempSync, rmSync, writeFileSync, symlinkSync } from 'node:fs';
+import { chmodSync, mkdtempSync, realpathSync, rmSync, writeFileSync, symlinkSync } from 'node:fs';
 import { randomUUID, createHash } from 'node:crypto';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { GenerateContentResponse } from '@google/genai';
 import { setTimeout as delay } from 'node:timers/promises';
 import sharp from 'sharp';
@@ -12,7 +13,7 @@ import { thumbnailJob, type ThumbnailJob } from '../lib/admin/youtube-thumbnail-
 
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 async function fixture() {
-  const directory = mkdtempSync('/private/tmp/thumbnail-outbound-test-'); chmodSync(directory, 0o700);
+  const directory = mkdtempSync(join(realpathSync(tmpdir()), 'thumbnail-outbound-test-')); chmodSync(directory, 0o700);
   const outbox = new ThumbnailWorkerOutbox(directory); const stop = new AbortController();
   const content = { model: 'gemini-3.1-flash-image' as const, prompt: 'Food-only thumbnail fixture.', references: [] };
   const prepared = await prepareThumbnailGeminiContent(content); const now = new Date().toISOString();
@@ -207,7 +208,7 @@ describe('Gemini thumbnail outbound worker', () => {
     await expect(throttled.models()).rejects.toThrow('model_catalog_unavailable'); expect(throttledCalls).toBe(1);
   });
   test('operator files require private owned regular files and never follow symlinks', async () => {
-    const dir = mkdtempSync('/private/tmp/thumbnail-worker-files-');
+    const dir = mkdtempSync(join(realpathSync(tmpdir()), 'thumbnail-worker-files-'));
     try {
       const file = join(dir, 'operator'); writeFileSync(file, 'synthetic text', { mode: 0o600 });
       expect((await readThumbnailWorkerFile(file, 100)).toString()).toBe('synthetic text');

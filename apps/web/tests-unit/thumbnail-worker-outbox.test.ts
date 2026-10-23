@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { setTimeout as delay } from 'node:timers/promises';
 import sharp from 'sharp';
@@ -11,7 +12,7 @@ import { thumbnailJob } from '../lib/admin/youtube-thumbnail-generator/queue-con
 
 const hash = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const fixture = () => {
-  const directory = mkdtempSync('/private/tmp/thumbnail-outbox-test-'); chmodSync(directory, 0o700);
+  const directory = mkdtempSync(join(realpathSync(tmpdir()), 'thumbnail-outbox-test-')); chmodSync(directory, 0o700);
   const identity: ThumbnailOutboxIdentity = { providerId: 'gemini-api', model: 'gemini-3.1-flash-image', ownerId: randomUUID(),
     workerId: randomUUID(), jobId: randomUUID(), attemptId: randomUUID(), fence: 1, inputSha256: 'a'.repeat(64), origin: 'https://www.tzudong.app' };
   const outbox = new ThumbnailWorkerOutbox(directory);
@@ -113,7 +114,7 @@ describe('thumbnail durable SQLite outbox', () => {
     } finally { f.cleanup(); }
   });
   test('unsafe directories, file links, dangling sidecars and foreign SQLite databases fail without adoption', () => {
-    const parent = mkdtempSync('/private/tmp/thumbnail-outbox-security-');
+    const parent = mkdtempSync(join(realpathSync(tmpdir()), 'thumbnail-outbox-security-'));
     try {
       const unsafe = join(parent, 'unsafe'); mkdirSync(unsafe, 0o755); chmodSync(unsafe, 0o755);
       expect(() => new ThumbnailWorkerOutbox(unsafe)).toThrow('outbox_invalid');
