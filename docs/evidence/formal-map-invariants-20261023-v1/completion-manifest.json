@@ -51,16 +51,46 @@
   "sourceModelCorrespondence": "Actual Naver and browser model import the same wrapper; fresh and retained review-object updates are covered. Prior inline-only and fresh-object-only models were insufficient and remain historical evidence.",
   "reviewedSourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
   "currentVerification": {
-    "nativeTests": 48,
-    "assertions": 1254,
-    "files": 6,
+    "sourceRevision": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
+    "harnessBaseline": {
+      "tests": 23,
+      "files": 5,
+      "assertions": 94,
+      "failed": 0
+    },
+    "harnessRestored": {
+      "tests": 9,
+      "files": 2,
+      "assertions": 18,
+      "failed": 0
+    },
+    "targetedRuns": [
+      {
+        "tests": 29,
+        "files": 3,
+        "assertions": 1162,
+        "raw": "rev-f-01-native.txt"
+      },
+      {
+        "tests": 24,
+        "files": 2,
+        "assertions": 1163,
+        "raw": "rev-f-01-boundaries.txt"
+      }
+    ],
+    "overlappingRuns": "These runs overlap; do not sum their counts.",
     "parityDiagnostics": 0,
     "logicalInputs": 3382,
     "mutantsDetected": 12,
     "raw": "rev-f-01-native-and-mutation-checks.json",
-    "priorVerification": "48tests/1254assertions at E2f and original86tests at fe4 retained; current native23 baseline and9 restored in raw harness",
-    "sourceRevision": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
-    "overlappingRuns": "29formal+unit and24observer-boundary tests are not summed"
+    "historicalE2fRun": {
+      "sourceRevision": "e2f60f7ea944776c81d538b5b042ed28ac9b04ae",
+      "tests": 48,
+      "files": 6,
+      "assertions": 1254,
+      "raw": "gemini-findings-native.txt"
+    },
+    "historicalFe4Run": "verification.json and original86tests retained at fe4 snapshot"
   },
   "externalDeltaAuditCompleteForSuppliedScope": true,
   "reports": [
