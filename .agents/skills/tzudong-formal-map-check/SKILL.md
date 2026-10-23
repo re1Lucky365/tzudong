@@ -13,15 +13,18 @@ From `apps/web`, with Bun **1.4.0**, installed project dependencies and Google C
 bun scripts/verify-marker-formal.mjs --out /tmp/tzudong-formal-check.json
 ```
 
-The command fails if the browser is missing. It does not download a browser, change settings, contact the map provider or silently skip. It runs the actual TypeScript pool inside Chromium with a substituted SDK, checks six deliberately broken source copies, removes only its scratch directories, verifies the original source hashes and checks the original again. A module/import/browser error is not successful mutation detection. Inspect `baseline`, every `mutations[].detected`, `restored` and `sourceHashes` in the JSON.
+The command fails if the browser is missing. It does not download a browser, change settings, contact the map provider or silently skip. It runs the actual TypeScript pool inside Chromium with a substituted SDK, checks seven deliberately broken source copies, removes only its scratch directories, verifies the original source hashes and checks the original again. A module/import/browser error is not successful mutation detection. Inspect `baseline`, every `mutations[].detected`, `restored` and `sourceHashes` in the JSON.
+
+The browser fixture imports `wrapNaverMarkerContentWithReviewBubble` from the same module as NaverMapView. It does not hand-copy the review wrapper. Review states are none, existing text and refreshed text; adding/removing the outer wrapper is a structural update.
 
 ## Coverage and synchronization
 
-Sync commit: `ec1d3078e78212042fa3bc916856fc9da5c41904`.
+Sync commit: `c881785db10582e8acd663d8c8fb532758168500`.
 
 | Actual source | Promise checked |
 | --- | --- |
-| `apps/web/lib/marker-pool.ts`: `acquire`, `release`, `clear`, review-bubble patch | Current tier/flame, image description, visit badge and review bubble; callback ownership across reuse |
+| `apps/web/lib/marker-pool.ts`: `acquire`, `release`, `clear`, review-bubble patch | Current tier/flame, image description, visit badge and exactly one current review bubble at its existing anchor; callback ownership across reuse |
+| `apps/web/components/map/NaverMapView.tsx` and `apps/web/lib/visible-marker-review-bubbles.ts`: wrapper import/calls and `wrapNaverMarkerContentWithReviewBubble` | Real caller/markup correspondence and current sibling review text |
 | `apps/web/lib/evidence-engineering/popularity-marker.ts`: `wrapMarkerWithPopularityTier` | Real marker HTML consumed by the pool |
 | `apps/web/lib/evidence-engineering/scoring.ts`: `hyperbolicHalfLifeDays`, `visitsMultiplier`, `compareCohortShadow` | Overflow fails closed; a signal vector has no scalar difference or write authority |
 | `apps/web/lib/evidence-engineering/frames.ts`: `planFrameSamplingWindow` | Addition preserves safe integer timestamp bounds |
@@ -29,7 +32,7 @@ Sync commit: `ec1d3078e78212042fa3bc916856fc9da5c41904`.
 
 Harnesses: `apps/web/tests-formal/marker-state-model.test.mjs`, `apps/web/tests-unit/evidence-numeric-bounds.test.ts`, `popularity-input-boundary.test.ts`, `evidence-cohort-shadow.test.ts`. Read the actual code and its relevant callers before interpreting a failure. Existing marker-pool and foundation unit tests remain useful companion checks.
 
-Bounds: 32 visual variants produce 2,048 ordered active/reacquired transitions. Eight pool/click actions are enumerated through depth four: 4,681 traces and 18,056 executed steps. Public operations are synchronous action boundaries; SDK reentrancy within an operation is excluded. Recycled physical handles belong to their **current** restaurant: an old variable name is not evidence that a click belongs to its former ID.
+Bounds: review fixtures have no photo; DOM/pixel layout and provider internals are outside this exploration. 48 visual variants produce 4,608 ordered active/reacquired transitions. Eight pool/click actions are enumerated through depth four: 4,681 traces and 18,056 executed steps. Public operations are synchronous action boundaries; SDK reentrancy within an operation is excluded. Recycled physical handles belong to their **current** restaurant: an old variable name is not evidence that a click belongs to its former ID.
 
 These are bounded checks against real TS and DOM behavior with a synthetic provider, not an unbounded theorem or a TLA+ refinement proof. They establish neither eventual progress nor real SDK/network/device/production behavior. The arithmetic cases are regressions at named boundaries, not exhaustive floating-point verification.
 

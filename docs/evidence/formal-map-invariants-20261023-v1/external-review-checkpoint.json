@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-10-23T05:26:02.004934+00:00",
+  "observedAt": "2026-10-23T06:03:50.445345+00:00",
   "status": "queued",
-  "requestId": "25480d7e5c1b70bc0bb3d879",
+  "requestId": "d67857b8729060df39793aa4",
   "owner": "01a14e99-77bf-7531-b29e-a612bd99b540",
-  "job": "tzudong-ec1d3078-formal-delta-v1",
+  "job": "tzudong-c881785d-formal-delta-v1",
   "provider": "gemini",
   "stage": "delta",
   "reservation": null,
-  "bundleSha256": "33448972e3e363e72c3e0d1aa91f998e4d8230a442c27ce36c8907350d3a35b5",
+  "bundleSha256": "da6c12e54019c2975fd8db8f53e5713c6140f34a6b28375d059415bbdbc78c4d",
   "requestedResearch": "off",
   "actualModel": null,
   "actualResearch": null,
@@ -24,5 +24,14 @@
   "priorReports": "UNCHANGED_THREE_COMPLETE_REPORTS_REUSED",
   "hostUi": "UNVERIFIED",
   "release": "BLOCKED_PENDING_DELTA_REVIEW_AND_EXISTING_VERCEL_GATE",
-  "Nightly": "SEPARATE_NO_RERUN"
+  "Nightly": "SEPARATE_NO_RERUN",
+  "supersededLocalPlan": {
+    "job": "tzudong-ec1d3078-formal-delta-v1",
+    "requestId": "25480d7e5c1b70bc0bb3d879",
+    "bundleSha256": "33448972e3e363e72c3e0d1aa91f998e4d8230a442c27ce36c8907350d3a35b5",
+    "withdrawnQueuedPlans": 1,
+    "dispatches": 0,
+    "remoteCancellation": false,
+    "reason": "actual wrapper correspondence gap corrected before upload"
+  }
 }

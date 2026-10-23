@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "sourceRevision": "ec1d3078e78212042fa3bc916856fc9da5c41904",
+  "sourceRevision": "c881785db10582e8acd663d8c8fb532758168500",
   "scopedLint": {
     "exitCode": 0,
-    "paths": "changed runtime, test and verifier sources"
+    "paths": "Naver caller, shared wrapper, changed runtime, tests and verifier"
   },
   "typecheckParity": {
     "command": "node scripts/run-typecheck.mjs --compiler parity",
@@ -11,7 +11,7 @@
     "diagnostics": 0,
     "logicalInputs": 3382,
     "logicalInputNamesSha256": "8bca375a887c3e737a5900a345fea55dbd30932285fae82dbb384d492e447925",
-    "nonLibraryContentSha256": "91de6c1f76e0fb258705e3ba34b67ce64caad3301c80120995311e891eb0220c",
+    "nonLibraryContentSha256": "8ef5a55b79ad0cd888fb91e456a1505451df46d4ca68cc348b49250f08c96aae",
     "standardLibraryContentSha256": {
       "native": "d328ef5dcbac7d4c183cd37a26eb383e8e6921ab2147b20e5d73f3c149223a64",
       "compat": "82afdd90154e9b315a83eb66f2d4ee59972c492094bbf66d7f0791f584e41eb0"
@@ -25,5 +25,11 @@
   "limits": [
     "Parity covers configured TypeScript inputs; verifier .mjs files are executed and linted separately.",
     "No deployment or Nightly result is inferred."
-  ]
+  ],
+  "affectedRegressions": {
+    "tests": 85,
+    "files": 13,
+    "assertions": 1677,
+    "failures": 0
+  }
 }

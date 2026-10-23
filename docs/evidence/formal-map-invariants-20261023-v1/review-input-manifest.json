@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "sourceRevision": "ec1d3078e78212042fa3bc916856fc9da5c41904",
+  "sourceRevision": "c881785db10582e8acd663d8c8fb532758168500",
   "baseRevision": "56427320a44fdd65a86dc49e7e63d80dd9935c2e",
-  "bundleSha256": "33448972e3e363e72c3e0d1aa91f998e4d8230a442c27ce36c8907350d3a35b5",
-  "bundleBytes": 149363,
+  "bundleSha256": "da6c12e54019c2975fd8db8f53e5713c6140f34a6b28375d059415bbdbc78c4d",
+  "bundleBytes": 369606,
   "coveredFiles": [
     {
       "path": "apps/web/lib/marker-pool.ts",
-      "bytes": 13706,
-      "sha256": "2a9a2eebf39c890112bb70862f9360144975f50e60810fcbfc4fda73e442cecc"
+      "bytes": 13814,
+      "sha256": "9741e8d286c0023b5204886b30dd789630f62eaad88eaed61d4e718162519a5b"
     },
     {
       "path": "apps/web/lib/retained-marker-accessibility.ts",
@@ -97,13 +97,13 @@
     },
     {
       "path": "apps/web/tests-formal/marker-state-model.test.mjs",
-      "bytes": 8524,
-      "sha256": "81b39a6161551e573d5f0b13995cb65c07d2953282903a6886934341cf3c6721"
+      "bytes": 9207,
+      "sha256": "78c772b4d7f22d4e4a0e7667da8a7a81326258ee581d59741265d34b6e052bc9"
     },
     {
       "path": "apps/web/scripts/verify-marker-formal.mjs",
-      "bytes": 6193,
-      "sha256": "f948b94dc379364bc1c2228bb20f8a79db4b977f8c137ed262f74cdd146a03be"
+      "bytes": 6588,
+      "sha256": "81741438f2a27615d74cffc2cf94cdcba35fe0f1791b0368cea59dffdea41249"
     },
     {
       "path": "apps/web/tests-unit/evidence-numeric-bounds.test.ts",
@@ -129,11 +129,36 @@
       "path": "apps/web/tsconfig.json",
       "bytes": 1368,
       "sha256": "cdbd2b57d55c77ea1ef2b81124b7007fec7df15d55cc917c8c9eca5704234c49"
+    },
+    {
+      "path": "apps/web/components/map/NaverMapView.tsx",
+      "bytes": 173146,
+      "sha256": "9187304578114c49af379a18882e653efc636ac9dadd98cdab4ec13d330dacf0"
+    },
+    {
+      "path": "apps/web/lib/visible-marker-review-bubbles.ts",
+      "bytes": 11770,
+      "sha256": "e86d5ba4589c0678b47bc47de60dff68cda7c8ab8d35927d756169772c8c1911"
+    },
+    {
+      "path": "apps/web/lib/review-photo-url.ts",
+      "bytes": 14933,
+      "sha256": "811a669cada5b4938afc012a2e0f26ca82e080522306cfd424c2892cb979187e"
+    },
+    {
+      "path": "apps/web/lib/profile-avatar-url.ts",
+      "bytes": 9151,
+      "sha256": "cc3c22cea33d2e2ea89ab52e3264baac3b406956aac2dbc4b671a07fe219a039"
+    },
+    {
+      "path": "apps/web/lib/naver-map-marker-visuals.ts",
+      "bytes": 9365,
+      "sha256": "6b73821b062691fc9d1139448bca5ff7c690379e1ba9e50322f8b7c3a9ac83b8"
     }
   ],
-  "questionSha256": "f17936f5ffc4cfe12374c81dc595087eec5937340d18c0251b82109dc6a5df70",
+  "questionSha256": "7b2aa5cca8284ee899e0b45e441a76821d5fd6378c42c542bdb022715702614b",
   "state": "LOCAL_PREPARED_NOT_UPLOADED",
-  "actualResearch": "off",
+  "actualResearch": null,
   "requiredStages": [
     "Gemini 4 Argon maximum-thinking delta",
     "GPT-6 Pro reverse verification"
@@ -142,5 +167,6 @@
   "externalStatus": "PENDING_SHARED_ADMISSION",
   "hostUi": "UNVERIFIED",
   "deployment": "NOT_PERFORMED",
-  "Nightly": "SEPARATE_HISTORICAL_FAILURE_39457197351"
+  "Nightly": "SEPARATE_HISTORICAL_FAILURE_39457197351",
+  "requestedResearch": "off"
 }
