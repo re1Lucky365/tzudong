@@ -74,13 +74,13 @@ function patchStableMarkerReviewBubble(element: HTMLElement, previousContent: un
     }
     if (!previous.content.isEqualNode(nextStatic)) return false;
 
-    const hosts = [currentMarker, currentMarker.parentElement].filter((host): host is Element => Boolean(host));
-    hosts.forEach((host) => {
-        host.querySelectorAll(`:scope > ${REVIEW_BUBBLE_SELECTOR}`).forEach((node) => node.remove());
-    });
-
-    const nextBubble = template.content.querySelector(REVIEW_BUBBLE_SELECTOR);
-    if (nextBubble) currentMarker.insertBefore(nextBubble, currentMarker.firstChild);
+    // The real Naver wrapper keeps the bubble outside the popularity/category
+    // wrappers. Replace it at its existing anchor, rather than inserting a
+    // second bubble inside the image marker. Structural add/remove uses setIcon.
+    const currentBubbles = element.querySelectorAll(REVIEW_BUBBLE_SELECTOR);
+    const nextBubbles = template.content.querySelectorAll(REVIEW_BUBBLE_SELECTOR);
+    if (currentBubbles.length !== 1 || nextBubbles.length !== 1) return false;
+    currentBubbles[0].replaceWith(nextBubbles[0]);
     return true;
 }
 

@@ -307,3 +307,40 @@ export function buildVisibleMarkerReviewBubbleHtml(
     </div>
   `;
 }
+
+const reviewBubbleWrapCache = new WeakMap<VisibleMarkerReviewBubble, {
+    markerContent: string;
+    mobile: boolean;
+    wrapped: string;
+}>();
+
+export function wrapNaverMarkerContentWithReviewBubble(
+    markerContent: string,
+    bubble: VisibleMarkerReviewBubble | undefined,
+    isMobile: boolean,
+) {
+    if (!bubble) return markerContent;
+
+    const cached = reviewBubbleWrapCache.get(bubble);
+    if (cached && cached.markerContent === markerContent && cached.mobile === isMobile) {
+        return cached.wrapped;
+    }
+
+    const wrapped = `
+        <div
+          data-visible-marker-review-bubble-anchor="true"
+          style="
+            position:relative;
+            width:${isMobile ? 32 : 32}px;
+            height:${isMobile ? 32 : 32}px;
+            overflow:visible;
+            pointer-events:auto;
+          "
+        >
+          ${buildVisibleMarkerReviewBubbleHtml(bubble, { isMobile })}
+          ${markerContent}
+        </div>
+    `;
+    reviewBubbleWrapCache.set(bubble, { markerContent, mobile: isMobile, wrapped });
+    return wrapped;
+}
