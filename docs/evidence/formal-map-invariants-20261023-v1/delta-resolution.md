@@ -40,3 +40,9 @@ The first actual Pro report is [retained in full](gpt6_pro_formal_reverse_report
 - Cluster pixel/flicker/performance remains UNVERIFIED after eliminating its direct preload-only DOM writer. Existing Nightly failure is unchanged.
 
 All three new reports use unedited complete rendered-text extraction with private original HTML backups because the browser Copy clipboard did not return content. They are not claimed as source Markdown exports. Original historical reports and frozen source bundles were not rewritten.
+
+## CI-F-01: frozen publication version expectation
+
+CI 39932624171 at `62ef6784` completed with five successful jobs and one Ubuntu npm failure. Its full 3,955-test run reported 3,845 pass, 109 skipped and one failure. The failure was reproduced locally: the reviewed builder emitted `video-views-20261023-v2` while the historical public artifact retained `video-views-20261022-v1`; every other publication field matched. Test commit `1c0461bb114e9f6085d33c85a0eb911d0a98cab9` permits only that declared version difference and still compares the complete cohort. The frozen artifact and runtime source `a1dd4001` are unchanged.
+
+Related 23 tests in three files / 903 assertions, scoped lint, and parity 0 diagnostics / 3,382 logical inputs pass. See `ci-publication-version-followup.json` and its before/after/parity raw files. This routine CI repair does not supersede the completed external reports or native harness results. New delivery-head CI is pending; hosted SDK/UI, protected release and Nightly remain separate.

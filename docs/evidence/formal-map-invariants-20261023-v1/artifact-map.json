@@ -45,13 +45,13 @@
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/completion-manifest.json",
-      "bytes": 4026,
-      "sha256": "54027aee59ae1c2b772e0ceb1226189c8c40f1db85e53f5585fa3308ebd7238b"
+      "bytes": 4291,
+      "sha256": "72d73a1743e58f15552bd1e3f0471a2c0392ad00a55e9dc8830f3aff5c181657"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/delta-resolution.md",
-      "bytes": 9275,
-      "sha256": "20564fac27331b569812942601fa4560af28c338e3ca52396d2606bb0b444913"
+      "bytes": 10299,
+      "sha256": "347392f143b9ae673f07e0614c88ba265e7db2df24e1f40c3f3244e7476eedb4"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/external-review-checkpoint.json",
@@ -242,6 +242,26 @@
       "path": "docs/evidence/formal-map-invariants-20261023-v1/verification.json",
       "bytes": 1262,
       "sha256": "2cdf058cf42b4745eaae400b810c5ef99bded33d1e4b4478952eaa644bd00023"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-followup.json",
+      "bytes": 3646,
+      "sha256": "a057f45dde6d805f541429d93220b651df34c87e321574ae4b018012427dc509"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-before.txt",
+      "bytes": 1821,
+      "sha256": "5b4176b643c20fd7a94db3bde8594dcc24ef2266cc3371fe29e7979806a6ac19"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-after.txt",
+      "bytes": 3164,
+      "sha256": "ef16d813127a9f239c6b526455217c0e61ff76e695f4ba1822bfa5f52c752540"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-parity.txt",
+      "bytes": 428,
+      "sha256": "5e9d180726647fa910a7e1e3cc090589778499806f327f66698a633b30e367ec"
     }
   ],
   "sourceFiles": [
@@ -419,8 +439,14 @@
       "path": "apps/web/tests-unit/naver-map-cluster-visuals.test.ts",
       "bytes": 5142,
       "sha256": "dee3a5c6fbeb08d7d527aec187b32ac81a115cf55e692a0fe3808363c27a82e2"
+    },
+    {
+      "path": "apps/web/tests-unit/evidence-publication-runtime.test.ts",
+      "bytes": 6657,
+      "sha256": "d9c475863c41902724e8309ea5893e3bfbd81109ba83470b13c44226adec4b01"
     }
   ],
-  "scope": "Final supplied-scope ordinary delta review and valid native fixes complete; exact-head CI, actual hosted SDK/UI, protected release and Nightly separate",
-  "selfReference": "artifact-map.json and its detached digest are intentionally excluded to avoid a circular or stale digest claim"
+  "scope": "Supplied-scope ordinary delta and native fixes complete at a1dd; routine CI expectation fix at ciTestRevision. New exact-head CI, hosted SDK/UI, protected release and Nightly remain separate.",
+  "selfReference": "artifact-map.json and its detached digest are intentionally excluded to avoid a circular or stale digest claim",
+  "ciTestRevision": "1c0461bb114e9f6085d33c85a0eb911d0a98cab9"
 }
