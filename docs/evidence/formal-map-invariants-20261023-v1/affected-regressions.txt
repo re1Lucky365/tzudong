@@ -1,0 +1,65 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests-formal/marker-state-model.test.ts:
+FORMAL_VISUAL_TRANSITIONS 2048
+(pass) all 2,048 active/reacquired visual transitions show the current static marker and bubble [1613.86ms]
+(pass) a review-only transition retains the image and avoids an SDK icon replacement [1195.30ms]
+FORMAL_OWNERSHIP_STEPS 18056
+(pass) every pool/click action sequence through depth four keeps current callback ownership [2209.55ms]
+
+tests-unit/marker-pool.test.ts:
+(pass) marker pool > failed provider detachment is discarded and does not strand clear or reuse a corrupt marker [0.64ms]
+(pass) marker pool > provider listener teardown failure does not strand the remaining markers or pool state [0.11ms]
+(pass) marker pool > exports the same singleton and creates one marker/listener for a new id [0.06ms]
+(pass) marker pool > reuses an active marker and updates only changed map, position, icon, and click handler [0.07ms]
+(pass) marker pool > releases after the fade delay and reuses the pooled marker for a new id [0.09ms]
+(pass) marker pool > reclaims a fading marker instead of creating a second node [0.04ms]
+(pass) marker pool > updates active markers and treats unknown ids as safe no-ops [0.04ms]
+(pass) marker pool > a returning batch reuses its restaurant identities and updated click handlers without rebuilding icons [0.11ms]
+(pass) marker pool > releaseExcept and releaseAll keep only the requested active ids before delayed cleanup [0.07ms]
+(pass) marker pool > clear cancels a release that was already scheduled [0.04ms]
+(pass) marker pool > clear leaves the pool empty for markers that were still active [0.02ms]
+(pass) pool reuse and changed visit badges update static marker content even with the same image [0.20ms]
+(pass) detached SDK clicks cannot dispatch stale data and reuse keeps one owned listener [0.06ms]
+(pass) disposal stays bounded across cache capacity and repeated clear [1.93ms]
+
+tests-unit/evidence-numeric-bounds.test.ts:
+(pass) finite inputs cannot leak infinity from half-life or visit multiplier arithmetic [0.25ms]
+(pass) sampling-window arithmetic cannot produce an unsafe timestamp from a safe input [0.05ms]
+(pass) an unscored signal vector cannot establish a scalar difference or permit a live write [0.06ms]
+
+tests-unit/evidence-cohort-shadow.test.ts:
+(pass) cohort shadow > missing and complete signal observations both block unestablished scalar comparisons [0.18ms]
+
+tests-unit/popularity-input-boundary.test.ts:
+(pass) rejects unapproved source rows before merge rather than granting a public tier [4.31ms]
+(pass) malformed count values remain missing instead of coercing into a public flame [14.49ms]
+(pass) conflicting metrics for the same video fail in either input order [4.38ms]
+(pass) rejects missing, blank, nonfinite and out-of-range source coordinates before merge coerces them [10.14ms]
+(pass) preserves approved names and records the actual P98/P95/P85 policy for valid inputs [1.70ms]
+(pass) uses the shared-map latitude boundary and rejects unnamed publication inputs [4.00ms]
+(pass) nearest-rank has no ember at n=19 but separates P95 and P98 at n=20 [9.64ms]
+
+tests-unit/evidence-engineering-foundation.test.ts:
+(pass) evidence engineering foundation > locks the hyperbolic half-life correction and rejects the 460-day claim [0.13ms]
+(pass) evidence engineering foundation > floor decay uses the decayable half-life, with unlocked coefficients [0.21ms]
+(pass) evidence engineering foundation > visit multiplier ignores duplicate video ids and rejects a negative gamma [0.15ms]
+(pass) evidence engineering foundation > counts keep null distinct from zero and clamp only real non-negative integers [0.09ms]
+(pass) evidence engineering foundation > the same video contributes its counts once, and conflicting duplicates fail closed [0.15ms]
+(pass) evidence engineering foundation > assembled signals are deterministic and do not collapse into one multiplied score [0.10ms]
+(pass) evidence engineering foundation > broad Naver stages and search misses never become closed_store [0.12ms]
+(pass) evidence engineering foundation > exact stages need two families, and a complete closure record stays a candidate [0.25ms]
+(pass) evidence engineering foundation > Levenshtein is available and is not an automatic identity cutoff [0.17ms]
+(pass) evidence engineering foundation > seek URLs keep the canonical watch form and storage keys keep milliseconds [0.14ms]
+(pass) evidence engineering foundation > frame parsing separates collection from review and rejects raw OCR [0.33ms]
+(pass) evidence engineering foundation > approved frames union by id and refuse mixed moderation or colliding keys [0.35ms]
+(pass) evidence engineering foundation > sampling plans decode a bounded window and do not promise I-frame 2fps [0.03ms]
+(pass) evidence engineering foundation > tier records keep cohort identity and do not select the highest tier [0.22ms]
+(pass) evidence engineering foundation > fetch classification separates challenges from temporary limits [0.07ms]
+(pass) evidence engineering foundation > marker and badge contracts stay on the compositor path [0.05ms]
+(pass) evidence engineering foundation > foundation source has no deferred stubs or unadopted cutoffs [6.92ms]
+
+ 45 pass
+ 0 fail
+ 1387 expect() calls
+Ran 45 tests across 6 files. [5.50s]

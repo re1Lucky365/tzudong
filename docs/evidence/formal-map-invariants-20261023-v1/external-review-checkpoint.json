@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-23T05:26:02.004934+00:00",
+  "status": "queued",
+  "requestId": "25480d7e5c1b70bc0bb3d879",
+  "owner": "01a14e99-77bf-7531-b29e-a612bd99b540",
+  "job": "tzudong-ec1d3078-formal-delta-v1",
+  "provider": "gemini",
+  "stage": "delta",
+  "reservation": null,
+  "bundleSha256": "33448972e3e363e72c3e0d1aa91f998e4d8230a442c27ce36c8907350d3a35b5",
+  "requestedResearch": "off",
+  "actualModel": null,
+  "actualResearch": null,
+  "inputs": "LOCAL_PREPARED_NOT_UPLOADED",
+  "dispatches": 0,
+  "acceptedTurns": 0,
+  "missingStages": [
+    "Gemini maximum-thinking delta",
+    "GPT-6 Pro reverse verification of actual delta artifact"
+  ],
+  "hold": "NORMAL_SHARED_ADMISSION_QUEUED",
+  "nextAllowedAction": "Reconcile this queued request once eligible; verify actual account/model/reasoning, research OFF and quota before any upload/send. Preserve other owners.",
+  "priorReports": "UNCHANGED_THREE_COMPLETE_REPORTS_REUSED",
+  "hostUi": "UNVERIFIED",
+  "release": "BLOCKED_PENDING_DELTA_REVIEW_AND_EXISTING_VERCEL_GATE",
+  "Nightly": "SEPARATE_NO_RERUN"
+}

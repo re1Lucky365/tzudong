@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "status": "SIX_NATIVE_FIXES_AND_BOUNDED_CHECKS_COMPLETE_EXTERNAL_DELTA_QUEUED",
+  "overallComplete": false,
+  "sourceRevision": "ec1d3078e78212042fa3bc916856fc9da5c41904",
+  "baseRevision": "56427320a44fdd65a86dc49e7e63d80dd9935c2e",
+  "findingIds": [
+    "FORMAL-01",
+    "FORMAL-02",
+    "FORMAL-03",
+    "FORMAL-04",
+    "FORMAL-05",
+    "FORMAL-06"
+  ],
+  "findingsDecision": "ACCEPT_IMPLEMENTED_NATIVE_VERIFIED",
+  "boundedChecks": {
+    "visualTransitions": 2048,
+    "ownershipTraceDepth": 4,
+    "ownershipTraces": 4681,
+    "ownershipSteps": 18056,
+    "mutantsDetected": 6
+  },
+  "wholeSystemProof": false,
+  "tool": "Bun 1.4.0 + Chromium 156.0.8078.47; actual TS and DOM, synthetic provider",
+  "priorThreeStageAudit": "UNCHANGED_VALID_REPORTS_REUSED",
+  "currentDeltaReview": "QUEUED_NOT_DISPATCHED",
+  "queueRequestId": "25480d7e5c1b70bc0bb3d879",
+  "bundleSha256": "33448972e3e363e72c3e0d1aa91f998e4d8230a442c27ce36c8907350d3a35b5",
+  "sourceAccessRemote": "UNVERIFIED_NOT_UPLOADED",
+  "productionDeployment": "NOT_PERFORMED",
+  "VercelAdvisoryRecheck": "2026-10-24T07:37:06+09:00",
+  "verifiedVercelReset": false,
+  "Nightly": "SEPARATE_HISTORICAL_FAILURE_39457197351_NO_RERUN",
+  "nextActions": [
+    "normal Gemini delta admission with actual mode/quota/source readback",
+    "save full actual report and resolve valid findings",
+    "actual GPT-6 Pro reverse verification",
+    "final preview and protected release after verified Vercel capacity"
+  ]
+}

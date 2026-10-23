@@ -1,0 +1,16 @@
+stateDiagram-v2
+    direction LR
+    state "마커 객체 없음" as Empty
+    state "현재 식당·불 등급 표시" as Active
+    state "지도에서 제외·클릭 해제" as Pooled
+    state "객체 폐기·재사용 금지" as Discarded
+    [*] --> Empty
+    Empty --> Active: 표시 요청 / 새 객체
+    Active --> Active: 말풍선만 변경 / 이미지 유지
+    Active --> Active: 불 등급·설명 변경 / 전체 아이콘 갱신
+    Active --> Pooled: 제외 / SDK 해제 성공·풀 여유
+    Active --> Discarded: SDK 해제 실패 또는 풀 가득 참
+    Pooled --> Active: 다시 표시 / 최신 식당·클릭 연결
+    Active --> Discarded: 전체 정리
+    Pooled --> Discarded: 전체 정리
+    Discarded --> [*]

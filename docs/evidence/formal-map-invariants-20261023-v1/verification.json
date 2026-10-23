@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "sourceRevision": "ec1d3078e78212042fa3bc916856fc9da5c41904",
+  "scopedLint": {
+    "exitCode": 0,
+    "paths": "changed runtime, test and verifier sources"
+  },
+  "typecheckParity": {
+    "command": "node scripts/run-typecheck.mjs --compiler parity",
+    "status": "passed",
+    "diagnostics": 0,
+    "logicalInputs": 3382,
+    "logicalInputNamesSha256": "8bca375a887c3e737a5900a345fea55dbd30932285fae82dbb384d492e447925",
+    "nonLibraryContentSha256": "91de6c1f76e0fb258705e3ba34b67ce64caad3301c80120995311e891eb0220c",
+    "standardLibraryContentSha256": {
+      "native": "d328ef5dcbac7d4c183cd37a26eb383e8e6921ab2147b20e5d73f3c149223a64",
+      "compat": "82afdd90154e9b315a83eb66f2d4ee59972c492094bbf66d7f0791f584e41eb0"
+    }
+  },
+  "skillValidation": {
+    "status": "Skill is valid!",
+    "validator": "skill-creator/scripts/quick_validate.py",
+    "yamlParser": "PyYAML 6.0.3 in isolated temporary environment"
+  },
+  "limits": [
+    "Parity covers configured TypeScript inputs; verifier .mjs files are executed and linted separately.",
+    "No deployment or Nightly result is inferred."
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "evidence": "BOUNDED_NATIVE_AND_SYNTHETIC_PROVIDER_CHECKS",
+  "startedAt": "2026-10-23T05:16:55.895Z",
+  "completedAt": "2026-10-23T05:17:10.217Z",
+  "bun": "1.4.0",
+  "bounds": {
+    "visualVariants": 32,
+    "visualTransitions": 2048,
+    "actionAlphabet": 8,
+    "maximumDepth": 4,
+    "ownershipTraces": 4681,
+    "ownershipSteps": 18056
+  },
+  "sourceHashes": {
+    "lib/marker-pool.ts": "2a9a2eebf39c890112bb70862f9360144975f50e60810fcbfc4fda73e442cecc",
+    "lib/retained-marker-accessibility.ts": "bf15c5fb1681e294c0be5b65a17e007570e2ebfb16af0868b41e96f5a2ed9ae4",
+    "lib/naver-map-event-cleanup.ts": "ee4c8bef6103c98b75238cc45eb2f119b1f5eab01202fb44979b05007c3957d6",
+    "lib/youtube-url.ts": "2dfac7f47bd227540c89250229d1c9fc29eb2cdcdc0aad50e63144b783251faa",
+    "lib/evidence-engineering/popularity-marker.ts": "65fd5cc14b916e92720dfdaf81f20545b8caf3d8b3e56d9c06a4e4a9baea49d6",
+    "lib/evidence-engineering/scoring.ts": "0e3f195bf06636d6a8718378ac7a93eccbd3f439ee5d6ab5eebedbbaa6d02276",
+    "lib/evidence-engineering/frames.ts": "c2b9c3fb2fca0f6fa229aeb0c62a222f22b11441cefc40d35248e0f6ca6f3dc8",
+    "lib/evidence-engineering/constants.ts": "471834208104d092365b8203350e7b9c4aba6a716a602f2a29589361d8fc9a43",
+    "lib/evidence-engineering/guards.ts": "5ba23587a7efd71f83867875292eb0255f5d5d34daeca98ca8418623961127a4",
+    "lib/evidence-engineering/errors.ts": "02bda67b89fadf3d2f5aa27f6a146c0dc746a7de1f9a6cd91dc82cf177e901c9",
+    "lib/evidence-engineering/types.ts": "9d64ad2c6e57bea45af5066d89a26535b616429c9032d16fccfefcdeb78bad6b",
+    "lib/evidence-engineering/storage-key.mjs": "4f49025a1c93baf0f732e3ab57fb8b576a3857dab4d4a9910534b21358df3148",
+    "tests-formal/marker-state-model.test.mjs": "81b39a6161551e573d5f0b13995cb65c07d2953282903a6886934341cf3c6721",
+    "tests-unit/evidence-numeric-bounds.test.ts": "7bccbf8f20109bc5b87f1d77a6687167f12e988d0040523f6fe5a0c152298d02"
+  },
+  "baseline": {
+    "exitCode": 0,
+    "output": "bun test v1.4.0 (34cbb9a40)\nFORMAL_BROWSER 156.0.8078.47\nFORMAL_VISUAL_TRANSITIONS 2048\nFORMAL_OWNERSHIP_STEPS 18056\n\ntests-formal/marker-state-model.test.mjs:\n(pass) all 2,048 active/reacquired visual transitions show the current static marker and bubble [1759.63ms]\n(pass) a review-only transition retains the image and avoids an SDK icon replacement [887.85ms]\n(pass) every pool/click action sequence through depth four keeps current callback ownership [1045.33ms]\n\ntests-unit/evidence-numeric-bounds.test.ts:\n(pass) finite inputs cannot leak infinity from half-life or visit multiplier arithmetic [0.34ms]\n(pass) sampling-window arithmetic cannot produce an unsafe timestamp from a safe input [0.06ms]\n(pass) an unscored signal vector cannot establish a scalar difference or permit a live write [0.08ms]\n\ntests-unit/evidence-cohort-shadow.test.ts:\n(pass) cohort shadow > missing and complete signal observations both block unestablished scalar comparisons [0.16ms]\n\ntests-unit/popularity-input-boundary.test.ts:\n(pass) rejects unapproved source rows before merge rather than granting a public tier [3.59ms]\n(pass) malformed count values remain missing instead of coercing into a public flame [11.03ms]\n(pass) conflicting metrics for the same video fail in either input order [3.67ms]\n(pass) rejects missing, blank, nonfinite and out-of-range source coordinates before merge coerces them [8.62ms]\n(pass) preserves approved names and records the actual P98/P95/P85 policy for valid inputs [0.91ms]\n(pass) uses the shared-map latitude boundary and rejects unnamed publication inputs [2.71ms]\n(pass) nearest-rank has no ember at n=19 but separates P95 and P98 at n=20 [3.94ms]\n\n 14 pass\n 0 fail\n 70 expect() calls\nRan 14 tests across 4 files. [4.09s]\n"
+  },
+  "mutations": [
+    {
+      "id": "static-content-guard",
+      "detected": true,
+      "exitCode": 1,
+      "output": "bun test v1.4.0 (34cbb9a40)\nFORMAL_BROWSER 156.0.8078.47\nFORMAL_OWNERSHIP_STEPS 18056\n\ntests-formal/marker-state-model.test.mjs:\n140 | }\n141 | \n142 | test('all 2,048 active/reacquired visual transitions show the current static marker and bubble', async () => {\n143 |   await withFixture(async page => {\n144 |     const result = await page.evaluate(() => window.__formal.visualPairs());\n145 |     expect(result).toEqual({ checked: 2048 });\n      ^\nerror: expect(received).toEqual(expected)\n\n  {\n-   \"checked\": 2048,\n+   \"actual\": {\n+     \"alt\": \"설명 0\",\n+     \"bubbles\": 0,\n+     \"flames\": 0,\n+     \"tier\": \"standard\",\n+     \"visits\": \"1\",\n+   },\n+   \"after\": {\n+     \"alt\": 1,\n+     \"bubble\": 0,\n+     \"tier\": \"standard\",\n+     \"visits\": 1,\n+   },\n+   \"before\": {\n+     \"alt\": 0,\n+     \"bubble\": 0,\n+     \"tier\": \"standard\",\n+     \"visits\": 1,\n+   },\n+   \"checked\": 9,\n+   \"expected\": {\n+     \"alt\": \"설명 1\",\n+     \"bubbles\": 0,\n+     \"flames\": 0,\n+     \"tier\": \"standard\",\n+     \"visits\": \"1\",\n+   },\n+   \"released\": false,\n  }\n\n- Expected  - 1\n+ Received  + 28\n\n      at toEqual (unknown:1:1)\n      at /private<web>/tests-formal/marker-state-model.test.mjs:145:20\n      at withFixture (/private<web>/tests-formal/marker-state-model.test.mjs:138:11)\n      at /private<web>/tests-formal/marker-state-model.test.mjs:143:9\n      at processTicksAndRejections (unknown:7:39)\n(fail) all 2,048 active/reacquired visual transitions show the current static marker and bubble [804.28ms]\n(pass) a review-only transition retains the image and avoids an SDK icon replacement [945.08ms]\n(pass) every pool/click action sequence through depth four keeps current callback ownership [1090.69ms]\n\n 2 pass\n 1 fail\n 4 expect() calls\nRan 3 tests across 1 file. [3.02s]\n"
+    },
+    {
+      "id": "released-callback",
+      "detected": true,
+      "exitCode": 1,
+      "output": "bun test v1.4.0 (34cbb9a40)\nFORMAL_BROWSER 156.0.8078.47\nFORMAL_VISUAL_TRANSITIONS 2048\n\ntests-formal/marker-state-model.test.mjs:\n(pass) all 2,048 active/reacquired visual transitions show the current static marker and bubble [1355.95ms]\n(pass) a review-only transition retains the image and avoids an SDK icon replacement [1166.74ms]\n155 | }, 60000);\n156 | \n157 | test('every pool/click action sequence through depth four keeps current callback ownership', async () => {\n158 |   await withFixture(async page => {\n159 |     const result = await page.evaluate(() => window.__formal.ownershipTraces());\n160 |     expect(result.failure).toBeNull();\n                                 ^\nerror: expect(received).toBeNull()\n\nReceived: {\n  trace: [ \"a:fire\", \"a:fire\", \"release:a\", \"click:a\" ],\n  action: \"click:a\",\n  clicks: [ \"a:fire\" ],\n  expected: undefined,\n}\n\n      at <anonymous> (/private<web>/tests-formal/marker-state-model.test.mjs:160:28)\n      at async withFixture (/private<web>/tests-formal/marker-state-model.test.mjs:138:11)\n      at async <anonymous> (/private<web>/tests-formal/marker-state-model.test.mjs:158:9)\n(fail) every pool/click action sequence through depth four keeps current callback ownership [974.68ms]\n\n 2 pass\n 1 fail\n 3 expect() calls\nRan 3 tests across 1 file. [3.75s]\n"
+    },
+    {
+      "id": "half-life-overflow",
+      "detected": true,
+      "exitCode": 1,
+      "output": "bun test v1.4.0 (34cbb9a40)\n\ntests-unit/evidence-numeric-bounds.test.ts:\n1 | import { expect, test } from 'bun:test';\n2 | import { hyperbolicHalfLifeDays, visitsMultiplier, compareCohortShadow } from '../lib/evidence-engineering/scoring';\n3 | import { planFrameSamplingWindow } from '../lib/evidence-engineering/frames';\n4 | \n5 | test('finite inputs cannot leak infinity from half-life or visit multiplier arithmetic', () => {\n6 |   expect(() => hyperbolicHalfLifeDays(Number.MIN_VALUE)).toThrow('non_finite');\n                                                             ^\nerror: expect(received).toThrow(expected)\n\nExpected substring: \"non_finite\"\n\nReceived function did not throw\nReceived value: Infinity\n\n      at <anonymous> (/private<web>/tests-unit/evidence-numeric-bounds.test.ts:6:58)\n(fail) finite inputs cannot leak infinity from half-life or visit multiplier arithmetic [0.34ms]\n(pass) sampling-window arithmetic cannot produce an unsafe timestamp from a safe input [0.28ms]\n(pass) an unscored signal vector cannot establish a scalar difference or permit a live write [0.19ms]\n\n 2 pass\n 1 fail\n 8 expect() calls\nRan 3 tests across 1 file. [29.00ms]\n"
+    },
+    {
+      "id": "visit-multiplier-overflow",
+      "detected": true,
+      "exitCode": 1,
+      "output": "bun test v1.4.0 (34cbb9a40)\n\ntests-unit/evidence-numeric-bounds.test.ts:\n2 | import { hyperbolicHalfLifeDays, visitsMultiplier, compareCohortShadow } from '../lib/evidence-engineering/scoring';\n3 | import { planFrameSamplingWindow } from '../lib/evidence-engineering/frames';\n4 | \n5 | test('finite inputs cannot leak infinity from half-life or visit multiplier arithmetic', () => {\n6 |   expect(() => hyperbolicHalfLifeDays(Number.MIN_VALUE)).toThrow('non_finite');\n7 |   expect(() => visitsMultiplier(['abc123DEF45', 'def456GHI78', 'ghi789JKL01', 'jkl012MNO34'], Number.MAX_VALUE)).toThrow('non_finite');\n                                                                                                                     ^\nerror: expect(received).toThrow(expected)\n\nExpected substring: \"non_finite\"\n\nReceived function did not throw\nReceived value: Infinity\n\n      at <anonymous> (/private<web>/tests-unit/evidence-numeric-bounds.test.ts:7:114)\n(fail) finite inputs cannot leak infinity from half-life or visit multiplier arithmetic [0.57ms]\n(pass) sampling-window arithmetic cannot produce an unsafe timestamp from a safe input [0.19ms]\n(pass) an unscored signal vector cannot establish a scalar difference or permit a live write [0.10ms]\n\n 2 pass\n 1 fail\n 9 expect() calls\nRan 3 tests across 1 file. [30.00ms]\n"
+    },
+    {
+      "id": "sampling-window-overflow",
+      "detected": true,
+      "exitCode": 1,
+      "output": "bun test v1.4.0 (34cbb9a40)\n\ntests-unit/evidence-numeric-bounds.test.ts:\n(pass) finite inputs cannot leak infinity from half-life or visit multiplier arithmetic [0.52ms]\n 8 |   expect(hyperbolicHalfLifeDays(0.0015)).toBeCloseTo(2000 / 3, 9);\n 9 |   expect(visitsMultiplier(['abc123DEF45', 'def456GHI78'], 0.25)).toBeCloseTo(1 + 0.25 * Math.log(2), 12);\n10 | });\n11 | \n12 | test('sampling-window arithmetic cannot produce an unsafe timestamp from a safe input', () => {\n13 |   expect(() => planFrameSamplingWindow('abc123DEF45', Number.MAX_SAFE_INTEGER)).toThrow('invalid_timestamp_ms');\n                                                                                     ^\nerror: expect(received).toThrow(expected)\n\nExpected substring: \"invalid_timestamp_ms\"\n\nReceived function did not throw\nReceived value: {\n  video_id: \"abc123DEF45\",\n  target_timestamp_ms: 9007199254740991,\n  window_start_ms: 9007199254735991,\n  window_end_ms: 9007199254745992,\n  sample_fps: 2,\n  keyframe_role: \"decode_start_only\",\n  loads_full_video_in_node: false,\n}\n\n      at <anonymous> (/private<web>/tests-unit/evidence-numeric-bounds.test.ts:13:81)\n(fail) sampling-window arithmetic cannot produce an unsafe timestamp from a safe input [0.28ms]\n(pass) an unscored signal vector cannot establish a scalar difference or permit a live write [0.10ms]\n\n 2 pass\n 1 fail\n 9 expect() calls\nRan 3 tests across 1 file. [29.00ms]\n"
+    },
+    {
+      "id": "unscored-comparison",
+      "detected": true,
+      "exitCode": 1,
+      "output": "bun test v1.4.0 (34cbb9a40)\n\ntests-unit/evidence-numeric-bounds.test.ts:\n(pass) finite inputs cannot leak infinity from half-life or visit multiplier arithmetic [0.54ms]\n(pass) sampling-window arithmetic cannot produce an unsafe timestamp from a safe input [0.11ms]\n17 | });\n18 | \n19 | test('an unscored signal vector cannot establish a scalar difference or permit a live write', () => {\n20 |   const result = compareCohortShadow([{ identity: 'shop:a', operational_score: 1,\n21 |     candidate_signals: { freshness: 1, visit_multiplier: 1 } }]);\n22 |   expect(result.records[0].comparison_present).toBe(false);\n                                                    ^\nerror: expect(received).toBe(expected)\n\nExpected: false\nReceived: true\n\n      at <anonymous> (/private<web>/tests-unit/evidence-numeric-bounds.test.ts:22:48)\n(fail) an unscored signal vector cannot establish a scalar difference or permit a live write [0.23ms]\n\n 2 pass\n 1 fail\n 8 expect() calls\nRan 3 tests across 1 file. [29.00ms]\n"
+    }
+  ],
+  "restored": {
+    "exitCode": 0,
+    "output": "bun test v1.4.0 (34cbb9a40)\nFORMAL_BROWSER 156.0.8078.47\nFORMAL_VISUAL_TRANSITIONS 2048\nFORMAL_OWNERSHIP_STEPS 18056\n\ntests-formal/marker-state-model.test.mjs:\n(pass) all 2,048 active/reacquired visual transitions show the current static marker and bubble [1066.54ms]\n(pass) a review-only transition retains the image and avoids an SDK icon replacement [1006.65ms]\n(pass) every pool/click action sequence through depth four keeps current callback ownership [949.21ms]\n\ntests-unit/evidence-numeric-bounds.test.ts:\n(pass) finite inputs cannot leak infinity from half-life or visit multiplier arithmetic [0.27ms]\n(pass) sampling-window arithmetic cannot produce an unsafe timestamp from a safe input [0.06ms]\n(pass) an unscored signal vector cannot establish a scalar difference or permit a live write [0.15ms]\n\n 6 pass\n 0 fail\n 15 expect() calls\nRan 6 tests across 2 files. [3.25s]\n"
+  },
+  "exclusions": [
+    "real Naver SDK",
+    "network",
+    "provider reentrancy within one synchronous call",
+    "fairness/liveness",
+    "unbounded executions",
+    "physical devices",
+    "deployment",
+    "Nightly"
+  ]
+}
