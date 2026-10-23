@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "status": "SCOPED_EXTERNAL_DELTA_AND_VALID_LOCAL_FINDINGS_CLOSED_CI_HOST_RELEASE_PENDING",
   "overallComplete": false,
-  "sourceRevision": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
+  "sourceRevision": "a62683bae44ce8d2036e7352f9ea7d40d8efd0e5",
   "baseRevision": "56427320a44fdd65a86dc49e7e63d80dd9935c2e",
   "findingIds": [
     "FORMAL-01",
@@ -34,10 +34,10 @@
   "wholeSystemProof": false,
   "tool": "Bun 1.4.0 + Chromium 156.0.8078.47; actual TS and DOM, synthetic provider",
   "priorThreeStageAudit": "UNCHANGED_VALID_REPORTS_REUSED",
-  "currentDeltaReview": "GEMINI_AND_PRO_PLUS_MATERIAL_FOLLOWUP_FULL_REPORTS_VERIFIED_OWNER_RELEASED",
+  "currentDeltaReview": "PRIOR_SUPPLIED_SCOPE_COMPLETE;ROUTINE_SDK_F_01_HOST_GUARD_SEPARATE",
   "queueRequestId": "86eb51ad0f69dcedd3c5dd33",
   "bundleSha256": "c3fb6be051942230565e8e551f6f9988d6c0da2175c2a9df553a5398e6865f23",
-  "sourceAccessRemote": "MATCHED_CURRENT_SOURCE_AND_SUPPLIED_RAW_EVIDENCE_REVIEWED;ACTUAL_SDK_HOST_AND_UNLISTED_DEPENDENCIES_UNVERIFIED",
+  "sourceAccessRemote": "Prior supplied source and raw evidence reviewed; SDK-F-01 localized host guard not represented as a new external review",
   "productionDeployment": "NOT_PERFORMED",
   "VercelAdvisoryRecheck": "2026-10-24T07:37:06+09:00",
   "verifiedVercelReset": false,
@@ -116,5 +116,11 @@
     "receipt": "ci-publication-version-followup.json",
     "status": "LOCAL_REGRESSION_FIXED_NEW_DELIVERY_HEAD_CI_PENDING",
     "runtimeChanged": false
+  },
+  "hostFollowup": {
+    "finding": "SDK-F-01",
+    "runtimeRevision": "a62683bae44ce8d2036e7352f9ea7d40d8efd0e5",
+    "receipt": "sdk-loss-followup.json",
+    "status": "NATIVE_FIXED_EXACT_HOST_RECHECK_PENDING"
   }
 }
