@@ -69,7 +69,9 @@ describe('actual public popularity cohort', () => {
   test('reproduces every published member from the frozen public business rows and observed video metrics', async () => {
     const evidence = resolve(import.meta.dir, '../../../docs/evidence/marker-evidence-live-20261021-v1');
     const result = await buildPublicPopularity(join(evidence, 'approved-source-rows.json'), join(evidence, 'video-metrics-source.json'), publication.sourceRevision!);
-    expect(result.publication).toEqual(publication);
+    // Preserve the frozen v1 artifact while checking every cohort field under
+    // the builder's reviewed v2 input policy.
+    expect(result.publication).toEqual({ ...publication, publicationVersion: 'video-views-20261023-v2' });
     expect(result.evidence.thresholds.every((c) => c.knownGroups > 0 && c.fireAt! > 0)).toBe(true);
     const fire = publication.entries.find((e) => e.tier === 'fire')!;
     const domestic = wrapMarkerWithPopularityTier('<span>pin</span>', fire.tier as 'fire');

@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { mergeRestaurants } from '../hooks/use-restaurants';
 import { extractCanonicalYouTubeVideoId } from '../lib/youtube-url';
 import { parsePublicPopularityPublication } from '../lib/evidence-engineering/published-popularity';
+import { safeCount } from '../lib/evidence-engineering/guards';
 import { restaurantMatchesOverseasCountry } from '../lib/overseas-region-matching';
 import { OVERSEAS_REGIONS } from '../constants/overseas-regions';
 import type { Tables } from '../integrations/supabase/types';
@@ -12,7 +13,17 @@ export async function buildPublicPopularity(sourcePath: string, metricsPath: str
   const metricBytes = await readFile(metricsPath);
   const source = JSON.parse(sourceBytes.toString()) as { rows: Array<Record<string, unknown>> };
   const metrics = JSON.parse(metricBytes.toString()) as { rows: Array<{ video_id: string; view_count: number | string; fetched_at: string; bucket_started_at: string }> };
-  const byVideo = new Map(metrics.rows.map((r) => [r.video_id, r]));
+  const byVideo = new Map<string, typeof metrics.rows[number]>();
+  for (const row of metrics.rows) {
+    const videoId = extractCanonicalYouTubeVideoId(row.video_id);
+    if (!videoId) throw new Error('popularity_metrics_video_invalid');
+    const previous = byVideo.get(videoId);
+    if (previous && (safeCount(previous.view_count, Number.MAX_SAFE_INTEGER) !== safeCount(row.view_count, Number.MAX_SAFE_INTEGER)
+      || (previous.fetched_at || previous.bucket_started_at) !== (row.fetched_at || row.bucket_started_at))) {
+      throw new Error('popularity_metrics_video_conflict');
+    }
+    byVideo.set(videoId, { ...row, video_id: videoId });
+  }
   const rows = source.rows.map((r) => {
     if (r.status !== 'approved') throw new Error('popularity_source_not_approved');
     const validCoordinate = (value: unknown, limit: number) =>
@@ -32,8 +43,8 @@ export async function buildPublicPopularity(sourcePath: string, metricsPath: str
     const ids = [...new Set(members.map((m) => m.id))].sort();
     const videos = [...new Set(members.map((m) => extractCanonicalYouTubeVideoId(m.youtube_link ?? '')).filter((v): v is string => !!v))];
     const observed = videos.flatMap((id) => {
-      const metric = byVideo.get(id); const count = Number(metric?.view_count);
-      return metric && Number.isSafeInteger(count) && count > 0 ? [{ videoId: id, count, observedAt: metric.fetched_at || metric.bucket_started_at }] : [];
+      const metric = byVideo.get(id); const count = safeCount(metric?.view_count, Number.MAX_SAFE_INTEGER);
+      return metric && count !== null && count > 0 ? [{ videoId: id, count, observedAt: metric.fetched_at || metric.bucket_started_at }] : [];
     });
     const overseas = countries.some((country) => restaurantMatchesOverseasCountry(r, country)) || Number(r.lat) < 33 || Number(r.lat) > 39 || Number(r.lng) < 124 || Number(r.lng) > 132;
     return { restaurantId: ids[0], memberRestaurantIds: ids, name: r.name, cohort: overseas ? 'overseas' : 'domestic', viewCount: observed.length ? Math.max(...observed.map((m) => m.count)) : null, observed };
@@ -48,7 +59,7 @@ export async function buildPublicPopularity(sourcePath: string, metricsPath: str
     const tier = group.viewCount === null || cut.fireAt === null ? 'standard' : group.viewCount >= cut.fireAt ? 'fire' : group.viewCount >= cut.emberAt! ? 'ember' : group.viewCount >= cut.rainbowAt! ? 'rainbow' : 'standard';
     return { restaurantId: group.restaurantId, memberRestaurantIds: group.memberRestaurantIds, tier };
   }).sort((a, b) => a.restaurantId.localeCompare(b.restaurantId));
-  const publication = parsePublicPopularityPublication({ schemaVersion: 2, publicationVersion: 'video-views-20261022-v1', sourceRevision: revision, entries });
+  const publication = parsePublicPopularityPublication({ schemaVersion: 2, publicationVersion: 'video-views-20261023-v2', sourceRevision: revision, entries });
   const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
   return { publication, evidence: { policy: 'map-cohort-max-linked-video-views-nearest-rank-p98-p95-p85-v2', definition: 'Most-viewed linked video per merged restaurant, ranked separately within domestic and overseas approved restaurant cohorts. This measures video reach, not food quality.', sourceSha256: sha(sourceBytes), metricsSha256: sha(metricBytes), thresholds, groups } };
 }
