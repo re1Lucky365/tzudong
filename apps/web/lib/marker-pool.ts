@@ -36,8 +36,8 @@ interface MarkerPositionLike {
 const MARKER_NODE_SELECTOR = '[data-testid="marker"]';
 const REVIEW_BUBBLE_SELECTOR = '[data-visible-marker-review-bubble="true"]';
 
-function patchStableMarkerReviewBubble(element: HTMLElement, nextContent: unknown): boolean {
-    if (typeof nextContent !== 'string' || typeof document === 'undefined') return false;
+function patchStableMarkerReviewBubble(element: HTMLElement, previousContent: unknown, nextContent: unknown): boolean {
+    if (typeof previousContent !== 'string' || typeof nextContent !== 'string' || typeof document === 'undefined') return false;
     if (!nextContent.includes('data-testid="marker"') && !element.querySelector(MARKER_NODE_SELECTOR)) {
         return false;
     }
@@ -63,6 +63,16 @@ function patchStableMarkerReviewBubble(element: HTMLElement, nextContent: unknow
     const currentImage = currentMarker.querySelector('img');
     const nextImage = nextMarker.querySelector('img');
     if ((currentImage?.getAttribute('src') ?? '') !== (nextImage?.getAttribute('src') ?? '')) return false;
+
+    // Only the review bubble may differ. A partial attribute comparison misses
+    // changes outside the image node, including the popularity tier and flame.
+    const previous = document.createElement('template');
+    previous.innerHTML = previousContent;
+    const nextStatic = template.content.cloneNode(true) as DocumentFragment;
+    for (const content of [previous.content, nextStatic]) {
+        content.querySelectorAll(REVIEW_BUBBLE_SELECTOR).forEach(node => node.remove());
+    }
+    if (!previous.content.isEqualNode(nextStatic)) return false;
 
     const hosts = [currentMarker, currentMarker.parentElement].filter((host): host is Element => Boolean(host));
     hosts.forEach((host) => {
@@ -207,7 +217,7 @@ export class MarkerPool {
                 const element = marker.getElement();
                 const patched = !isAnchorDifferent
                     && typeof element?.querySelector === 'function'
-                    && patchStableMarkerReviewBubble(element, icon.content);
+                    && patchStableMarkerReviewBubble(element, currentIcon?.content, icon.content);
                 if (patched && currentIcon) {
                     currentIcon.content = icon.content;
                 } else if (!patched) {
