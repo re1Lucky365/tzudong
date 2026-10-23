@@ -4609,17 +4609,17 @@ test("youtube thumbnail durable publish does not mask registry constraint failur
       );
       throw new Error("expected constraint failure");
     } catch (error) {
-      expect(error).toBe(constraintError);
+      expect((error as Error).message).toBe("thumbnail_durable_release_publish_unconfirmed");
     }
 
-    expect(fake.uploads).toHaveLength(0);
+    expect(fake.uploads).toHaveLength(1);
     expect(fake.rows).toHaveLength(0);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
-test("youtube thumbnail durable publish maps missing registry RPC to unavailable and cleans uploaded asset", async () => {
+test("youtube thumbnail durable publish maps missing registry RPC to unavailable and preserves uploaded asset", async () => {
   const tempDir = mkdtempSync(join(tmpdir(), "thumbnail-durable-release-missing-rpc-"));
   try {
     const repoRoot = tempDir;
@@ -4685,14 +4685,14 @@ test("youtube thumbnail durable publish maps missing registry RPC to unavailable
         hasRelease: false,
       },
     });
-    expect(fake.uploads).toHaveLength(0);
+    expect(fake.uploads).toHaveLength(1);
     expect(fake.rows).toHaveLength(0);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
-test("youtube thumbnail durable publish removes uploaded asset when registry publish fails", async () => {
+test("youtube thumbnail durable publish preserves uploaded asset when registry publish is unconfirmed", async () => {
   const tempDir = mkdtempSync(join(tmpdir(), "thumbnail-durable-release-cleanup-"));
   try {
     const repoRoot = tempDir;
@@ -4748,10 +4748,10 @@ test("youtube thumbnail durable publish removes uploaded asset when registry pub
       throw new Error("expected publish failure");
     } catch (error) {
       expect(error).toBeInstanceOf(Error);
-      expect((error as Error).message).toBe("fake_publish_failed");
+      expect((error as Error).message).toBe("thumbnail_durable_release_publish_unconfirmed");
     }
 
-    expect(fake.uploads).toHaveLength(0);
+    expect(fake.uploads).toHaveLength(1);
     expect(fake.rows).toHaveLength(0);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
