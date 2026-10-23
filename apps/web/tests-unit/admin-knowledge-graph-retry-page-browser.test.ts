@@ -26,6 +26,7 @@ const entry = `
     fixture.cursors.push(cursor);
     if (fixture.hold) await new Promise(resolve => { fixture.release = resolve; });
     if (cursor && cursor === fixture.fail) return new Response('', { status: 503 });
+    if (url.searchParams.get('q')) return new Response(JSON.stringify({ ...graphPage(1), nodes: [], edges: [], filteredTotal: 0, omittedEdges: 2, edgePageTotal: 0, nextEdgeCursor: null, nextCursor: null }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     return new Response(JSON.stringify(graphPage(cursor ? Number(cursor.slice(7)) : 1)), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
@@ -52,6 +53,52 @@ type Fixture = { fail: string | null; cursors: Array<string | null>; hold: boole
 const fixture = (page: Page) => page.evaluate(() => (globalThis as unknown as { __knowledgeFixture: Fixture }).__knowledgeFixture);
 const press = async (target: ReturnType<Page['locator']>) => { await target.focus(); await target.press('Enter'); };
 const setFail = (page: Page, fail: string | null) => page.evaluate(value => { (globalThis as unknown as { __knowledgeFixture: Fixture }).__knowledgeFixture.fail = value; }, fail);
+
+(existsSync(chrome) ? test : test.skip)('knowledge counts distinguish visible results, totals and a pending search', async () => {
+  const browser = await chromium.launch({ executablePath: chrome, headless: true });
+  try {
+    const script = await bundle();
+    for (const width of [1280, 390]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      try {
+        const page = await context.newPage();
+        page.setDefaultTimeout(5_000);
+        const pageErrors: string[] = [];
+        let externalRequests = 0;
+        page.on('pageerror', error => pageErrors.push(error.message.slice(0, 200)));
+        await page.route('**/*', route => {
+          if (route.request().url() === 'https://knowledge.test/admin') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' });
+          externalRequests++;
+          return route.abort();
+        });
+        await page.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
+        await page.goto('https://knowledge.test/admin');
+        await page.addScriptTag({ content: script });
+        const toolbar = page.locator('.admin-cms-toolbar');
+        await playwrightExpect(toolbar).toContainText('표시 1 / 전체 3개 · 연결 1 / 2');
+        await page.evaluate(() => { (globalThis as unknown as { __knowledgeFixture: Fixture }).__knowledgeFixture.hold = true; });
+        await page.getByRole('textbox', { name: '지식 검색' }).fill('no-match');
+        await playwrightExpect.poll(async () => (await fixture(page)).cursors.length).toBe(2);
+        await playwrightExpect(toolbar).toContainText('조회 중 · 이전 결과 1 / 전체 3개');
+        await page.evaluate(() => {
+          const state = (globalThis as unknown as { __knowledgeFixture: Fixture }).__knowledgeFixture;
+          state.hold = false;
+          state.release();
+        });
+        await playwrightExpect(toolbar).toContainText('표시 0 / 전체 3개 · 연결 0 / 2');
+        await playwrightExpect(page.getByText('일치하는 지식이 없습니다.', { exact: true })).toBeVisible();
+        await page.getByRole('textbox', { name: '지식 검색' }).fill('');
+        await playwrightExpect(toolbar).toContainText('표시 1 / 전체 3개 · 연결 1 / 2');
+        expect(externalRequests).toBe(0);
+        expect(pageErrors).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+}, 60_000);
 
 (existsSync(chrome) ? test : test.skip)('retrying a failed knowledge page reads the same page instead of returning to page one', async () => {
   const browser = await chromium.launch({ executablePath: chrome, headless: true });
