@@ -32,7 +32,9 @@ CLIENT = ROOT/'apps/web/lib/admin/youtube-thumbnail-generator/gemini-worker-clie
 PRIVATE_TS = ROOT/'apps/web/tests-unit/fixtures/thumbnail-private-store-pg17.ts'
 PRIVATE_LIB = ROOT/'apps/web/lib/admin/youtube-thumbnail-generator'
 SOURCES = [SQL, SELF, BRIDGE, TS, CLIENT, PRIVATE_TS,
-           *[PRIVATE_LIB/name for name in ['queue-contract.ts','private-store.ts','queue-api.ts','prompt.ts','safety.ts']]]
+           *[PRIVATE_LIB/name for name in ['queue-contract.ts','private-store.ts','queue-api.ts','prompt.ts','safety.ts',
+                                         'worker-outbox.ts','outbound-worker.ts']],
+           ROOT/'apps/web/scripts/thumbnail-gemini-worker.ts',ROOT/'apps/web/package.json']
 MODEL = 'gemini-3.1-flash-image'
 sha = lambda value: hashlib.sha256(value.encode()).hexdigest()
 
@@ -423,7 +425,9 @@ class ThumbnailQueuePg17(unittest.TestCase):
         executable=Path('/Users/twoimo/.bun/bin/bun')
         if not executable.is_file():self.skipTest('installed Bun required; no installation')
         observations=[]
-        for mode in ['normal','checkpoint-ack-lost','normalize-recovery','start-ack-lost']:
+        for mode in ['normal','checkpoint-ack-lost','normalize-recovery','start-ack-lost',
+                     'outbound-normal','outbound-delivery-lost','outbound-start-ack-lost',
+                     'outbound-response-lost','outbound-stop-received','outbound-concurrent-observer','outbound-priority-recovery']:
             with self.subTest(mode=mode):
                 with self.connection(admin=True) as connection,connection.cursor() as cursor:
                     cursor.execute('TRUNCATE public.admin_thumbnail_events,public.admin_thumbnail_jobs;')
@@ -431,14 +435,15 @@ class ThumbnailQueuePg17(unittest.TestCase):
                     cursor.execute('UPDATE public.admin_thumbnail_workers SET token_sha256=%s WHERE id=(SELECT id FROM public.admin_thumbnail_workers WHERE owner_id=%s ORDER BY created_at,id LIMIT 1)',(self.workers[0],self.owner))
                 env={**self.env,'FIXTURE_PSQL':str(PG/'psql'),'FIXTURE_PG_PORT':str(self.port),
                      'FIXTURE_OWNER_ID':self.owner,'FIXTURE_TOKEN_0':self.workers[0]}
-                policy='(version 1)(allow default)(deny network*)(allow network-outbound (remote ip "localhost:*"))'
+                policy=('(version 1)(allow default)(deny network*)(allow network-outbound (remote ip "localhost:*"))'
+                        '(allow network-bind (local ip "localhost:*"))(allow network-inbound (local ip "localhost:*"))')
                 result=subprocess.run(['/usr/bin/sandbox-exec','-p',policy,str(executable),'--no-env-file','run',str(PRIVATE_TS),mode],
                                       cwd=ROOT/'apps/web',env=env,text=True,capture_output=True,timeout=25)
                 (self.root/('private-'+mode+'.log')).write_text(result.stdout+'\n'+result.stderr)
                 self.assertEqual(0,result.returncode,result.stderr)
                 observed=json.loads(result.stdout);observations.append(observed)
                 self.assertTrue(observed['actualApiHandlers']);self.assertTrue(observed['inputBound'])
-                self.assertEqual(0 if mode=='start-ack-lost' else 1,observed['sdkCalls'])
+                self.assertEqual(0 if mode in ['start-ack-lost','outbound-start-ack-lost'] else 1,observed['sdkCalls'])
                 self.assertEqual(0,observed['externalProviderCalls'])
         self.observations['actual_private_api_store_client']=observations
 

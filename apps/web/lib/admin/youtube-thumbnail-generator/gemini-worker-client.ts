@@ -22,7 +22,8 @@ export type ThumbnailGeminiStartReceipt = ThumbnailGeminiDescriptor & {
 type BudgetOptions = { env?: NodeJS.ProcessEnv; signal?: AbortSignal };
 type ProjectBudget = <T>(work: () => Promise<T>, options?: BudgetOptions) => Promise<T>;
 type Usage = { model: string; promptTokens: number | null; outputTokens: number | null; totalTokens: number | null };
-type Client = { models: Pick<GoogleGenAI['models'], 'generateContent'> };
+type Client = { models: Pick<GoogleGenAI['models'], 'generateContent'> & Partial<Pick<GoogleGenAI['models'], 'get'>> };
+type NormalizedImage = { bytes: Buffer; mimeType: 'image/png'; sha256: string; width: 1280; height: 720 };
 
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_REFERENCE_BYTES = 16 * 1024 * 1024;
@@ -37,7 +38,7 @@ const count = (value: unknown) => Number.isSafeInteger(value) && Number(value) >
 /** The phase is deliberately separate from the code: a timeout is never permission to generate again. */
 export class ThumbnailGeminiError extends Error {
   constructor(readonly code: 'invalid_input' | 'provider_not_configured' | 'attempt_consumed' | 'start_not_confirmed'
-    | 'cancelled_before_start' | 'budget_unavailable' | 'provider_outcome_unknown' | 'invalid_provider_response',
+    | 'cancelled_before_start' | 'budget_unavailable' | 'provider_outcome_unknown' | 'invalid_provider_response' | 'model_catalog_unavailable',
   readonly outcome: 'not_started' | 'unknown' | 'received_invalid' | 'already_consumed' = 'not_started') {
     super(code); this.name = 'ThumbnailGeminiError';
   }
@@ -98,10 +99,28 @@ export async function prepareThumbnailGeminiContent(input: ThumbnailGeminiConten
   } catch { throw new ThumbnailGeminiError('invalid_input'); }
   // Only the actual provider input participates. EXIF or other stripped metadata
   // must not turn identical provider pixels into a second unresolved generation.
-  const inputSha256 = sha256(JSON.stringify({ contract: 'thumbnail-gemini-image-v1', model: snapshot.model,
-    prompt: snapshot.prompt, canvas: { width: 1280, height: 720, fit: 'cover', imageSize: '1K' },
-    references: references.map((reference) => ({ role: reference.role, canonicalSha256: reference.sha256, mimeType: reference.mimeType })) }));
+  const inputSha256 = inputDigest(snapshot, references);
   return { model: snapshot.model, prompt: snapshot.prompt, references, inputSha256 };
+}
+
+function inputDigest(content: Pick<ThumbnailGeminiContent, 'model' | 'prompt'>,
+  references: { role: ReferenceRole; sha256: string; mimeType: Mime }[]) {
+  return sha256(JSON.stringify({ contract: 'thumbnail-gemini-image-v1', model: content.model, prompt: content.prompt,
+    canvas: { width: 1280, height: 720, fit: 'cover', imageSize: '1K' },
+    references: references.map((reference) => ({ role: reference.role, canonicalSha256: reference.sha256, mimeType: reference.mimeType })) }));
+}
+
+/** Stored references were canonicalized at enqueue. Verify/decode them, but preserve exact provider bytes across OS encoders. */
+async function prepareStoredContent(input: ThumbnailGeminiContent) {
+  const snapshot = snapshotContent(input); const references = [];
+  try {
+    for (const reference of snapshot.references) {
+      if (reference.mimeType !== 'image/png') throw new Error('invalid_image');
+      await decode(reference.bytes, reference.mimeType);
+      references.push({ ...reference, sha256: sha256(reference.bytes) });
+    }
+  } catch { throw new ThumbnailGeminiError('invalid_input'); }
+  return { ...snapshot, references, inputSha256: inputDigest(snapshot, references) };
 }
 
 function responseImage(response: GenerateContentResponse, model: string) {
@@ -136,6 +155,7 @@ export class GeminiThumbnailWorkerClient {
   private readonly budget: ProjectBudget;
   private readonly env: NodeJS.ProcessEnv;
   private readonly onUsage?: (usage: Usage) => void;
+  private catalog?: { expiresAt: number; models: ThumbnailGeminiImageModel[] };
   constructor(options: { env?: NodeJS.ProcessEnv; client?: Client; budget?: ProjectBudget; onUsage?: (usage: Usage) => void } = {}) {
     if (typeof window !== 'undefined') throw new ThumbnailGeminiError('provider_not_configured');
     this.env = { ...(options.env ?? process.env) };
@@ -147,11 +167,34 @@ export class GeminiThumbnailWorkerClient {
     this.onUsage = options.onUsage;
   }
 
-  async prepare(input: ThumbnailGeminiInput) {
+  async models(signal?: AbortSignal): Promise<ThumbnailGeminiImageModel[]> {
+    signal?.throwIfAborted();
+    if (this.catalog && this.catalog.expiresAt > Date.now()) return [...this.catalog.models];
+    if (!this.client.models.get) throw new ThumbnailGeminiError('model_catalog_unavailable');
+    const models: ThumbnailGeminiImageModel[] = [];
+    for (const { id } of STORYBOARD_GEMINI_IMAGE_MODELS) {
+      try {
+        const model = await this.budget(() => this.client.models.get!({ model: id,
+          config: { httpOptions: { timeout: 15_000, retryOptions: { attempts: 1 } }, abortSignal: signal } }), { env: this.env, signal });
+        if (model.name?.replace(/^models\//, '') === id) models.push(id);
+      } catch (error) {
+        signal?.throwIfAborted();
+        const status = error && typeof error === 'object' && 'status' in error ? Number(error.status) : null;
+        if (status === 401 || status === 403 || status === 429) throw new ThumbnailGeminiError('model_catalog_unavailable');
+      }
+    }
+    if (!models.length) throw new ThumbnailGeminiError('model_catalog_unavailable');
+    this.catalog = { expiresAt: Date.now() + 300_000, models };
+    return [...models];
+  }
+
+  prepare(input: ThumbnailGeminiInput) { return this.prepareInput(input, false); }
+  prepareStored(input: ThumbnailGeminiInput) { return this.prepareInput(input, true); }
+  private async prepareInput<Stored extends boolean>(input: ThumbnailGeminiInput, stored: Stored) {
     if (!input || !UUID.test(input.ownerId) || !UUID.test(input.jobId) || !UUID.test(input.attemptId)
       || !Number.isSafeInteger(input.fence) || input.fence < 1) throw new ThumbnailGeminiError('invalid_input');
     const identity = { ownerId: input.ownerId, jobId: input.jobId, attemptId: input.attemptId, fence: input.fence };
-    const snapshot = await prepareThumbnailGeminiContent(input);
+    const snapshot = await (stored ? prepareStoredContent(input) : prepareThumbnailGeminiContent(input));
     const { references, inputSha256 } = snapshot;
     const descriptor: ThumbnailGeminiDescriptor = Object.freeze({ providerId: 'gemini-api', model: snapshot.model,
       ...identity, inputSha256 });
@@ -209,13 +252,17 @@ export class GeminiThumbnailWorkerClient {
       try {
         const image = responseImage(response, snapshot.model);
         const dimensions = await decode(image.bytes, image.mimeType);
-        const normalized = await sharp(image.bytes, dimensions.options).rotate()
-          .resize(1280, 720, { fit: 'cover' }).png().toBuffer();
-        if (normalized.length > MAX_OUTPUT_BYTES) throw new Error('invalid_image');
+        let normalized: NormalizedImage | null = null;
+        if (!stored) {
+          const pixels = await sharp(image.bytes, dimensions.options).rotate().resize(1280, 720, { fit: 'cover' }).png().toBuffer();
+          if (pixels.length > MAX_OUTPUT_BYTES) throw new Error('invalid_image');
+          normalized = { bytes: pixels, mimeType: 'image/png', sha256: sha256(pixels), width: 1280, height: 720 };
+        }
         // Preserve the original response, including provider watermarks; derivatives are explicitly separate.
         return { descriptor, original: { bytes: image.bytes, mimeType: image.mimeType, sha256: sha256(image.bytes),
           width: dimensions.width, height: dimensions.height },
-        normalized: { bytes: normalized, mimeType: 'image/png' as const, sha256: sha256(normalized), width: 1280, height: 720 },
+        // The outbound worker saves the original immediately; the server owns its derivative.
+        normalized: normalized as Stored extends true ? null : NormalizedImage,
         provenance: { providerId: 'gemini-api' as const, model: snapshot.model, responseModel: image.responseModel,
           responseId: image.responseId, verification: 'official-api' as const, modelEvidence: 'response' as const,
           generatedAt: new Date().toISOString(), attemptId: identity.attemptId, inputSha256 } };

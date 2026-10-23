@@ -185,6 +185,17 @@ describe('thumbnail immutable private storage and checkpoints', () => {
     await expect(f.store.saveResult(f.worker, attempt, bytes, 'image/png', { ...f.proof(attempt), responseId: 'different' })).rejects.toThrow('object_conflict');
     expect(f.objects.get(path)!.equals(saved)).toBe(true); expect(f.uploads).toHaveLength(3);
   });
+  test('a saved older derivative manifest does not prevent restoring its exact original bytes', async () => {
+    const f = fixture(); await f.store.enqueue(f.owner, f.requestId, content); const attempt = f.start(); const bytes = await pixels();
+    f.failAt = 'original.png'; await expect(f.store.saveResult(f.worker, attempt, bytes, 'image/png', f.proof(attempt))).rejects.toThrow();
+    const path = [...f.objects.keys()][0]; const recovery = JSON.parse(f.objects.get(path)!.toString());
+    // Simulate a pinned earlier encoder's manifest; current encoder cannot invent those old normalized bytes.
+    recovery.result.normalized.sha256 = 'a'.repeat(64); f.objects.set(path, Buffer.from(JSON.stringify(recovery))); f.failAt = null;
+    await expect(f.store.saveResult(f.worker, attempt, bytes, 'image/png', f.proof(attempt))).rejects.toThrow('object_conflict');
+    expect(f.objects.get(recovery.result.original.path)?.equals(bytes)).toBe(true);
+    expect(JSON.parse(f.objects.get(path)!.toString()).result.normalized.sha256).toBe('a'.repeat(64));
+    expect(f.job!.state).toBe('provider_started');
+  });
   test('another owner and stale attempt fail before storage access', async () => {
     const f = fixture(); await f.store.enqueue(f.owner, f.requestId, content); const attempt = f.start();
     f.ownerMismatch = true; const before = f.reads.length;

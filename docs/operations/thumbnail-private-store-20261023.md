@@ -57,3 +57,5 @@ Storage download는 설치된 SDK의 `.asStream()`을 사용하여 허용 byte �
 PG 실행 전후 11개 source hash가 일치했다. 소유 PG PID 84650은 종료됐고 pg_ctl status=3, PID/socket 파일 없음, TCP 닫힘을 receipt로 확인한다. 해당 PID는 receipt를 기준으로 하며 운영/공유 DB를 종료한 기록이 아니다.
 
 남은 일은 Mac의 durable result outbox/worker loop, 기존 편집·이력을 보존하는 Gemini-only UI 접수·status 연결, 실제 G014 catalog에 결속한 forward migration/private bucket/최소 worker 자격 발급, 웹 3단계 material delta 감사, 보호된 develop→data→main 및 정확한 배포 SHA·실제 관리자 readback이다. 원격 manifest를 저장하기 **전** 프로세스가 종료되는 구간은 현재 보장 밖이며, outbox 구현 전에 crash-safe라고 하지 않는다. 새 큐 SQL은 아직 candidate이고 기존 운영 migration을 수정하거나 전체 후보를 그대로 적용하지 않았다. 공유 scheduler의 소유 예약은 유지한다.
+
+후속 [outbound worker/outbox 후보](thumbnail-outbound-worker-20261023.md)가 Mac 실행 코드·local original/proof 보관·실제 HTTP/PG/SQLite 연결을 추가했다. 위 목록은 당시 상태를 보존하며 설치·운영 활성화·배포 완료로 해석하지 않는다. 구버전 manifest가 이미 있으면 원본을 먼저 보충하는 후속 수정도 포함한다.

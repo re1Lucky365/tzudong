@@ -37,6 +37,19 @@ function fixture(generate: (params: GenerateContentParameters) => Promise<Genera
 }
 
 describe('thumbnail Gemini worker candidate', () => {
+  test('stored reference mode preserves the exact approved PNG bytes across encoder choices', async () => {
+    const stored = await sharp(await pixels('#338844', 64, 48)).png({ compressionLevel: 9, palette: true }).toBuffer();
+    const fake = fixture(async () => response(await pixels()));
+    const request = input({ references: [{ bytes: stored, mimeType: 'image/png', role: 'food' }] });
+    const prepared = await new GeminiThumbnailWorkerClient({ client: fake.client, budget: directBudget }).prepareStored(request);
+    const expected = createHash('sha256').update(JSON.stringify({ contract: 'thumbnail-gemini-image-v1', model: request.model,
+      prompt: request.prompt, canvas: { width: 1280, height: 720, fit: 'cover', imageSize: '1K' },
+      references: [{ role: 'food', canonicalSha256: hash(stored), mimeType: 'image/png' }] })).digest('hex');
+    expect(prepared.descriptor.inputSha256).toBe(expected);
+    expect((await prepared.run(admit)).normalized).toBeNull();
+    const inline = (fake.requests[0].contents as { parts: { inlineData?: { data: string } }[] }[])[0].parts.find((part) => part.inlineData);
+    expect(inline?.inlineData?.data).toBe(stored.toString('base64'));
+  });
   test('requires the credits key rather than silently selecting another project', () => {
     expect(resolveThumbnailGeminiCreditsKey({ GEMINI_API_KEY: 'generic-marker', STORYBOARD_GEMINI_API_KEY: 'other-marker' })).toBeNull();
     expect(resolveThumbnailGeminiCreditsKey({ GEMINI_CREDITS_API_KEY: '  credits-marker  ', GEMINI_API_KEY: 'other-marker' })).toBe('credits-marker');

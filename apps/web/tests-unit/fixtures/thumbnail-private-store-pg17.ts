@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { chmodSync, mkdtempSync, rmSync } from 'node:fs';
 import { GenerateContentResponse } from '@google/genai';
 import sharp from 'sharp';
 import { GeminiThumbnailWorkerClient } from '../../lib/admin/youtube-thumbnail-generator/gemini-worker-client';
 import { ThumbnailPrivateStore, type ThumbnailDatabase, type ThumbnailStorage } from '../../lib/admin/youtube-thumbnail-generator/private-store';
 import { createThumbnailQueueApi } from '../../lib/admin/youtube-thumbnail-generator/queue-api';
 import { parseThumbnail, thumbnailJob, thumbnailStartReceipt } from '../../lib/admin/youtube-thumbnail-generator/queue-contract';
+import { OutboundThumbnailWorker, ThumbnailWorkerTransport } from '../../lib/admin/youtube-thumbnail-generator/outbound-worker';
+import { ThumbnailWorkerOutbox } from '../../lib/admin/youtube-thumbnail-generator/worker-outbox';
 
 // Actual route handlers + store + PG + Gemini client; synthetic HTTP Storage and provider, egress denied except owned PG.
 const mode = process.argv[2]; const owner = process.env.FIXTURE_OWNER_ID!;
@@ -37,7 +40,7 @@ const database: ThumbnailDatabase = { rpc: async (name, args) => {
     completeCalls++; if (mode === 'checkpoint-ack-lost') throw new Error('synthetic completion committed ACK loss');
   }
   if (args.p_action === 'start') {
-    startCalls++; if (mode === 'start-ack-lost') throw new Error('synthetic start committed ACK loss');
+    startCalls++; if (mode === 'start-ack-lost' || mode === 'outbound-start-ack-lost') throw new Error('synthetic start committed ACK loss');
   }
   return { data, error: null };
 } };
@@ -67,6 +70,72 @@ form.set('reference0', new File([new Uint8Array(image)], 'food.png', { type: 'im
 const enqueued = await api.listPOST(new Request(`${base}/jobs`, { method: 'POST', headers: { Origin: origin }, body: form }));
 assert.equal(enqueued.status, 200); const queued = parseThumbnail(thumbnailJob, (await enqueued.json()).job);
 assert.equal(queued.requestId, requestId); assert.equal(enqueueCalls, 1);
+if (mode.startsWith('outbound-')) {
+  const directory = mkdtempSync('/private/tmp/thumbnail-outbound-pg17-'); chmodSync(directory, 0o700);
+  let box = new ThumbnailWorkerOutbox(directory); let uploadsLost = 0; let metadataCalls = 0;
+  const stop = new AbortController();
+  const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
+    const path = new URL(request.url).pathname;
+    if (path.endsWith('/references')) return await api.workerReferenceGET(request);
+    if (path.endsWith('/images')) {
+      const response = await api.workerImagePOST(request);
+      if (['outbound-delivery-lost', 'outbound-priority-recovery'].includes(mode) && uploadsLost++ === 0) {
+        assert.equal(response.status, 200); return Response.json({ error: 'synthetic committed reply lost' }, { status: 503 });
+      }
+      return response;
+    }
+    return await api.workerPOST(request);
+  } });
+  try {
+    const transport = new ThumbnailWorkerTransport({ origin: `http://127.0.0.1:${server.port}`, token });
+    const older = mode === 'outbound-priority-recovery'
+      ? sql(`SET ROLE service_role; SELECT public.thumbnail_production_worker(${quoted(tokenHash)},'claim');`) : null;
+    if (older) sql(`UPDATE public.admin_thumbnail_jobs SET lease_expires_at=clock_timestamp()-interval '1 second' WHERE id=${quoted(older.id)};`);
+    let release: (() => void) | undefined; let entered: (() => void) | undefined;
+    const waiting = new Promise<void>((resolve) => { entered = resolve; });
+    const gemini = new GeminiThumbnailWorkerClient({ env: {}, budget: async (work) => await work(), client: { models: {
+      get: async ({ model }) => {
+        if (older && metadataCalls === 0) box.begin({ providerId: 'gemini-api', model: older.model, ownerId: older.ownerId,
+          workerId: older.workerId, jobId: older.id, attemptId: older.attemptId, fence: older.fence,
+          inputSha256: older.inputSha256, origin: transport.origin });
+        metadataCalls++; return { name: `models/${model}` };
+      },
+      generateContent: async (params) => {
+        sdkCalls++;
+        if (mode === 'outbound-concurrent-observer') await new Promise<void>((resolve, reject) => {
+          const signal = params.config?.abortSignal;
+          const abort = () => reject(new Error('synthetic active SDK aborted'));
+          signal?.addEventListener('abort', abort, { once: true });
+          release = () => { signal?.removeEventListener('abort', abort); resolve(); }; entered!();
+        });
+        if (mode === 'outbound-response-lost') throw new Error('synthetic paid response loss');
+        if (mode === 'outbound-stop-received') stop.abort();
+        const response = new GenerateContentResponse(); response.modelVersion = queued.model; response.responseId = 'synthetic-outbound-pg17';
+        response.candidates = [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: image.toString('base64') } }] } }]; return response;
+      },
+    } } });
+    const worker = new OutboundThumbnailWorker({ api: transport, outbox: box, gemini });
+    const running = worker.runOnce(stop.signal);
+    if (mode === 'outbound-concurrent-observer') {
+      try {
+        await waiting; assert.equal(await new OutboundThumbnailWorker({ api: transport, outbox: box, gemini }).runOnce(), 'held');
+      } finally { release?.(); }
+    }
+    const first = await running;
+    assert.equal(first, ['outbound-normal', 'outbound-concurrent-observer'].includes(mode) ? 'succeeded' : 'held');
+    box.close(); box = new ThumbnailWorkerOutbox(directory);
+    const second = await new OutboundThumbnailWorker({ api: transport, outbox: box, gemini }).runOnce();
+    const unknown = ['outbound-start-ack-lost', 'outbound-response-lost'].includes(mode);
+    assert.equal(second, unknown ? 'held' : ['outbound-normal', 'outbound-concurrent-observer'].includes(mode) ? 'idle' : 'succeeded');
+    assert.equal(sdkCalls, mode === 'outbound-start-ack-lost' ? 0 : 1); assert.equal(startCalls, 1);
+    assert.equal(metadataCalls, 2); assert.equal(box.pending().length, unknown || mode === 'outbound-priority-recovery' ? 1 : 0);
+    const current = await store.get(owner, queued.id); assert.equal(current.state, unknown ? 'unknown' : 'succeeded');
+    if (!unknown) assert.deepEqual((await store.resultImage(owner, queued.id, 'original')).bytes, image);
+    process.stdout.write(JSON.stringify({ mode, realPostgres: true, actualApiHandlers: true, realOutboundHttp: true,
+      durableSqlite: true, inputBound: true, sdkCalls, startCalls, enqueueCalls, completeCalls,
+      completed: !unknown, storageSynthetic: true, externalProviderCalls: 0 }) + '\n');
+  } finally { await server.stop(true); box.close(); rmSync(directory, { recursive: true, force: true }); }
+} else {
 async function operation(payload: unknown) {
   return await api.workerPOST(new Request(`${base}/worker`, { method: 'POST', headers: {
     Authorization: `Bearer ${token}`, 'Content-Type': 'application/json',
@@ -121,3 +190,4 @@ if (mode === 'start-ack-lost') {
 assert.equal(startCalls, 1);
 process.stdout.write(JSON.stringify({ mode, realPostgres: true, actualApiHandlers: true, inputBound: true,
   sdkCalls, startCalls, enqueueCalls, completeCalls, completed, storageSynthetic: true, externalProviderCalls: 0 }) + '\n');
+}

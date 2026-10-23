@@ -286,10 +286,20 @@ export class ThumbnailPrivateStore {
     const proof = parseThumbnail(thumbnailProvenance, rawProvenance, 'invalid_result');
     const job = await this.workerJob(worker, attempt);
     const dimensions = await decode(bytes, mime);
+    const originalAsset = { path: `${resultPrefix(job)}original.${extension(mime as ThumbnailResult['original']['mimeType'])}`,
+      sha256: hash(bytes), mimeType: mime, bytes: bytes.length, ...dimensions };
+    const existing = await this.recovery(worker, job);
+    if (existing) {
+      if (!isDeepStrictEqual(existing.result.original, originalAsset) || !isDeepStrictEqual(existing.result.provenance, proof)) {
+        throw new ThumbnailQueueError('object_conflict');
+      }
+      // Preserve the original even if this encoder cannot reproduce an older derivative's bytes.
+      await this.immutable(existing.result.original.path, bytes, mime);
+      return await this.recoverResult(worker, attempt);
+    }
     const normalized = await sharp(bytes, decodeOptions).rotate().resize(1280, 720, { fit: 'cover' }).png().toBuffer();
     const manifest = parseThumbnail(thumbnailResult, {
-      original: { path: `${resultPrefix(job)}original.${extension(mime as ThumbnailResult['original']['mimeType'])}`,
-        sha256: hash(bytes), mimeType: mime, bytes: bytes.length, ...dimensions },
+      original: originalAsset,
       normalized: { path: `${resultPrefix(job)}normalized.png`, sha256: hash(normalized), mimeType: 'image/png',
         bytes: normalized.length, width: 1280, height: 720 }, provenance: proof,
     }, 'invalid_result');
@@ -305,17 +315,8 @@ export class ThumbnailPrivateStore {
   async recoverResult(worker: AuthenticatedThumbnailWorker, attempt: ThumbnailAttempt) {
     worker = admittedWorker(worker); attempt = parseThumbnail(thumbnailAttempt, attempt);
     const job = await this.workerJob(worker, attempt);
-    const bytes = await this.storage.read(`${resultPrefix(job)}recovery.json`, 16_384);
-    if (!bytes) throw new ThumbnailQueueError('write_unconfirmed');
-    let raw: unknown;
-    try { raw = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
-    catch { throw new ThumbnailQueueError('object_conflict'); }
-    const saved = parseThumbnail(z.object({ contract: z.literal('thumbnail-recovery-v1'), ownerId: thumbnailUuid,
-      jobId: thumbnailUuid, workerId: thumbnailUuid, attemptId: thumbnailUuid, fence: thumbnailAttempt.shape.fence,
-      inputSha256: thumbnailHash, result: thumbnailResult }).strict(), raw, 'object_conflict');
-    if (saved.ownerId !== job.ownerId || saved.jobId !== job.id || saved.workerId !== worker.id
-      || saved.attemptId !== job.attemptId || saved.fence !== job.fence || saved.inputSha256 !== job.inputSha256
-      || !validResultIdentity(job, saved.result)) throw new ThumbnailQueueError('object_conflict');
+    const saved = await this.recovery(worker, job);
+    if (!saved) throw new ThumbnailQueueError('write_unconfirmed');
     const original = await this.verifiedAsset(saved.result.original);
     const normalized = await this.storage.read(saved.result.normalized.path, THUMBNAIL_IMAGE_BYTES);
     if (normalized === null) {
@@ -325,6 +326,20 @@ export class ThumbnailPrivateStore {
       await this.immutable(saved.result.normalized.path, derived, 'image/png');
     } else await this.validAssetBytes(saved.result.normalized, normalized);
     return await this.complete(worker, job, saved.result);
+  }
+  private async recovery(worker: AuthenticatedThumbnailWorker, job: ThumbnailJob) {
+    const bytes = await this.storage.read(`${resultPrefix(job)}recovery.json`, 16_384);
+    if (!bytes) return null;
+    let raw: unknown;
+    try { raw = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
+    catch { throw new ThumbnailQueueError('object_conflict'); }
+    const saved = parseThumbnail(z.object({ contract: z.literal('thumbnail-recovery-v1'), ownerId: thumbnailUuid,
+      jobId: thumbnailUuid, workerId: thumbnailUuid, attemptId: thumbnailUuid, fence: thumbnailAttempt.shape.fence,
+      inputSha256: thumbnailHash, result: thumbnailResult }).strict(), raw, 'object_conflict');
+    if (saved.ownerId !== job.ownerId || saved.jobId !== job.id || saved.workerId !== worker.id
+      || saved.attemptId !== job.attemptId || saved.fence !== job.fence || saved.inputSha256 !== job.inputSha256
+      || !validResultIdentity(job, saved.result)) throw new ThumbnailQueueError('object_conflict');
+    return saved;
   }
   private async complete(worker: AuthenticatedThumbnailWorker, job: ThumbnailJob, result: ThumbnailResult) {
     const same = (current: ThumbnailJob) => current.id === job.id && current.ownerId === job.ownerId
