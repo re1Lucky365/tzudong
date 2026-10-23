@@ -4,8 +4,8 @@
   "files": [
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/AUDIT.md",
-      "bytes": 11689,
-      "sha256": "d8ebd0a56dba87affc0bde9466c5e4219632179cf42ca7cf7266aa2d6ff81310"
+      "bytes": 11914,
+      "sha256": "a99ecdd19415611bd64f2f8fb9318a5f385a3171db1db6d32f732c2435aba383"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/actual-wrapper-counterexample.txt",
@@ -34,8 +34,8 @@
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/external-review-checkpoint.json",
-      "bytes": 3015,
-      "sha256": "f29213237e62a47048a964018c4e9ae26fb36cce57eeea2472d9b5641b27b2a5"
+      "bytes": 3288,
+      "sha256": "f7a5762ed78cc5e8fca036c0cb062e9cec0c360954e01aa0f71fbbf5ffb53a89"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/mutable-cache-counterexample.txt",

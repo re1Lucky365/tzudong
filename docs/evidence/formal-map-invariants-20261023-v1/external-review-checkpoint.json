@@ -55,9 +55,10 @@
   },
   "humanTzudongOverrideReused": true,
   "bindingRule": {
-    "source": "canonical coordinate.py:201",
+    "source": "canonical coordinate.py reserve dispatch_pending gate; observed queued response retained",
     "requirement": "UI dispatch is serialized until the previous ordinary answer is actually answering.",
-    "overrideScope": "FIFO and slot exception; dispatch_pending remains binding"
+    "overrideScope": "FIFO and slot exception; dispatch_pending remains binding",
+    "currentPolicyNote": "A new exact-scope named-other-operation exception requires separate direct human authority. The earlier FIFO/slot approval does not supply it; no such exception was requested or used."
   },
   "uiObservation": {
     "observedAt": "2026-10-23T06:15:28.282329+00:00",
