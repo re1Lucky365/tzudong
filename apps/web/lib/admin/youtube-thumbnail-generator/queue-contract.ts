@@ -32,7 +32,7 @@ export const thumbnailResult = z.object({ original: thumbnailAsset, normalized: 
 const reference = z.object({ path: z.string().max(256), sha256: thumbnailHash, mimeType: thumbnailMime,
   bytes: z.number().int().min(16).max(THUMBNAIL_REFERENCE_BYTES), role: thumbnailRole }).strict();
 export const thumbnailInput = z.object({ contract: z.literal('thumbnail-gemini-image-v1'), model: thumbnailModel,
-  prompt: z.string().min(1).refine((value) => Boolean(value.trim()) && Buffer.byteLength(value) <= 65_536),
+  prompt: z.string().min(1).refine((value) => Boolean(value.trim()) && new TextEncoder().encode(value).length <= 65_536),
   references: z.array(reference).max(8) }).strict()
   .refine((input) => input.references.reduce((total, ref) => total + ref.bytes, 0) <= 16 * 1024 * 1024);
 export const thumbnailState = z.enum(['queued', 'claimed', 'provider_started', 'unknown', 'succeeded', 'cancelled']);

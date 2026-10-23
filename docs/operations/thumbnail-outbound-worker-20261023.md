@@ -61,4 +61,6 @@ stateDiagram-v2
 
 ## 운영 반영 전 남은 일
 
+후속 browser 접수/복구 경계와 native Web Locks/PG 검증은 [browser queue safety](thumbnail-browser-queue-safety-20261023.md)에 기록한다. 기존 editor 연결 완료와는 구분한다.
+
 Gemini-only 접수/status/result를 기존 편집·이력 UI에 연결하고 legacy 실행을 제거해야 한다. current hosted G014 catalog에 결속한 forward migration/private bucket/최소 scoped worker provisioning, 필수 Pro→Gemini maximum→Pro reverse material delta 감사, CI와 보호된 develop→data→main, 정확한 배포 SHA 및 실제 관리자·Mac worker readback이 남았다. 원본 없는 시작 후 unknown, 폐기된 worker 권한, 지속적 디스크 장애, 이전 encoder를 재현할 수 없는 결과는 operator 복구 조건이다. 이를 유료 재생성이나 임의 파일 삭제로 해결하지 않는다.

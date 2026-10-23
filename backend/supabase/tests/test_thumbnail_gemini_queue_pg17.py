@@ -33,7 +33,7 @@ PRIVATE_TS = ROOT/'apps/web/tests-unit/fixtures/thumbnail-private-store-pg17.ts'
 PRIVATE_LIB = ROOT/'apps/web/lib/admin/youtube-thumbnail-generator'
 SOURCES = [SQL, SELF, BRIDGE, TS, CLIENT, PRIVATE_TS,
            *[PRIVATE_LIB/name for name in ['queue-contract.ts','private-store.ts','queue-api.ts','prompt.ts','safety.ts',
-                                         'worker-outbox.ts','outbound-worker.ts']],
+                                         'worker-outbox.ts','outbound-worker.ts','browser-queue.ts']],
            ROOT/'apps/web/scripts/thumbnail-gemini-worker.ts',ROOT/'apps/web/package.json']
 MODEL = 'gemini-3.1-flash-image'
 sha = lambda value: hashlib.sha256(value.encode()).hexdigest()
@@ -427,7 +427,8 @@ class ThumbnailQueuePg17(unittest.TestCase):
         observations=[]
         for mode in ['normal','checkpoint-ack-lost','normalize-recovery','start-ack-lost',
                      'outbound-normal','outbound-delivery-lost','outbound-start-ack-lost',
-                     'outbound-response-lost','outbound-stop-received','outbound-concurrent-observer','outbound-priority-recovery']:
+                     'outbound-response-lost','outbound-stop-received','outbound-concurrent-observer','outbound-priority-recovery',
+                     'browser-normal','browser-ack-lost','browser-cancel-lost']:
             with self.subTest(mode=mode):
                 with self.connection(admin=True) as connection,connection.cursor() as cursor:
                     cursor.execute('TRUNCATE public.admin_thumbnail_events,public.admin_thumbnail_jobs;')
@@ -443,7 +444,7 @@ class ThumbnailQueuePg17(unittest.TestCase):
                 self.assertEqual(0,result.returncode,result.stderr)
                 observed=json.loads(result.stdout);observations.append(observed)
                 self.assertTrue(observed['actualApiHandlers']);self.assertTrue(observed['inputBound'])
-                self.assertEqual(0 if mode in ['start-ack-lost','outbound-start-ack-lost'] else 1,observed['sdkCalls'])
+                self.assertEqual(0 if mode in ['start-ack-lost','outbound-start-ack-lost','browser-cancel-lost'] else 1,observed['sdkCalls'])
                 self.assertEqual(0,observed['externalProviderCalls'])
         self.observations['actual_private_api_store_client']=observations
 

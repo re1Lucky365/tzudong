@@ -10,6 +10,7 @@ import { createThumbnailQueueApi } from '../../lib/admin/youtube-thumbnail-gener
 import { parseThumbnail, thumbnailJob, thumbnailStartReceipt } from '../../lib/admin/youtube-thumbnail-generator/queue-contract';
 import { OutboundThumbnailWorker, ThumbnailWorkerTransport } from '../../lib/admin/youtube-thumbnail-generator/outbound-worker';
 import { ThumbnailWorkerOutbox } from '../../lib/admin/youtube-thumbnail-generator/worker-outbox';
+import { ThumbnailBrowserQueue } from '../../lib/admin/youtube-thumbnail-generator/browser-queue';
 
 // Actual route handlers + store + PG + Gemini client; synthetic HTTP Storage and provider, egress denied except owned PG.
 const mode = process.argv[2]; const owner = process.env.FIXTURE_OWNER_ID!;
@@ -63,6 +64,76 @@ const store = new ThumbnailPrivateStore(database, storage);
 const api = createThumbnailQueueApi({ store, authorize: async () => ({ ok: true, userId: owner }) });
 const origin = 'http://127.0.0.1:3000'; const base = `${origin}/api/admin/youtube-thumbnail-generator`;
 const image = await sharp({ create: { width: 512, height: 288, channels: 3, background: '#b67821' } }).png().toBuffer();
+if (mode.startsWith('browser-')) {
+  const receipts = new Map<string, string>(); let browserPosts = 0, cancelPosts = 0;
+  const directory = mkdtempSync('/private/tmp/thumbnail-browser-pg17-'); chmodSync(directory, 0o700);
+  const box = new ThumbnailWorkerOutbox(directory);
+  const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
+    const url = new URL(request.url), path = url.pathname;
+    if (path.endsWith('/worker/references')) return api.workerReferenceGET(request);
+    if (path.endsWith('/worker/images')) return api.workerImagePOST(request);
+    if (path.endsWith('/worker')) return api.workerPOST(request);
+    if (path.endsWith('/jobs')) {
+      if (request.method === 'GET') return api.listGET(request);
+      browserPosts++; const response = await api.listPOST(request);
+      if (mode === 'browser-ack-lost' && browserPosts === 1) {
+        assert.equal(response.status, 200); return Response.json({ ok: false, error: 'write_unconfirmed' }, { status: 503 });
+      }
+      return response;
+    }
+    const context = { params: Promise.resolve({ jobId: path.slice(path.lastIndexOf('/') + 1) }) };
+    if (request.method === 'GET') return api.jobGET(request, context);
+    cancelPosts++; const response = await api.jobPOST(request, context);
+    if (mode === 'browser-cancel-lost') {
+      assert.equal(response.status, 200); return Response.json({ ok: false, error: 'write_unconfirmed' }, { status: 503 });
+    }
+    return response;
+  } });
+  try {
+    const workerOrigin = `http://127.0.0.1:${server.port}`;
+    const options = { ownerId: owner, admission: async <T>(work: () => Promise<T>) => work(), storage: { getItem: (key: string) => receipts.get(key) ?? null,
+      setItem: (key: string, value: string) => { receipts.set(key, value); }, removeItem: (key: string) => { receipts.delete(key); } },
+    // Node/Bun fetch has no document origin; this adapter supplies the browser's real same-origin POST header.
+    fetch: (async (path, init) => fetch(`${workerOrigin}${path}`, { ...init,
+      headers: { ...Object.fromEntries(new Headers(init?.headers)), ...(init?.method === 'POST' ? { Origin: workerOrigin } : {}) } })) as typeof fetch };
+    let browser = new ThumbnailBrowserQueue(options);
+    const requestId = randomUUID();
+    const submitted = browser.enqueue({ model: 'gemini-3.1-flash-image',
+      brief: { topic: '맛있는 한 상', headline: '따뜻한 한 끼', stylePreset: 'grilled-meat-feast', acknowledgedSafety: true },
+      references: [{ role: 'food', file: new File([new Uint8Array(image)], 'food.png', { type: 'image/png' }) }] }, 7, requestId);
+    if (mode === 'browser-ack-lost') {
+      await assert.rejects(submitted, /unconfirmed/); browser = new ThumbnailBrowserQueue(options);
+    } else await submitted;
+    const queued = await browser.resume(); assert.ok(queued); assert.equal(queued.requestId, requestId);
+    await assert.rejects(browser.enqueue({ model: 'gemini-3.1-flash-image', brief: { topic: 'Other', headline: 'Other',
+      stylePreset: 'grilled-meat-feast', acknowledgedSafety: true }, references: [] }, 8), /unresolved_request/);
+    if (mode === 'browser-cancel-lost') { await assert.rejects(browser.cancel(), /unconfirmed/); await browser.resume(); }
+    const gemini = new GeminiThumbnailWorkerClient({ env: {}, budget: async (work) => work(), client: { models: {
+      get: async ({ model }) => ({ name: `models/${model}` }), generateContent: async () => {
+        sdkCalls++; const response = new GenerateContentResponse(); response.modelVersion = queued.model; response.responseId = 'synthetic-browser-pg17';
+        response.candidates = [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: image.toString('base64') } }] } }]; return response;
+      },
+    } } });
+    const result = await new OutboundThumbnailWorker({ api: new ThumbnailWorkerTransport({ origin: workerOrigin, token }), outbox: box, gemini }).runOnce();
+    const current = await browser.resume(); assert.ok(current);
+    const cancelled = mode === 'browser-cancel-lost'; assert.equal(result, cancelled ? 'idle' : 'succeeded');
+    assert.equal(current.state, cancelled ? 'cancelled' : 'succeeded'); assert.equal(browserPosts, 1); assert.equal(enqueueCalls, 1);
+    assert.equal(sdkCalls, cancelled ? 0 : 1); assert.equal(startCalls, cancelled ? 0 : 1); assert.equal(cancelPosts, cancelled ? 1 : 0);
+    assert.equal(browser.canAutoApply(queued.id, 7), mode === 'browser-normal');
+    if (!cancelled) {
+      assert.equal(browser.canAutoApply(queued.id, 8), false);
+      const restored = new ThumbnailBrowserQueue(options); await restored.resume(); assert.equal(restored.canAutoApply(queued.id, 7), false);
+      const original = await options.fetch(browser.resultUrls(current).original);
+      assert.deepEqual(Buffer.from(await original.arrayBuffer()), image);
+    }
+    assert.equal((await browser.history()).length, 1);
+    process.stdout.write(JSON.stringify({ mode, realPostgres: true, actualApiHandlers: true, realOutboundHttp: true,
+      actualBrowserProtocolClient: true, renderedBrowser: false, admissionSynthetic: true, durableSqlite: true, inputBound: true,
+      browserPosts, cancelPosts, sdkCalls, startCalls, enqueueCalls, completeCalls, completed: !cancelled,
+      storageSynthetic: true, externalProviderCalls: 0 }) + '\n');
+  } finally { await server.stop(true); box.close(); rmSync(directory, { recursive: true, force: true }); }
+  process.exit(0);
+}
 const form = new FormData(); const requestId = randomUUID();
 form.set('request', JSON.stringify({ requestId, model: 'gemini-3.1-flash-image', roles: ['food'],
   brief: { topic: '맛있는 한 상', headline: '따뜻한 한 끼', stylePreset: 'grilled-meat-feast', acknowledgedSafety: true } }));
