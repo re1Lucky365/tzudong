@@ -1,6 +1,6 @@
 {
   "finding": "SEC-F-01",
-  "sourceRevision": "53b79a97721840d2d2c4acda2799994cd02a608d",
+  "sourceRevision": "1ca3d984598e7caca575ceeca4118ee418da60cf",
   "checkedAt": "2026-10-23T23:51:13.926272+00:00",
   "failure": {
     "workflow": 40039695632,
@@ -29,11 +29,13 @@
     "npmAudit": "web and backend zero vulnerabilities",
     "lint": "PASS scoped changed TypeScript tests",
     "parity": "0 diagnostics / 3388 inputs",
-    "fullLocalSuite": "Initial broadened run exposed standalone browser fixture process-is-not-defined errors; targeted diagnostics and 29 actual browser tests repaired them. This receipt does not claim a fresh full-suite pass."
+    "fullLocalSuite": "Initial broadened general run: 3953 pass, 4 skip, 17 fail. Sixteen were absent browser process.env build inputs; the remaining readback fixture omitted required submissions.items. Targeted browser 29/182 plus readback2/10 pass after corrections. Fresh full suite running; no full pass claimed.",
+    "recordReadbackFixtureAfter": "2 pass / 10 assertions; unchanged real component, complete submissions/items API fixture"
   },
   "testHarnessCorrections": [
     "Browser-only fixtures replace process.env with a literal empty object and NODE_ENV test; site-config public build inputs otherwise access absent Node process. Real product code unchanged.",
-    "Canonical realpath for macOS temp fixture: argv /var and import.meta.url /private/var previously prevented direct-entry guards executing. All 12 actual caller checks now pass."
+    "Canonical realpath for macOS temp fixture: argv /var and import.meta.url /private/var previously prevented direct-entry guards executing. All 12 actual caller checks now pass.",
+    "Keep the submission readback fixture complete with items: []; production correctly retains its fence when that API response is incomplete."
   ],
   "candidateCancellation": {
     "deploymentId": "dpl_Ed4A6bwgLVeebfexV9DXHh77Twxt",
@@ -61,5 +63,6 @@
   "protectedRelease": "PENDING",
   "productionVerification": "NOT_RUN_FOR_THIS_SOURCE",
   "overallComplete": false,
-  "nightly": "SEPARATE_HISTORICAL_FAILURE_39457197351_NO_RERUN"
+  "nightly": "SEPARATE_HISTORICAL_FAILURE_39457197351_NO_RERUN",
+  "dependencyRevision": "53b79a97721840d2d2c4acda2799994cd02a608d"
 }

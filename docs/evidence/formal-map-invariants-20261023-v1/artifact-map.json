@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceRevision": "53b79a97721840d2d2c4acda2799994cd02a608d",
+  "sourceRevision": "1ca3d984598e7caca575ceeca4118ee418da60cf",
   "reviewedSourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
   "files": [
     {
@@ -61,7 +61,7 @@
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/completion-manifest.json",
       "bytes": 4743,
-      "sha256": "89e423345f3d7147949325036e9b89f2b212f41ae9a0402b38ae818ea3c6ebeb"
+      "sha256": "e0461afb9569ca8849cf0231cef48a8f9e08ed1da4f59a98c6e00ea3613a1134"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/delta-resolution.md",
@@ -280,13 +280,18 @@
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-followup.json",
-      "bytes": 3631,
-      "sha256": "c1aedb9cdb177f91f98e6bbcb8dea6802aa72e8a972ab5ed83e67c687ad8cb93"
+      "bytes": 4060,
+      "sha256": "d1ceebfd3e09a4125cf281d2a050712736dcdd2f455daa451b6587d11b645441"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-parity.txt",
       "bytes": 510,
       "sha256": "37fb6ab3b4e890c48f4b453789414525dd0fd7adb18297f51d5e0a4b2efc7772"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-record-readback-after.txt",
+      "bytes": 351,
+      "sha256": "51111e4c40444157a57c50387986423a2212061af93a2f5233684568648cae8c"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/source_bundle.txt",
@@ -451,6 +456,11 @@
       "sha256": "4874bd723e16b00dca0f3c5c86934ada90a35c4f67fb9db4270a596ec0660ca1"
     },
     {
+      "path": "apps/web/tests-unit/admin-record-action-failure-once-browser.test.ts",
+      "bytes": 11064,
+      "sha256": "f9feb84f45694cbb058d3d83eccb036c32bdc17abc4ea16cfbf01cbc9f0bb783"
+    },
+    {
       "path": "apps/web/tests-unit/admin-storyboard-unknown-count-browser.test.ts",
       "bytes": 4729,
       "sha256": "2c87a824284f9cdfef872641fee05c6c46a75448603605a972015be6ae230a93"
@@ -576,5 +586,5 @@
   "ciTestRevision": "1c0461bb114e9f6085d33c85a0eb911d0a98cab9",
   "formalRuntimeRevision": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
   "priorDeliveryMapSha256": "143b2173c4598d7e7433950cc71e98635ad9c1d6dcafef4375313e4ead3a4714",
-  "securityRevision": "53b79a97721840d2d2c4acda2799994cd02a608d"
+  "securityRevision": "1ca3d984598e7caca575ceeca4118ee418da60cf"
 }
