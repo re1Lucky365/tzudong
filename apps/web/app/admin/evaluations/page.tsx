@@ -2331,21 +2331,8 @@ function AdminEvaluationPage({
               onLoadMore={loadMoreRecords}
               hasMore={hasMore}
               isLoadingMore={loadingMore}
+              totalCount={legacyEvaluationLoad ? filteredRecords.length : serverFilteredTotal}
             />
-
-            {/* 로딩 인디케이터 */}
-            {loadingMore && (
-              <div className="flex justify-center py-4">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground motion-reduce:animate-none" />
-              </div>
-            )}
-
-            {/* 모든 데이터 로드 완료 메시지 */}
-            {!hasMore && displayedRecords.length > 0 && (
-              <div className="text-center py-4 text-muted-foreground text-sm">
-                모든 레코드를 불러왔습니다 ({visibleDisplayedRecords.length}개 / 전체 {legacyEvaluationLoad ? filteredRecords.length : serverFilteredTotal}개)
-              </div>
-            )}
           </div>
         )}
       </div>
