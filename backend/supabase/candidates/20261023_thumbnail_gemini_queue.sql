@@ -77,8 +77,10 @@ ALTER TABLE public.admin_thumbnail_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_thumbnail_jobs FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_thumbnail_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_thumbnail_events FORCE ROW LEVEL SECURITY;
-REVOKE ALL ON public.admin_thumbnail_workers,public.admin_thumbnail_jobs,public.admin_thumbnail_events FROM PUBLIC,anon,authenticated,privacy_workflow_owner;
-REVOKE ALL ON SEQUENCE public.admin_thumbnail_events_id_seq FROM PUBLIC,anon,authenticated,privacy_workflow_owner;
+-- Clear inherited default ACLs too: GRANT alone does not narrow an existing ALL
+-- grant or its grant options. Only these newly created queue objects are reset.
+REVOKE ALL ON public.admin_thumbnail_workers,public.admin_thumbnail_jobs,public.admin_thumbnail_events FROM PUBLIC,anon,authenticated,privacy_workflow_owner,service_role;
+REVOKE ALL ON SEQUENCE public.admin_thumbnail_events_id_seq FROM PUBLIC,anon,authenticated,privacy_workflow_owner,service_role;
 GRANT SELECT,UPDATE ON public.admin_thumbnail_workers TO service_role;
 GRANT SELECT,INSERT,UPDATE ON public.admin_thumbnail_jobs TO service_role;
 GRANT SELECT,INSERT ON public.admin_thumbnail_events TO service_role;

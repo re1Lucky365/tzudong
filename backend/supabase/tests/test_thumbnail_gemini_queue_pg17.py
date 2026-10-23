@@ -73,8 +73,26 @@ class ThumbnailQueuePg17(unittest.TestCase):
             owner_source=bridge[start:end];cls.owner_hash=hashlib.sha256(owner_source.encode()).hexdigest()
             # Execute the real KPI table/index/RLS definitions, not a permissive mock.
             kpi=KPI.read_text(); cursor.execute(kpi[:kpi.index('CREATE TABLE IF NOT EXISTS public.youtube_thumbnail_releases')])
-            cursor.execute(owner_source);cursor.execute(SQL.read_text())
+            cursor.execute(owner_source)
+            # Reproduce hosted-style inherited defaults, including grant options.
+            # These objects and defaults belong only to this isolated cluster.
+            cursor.execute('ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO service_role WITH GRANT OPTION;'
+                           'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENCES TO service_role WITH GRANT OPTION;'
+                           'CREATE TABLE public.acl_existing_table(value integer); INSERT INTO public.acl_existing_table VALUES(7);'
+                           'CREATE SEQUENCE public.acl_existing_sequence; SELECT nextval(\'public.acl_existing_sequence\');')
+            cls.acl_baseline_before=cls.acl_baseline(cursor)
+            cursor.execute(SQL.read_text())
         print('THUMBNAIL_QUEUE_PG17_EVIDENCE='+str(cls.root),flush=True)
+
+    @staticmethod
+    def acl_baseline(cursor):
+        cursor.execute("""SELECT jsonb_build_object(
+          'defaults',(SELECT jsonb_agg(to_jsonb(a) ORDER BY a.oid) FROM pg_default_acl a),
+          'existingObjects',(SELECT jsonb_agg(jsonb_build_object('oid',c.oid,'owner',c.relowner,'acl',c.relacl) ORDER BY c.oid)
+            FROM pg_class c WHERE c.oid IN ('public.acl_existing_table'::regclass,'public.acl_existing_sequence'::regclass)),
+          'tableValues',(SELECT jsonb_agg(value) FROM public.acl_existing_table),
+          'sequenceValue',(SELECT last_value FROM public.acl_existing_sequence))""")
+        return cursor.fetchone()[0]
 
     @classmethod
     def connection(cls,admin=False):
@@ -428,6 +446,68 @@ class ThumbnailQueuePg17(unittest.TestCase):
                         cursor.execute('SET ROLE '+role)
                         with self.assertRaises(psycopg2.Error):cursor.execute(statement)
                 finally:connection.rollback();connection.close()
+
+    def test_default_all_privileges_are_removed_only_from_new_queue_objects(self):
+        tables={'public.admin_thumbnail_workers':['SELECT','UPDATE'],
+                'public.admin_thumbnail_jobs':['INSERT','SELECT','UPDATE'],
+                'public.admin_thumbnail_events':['INSERT','SELECT']}
+        sequence='public.admin_thumbnail_events_id_seq'
+        observed={}; effective={}; grant_options={}
+        with self.connection(admin=True) as connection,connection.cursor() as cursor:
+            baseline_after=self.acl_baseline(cursor)
+            for relation in [*tables,sequence]:
+                cursor.execute("""SELECT acl.privilege_type,acl.is_grantable FROM pg_class c,
+                  LATERAL aclexplode(coalesce(c.relacl,acldefault(CASE WHEN c.relkind='S' THEN 'S'::\"char\" ELSE 'r'::\"char\" END,c.relowner))) acl
+                  WHERE c.oid=%s::regclass AND acl.grantee='service_role'::regrole ORDER BY acl.privilege_type""",(relation,))
+                entries=cursor.fetchall();observed[relation]=[entry[0] for entry in entries]
+                grant_options[relation]=[entry[0] for entry in entries if entry[1]]
+                privileges=['SELECT','USAGE','UPDATE'] if relation==sequence else ['DELETE','INSERT','MAINTAIN','REFERENCES','SELECT','TRIGGER','TRUNCATE','UPDATE']
+                check='has_sequence_privilege' if relation==sequence else 'has_table_privilege'
+                effective[relation]={}
+                for privilege in privileges:
+                    cursor.execute('SELECT '+check+"('service_role',%s,%s),"+check+"('service_role',%s,%s)",
+                                   (relation,privilege,relation,privilege+' WITH GRANT OPTION'))
+                    effective[relation][privilege]=list(cursor.fetchone())
+
+        # Exercise actual denied writes as well as catalog ACLs; every probe rolls back.
+        forbidden={f'{relation}:{operation}':f'{operation} {"FROM " if operation=="DELETE" else ""}{relation}'
+                   for relation in tables for operation in ['DELETE','TRUNCATE']}
+        forbidden.update({'workers:INSERT':"INSERT INTO public.admin_thumbnail_workers(owner_id,token_sha256) VALUES('"+self.owner+"','"+sha('unprivileged-worker')+"')",
+                          'events:UPDATE':'UPDATE public.admin_thumbnail_events SET operation=operation',
+                          'sequence:UPDATE':"SELECT setval('public.admin_thumbnail_events_id_seq',999)"})
+        attempts={}
+        for name,statement in forbidden.items():
+            connection=self.connection()
+            try:
+                with connection.cursor() as cursor:cursor.execute(statement)
+                attempts[name]={'allowed':True,'sqlstate':None}
+            except psycopg2.Error as error:attempts[name]={'allowed':False,'sqlstate':error.pgcode}
+            finally:connection.rollback();connection.close()
+        connection=self.connection()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('GRANT SELECT ON public.admin_thumbnail_jobs TO anon')
+                cursor.execute("SELECT has_table_privilege('anon','public.admin_thumbnail_jobs','SELECT')")
+                browser_grant=cursor.fetchone()[0]
+        finally:connection.rollback();connection.close()
+        self.observations['default_acl_minimum']={'inheritedDefaults':'ALL WITH GRANT OPTION on public tables and sequences',
+            'explicitServiceAcl':observed,'effectivePrivilegesAndGrantOptions':effective,'grantOptions':grant_options,
+            'writeProbes':attempts,'serviceCanGrantBrowserSelect':browser_grant,
+            'existingObjectsAndDefaultsUnchanged':baseline_after==self.acl_baseline_before}
+        expected={**tables,sequence:['SELECT','USAGE']}
+        self.assertEqual(expected,observed)
+        self.assertTrue(all(not grants for grants in grant_options.values()))
+        for relation,privileges in effective.items():
+            for privilege,values in privileges.items():self.assertEqual([privilege in expected[relation],False],values)
+        self.assertTrue(all(not value['allowed'] and value['sqlstate']=='42501' for value in attempts.values()))
+        self.assertFalse(browser_grant)
+        self.assertEqual(self.acl_baseline_before,baseline_after)
+        # Necessary sequence use still works; existing queue/RPC suites exercise INSERT and UPDATE.
+        with self.connection() as connection,connection.cursor() as cursor:
+            cursor.execute("SELECT nextval('public.admin_thumbnail_events_id_seq')")
+            value=cursor.fetchone()[0]
+            cursor.execute('SELECT last_value FROM public.admin_thumbnail_events_id_seq')
+            self.assertEqual(value,cursor.fetchone()[0])
 
     def test_model_registration_and_invalid_manifest_are_fail_closed(self):
         self.assert_rpc_error('invalid_models',lambda:self.worker('models',payload={'models':['gpt-image-2']}))
