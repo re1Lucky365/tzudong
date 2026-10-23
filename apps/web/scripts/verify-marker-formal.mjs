@@ -6,7 +6,8 @@ import { dirname, join, resolve } from 'node:path';
 // is installed, and mutations are confined to disposable copies of named files.
 const root = resolve(import.meta.dir, '..');
 const tests = ['tests-formal/marker-state-model.test.mjs', 'tests-unit/evidence-numeric-bounds.test.ts',
-  'tests-unit/popularity-input-boundary.test.ts', 'tests-unit/evidence-cohort-shadow.test.ts'];
+  'tests-unit/popularity-input-boundary.test.ts', 'tests-unit/evidence-cohort-shadow.test.ts',
+  'tests-unit/visible-marker-review-bubbles.test.ts'];
 const copied = [
   'lib/marker-pool.ts', 'lib/retained-marker-accessibility.ts', 'lib/naver-map-event-cleanup.ts', 'lib/youtube-url.ts',
   'lib/visible-marker-review-bubbles.ts', 'lib/review-photo-url.ts', 'lib/profile-avatar-url.ts',
@@ -26,11 +27,15 @@ function removeFiniteGuard(variable) {
 const mutants = [
   { id: 'static-content-guard', file: 'lib/marker-pool.ts',
     before: '    if (!previous.content.isEqualNode(nextStatic)) return false;', after: '    void nextStatic;',
-    test: tests[0], failure: 'all 4,608 active/reacquired visual transitions' },
+    test: tests[0], failure: 'all 9,216 active/reacquired visual transitions' },
   { id: 'review-bubble-anchor', file: 'lib/marker-pool.ts',
     before: '    currentBubbles[0].replaceWith(nextBubbles[0]);',
     after: '    currentMarker.insertBefore(nextBubbles[0], currentMarker.firstChild);',
-    test: tests[0], failure: 'all 4,608 active/reacquired visual transitions' },
+    test: tests[0], failure: 'all 9,216 active/reacquired visual transitions' },
+  { id: 'in-place-review-cache', file: 'lib/visible-marker-review-bubbles.ts',
+    before: '    if (cached && cached.markerContent === markerContent && cached.renderToken === renderToken) {',
+    after: '    if (cached && cached.markerContent === markerContent) {',
+    test: tests[0], failure: 'all 9,216 active/reacquired visual transitions' },
   { id: 'released-callback', file: 'lib/marker-pool.ts',
     before: '        marker.__onClick = undefined;\n        syncRetainedMarkerAccessibility(marker, true);',
     after: '        syncRetainedMarkerAccessibility(marker, true);',
@@ -54,7 +59,7 @@ if (baseline.exitCode !== 0) {
   process.stderr.write(baseline.output);
   throw new Error('FORMAL_BASELINE_FAILED');
 }
-console.log('Bounded native baseline passed. Checking seven isolated broken variants.');
+console.log('Bounded native baseline passed. Checking eight isolated broken variants.');
 const mutations = [];
 for (const mutant of mutants) {
   const scratch = await mkdtemp(join(tmpdir(), 'tzudong-formal-mutation-'));
@@ -84,7 +89,7 @@ const restored = run(root, tests.slice(0, 2));
 if (restored.exitCode !== 0) throw new Error(`RESTORED_CHECK_FAILED\n${restored.output}`);
 const report = { schemaVersion: 1, evidence: 'BOUNDED_NATIVE_AND_SYNTHETIC_PROVIDER_CHECKS',
   startedAt, completedAt: new Date().toISOString(), bun: Bun.version,
-  bounds: { visualVariants: 48, visualTransitions: 4608, actionAlphabet: 8, maximumDepth: 4,
+  bounds: { visualVariants: 48, reviewIdentityModes: 2, visualTransitions: 9216, actionAlphabet: 8, maximumDepth: 4,
     ownershipTraces: 4681, ownershipSteps: 18056 },
   sourceHashes: Object.fromEntries(originalHashes), baseline, mutations, restored,
   exclusions: ['real Naver SDK', 'network', 'provider reentrancy within one synchronous call', 'fairness/liveness',

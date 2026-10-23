@@ -310,7 +310,7 @@ export function buildVisibleMarkerReviewBubbleHtml(
 
 const reviewBubbleWrapCache = new WeakMap<VisibleMarkerReviewBubble, {
     markerContent: string;
-    mobile: boolean;
+    renderToken: string;
     wrapped: string;
 }>();
 
@@ -321,8 +321,9 @@ export function wrapNaverMarkerContentWithReviewBubble(
 ) {
     if (!bubble) return markerContent;
 
+    const renderToken = buildVisibleMarkerReviewBubbleRenderToken(bubble, isMobile);
     const cached = reviewBubbleWrapCache.get(bubble);
-    if (cached && cached.markerContent === markerContent && cached.mobile === isMobile) {
+    if (cached && cached.markerContent === markerContent && cached.renderToken === renderToken) {
         return cached.wrapped;
     }
 
@@ -341,6 +342,6 @@ export function wrapNaverMarkerContentWithReviewBubble(
           ${markerContent}
         </div>
     `;
-    reviewBubbleWrapCache.set(bubble, { markerContent, mobile: isMobile, wrapped });
+    reviewBubbleWrapCache.set(bubble, { markerContent, renderToken, wrapped });
     return wrapped;
 }

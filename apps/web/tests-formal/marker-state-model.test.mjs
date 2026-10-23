@@ -39,13 +39,21 @@ window.naver = { maps: { Marker, Event: {
 const position = { equals: other => other === position };
 const tiers = ['standard', 'rainbow', 'ember', 'fire'];
 const variants = tiers.flatMap(tier => [0, 1].flatMap(alt => [1, 2].flatMap(visits => [0, 1, 2].map(bubble => ({tier, alt, visits, bubble})))));
+let reuseBubbleIdentity = false;
+const mutableBubbles = new Map();
 const reviewContent = value => value.bubble === 1 ? '처음 리뷰' : '갱신 리뷰';
 function html(id, value) {
   const content = wrapMarkerWithPopularityTier('<div data-testid="marker" data-restaurant-id="' + id + '" style="width:32px" role="button" tabindex="0" aria-label="식당">'
     + '<span data-tzuyang-visit-count-badge="true">' + value.visits + '</span><img src="/same.webp" alt="설명 ' + value.alt + '"></div>', value.tier);
-  return wrapNaverMarkerContentWithReviewBubble(content, value.bubble ? {
+  let bubble = value.bubble ? {
     restaurantId: id, reviewId: 'review-' + value.bubble, userName: '검증 사용자', content: reviewContent(value), photoUrl: null,
-  } : undefined, false);
+  } : undefined;
+  if (bubble && reuseBubbleIdentity) {
+    const previous = mutableBubbles.get(id);
+    if (previous) { Object.assign(previous, bubble); bubble = previous; }
+    else mutableBubbles.set(id, bubble);
+  }
+  return wrapNaverMarkerContentWithReviewBubble(content, bubble, false);
 }
 function acquire(id, value) {
   return markerPool.acquire(id, position, {content: html(id, value), anchor: {x: 1, y: 1}}, map, () => clicks.push(id + ':' + value.tier));
@@ -62,7 +70,8 @@ function view(marker, requested) {
 window.__formal = {
   visualPairs() {
     let checked = 0;
-    for (const before of variants) for (const after of variants) for (const released of [false, true]) {
+    for (const before of variants) for (const after of variants) for (const released of [false, true]) for (const sameBubbleIdentity of [false, true]) {
+      reuseBubbleIdentity = sameBubbleIdentity; mutableBubbles.clear();
       markerPool.clear();
       const marker = acquire('a', before);
       if (released) markerPool.release('a');
@@ -70,7 +79,7 @@ window.__formal = {
       const expected = {tier: after.tier, flames: after.tier === 'standard' ? 0 : 1,
         alt: '설명 ' + after.alt, visits: String(after.visits), bubbles: after.bubble ? 1 : 0, currentReview: true};
       checked++;
-      if (next !== marker || JSON.stringify(actual) !== JSON.stringify(expected)) return {checked, before, after, released, actual, expected};
+      if (next !== marker || JSON.stringify(actual) !== JSON.stringify(expected)) return {checked, before, after, released, sameBubbleIdentity, actual, expected};
     }
     markerPool.clear(); return {checked};
   },
@@ -146,10 +155,10 @@ async function withFixture(run) {
   } finally { await browser.close(); }
 }
 
-test('all 4,608 active/reacquired visual transitions show the current static marker and bubble', async () => {
+test('all 9,216 active/reacquired visual transitions show the current static marker and bubble', async () => {
   await withFixture(async page => {
     const result = await page.evaluate(() => window.__formal.visualPairs());
-    expect(result).toEqual({ checked: 4608 });
+    expect(result).toEqual({ checked: 9216 });
     console.log('FORMAL_VISUAL_TRANSITIONS', result.checked);
   });
 }, 60000);
