@@ -34,11 +34,6 @@
       "sha256": "2fcc009f3454d2eb0f2fc327467994f4be434ba7fca83409896c3022b8e8f0f3"
     },
     {
-      "path": "docs/evidence/formal-map-invariants-20261023-v1/artifact-map.sha256",
-      "bytes": 84,
-      "sha256": "5962c2a06f5d5a2dae193664b8dcc965b5fb45f60ead633bdb6dc90cd0d9dcd3"
-    },
-    {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/boundary-counterexamples.txt",
       "bytes": 3251,
       "sha256": "34658edffd3b18a8faed0c2605ccf0ff348b113d2cef8079277caf1137d3de46"
@@ -285,8 +280,8 @@
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-followup.json",
-      "bytes": 3426,
-      "sha256": "c144aed39ee79eec9acd17423e7fea13a0448d9047e5da623779702cbd66b211"
+      "bytes": 3631,
+      "sha256": "c1aedb9cdb177f91f98e6bbcb8dea6802aa72e8a972ab5ed83e67c687ad8cb93"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-parity.txt",

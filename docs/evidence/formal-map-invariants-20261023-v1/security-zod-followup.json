@@ -48,7 +48,11 @@
     "priorDetachedDigest": "40d42e185c01afe01a39176c423d816c1c389343ea71c52c67c4215fc9e27213",
     "matched": false,
     "priorCommittedEntriesVerified": 91,
-    "decision": "Retain the stale detached digest as historical evidence; regenerate current map only after all material files and metadata are final, then hash and independently verify committed bytes."
+    "decision": "The old map included its detached digest despite declaring that excluded. Current map explicitly excludes both map and digest entries before serialization; final committed bytes are independently verified.",
+    "excludedSelfPaths": [
+      "docs/evidence/formal-map-invariants-20261023-v1/artifact-map.json",
+      "docs/evidence/formal-map-invariants-20261023-v1/artifact-map.sha256"
+    ]
   },
   "priorFormalRuntimeRevision": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
   "hostGuardRuntimeRevision": "a62683bae44ce8d2036e7352f9ea7d40d8efd0e5",
