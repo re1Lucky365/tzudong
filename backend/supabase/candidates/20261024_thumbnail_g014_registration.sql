@@ -1,7 +1,9 @@
 -- DRAFT / UNAPPLIED: exact G014 registration companion for the thumbnail candidate.
 -- No BEGIN/COMMIT and no role grant. A separately admitted outer migration must
--- run full G014 before queue creation, install the pinned queue, run this block,
--- run full G014 afterwards and revoke its temporary owner lease before commit.
+-- run full G014 before queue creation with the temporary owner lease absent,
+-- install the pinned queue, then run this block with its separately admitted
+-- lease. Revoke that self-grant BEFORE full G014 post and preserve the provider's
+-- bootstrap membership. All stages and the ledger belong to one outer commit.
 -- This block alone is NOT a queue/bucket installer or a full G014 certificate.
 DO $thumbnail_g014_registration$
 DECLARE

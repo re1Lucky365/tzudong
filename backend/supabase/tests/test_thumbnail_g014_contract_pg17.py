@@ -232,6 +232,64 @@ class ThumbnailG014Pg17(unittest.TestCase):
                 self.rejected(q, 'thumbnail_g014_executor_not_admitted', '42501', role)
         self.observations['executorDenials'] = 5
 
+    def test_actual_owner_contract_requires_lease_removal_before_assertions(self):
+        """Execute the complete real owner contract, not the full G014 graph."""
+        owner = self.preimage['ownerAssertion']
+        with self.transaction() as (_, q):
+            q.execute('ALTER ROLE original_bootstrap RENAME TO supabase_admin;'
+                      'ALTER ROLE postgres CREATEROLE INHERIT;'
+                      'CREATE ROLE privacy_auth_bridge NOLOGIN INHERIT;'
+                      f'REVOKE privacy_workflow_owner FROM postgres GRANTED BY {BOOTSTRAP};'
+                      'GRANT privacy_workflow_owner TO postgres WITH ADMIN TRUE, INHERIT FALSE, SET FALSE GRANTED BY supabase_admin;'
+                      'GRANT privacy_auth_bridge TO postgres WITH ADMIN TRUE, INHERIT FALSE, SET FALSE GRANTED BY supabase_admin;'
+                      'SET LOCAL ROLE postgres;'
+                      'GRANT privacy_workflow_owner TO privacy_auth_bridge WITH ADMIN FALSE, INHERIT TRUE, SET TRUE GRANTED BY postgres;'
+                      'RESET ROLE; SET LOCAL ROLE privacy_workflow_owner;')
+            q.execute(owner['definition'])
+            q.execute('ALTER FUNCTION privacy_retention.assert_g014_workflow_owner_contract() OWNER TO privacy_workflow_owner;'
+                      'REVOKE ALL ON FUNCTION privacy_retention.assert_g014_workflow_owner_contract() FROM PUBLIC,anon,authenticated,service_role;'
+                      'RESET ROLE; SET SESSION AUTHORIZATION postgres;')
+            q.execute("SELECT current_user,session_user,current_setting('is_superuser')")
+            self.assertEqual(q.fetchone(), ('postgres', 'postgres', 'off'))
+            membership_sql = """SELECT jsonb_agg(to_jsonb(m) ORDER BY roleid,member,grantor)
+                FROM pg_auth_members m WHERE roleid IN ('privacy_workflow_owner'::regrole,'privacy_auth_bridge'::regrole)
+                OR member IN ('privacy_workflow_owner'::regrole,'privacy_auth_bridge'::regrole)"""
+            q.execute(membership_sql); before = q.fetchone()[0]
+            q.execute('GRANT privacy_workflow_owner TO postgres WITH ADMIN FALSE, INHERIT FALSE, SET TRUE GRANTED BY postgres;'
+                      'SET LOCAL ROLE privacy_workflow_owner;')
+            q.execute("SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid='privacy_retention.assert_g014_workflow_owner_contract()'::regprocedure")
+            self.assertEqual(q.fetchone()[0], owner['bodySha256'])
+            q.execute("""CREATE FUNCTION pg_temp.thumbnail_owner_order_probe() RETURNS void
+                LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $probe$
+                BEGIN
+                  IF session_user<>'postgres' OR current_user<>'privacy_workflow_owner' THEN
+                    RAISE EXCEPTION 'fixture_owner_order_caller_denied';
+                  END IF;
+                  PERFORM privacy_retention.assert_g014_workflow_owner_contract();
+                  DROP FUNCTION pg_temp.thumbnail_owner_order_probe();
+                END $probe$;
+                REVOKE ALL ON FUNCTION pg_temp.thumbnail_owner_order_probe() FROM PUBLIC,anon,authenticated,service_role;
+                GRANT EXECUTE ON FUNCTION pg_temp.thumbnail_owner_order_probe() TO postgres;
+                SET LOCAL ROLE postgres;
+                SAVEPOINT invalid_post_order;""")
+            with self.assertRaises(psycopg2.Error) as raised:
+                q.execute('SELECT pg_temp.thumbnail_owner_order_probe()')
+            self.assertEqual(raised.exception.pgcode, 'P0001')
+            self.assertEqual(raised.exception.diag.message_primary, 'g014_pg17_workflow_owner_membership_denied')
+            q.execute('ROLLBACK TO SAVEPOINT invalid_post_order;'
+                      'REVOKE privacy_workflow_owner FROM postgres GRANTED BY postgres;')
+            q.execute(membership_sql); self.assertEqual(q.fetchone()[0], before)
+            q.execute('SELECT pg_temp.thumbnail_owner_order_probe()')
+            q.execute("SELECT to_regprocedure('pg_temp.thumbnail_owner_order_probe()') IS NULL,pg_has_role('postgres','privacy_workflow_owner','SET')")
+            self.assertEqual(q.fetchone(), (True, False))
+            q.execute(membership_sql); self.assertEqual(q.fetchone()[0], before)
+        self.observations['actualOwnerContractOrdering'] = {
+            'fullOwnerContractBodySha256': owner['bodySha256'], 'fullOwnerContractExecuted': True,
+            'callerAndSession': 'postgres', 'nonsuperuser': True, 'sessionAuthorizationInOwnedFixture': True,
+            'postWithLeaseRejected': 'P0001:g014_pg17_workflow_owner_membership_denied',
+            'revokeBeforePostPassed': True, 'bootstrapMembershipPreserved': True, 'bridgeSelfDropped': True,
+            'fullG014GraphExecuted': False}
+
     def test_missing_owner_lease_is_not_created(self):
         with self.transaction() as (_, q):
             q.execute('REVOKE privacy_workflow_owner FROM postgres')
