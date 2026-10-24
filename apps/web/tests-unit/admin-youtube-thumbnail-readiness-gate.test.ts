@@ -57,10 +57,6 @@ async function multipartThumbnailRequest(payload: unknown) {
   }) as unknown as NextRequest;
 }
 
-async function loadChatRoute() {
-  return import(`../app/api/admin/youtube-thumbnail-generator/chat/route.ts?cache=${Math.random()}`);
-}
-
 describe('thumbnail AnyCap gpt-image-2 readiness gate', () => {
   test('maps AnyCap non-ready state to an exact typed blocker without fallback', async () => {
     const { buildThumbnailProviderReadinessBlocker } = await import('../lib/admin/youtube-thumbnail-generator/readiness-gate');
@@ -144,116 +140,41 @@ describe('thumbnail AnyCap gpt-image-2 readiness gate', () => {
     }
   });
 
-  test('generation chat emits SSE readiness blocker before agent_started and backend invocation', async () => {
-    let backendAgentCalls = 0;
-
-    mock.module('@/lib/auth/require-admin', () => ({
-      requireAdmin: async () => ({ ok: true, userId: 'admin-user' }),
-    }));
-    mock.module('@/lib/admin/anycap-gpt-image-readiness', () => ({
-      ...actualAnyCapReadiness,
-      probeAnyCapGptImageReadiness: async () => nonReadyAnyCap,
-    }));
-    mock.module('@/lib/admin/youtube-thumbnail-generator/backend-agent', () => ({
-      ...actualBackendAgent,
-      generateYoutubeThumbnailChatWithBackendAgent: async () => {
-        backendAgentCalls += 1;
-        throw new Error('chat backend agent should not run when readiness blocks');
-      },
-    }));
-
-    try {
-      const route = await loadChatRoute();
-      const response = await route.POST(new Request('http://localhost/api/admin/youtube-thumbnail-generator/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: '이 주제로 썸네일 생성해줘' }),
-        headers: {
-          'Content-Type': 'application/json',
-          Origin: 'http://localhost',
-          'Sec-Fetch-Site': 'same-origin',
+  for (const [kind, message] of [['generation', '이 주제로 썸네일 생성해줘'], ['help', 'help']] as const) {
+    test(`retired ${kind} chat returns 410 before body, persistence or old model work`, async () => {
+      let readinessCalls = 0;
+      let backendCalls = 0;
+      let persistenceReads = 0;
+      mock.module('@/lib/admin/anycap-gpt-image-readiness', () => ({
+        ...actualAnyCapReadiness,
+        probeAnyCapGptImageReadiness: async () => { readinessCalls += 1; return nonReadyAnyCap; },
+      }));
+      mock.module('@/lib/admin/youtube-thumbnail-generator/backend-agent', () => ({
+        ...actualBackendAgent,
+        generateYoutubeThumbnailChatWithBackendAgent: async () => {
+          backendCalls += 1;
+          throw new Error('retired chat must not invoke an old backend');
         },
-      }) as unknown as NextRequest);
-      const streamText = await response.text();
-
-      expect(response.status).toBe(200);
-      expect(streamText).toContain('event: provider_readiness_blocker');
-      expect(streamText).toContain('thumbnail_anycap_gpt_image_2_not_ready');
-      expect(streamText).toContain('"model":"gpt-image-2"');
-      expect(streamText).toContain('"fallbackAllowed":false');
-      expect(streamText).not.toContain('event: agent_started');
-      expect(backendAgentCalls).toBe(0);
-    } finally {
-      mock.restore();
-    }
-  });
-
-  test('no-provider help chat is not readiness-blocked', async () => {
-    let readinessCalls = 0;
-    let backendAgentCalls = 0;
-
-    mock.module('@/lib/auth/require-admin', () => ({
-      requireAdmin: async () => ({ ok: true, userId: 'admin-user' }),
-    }));
-    mock.module('@/lib/admin/anycap-gpt-image-readiness', () => ({
-      ...actualAnyCapReadiness,
-      probeAnyCapGptImageReadiness: async () => {
-        readinessCalls += 1;
-        throw new Error('help chat should not check provider readiness');
-      },
-    }));
-    mock.module('@/lib/admin/youtube-thumbnail-generator/backend-agent', () => ({
-      ...actualBackendAgent,
-      generateYoutubeThumbnailChatWithBackendAgent: async () => {
-        backendAgentCalls += 1;
-        return {
-          assistantMessage: '도움말입니다. 화면은 바꾸지 않았어요.',
-          canvasPatch: { topic: '먹방 썸네일', headline: '역대급 먹방', subHeadline: '한입만 가능?' },
-          textLayerPatches: [],
-          providerId: 'local-codex',
-          generationMode: 'direct_provider',
-          shouldGenerate: false,
-          shouldReset: false,
-          backendAgent: {
-            mode: 'local_adapter',
-            runtime: 'local_thumbnail_chat',
-            concept: 'help',
-            layoutBrief: 'no provider utility',
-            promptAddendum: 'help only',
-            safetyReview: 'no generation',
-            nextActions: [],
-            diagnostics: { externalAgentInvoked: false, chatIntent: 'casual_chat' },
-          },
-          diagnostics: {
-            runtime: 'local_thumbnail_chat',
-            model: 'none',
-            effort: 'low',
-            streaming: 'sse-progress',
-            chatIntent: 'casual_chat',
-            canvasMutation: false,
-          },
-        };
-      },
-    }));
-
-    try {
-      const route = await loadChatRoute();
-      const response = await route.POST(new Request('http://localhost/api/admin/youtube-thumbnail-generator/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: 'help' }),
-        headers: {
-          'Content-Type': 'application/json',
-          Origin: 'http://localhost',
-          'Sec-Fetch-Site': 'same-origin',
-        },
-      }) as unknown as NextRequest);
-      const streamText = await response.text();
-
-      expect(streamText).toContain('event: done');
-      expect(streamText).not.toContain('provider_readiness_blocker');
-      expect(readinessCalls).toBe(0);
-      expect(backendAgentCalls).toBe(1);
-    } finally {
-      mock.restore();
-    }
-  });
+      }));
+      try {
+        const { createThumbnailQueueApi } = await import('../lib/admin/youtube-thumbnail-generator/queue-api');
+        const store = new Proxy({}, { get() { persistenceReads += 1; throw new Error('retired chat must not use persistence'); } });
+        const api = createThumbnailQueueApi({ store: store as never,
+          authorize: (async () => ({ ok: true, userId: '6f5d42d6-d122-4d32-b8bb-2779de58b423' })) as never });
+        const request = new Request('http://localhost/api/admin/youtube-thumbnail-generator/chat', {
+          method: 'POST', body: JSON.stringify({ message }),
+          headers: { 'Content-Type': 'application/json', Origin: 'http://localhost', 'Sec-Fetch-Site': 'same-origin' },
+        });
+        const response = await api.chatLegacyPOST(request);
+        expect(response.status).toBe(410);
+        expect(await response.json()).toEqual({ ok: false, error: 'thumbnail_chat_route_retired',
+          replacement: '/api/admin/youtube-thumbnail-generator/chat/jobs' });
+        expect(request.bodyUsed).toBe(false);
+        expect(response.headers.get('content-type')).not.toContain('text/event-stream');
+        expect(readinessCalls).toBe(0);
+        expect(backendCalls).toBe(0);
+        expect(persistenceReads).toBe(0);
+      } finally { mock.restore(); }
+    });
+  }
 });

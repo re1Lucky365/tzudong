@@ -17,10 +17,10 @@
 | --- | --- | --- |
 | PR #3215·Swift | PR은 2026-10-19에 develop으로 병합됐고 당시 최종 Swift는 SUCCESS다. 이미 끝난 검사·병합을 반복하지 않는다 | 새 후보의 CI·보호 승격은 별도 |
 | 현재 production | Vercel tzudong의 READY `dpl_FiHvmpQdmnDLNYXL9dquSFTFMpoB`, main `1b5230ac93021c72499f4950bff6cda24e2515e5`, www/apex alias 확인 | 새 SQL/썸네일 후보가 포함된 배포는 아님. 다음 적용 직전 재확인 |
-| 관리자 메뉴·사이드바 | 이전 production `4fa0edb9`의 인증된 메뉴 15개에서 화면 이동·공통 visible H1·1280×720 문서 가로 넘침0, 접기/복원 확인 | 읽기 렌더 검증이며 저장·삭제·승인·생성 기능 전체 또는 최신 배포의 pixel 검증 아님 |
+| 관리자 메뉴·사이드바 | production `1b5230ac` alias 확인 후 실제 탭을 새로고침하고 인증된 메뉴15개 화면 이동·공통 visible H1·1280×720 문서 가로 넘침0, 접기/복원을 다시 확인 | 읽기 렌더 검증이며 저장·삭제·승인·생성 기능 전체 또는 pixel 검증 아님. 동선 예산 제한은 최종 표시까지 확인 |
 | 동선 예산 장애 | 운영에서 local fallback. 공개 definer의 private schema 접근 부재와 Directions 정책 부재, 원본 counter의 잘못된 GREATEST 구문을 격리 DB에서 재현 | [복구 후보·16개 실제 DB 검사](provider-budget-bridge-20261024.md). 전체 G014/PG17.6/새 admission/현재 writer fence 후 적용·UI readback |
 | 썸네일 큐 권한 | `174c6526`에서 신규 객체에 남는 service_role default ALL/GRANT OPTION을 제거. PG17.11 31개 통과·불필요한 쓰기9개 모두42501·기존 객체/default ACL 보존 | 운영에는 thumbnail schema/RPC/private bucket 부재. 새 forward 설치와 G014 수렴 필요 |
-| 소스 통합 | 작업 중 develop에 별도 보안·지도/근거 수정40건이 추가돼 현재 후보는 42 commits behind | 후보를 보존하고 새 develop과 정상 통합한 뒤 영향 검증. 오래된 후보로 운영을 덮지 않음 |
+| 소스 통합 | 기존 후보를 보존해 develop `b8210cbc`와 정상 merge `ec4bc932`로 통합. Zod4.6.6·동일 frozen lock 설치 후 영향289개/2167 assertions, parity3425입력·진단0, 대상ESLint0, 새 의존성의 실제 thumbnail PG31개 통과 | 폐기된 SSE를 기대하던 테스트2개는 auth seam과 현재410 계약·본문/저장/구모델 호출0 검사로 교정. 현재 head의 보호 CI와 독립 검토는 별도 |
 | 외부 검토·협업 | 기존 원본 예약7건 보존. 두 native subagent는 429로 중단, quota·모델·계정 변경 없이 root가 로컬 검증을 이어감 | 현재 소스의 실제 독립 검토와 정확한 release bundle 결속이 미완료 |
 | 결제·전체 파이프라인 | 새 결제·카드 변경·키 등록·유료 호출0. 카드 삭제 보류와 기존 한도 보존 | 기존 전체 Todo, crawler→자동 판단/승인→marker, OCR/KG/생성 기능의 실제 운영 검증은 계속 열려 있음 |
 
