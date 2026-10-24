@@ -145,3 +145,5 @@ custody evidence는 `privilegedCatalogWriters=controlled`, `basis=authenticated-
 2026-10-24 15:24:27.499946+00의 새 RR/RO 관측에서 operating manifest의 prior **15/15 필드**가 일치했다. 운영 쓰기와 사용자 행 복사는 0이다. 영수증 SHA-256은 `4273988dcd198d2a168afff61b3f872c41718ca81acf1c6987d423d196e7b6d9`다. 이 관측은 만료 없는 실행 허가가 아니며, protected main의 새 admission과 전송 직전 prior 검사는 유지한다.
 
 Root는 migration delta가 prior/terminal의 raw ACL 세 cell씩뿐임을 독립 비교했고, 실제 loader/parser/compiler와 고정 v2 release를 inspect 모드에서 확인했다. 최종 영향 suite는 **22 tests / 253 assertions / 0 failures**이며 앞선 20개와 합산하지 않는다. PG17.6의 90→91·rollback·권한 120개 비교는 로컬 clone 증거다. 독립 검토와 fresh prior가 운영 적용 완료를 뜻하지 않는다.
+
+CI의 GitGuardian 탐지 `38946321`은 CLI 입력 비노출 테스트의 모의 표식 하나를 가리켰다. 실행 자격증명은 없으며 표식을 자격증명 형태가 없는 canary로 바꿨다. 변경 후 해당 테스트 **1개 / 9 assertions**가 통과했다. 이는 기존 22개에 포함되며 합산하지 않는다. 기존 탐지를 예외 처리하거나 보안 검사를 변경하지 않았다.

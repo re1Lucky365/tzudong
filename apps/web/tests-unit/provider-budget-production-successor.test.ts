@@ -384,7 +384,7 @@ test('CLI exposes no path/SQL/readiness overrides; fixed errors never print supp
     ['--mode', 'inspect', '--mode', 'apply'],
   ]) expectCode(() => main(argv), 'PROVIDER_BUDGET_ARGUMENT_INVALID');
   const child = spawnSync(process.execPath, [join(REPOSITORY_ROOT, 'apps/web/scripts/provider-budget-operating-collector.mjs'),
-    '--secret', 'password=do-not-output'], { encoding: 'utf8', env: {} });
+    '--secret', 'private-input-canary-do-not-output'], { encoding: 'utf8', env: {} });
   expect(child.status).toBe(1); expect(child.stdout).toBe('');
   expect(child.stderr.trim()).toBe('{"status":"failed","code":"PROVIDER_BUDGET_ARGUMENT_INVALID"}');
 });
