@@ -4,8 +4,8 @@ import { readBoundedJsonRequest, BOUNDED_JSON_REQUEST_ERROR } from '@/lib/securi
 import { isTrustedSameOriginMutation } from '@/lib/security/same-origin-mutation';
 import { buildYoutubeThumbnailPrompt, requestsSpecificCreatorHost } from './prompt';
 import { ThumbnailGenerationError } from './types';
-import { ThumbnailGeminiError } from './gemini-worker-client';
-import { ThumbnailChatGeminiError } from './chat-gemini-client';
+import { ThumbnailGeminiError } from './gemini-image-input';
+import { ThumbnailChatGeminiError } from './gemini-chat-input';
 import { thumbnailChatContext, thumbnailChatProvenance } from './chat-contract';
 import { THUMBNAIL_CHAT_RESULT_BYTES } from './execution-contract';
 import { ThumbnailPrivateStore, type AuthenticatedThumbnailWorker } from './private-store';

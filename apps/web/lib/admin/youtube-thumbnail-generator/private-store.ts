@@ -5,8 +5,8 @@ import { z } from 'zod';
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/service-role';
 import { createSupabaseStorageServerClient } from '@/lib/supabase/storage-server';
 import { assertPrivacySafe } from '@/lib/privacy/sanitize';
-import { prepareThumbnailGeminiContent, type ThumbnailGeminiContent } from './gemini-worker-client';
-import { prepareThumbnailChatContent } from './chat-gemini-client';
+import { prepareThumbnailGeminiContent, type ThumbnailGeminiContent } from './gemini-image-input';
+import { prepareThumbnailChatContent } from './gemini-chat-input';
 import { thumbnailChatContext, thumbnailChatProvenance, validateThumbnailChatResponse, type ThumbnailChatContext } from './chat-contract';
 import { thumbnailChatInput, thumbnailChatJob, thumbnailChatResult, thumbnailExecutionJob, thumbnailExecutionStartReceipt,
   THUMBNAIL_CHAT_DOCUMENT_BYTES, THUMBNAIL_CHAT_RESULT_BYTES, type ThumbnailChatJob, type ThumbnailChatResult } from './execution-contract';

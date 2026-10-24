@@ -35,7 +35,7 @@ PRIVATE_LIB = ROOT/'apps/web/lib/admin/youtube-thumbnail-generator'
 SOURCES = [SQL, SELF, BRIDGE, KPI, TS, CLIENT, PRIVATE_TS,
            *[PRIVATE_LIB/name for name in ['queue-contract.ts','private-store.ts','queue-api.ts','prompt.ts','safety.ts',
                                          'worker-outbox.ts','outbound-worker.ts','browser-queue.ts','chat-browser-queue.ts',
-                                         'chat-contract.ts','chat-gemini-client.ts','execution-contract.ts']],
+                                         'chat-contract.ts','chat-gemini-client.ts','execution-contract.ts','gemini-image-input.ts','gemini-chat-input.ts']],
            ROOT/'apps/web/scripts/thumbnail-gemini-worker.ts',ROOT/'apps/web/package.json']
 MODEL = 'gemini-3.1-flash-image'
 sha = lambda value: hashlib.sha256(value.encode()).hexdigest()

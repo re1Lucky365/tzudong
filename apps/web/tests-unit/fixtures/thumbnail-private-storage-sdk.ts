@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { supabaseThumbnailStorage, ThumbnailPrivateStore } from '../../lib/admin/youtube-thumbnail-generator/private-store';
 
-// Actual pinned SDK with synthetic HTTP in a deny-network child. No credential/network access is possible.
+// Actual pinned SDK with synthetic HTTP. The parent additionally uses macOS
+// OS egress denial when available; this fixture alone does not prove it.
 const objects = new Map<string, Buffer>(); let uploads = 0; let deletes = 0; let cancelled = false;
 const uploadHeaders: string[] = []; const caches: (RequestCache | undefined)[] = [];
 let startRpcRequests = 0;
@@ -49,5 +50,5 @@ await assert.rejects(new ThumbnailPrivateStore().workerOperation({ id: randomUUI
   jobId: randomUUID(), attemptId: randomUUID(), fence: 1, inputSha256: 'b'.repeat(64),
 }), { code: 'write_unconfirmed' });
 assert.equal(startRpcRequests, 1);
-process.stdout.write(JSON.stringify({ actualSdk: true, networkDenied: true, uploads, deletes,
+process.stdout.write(JSON.stringify({ actualSdk: true, syntheticHttp: true, uploads, deletes,
   uploadHeaders, noStore: true, oversizedStreamCancelled: cancelled, originalPreserved: true, startRpcRequests }) + '\n');

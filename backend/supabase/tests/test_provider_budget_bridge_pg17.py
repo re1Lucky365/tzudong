@@ -15,7 +15,10 @@ import tempfile
 import unittest
 import uuid
 
-import psycopg2
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
 
 ROOT = Path(__file__).resolve().parents[3]
 PG = Path('/opt/homebrew/Cellar/postgresql@17/17.11_1/bin')
@@ -27,8 +30,8 @@ SOURCES = [ORIGINAL, CANDIDATE, Path(__file__).resolve()]
 class ProviderBudgetBridgePg17(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        if not all((PG/n).is_file() for n in ['initdb','pg_ctl','postgres']):
-            raise unittest.SkipTest('installed pinned PG17 required; no installation')
+        if psycopg2 is None or not all((PG/n).is_file() for n in ['initdb','pg_ctl','postgres']):
+            raise unittest.SkipTest('installed pinned PG17 and project psycopg2 required; no installation')
         cls.version = subprocess.check_output([str(PG/'postgres'),'--version'],text=True).strip()
         if cls.version != 'postgres (PostgreSQL) 17.11 (Homebrew)':
             raise unittest.SkipTest('PG17 pin mismatch')

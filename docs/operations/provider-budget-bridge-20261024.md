@@ -49,4 +49,6 @@ PostgreSQL 17.11에서 **16개 통과**. 실제 비슈퍼유저 postgres와 별�
 
 현재 후보는 실행 명세·ledger·writer fence를 가진 migration이 아니다. 현재 권한이 거절된 MCP 연결자에서 SET ROLE이나 GRANT로 우회 실행하지 않는다. 별도로 검증한 postgres migration executor와 임시 owner lease, 현재 ledger prefix, 전체 G014 전후 계약, 실제 운영 버전 PG17.6 및 새 admission의 atomic apply/readback이 필요하다. 로컬 fixture의 modeled lease는 이 권한의 운영 영수증이 아니다.
 
+후속 통합에서 선택적 `psycopg2`가 없는 환경의 test discovery 실패를 재현하고, driver 부재는 명시적 prerequisite skip으로 처리했다. 해당 controlled probe는 모듈 로드 성공·DB 실행 0·class skip 1이며 DB 통과가 아니다. driver가 설치된 실제 PG17.11의 16개 검사는 다시 통과했고 source stable과 cluster 종료를 확인했다. 원래 영수증을 덮지 않은 [후속 영수증](../evidence/thumbnail-integration-20261024/provider-budget-pg17-portable.json)과 [부재 probe](../evidence/thumbnail-integration-20261024/provider-budget-missing-driver.json)를 보존한다.
+
 정확한 소스의 Pro thesis → Gemini 최대 사고 반대 검토 → Pro 역검증도 미완료다. 기존 원본 예약과 bundle은 보존한다. 현재 production은 별도 작업으로 `1b5230ac93021c72499f4950bff6cda24e2515e5` / `dpl_FiHvmpQdmnDLNYXL9dquSFTFMpoB`로 이동한 것을 읽기 확인했으며 이 후보의 배포는 아니다. 실제 적용 직전에 rollback SHA와 writer fence를 다시 확인하고, 정상 `develop → data → main` 이후 인증된 UI에서 도로 경로·제어된 실패·기존 캐시/반환 계약을 확인해야 한다. 이미 생성된 결정이나 counter를 삭제하는 자동 rollback은 만들지 않는다.

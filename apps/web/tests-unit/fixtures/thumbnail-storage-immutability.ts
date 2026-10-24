@@ -1,7 +1,8 @@
 import { thumbnailReleaseFixture } from './thumbnail-release-fixture';
 import { publishThumbnailDurableRelease } from '../../lib/admin/youtube-thumbnail-generator/release-registry';
 
-// Run in a fresh deny-network process: actual Supabase/Storage clients, fake HTTP.
+// Fresh actual Supabase/Storage clients with synthetic HTTP. The parent also
+// checks macOS OS egress denial; the portable run does not claim that isolation.
 const f = await thumbnailReleaseFixture();
 const original = Buffer.from('synthetic-existing-published-object');
 let stored = original;

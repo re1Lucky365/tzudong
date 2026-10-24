@@ -93,13 +93,16 @@ test('thumbnail actual Storage client cannot overwrite an existing immutable rel
   const home = mkdtempSync(join(tmpdir(), 'thumbnail-storage-sdk-'));
   const policy = '(version 1)(allow default)(deny network*)';
   try {
-    const result = spawnSync('/usr/bin/sandbox-exec', ['-p', policy, process.execPath, '--no-env-file', 'run',
-      join(import.meta.dir, 'fixtures/thumbnail-storage-immutability.ts')], {
+    for (const sandboxed of process.platform === 'darwin' ? [false, true] : [false]) {
+    const args = ['--no-env-file', 'run', join(import.meta.dir, 'fixtures/thumbnail-storage-immutability.ts')];
+    const result = spawnSync(sandboxed ? '/usr/bin/sandbox-exec' : process.execPath,
+      sandboxed ? ['-p', policy, process.execPath, ...args] : args, {
       cwd: join(import.meta.dir, '..'), encoding: 'utf8', timeout: 15_000,
       env: { PATH: process.env.PATH, HOME: home, ...env },
     });
     expect(result.status).toBe(0);
     const observed = JSON.parse(result.stdout.trim());
     expect(observed).toEqual({ unmodified: true, uploadCount: 1, publishCalls: 0, deleteCount: 0, upsertHeader: 'false' });
+    }
   } finally { rmSync(home, { recursive: true, force: true }); }
 });

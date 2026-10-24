@@ -279,16 +279,21 @@ describe('thumbnail immutable private storage and checkpoints', () => {
   test('actual pinned Storage SDK streams bounded bytes and cannot overwrite after lost ACK', () => {
     const home = mkdtempSync(join(tmpdir(), 'thumbnail-private-storage-'));
     try {
-      const child = spawnSync('/usr/bin/sandbox-exec', ['-p', '(version 1)(allow default)(deny network*)',
-        process.execPath, '--no-env-file', 'run', join(import.meta.dir, 'fixtures/thumbnail-private-storage-sdk.ts')], {
+      // Exercise the real SDK with fixture HTTP on every platform. macOS also
+      // retains its additional OS egress-denial proof; Linux/Windows do not claim it.
+      for (const sandboxed of process.platform === 'darwin' ? [false, true] : [false]) {
+      const args = ['--no-env-file', 'run', join(import.meta.dir, 'fixtures/thumbnail-private-storage-sdk.ts')];
+      const child = spawnSync(sandboxed ? '/usr/bin/sandbox-exec' : process.execPath,
+        sandboxed ? ['-p', '(version 1)(allow default)(deny network*)', process.execPath, ...args] : args, {
         cwd: join(import.meta.dir, '..'), encoding: 'utf8', timeout: 15_000,
         env: { PATH: process.env.PATH, HOME: home, NEXT_PUBLIC_SUPABASE_URL: 'https://fixture.supabase.co',
           SUPABASE_SERVICE_ROLE_KEY: 'synthetic-fixture' },
       });
       expect(child.status).toBe(0);
-      expect(JSON.parse(child.stdout.trim())).toEqual({ actualSdk: true, networkDenied: true,
+      expect(JSON.parse(child.stdout.trim())).toEqual({ actualSdk: true, syntheticHttp: true,
         uploads: 2, deletes: 0, uploadHeaders: ['false', 'false'], noStore: true,
         oversizedStreamCancelled: true, originalPreserved: true, startRpcRequests: 1 });
+      }
     } finally { rmSync(home, { recursive: true, force: true }); }
   });
 });
