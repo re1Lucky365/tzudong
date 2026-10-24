@@ -26,6 +26,8 @@ export const PROJECT_REF = 'aqlcofblfxdrjhhdmarw';
 export const SERIALIZER_KEY = 'tzudong:review-media-sql-successor:workflow:v1';
 export const CUSTODY_DIRECTORY = join(userInfo().homedir, '.codex/runtime-cache/thumbnail-production-successor', PROJECT_REF, MANIFEST_SHA256);
 export const OWNER_AUTHORITY = 'authenticated-repository-owner-local-cli';
+export const TLS_ROOT_PATH = 'backend/supabase/certificates/prod-ca-2021.crt';
+export const TLS_ROOT_SHA256 = '700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7';
 export const REQUIRED_FENCES = Object.freeze({
   privilegedCatalogWriters: 'controlled', workerProvisioning: 'withheld',
 });
@@ -42,6 +44,7 @@ export const FENCE_COVERAGE = Object.freeze([
   'public.admin_thumbnail_events',
 ]);
 const TOOLCHAIN = Object.freeze({
+  [TLS_ROOT_PATH]: TLS_ROOT_SHA256,
   'apps/web/scripts/apply-supabase-migration.mjs': '02c404e0be3e81b7c8d4d7766ff29e750b1797f5ad49b5f496168170e21192d4',
   'apps/web/scripts/admin-record-sql-successor.mjs': 'c9b2c3335598bc21a5a721182ae45aae0d009be8684e7a1a2a0871e0cb921466',
   'apps/web/scripts/thumbnail-local-owner.mjs': '1a6e45cd3af10084799f5c5b0824abc99057ecd8fa6484da5282d105bc73afca',
@@ -126,6 +129,21 @@ export function loadThumbnailRecord({ readBytesImpl = readFileSync, readVectorIm
     || sha(JSON.stringify(vector)) !== migration.originalVectorSha256) fail('THUMBNAIL_VECTOR_DRIFT');
   const envelope = migrationEnvelope(source, migration, vector);
   return { manifest, manifestSha256: MANIFEST_SHA256, migration, envelope };
+}
+
+export function createThumbnailPsqlRunner(databaseUrl, { environment = process.env, spawnImpl = spawnSync } = {}) {
+  assertSuccessorDatabaseTarget(databaseUrl, { projectRef: PROJECT_REF, databaseName: 'postgres' });
+  return createSuccessorPsqlRunner(databaseUrl, {
+    environment, psql: 'psql',
+    spawnImpl: (command, args, options) => {
+      // The common transport clears inherited PG settings. Bind trust after
+      // that cleanup; never change the user's default libpq trust store.
+      if (sha(sourceBytes(TLS_ROOT_PATH, readFileSync)) !== TLS_ROOT_SHA256) fail('THUMBNAIL_TLS_ROOT_DRIFT');
+      return spawnImpl(command, args, { ...options, env: {
+        ...options.env, PGSSLMODE: 'verify-full', PGSSLROOTCERT: resolve(REPOSITORY_ROOT, TLS_ROOT_PATH),
+      } });
+    },
+  });
 }
 
 function privateBytes(path, { journal = false } = {}) {
@@ -386,7 +404,7 @@ export function runThumbnailSuccessor({ mode = 'inspect', environment = process.
   }
   const { databaseUrl } = selectDirectDatabaseTransport(environment);
   assertSuccessorDatabaseTarget(databaseUrl, { projectRef: PROJECT_REF, databaseName: 'postgres' });
-  const transport = runPsqlImpl ?? createSuccessorPsqlRunner(databaseUrl, { environment, psql: 'psql' });
+  const transport = runPsqlImpl ?? createThumbnailPsqlRunner(databaseUrl, { environment });
   if (mode === 'reconcile') return {
     status: 'reconciliation', disposition: readReconciliation(transport, databaseUrl, record),
     attemptId: admission.attemptId, replayAllowed: false,

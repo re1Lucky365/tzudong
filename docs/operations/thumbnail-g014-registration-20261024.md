@@ -225,3 +225,9 @@ v2 release는 `.github/thumbnail-production-successor.v2.json`, canonical SHA `3
 [집중 검사](../evidence/thumbnail-g014-registration-20261024/release-admission-local.json)는 실제 committed release loader, 누락 시 외부 관측 전 거부, CLI override 거부와 기존 경합·복구·권한 경계를 함께 확인한 **52 pass·0 fail·689 assertions**, 변경한 test의 lint 오류·경고0이다. DB/identity unit transport 대체와 이전 실제 PostgreSQL·gh 관측의 범위는 유지한다. inspect는 의도적으로 frozen draft 검증만 수행하며 `held`를 반환한다. 실제 apply는 별도 release 외에도 protected main의 clean detached source, 새 owner 관측·15분 admission·60초 fence, 현재 DB identity/prior23, durable journal을 모두 요구한다.
 
 운영 전 롤백 기준을 실제 Vercel `tzudong` 프로젝트와 `www.tzudong.app`에서 읽었다. 2026-10-24 12:20Z 기준 production은 `dpl_FiHvmpQdmnDLNYXL9dquSFTFMpoB`, main `1b5230ac93021c72499f4950bff6cda24e2515e5`, READY였다. 보호 승격·현재 DB 재검사·적용 후 독립 readback·worker provisioning·실제 생성/Storage/UI는 후속 실행으로 구분하며 아직 완료로 표시하지 않는다. 외부 Pro → Gemini → Pro 예약과 미완료 상태는 보존한다.
+
+## 운영 transport의 CA 결속 보완
+
+실제 로컬 psql 경로를 read-only로 호출하자 기본 libpq trust store가 `TLS_TRUST_REJECTED`로 거부했다. 공통 helper가 inherited PG 설정을 제거하므로 외부 `PGSSLROOTCERT` 지정만으로 해결되지 않는다. 공통 frozen helper와 사용자 trust store는 유지하고 thumbnail caller/collector의 기본 transport에 고정 CA SHA 검증과 `verify-full`·고정 `PGSSLROOTCERT`를 결속했다. CLI에 인증서 경로나 TLS 약화 override는 추가하지 않았다.
+
+[후속 증거](../evidence/thumbnail-g014-registration-20261024/pinned-ca-native-readonly.json)는 **53 pass·0 fail·705 assertions**, 변경한3개 파일 lint 오류·경고0, 실제 기본 transport를 통한 클라이언트 TLS1.3·서버170006·현재 executor/database·read-only 조회를 기록한다. 기존 기본 trust 파일은 전후 동일하다. pooler 뒤 `pg_stat_ssl`의 내부 연결 통계는 클라이언트 TLS와 다르므로 `psql \\conninfo`의 클라이언트 결과와 분리했다. 이 진단의 hosted 쓰기·사용자 행 복사·provider 호출은0이다. 고정 CA가 변경되거나 target이 다르면 실패하며, 이전 full PG17.6 installer 검증과 새 head CI·운영 적용은 별도다.

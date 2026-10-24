@@ -12,12 +12,12 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { selectDirectDatabaseTransport } from './apply-supabase-migration.mjs';
-import { assertSuccessorDatabaseTarget, createSuccessorPsqlRunner } from './admin-record-sql-successor.mjs';
+import { assertSuccessorDatabaseTarget } from './admin-record-sql-successor.mjs';
 import { observeThumbnailLocalOwner, validateThumbnailLocalOwner } from './thumbnail-local-owner.mjs';
 import {
   CUSTODY_DIRECTORY, FENCE_COVERAGE, MANIFEST_SHA256, PROJECT_REF,
   RELEASE_ADMISSION_SHA256, REPOSITORY_ROOT, REQUIRED_FENCES, OWNER_AUTHORITY,
-  currentThumbnailProtectedRevision, currentThumbnailSource, loadThumbnailRecord,
+  createThumbnailPsqlRunner, currentThumbnailProtectedRevision, currentThumbnailSource, loadThumbnailRecord,
   loadThumbnailRelease, readThumbnailPrior, runThumbnailSuccessor,
   thumbnailReleaseContract, validateThumbnailAdmission, validateThumbnailLiveSource,
 } from './thumbnail-production-successor.mjs';
@@ -142,7 +142,7 @@ export function prepareThumbnailOperation({ environment = process.env, confirmat
     ({ databaseUrl } = selectDirectDatabaseTransport(environment));
     assertSuccessorDatabaseTarget(databaseUrl, { projectRef: PROJECT_REF, databaseName: 'postgres' });
   } catch { fail('THUMBNAIL_DATABASE_TARGET_INVALID'); }
-  const transport = runPsqlImpl ?? createSuccessorPsqlRunner(databaseUrl, { environment, psql: 'psql' });
+  const transport = runPsqlImpl ?? createThumbnailPsqlRunner(databaseUrl, { environment });
   let prior;
   try { prior = readThumbnailPrior(transport, databaseUrl, record); }
   catch (error) {

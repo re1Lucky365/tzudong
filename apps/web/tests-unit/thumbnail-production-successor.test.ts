@@ -10,6 +10,7 @@ import { afterEach, expect, test } from 'bun:test';
 import {
   FENCE_COVERAGE, MANIFEST_PATH, MANIFEST_SHA256, PROJECT_REF, RELEASE_ADMISSION_PATH,
   RELEASE_ADMISSION_SHA256, REPOSITORY_ROOT, REQUIRED_FENCES, SERIALIZER_KEY,
+  TLS_ROOT_PATH, TLS_ROOT_SHA256, createThumbnailPsqlRunner,
   loadThumbnailRecord, loadThumbnailRelease, main, runThumbnailSuccessor, thumbnailApplySql,
   thumbnailReleaseContract, validateThumbnailRelease,
 } from '../scripts/thumbnail-production-successor.mjs';
@@ -144,6 +145,32 @@ test('missing release still rejects apply before source, custody or external obs
   expect(observations).toBe(0);
 });
 
+test('native transport binds verify-full to the pinned CA after common PG environment cleanup', () => {
+  const observed: any[] = [];
+  const url = 'postgresql://postgres.aqlcofblfxdrjhhdmarw@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres?sslmode=require';
+  const environment = { HOME: '/native-test-home', PATH: '/trusted/bin', PGSSLMODE: 'disable',
+    PGSSLROOTCERT: '/untrusted/root.crt', PGHOST: 'other.invalid', PGOPTIONS: '-c unsafe=1' };
+  const runner = createThumbnailPsqlRunner(url, { environment, spawnImpl: (...args: any[]) => {
+    observed.push(args); return { status: 0, stdout: 'readonly-result', stderr: '' };
+  } });
+  expect(runner(url, 'SELECT 1;', false)).toBe('readonly-result');
+  expect(observed).toHaveLength(1);
+  const [command, args, options] = observed[0];
+  expect(command).toBe('psql');
+  expect(args).toContain('--no-psqlrc');
+  expect(options.env.PGSSLMODE).toBe('verify-full');
+  expect(options.env.PGSSLROOTCERT).toBe(join(REPOSITORY_ROOT, TLS_ROOT_PATH));
+  expect(options.env.PGHOST).toBe('aws-0-ap-northeast-2.pooler.supabase.com');
+  expect(options.env.PGOPTIONS).toBeUndefined();
+  expect(options.env.HOME).toBe(environment.HOME);
+  expect(options.env.PATH).toBe(environment.PATH);
+  expect(environment.PGSSLMODE).toBe('disable');
+  expect(environment.PGSSLROOTCERT).toBe('/untrusted/root.crt');
+  expect(sha(readFileSync(join(REPOSITORY_ROOT, TLS_ROOT_PATH)))).toBe(TLS_ROOT_SHA256);
+  expectCode(() => createThumbnailPsqlRunner('postgresql://other.invalid/postgres'), 'SUCCESSOR_DATABASE_TARGET_INVALID');
+  expect(observed).toHaveLength(1);
+});
+
 test('separate release contract is byte pinned; changed scope, target, false flag or noncanonical bytes fail', () => {
   expect(validateThumbnailRelease(bytes(thumbnailReleaseContract())).sha256).toBe(RELEASE_ADMISSION_SHA256);
   for (const edit of [
@@ -164,6 +191,7 @@ test('real manifest, SQL, component and imported toolchain bytes fail closed on 
     [record.migration.candidatePath, 'THUMBNAIL_SOURCE_DRIFT'],
     [record.manifest.components[0].path, 'THUMBNAIL_COMPONENT_DRIFT'],
     ['apps/web/scripts/admin-record-sql-successor.mjs', 'THUMBNAIL_TOOLCHAIN_DRIFT'],
+    [TLS_ROOT_PATH, 'THUMBNAIL_TOOLCHAIN_DRIFT'],
   ]) {
     expectCode(() => loadThumbnailRecord({
       readBytesImpl: (absolute: string) => absolute === join(REPOSITORY_ROOT, path)
