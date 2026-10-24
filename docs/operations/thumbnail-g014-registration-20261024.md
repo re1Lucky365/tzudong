@@ -214,3 +214,6 @@ v2 release는 `.github/thumbnail-production-successor.v2.json`, canonical SHA `3
 복구는 원래 admission·SQL·journal 바인딩을 먼저 확인한 다음 현재 owner를 별도로 인증한다. main이 전진해도 과거 sourceRevision·fence·만료 시각을 갱신하지 않으며 파일 bytes/mtime을 보존한다. prior 관측은 계속 미확인이고 재전송·writer 재개의 근거가 아니다. 관련 privileged writer 통제와 worker provisioning 보류는 기존 owner custody의 전제로 남으며 다른 host로 원래 기록을 복제하지 않는다는 전제도 유지한다. native HOME이나 API 신원 관측을 hardware 또는 전역 exactly-once 증명으로 해석하지 않는다.
 
 새 소스의 CI·보호 승격·별도 release admission·현재 운영 prior 확인·실제 적용/readback, worker provisioning과 hosted 생성/Storage/UI 검증은 남아 있다. 외부 Pro → Gemini → Pro 단계는 기존 예약을 보존한 채 미완료이며 이 로컬 결과로 대체하지 않는다. 운영 DB 쓰기·provider 호출은0회다.
+
+
+후속 CodeQL에서 `369713cb`의 workflow checkout에 전달한 `inputs.source_sha`가 오염 입력으로 추적돼 cache-poisoning high2건이 표시됐다. 기존 owner/protected-main과 `github.sha == inputs.source_sha` guard는 유지하고 checkout 자체는 GitHub의 `github.sha`를 직접 사용하도록 바꿨다. [후속 증거](../evidence/thumbnail-g014-registration-20261024/trusted-inspection-checkout.json)는 YAML·bash4개 block과 나머지 runtime/test source6개의 무변경을 확인한다. 보안 검사 예외·규칙·권한·캐시 설정은 바꾸지 않았다. 새 head의 원격 CodeQL 결과가 확인되기 전에는 해소됐다고 표시하지 않는다. Rust/Swift configuration 미완료 안내와 실제 high2건은 별도로 구분한다.
