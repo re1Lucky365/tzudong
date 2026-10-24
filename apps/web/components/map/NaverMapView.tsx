@@ -85,7 +85,6 @@ import {
     buildClusterMarkerFeature,
     buildNaverClusterAnimationIconPlan,
     buildNaverClusterMarkerRenderPlan,
-    shouldReplaceNaverMarkerIcon,
 } from "@/lib/naver-map-cluster-visuals";
 import { perfMonitor } from "@/lib/performance-monitor";
 import { useMapOptimization } from "@/hooks/useMapOptimization";
@@ -250,7 +249,7 @@ import {
 } from "@/lib/naver-map-wheel-helpers";
 import {
     buildVisibleRestaurantIdSignature,
-    buildVisibleMarkerReviewBubbleHtml,
+    wrapNaverMarkerContentWithReviewBubble,
     buildVisibleMarkerReviewBubbleMapSignature,
     buildVisibleMarkerReviewBubbleRenderToken,
     buildVisibleMarkerReviewBubbleTargetSignature,
@@ -616,42 +615,6 @@ function scheduleVisibleMarkerReviewBubbleClamp() {
     });
 }
 
-const reviewBubbleWrapCache = new WeakMap<VisibleMarkerReviewBubble, {
-    markerContent: string;
-    mobile: boolean;
-    wrapped: string;
-}>();
-
-function wrapNaverMarkerContentWithReviewBubble(
-    markerContent: string,
-    bubble: VisibleMarkerReviewBubble | undefined,
-    isMobile: boolean,
-) {
-    if (!bubble) return markerContent;
-
-    const cached = reviewBubbleWrapCache.get(bubble);
-    if (cached && cached.markerContent === markerContent && cached.mobile === isMobile) {
-        return cached.wrapped;
-    }
-
-    const wrapped = `
-        <div
-          data-visible-marker-review-bubble-anchor="true"
-          style="
-            position:relative;
-            width:${isMobile ? 32 : 32}px;
-            height:${isMobile ? 32 : 32}px;
-            overflow:visible;
-            pointer-events:auto;
-          "
-        >
-          ${buildVisibleMarkerReviewBubbleHtml(bubble, { isMobile })}
-          ${markerContent}
-        </div>
-    `;
-    reviewBubbleWrapCache.set(bubble, { markerContent, mobile: isMobile, wrapped });
-    return wrapped;
-}
 
 type NaverClusterFeature =
     | ClusterFeature<ClusterProperties>
@@ -1574,7 +1537,10 @@ const NaverMapView = memo(({
 
     // [통합] 지도 중심 및 줌 조정 로직
     useEffect(() => {
-        if (!mapInstanceRef.current || isGridMode) return;
+        // Origin authorization may revoke the SDK after its script load event.
+        // A retained map instance alone does not authorize another SDK call.
+        const maps = window.naver?.maps;
+        if (!mapInstanceRef.current || !maps?.Event || !maps.LatLng || !maps.Point || isGridMode) return;
 
         // [Fix] URL 파라미터로 초기화된 경우 첫 번째 실행에서 줌 오버라이드 방지
         if (isInitialLoadFromUrlRef.current) {
@@ -1583,7 +1549,6 @@ const NaverMapView = memo(({
         }
 
         const map = mapInstanceRef.current;
-        const { naver } = window;
 
         // 1. selection 변경 여부 확인 (Ref와 비교)
         const currentSelectedId = selectedRestaurant?.id || null;
@@ -1786,7 +1751,7 @@ const NaverMapView = memo(({
 
         // 리사이즈 먼저 트리거
         const transitionResizePlan = resolveNaverCenteringTransitionResizePlan();
-        naver.maps.Event.trigger(map, transitionResizePlan.initialResizeEvent);
+        maps.Event.trigger(map, transitionResizePlan.initialResizeEvent);
 
         const newCenterLatLng = getAdjustedCenter(targetLat, targetLng, targetZoom, targetOffsetX, targetOffsetY);
         map.setZoom(targetZoom);
@@ -3186,34 +3151,15 @@ const NaverMapView = memo(({
         // 애니메이션 업데이트 시 클러스터 마커 HTML 갱신
         const cleanup = clusterAnimationManager.addListener(() => {
             const applyClusterIcon = (
-                marker: {
-                    getElement?: () => HTMLElement | null;
-                    getIcon: () => { content?: unknown; anchor?: { x?: number; y?: number } | null } | null;
-                    setIcon: (icon: { content?: unknown; anchor?: { x: number; y: number } | null }) => void;
-                },
+                markerId: string,
                 iconPlan: { content: string; anchor: { x: number; y: number } },
             ) => {
-                const element = marker.getElement?.() ?? null;
-                const source = element?.querySelector("picture source") as HTMLElement | null;
-                const nextSource = iconPlan.content.match(/srcset="([^"]+)"/)?.[1];
-                if (source && nextSource) {
-                    if (source.getAttribute("srcset") === nextSource) return;
-                    const applyLoadedIcon = () => {
-                        if (source.dataset.clusterIconPending !== nextSource) return;
-                        source.setAttribute("srcset", nextSource);
-                    };
-                    const preload = new Image();
-                    source.dataset.clusterIconPending = nextSource;
-                    preload.onload = applyLoadedIcon;
-                    preload.src = nextSource;
-                    if (preload.complete) applyLoadedIcon();
-                    return;
-                }
-                if (!shouldReplaceNaverMarkerIcon(marker.getIcon(), iconPlan)) return;
-                marker.setIcon({
+                // The pool owns rendered content and accessibility state. Direct
+                // srcset writes left its descriptor stale on a later reacquire.
+                markerPool.update(markerId, { icon: {
                     content: iconPlan.content,
                     anchor: new window.naver.maps.Point(iconPlan.anchor.x, iconPlan.anchor.y),
-                });
+                } });
             };
 
             if (isRegionalClusterMode) {
@@ -3233,7 +3179,7 @@ const NaverMapView = memo(({
                             uniqueKey: cluster.region,
                         });
 
-                        applyClusterIcon(marker, iconPlan);
+                        applyClusterIcon(markerId, iconPlan);
                     }
                 });
             }
@@ -3254,7 +3200,7 @@ const NaverMapView = memo(({
                             position: cluster.center,
                             uniqueKey: cluster.region,
                         });
-                        applyClusterIcon(marker, iconPlan);
+                        applyClusterIcon(markerId, iconPlan);
                     }
                 });
             }
@@ -3287,7 +3233,7 @@ const NaverMapView = memo(({
                                 uniqueKey: clusterId,
                             });
 
-                            applyClusterIcon(marker, iconPlan);
+                            applyClusterIcon(markerId, iconPlan);
                         }
                     }
                 });

@@ -30,7 +30,8 @@ const entry = `
 async function bundle() {
   const built = await Bun.build({
     entrypoints: ['worker-visible-status-fixture'], target: 'browser', format: 'iife', write: false,
-    define: { 'process.env.NODE_ENV': '"test"' },
+    // Isolated browser build: no Node process or operator environment is present.
+    define: { 'process.env': '{}', 'process.env.NODE_ENV': '"test"' },
     plugins: [{ name: 'worker-visible-status-fixture', setup(builder) {
       builder.onResolve({ filter: /^worker-visible-status-fixture$/ }, () => ({ path: 'fixture', namespace: 'fixture' }));
       builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: entry, loader: 'tsx', resolveDir: appRoot }));

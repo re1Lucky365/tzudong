@@ -7,13 +7,15 @@ import { buildPublicPopularity } from '../scripts/build-public-popularity';
 const dirs: string[] = [];
 afterEach(async () => { for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true }); });
 
-async function build(patch: Record<string, unknown> = {}) {
+const metric = { video_id: 'abc123DEF45', view_count: 123,
+  fetched_at: '2026-07-01T00:00:00Z', bucket_started_at: '2026-07-01T00:00:00Z' };
+
+async function build(patch: Record<string, unknown> = {}, metricRows: unknown[] = [metric]) {
   const dir = await mkdtemp(join(tmpdir(), 'tzudong-popularity-boundary-')); dirs.push(dir);
   const row = { id: 'approved-a', name: '한식당', approved_name: '승인 식당명', status: 'approved', lat: 37.5, lng: 127,
     road_address: '서울특별시 강남구', categories: ['한식'], youtube_link: 'https://www.youtube.com/watch?v=abc123DEF45', ...patch };
   await writeFile(join(dir, 'source.json'), JSON.stringify({ rows: [row] }));
-  await writeFile(join(dir, 'metrics.json'), JSON.stringify({ rows: [{ video_id: 'abc123DEF45', view_count: 123,
-    fetched_at: '2026-07-01T00:00:00Z', bucket_started_at: '2026-07-01T00:00:00Z' }] }));
+  await writeFile(join(dir, 'metrics.json'), JSON.stringify({ rows: metricRows }));
   return buildPublicPopularity(join(dir, 'source.json'), join(dir, 'metrics.json'), 'a'.repeat(40));
 }
 
@@ -21,6 +23,22 @@ test('rejects unapproved source rows before merge rather than granting a public 
   for (const status of ['pending', 'deleted', null]) {
     await expect(build({ status })).rejects.toThrow('popularity_source_not_approved');
   }
+});
+
+test('malformed count values remain missing instead of coercing into a public flame', async () => {
+  for (const view_count of [true, false, [123], { valueOf: 123 }, null, '', '1.5', -1]) {
+    const result = await build({}, [{ ...metric, view_count }]);
+    expect(result.evidence.groups[0].viewCount).toBeNull();
+    expect(result.publication.entries[0].tier).toBe('standard');
+  }
+});
+
+test('conflicting metrics for the same video fail in either input order', async () => {
+  const other = { ...metric, view_count: 456 };
+  for (const rows of [[metric, other], [other, metric]]) {
+    await expect(build({}, rows)).rejects.toThrow('popularity_metrics_video_conflict');
+  }
+  expect((await build({}, [metric, { ...metric }])).evidence.groups[0].viewCount).toBe(123);
 });
 
 test('rejects missing, blank, nonfinite and out-of-range source coordinates before merge coerces them', async () => {
@@ -55,4 +73,18 @@ test('nearest-rank has no ember at n=19 but separates P95 and P98 at n=20', asyn
     expect(result.evidence.thresholds[0]).toMatchObject({ knownGroups: size, fireAt: size, emberAt: 19 });
     expect(result.publication.entries.filter(entry => entry.tier === 'ember')).toHaveLength(size === 19 ? 0 : 1);
   }
+});
+
+test('duplicate observations reject timestamp conflicts in either order and normalize video identity', async () => {
+  const later = {...metric, fetched_at: '2026-07-02T00:00:00Z'};
+  for (const rows of [[metric, later], [later, metric]]) {
+    await expect(build({}, rows)).rejects.toThrow('popularity_metrics_video_conflict');
+  }
+  const aliased = {...metric, video_id: 'https://youtu.be/abc123DEF45'};
+  for (const rows of [[metric, aliased], [aliased, metric]]) {
+    const result = await build({}, rows);
+    expect(result.evidence.groups[0].observed).toEqual([{videoId: metric.video_id, count: 123, observedAt: metric.fetched_at}]);
+  }
+  expect((await build({}, [aliased])).evidence.groups[0].viewCount).toBe(123);
+  await expect(build({}, [{...metric, video_id: 'invalid'}])).rejects.toThrow('popularity_metrics_video_invalid');
 });

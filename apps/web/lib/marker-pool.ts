@@ -36,8 +36,8 @@ interface MarkerPositionLike {
 const MARKER_NODE_SELECTOR = '[data-testid="marker"]';
 const REVIEW_BUBBLE_SELECTOR = '[data-visible-marker-review-bubble="true"]';
 
-function patchStableMarkerReviewBubble(element: HTMLElement, nextContent: unknown): boolean {
-    if (typeof nextContent !== 'string' || typeof document === 'undefined') return false;
+function patchStableMarkerReviewBubble(element: HTMLElement, previousContent: unknown, nextContent: unknown): boolean {
+    if (typeof previousContent !== 'string' || typeof nextContent !== 'string' || typeof document === 'undefined') return false;
     if (!nextContent.includes('data-testid="marker"') && !element.querySelector(MARKER_NODE_SELECTOR)) {
         return false;
     }
@@ -64,13 +64,27 @@ function patchStableMarkerReviewBubble(element: HTMLElement, nextContent: unknow
     const nextImage = nextMarker.querySelector('img');
     if ((currentImage?.getAttribute('src') ?? '') !== (nextImage?.getAttribute('src') ?? '')) return false;
 
-    const hosts = [currentMarker, currentMarker.parentElement].filter((host): host is Element => Boolean(host));
-    hosts.forEach((host) => {
-        host.querySelectorAll(`:scope > ${REVIEW_BUBBLE_SELECTOR}`).forEach((node) => node.remove());
-    });
+    // Only the review bubble may differ. A partial attribute comparison misses
+    // changes outside the image node, including the popularity tier and flame.
+    const previous = document.createElement('template');
+    previous.innerHTML = previousContent;
+    const nextStatic = template.content.cloneNode(true) as DocumentFragment;
+    for (const content of [previous.content, nextStatic]) {
+        content.querySelectorAll(REVIEW_BUBBLE_SELECTOR).forEach(node => node.remove());
+    }
+    if (!previous.content.isEqualNode(nextStatic)) return false;
 
-    const nextBubble = template.content.querySelector(REVIEW_BUBBLE_SELECTOR);
-    if (nextBubble) currentMarker.insertBefore(nextBubble, currentMarker.firstChild);
+    // The real Naver wrapper keeps the bubble outside the popularity/category
+    // wrappers. Replace it at its existing anchor, rather than inserting a
+    // second bubble inside the image marker. Structural add/remove uses setIcon.
+    const currentBubbles = element.querySelectorAll(REVIEW_BUBBLE_SELECTOR);
+    const nextBubbles = template.content.querySelectorAll(REVIEW_BUBBLE_SELECTOR);
+    if (currentBubbles.length !== 1 || nextBubbles.length !== 1) return false;
+    // Keep the current viewport clamp until the next layout pass recalculates it.
+    if (currentBubbles[0] instanceof HTMLElement && nextBubbles[0] instanceof HTMLElement) {
+        nextBubbles[0].style.marginLeft = currentBubbles[0].style.marginLeft;
+    }
+    currentBubbles[0].replaceWith(nextBubbles[0]);
     return true;
 }
 
@@ -99,6 +113,10 @@ export class MarkerPool {
 
     /** 현재 활성화된 마커 맵 (ID → Marker) */
     private active: Map<string, PooledMarker> = new Map();
+
+    // The SDK may return a cloned descriptor. The pool owns the last applied
+    // snapshot; review patches must not depend on mutating getIcon() results.
+    private renderedIcons = new WeakMap<PooledMarker, MarkerIconLike>();
 
     /** 풀 최대 크기 (메모리 제한) */
     private readonly MAX_POOL_SIZE = 1000;
@@ -189,31 +207,11 @@ export class MarkerPool {
             }
         }
 
-        // 3. 아이콘 업데이트 (컨텐츠/앵커 비교)
-        if (!isNew) {
-            const currentIcon = marker.getIcon();
-            const currentAnchor = currentIcon?.anchor ?? null;
-            const nextAnchor = icon.anchor ?? null;
-            // content가 다르거나 anchor가 다르면 업데이트
-            const isContentDifferent = currentIcon?.content !== icon.content;
-            const isAnchorDifferent =
-                (currentAnchor?.x ?? null) !== (nextAnchor?.x ?? null) ||
-                (currentAnchor?.y ?? null) !== (nextAnchor?.y ?? null);
-
-            if (isContentDifferent || isAnchorDifferent) {
-                // A new SDK icon can replace the app root carrying the mask.
-                // Clear its ownership flag before the renderer masks the new root.
-                syncRetainedMarkerAccessibility(marker, true);
-                const element = marker.getElement();
-                const patched = !isAnchorDifferent
-                    && typeof element?.querySelector === 'function'
-                    && patchStableMarkerReviewBubble(element, icon.content);
-                if (patched && currentIcon) {
-                    currentIcon.content = icon.content;
-                } else if (!patched) {
-                    marker.setIcon(icon);
-                }
-            }
+        // 3. Keep all pooled icon writers behind the same rendered snapshot.
+        if (isNew) {
+            this.renderedIcons.set(marker, { ...icon, anchor: icon.anchor ? { ...icon.anchor } : icon.anchor });
+        } else {
+            this.applyIcon(marker, icon);
         }
 
         // 4. 이벤트 핸들러 교체 (프로퍼티 할당 O(1))
@@ -221,6 +219,29 @@ export class MarkerPool {
 
         this.active.set(id, marker);
         return marker;
+    }
+
+    private applyIcon(marker: PooledMarker, icon: MarkerIconLike): void {
+        const currentIcon = this.renderedIcons.get(marker) ?? marker.getIcon();
+        const currentAnchor = currentIcon?.anchor;
+        const nextAnchor = icon.anchor;
+        const anchorChanged = (currentAnchor?.x ?? null) !== (nextAnchor?.x ?? null)
+            || (currentAnchor?.y ?? null) !== (nextAnchor?.y ?? null);
+        if (!anchorChanged && currentIcon?.content === icon.content) return;
+
+        const element = marker.getElement();
+        const patched = !anchorChanged && typeof element?.querySelector === 'function'
+            && patchStableMarkerReviewBubble(element, currentIcon?.content, icon.content);
+        if (!patched) {
+            const wasHidden = Boolean(marker.__tzudongRetainedMarkerAriaHidden);
+            const rootReadyTarget = element?.parentElement;
+            // Keep a hidden marker's pending root registry across deferred SDK
+            // insertion; clearing visibility would cancel that observer/target.
+            if (!wasHidden) syncRetainedMarkerAccessibility(marker, true);
+            marker.setIcon(icon);
+            if (wasHidden) syncRetainedMarkerAccessibility(marker, false, rootReadyTarget);
+        }
+        this.renderedIcons.set(marker, { ...icon, anchor: icon.anchor ? { ...icon.anchor } : icon.anchor });
     }
 
     /**
@@ -302,8 +323,7 @@ export class MarkerPool {
             marker.setPosition(updates.position);
         }
         if (updates.icon) {
-            marker.setIcon(updates.icon);
-            syncRetainedMarkerAccessibility(marker, !marker.__tzudongRetainedMarkerAriaHidden);
+            this.applyIcon(marker, updates.icon);
         }
         if (updates.zIndex !== undefined) {
             marker.setZIndex(updates.zIndex);
@@ -352,6 +372,7 @@ export class MarkerPool {
 
         this.active.clear();
         this.pool = [];
+        this.renderedIcons = new WeakMap();
     }
 
     /**
