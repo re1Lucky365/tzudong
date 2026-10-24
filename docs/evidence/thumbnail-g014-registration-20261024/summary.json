@@ -1,0 +1,52 @@
+{
+  "outcome": "local_candidate_verified_operating_unapplied",
+  "tests": {
+    "finalMethods": 16,
+    "failures": 0,
+    "errors": 0,
+    "initialRuns": [
+      {
+        "receipt": "initial-boundary-fixture-failure.json",
+        "methods": 9,
+        "failures": 1,
+        "errors": 4,
+        "acceptanceEligible": false,
+        "cause": "Fixture used implicit table ACL while hosted snapshot has an explicit ACL."
+      },
+      {
+        "receipt": "initial-probe-context-failure.json",
+        "methods": 10,
+        "failures": 2,
+        "errors": 3,
+        "acceptanceEligible": false,
+        "cause": "Extracted branch probe omitted original metadata lookup variables; actual declarations/prelude were restored."
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "initial-boundary-fixture-failure.json",
+      "bytes": 2311,
+      "sha256": "b60cf48a630e090261a36a545f624ae8a3f7a100142fed9211e4fee0d356d66f"
+    },
+    {
+      "path": "initial-probe-context-failure.json",
+      "bytes": 2345,
+      "sha256": "71023ec9450fb852ca66a22e07ed91ecbd37acc89e7d0e32e8a671d36c1a1a45"
+    },
+    {
+      "path": "final-pg17.json",
+      "bytes": 3418,
+      "sha256": "b4ab33cd0a97c212f96cf336d4ab5fd3ff55f12f4da0637d5f13f3886aa773e1"
+    }
+  ],
+  "hostedWrites": 0,
+  "providerCalls": 0,
+  "limits": [
+    "Actual owned PostgreSQL 17.11 only, not hosted PG17.6.",
+    "Actual companion DO, actual queue RPC definitions and registry state; old 137 catalog identities are source-only snapshot rows.",
+    "Exact original declaration/metadata-prelude/invoker IF branch extracts are exercised for three new identities; complete G014 dependency graph is not executed.",
+    "No queue/bucket/ledger forward admission or full installation transaction is provided.",
+    "Cooperative registrations serialize; unrelated privileged DDL/writers require the separate current writer fence."
+  ]
+}
