@@ -25,7 +25,8 @@ async function bundle() {
   `;
   const built = await Bun.build({
     entrypoints: ['storyboard-count-fixture'], target: 'browser', format: 'iife', write: false,
-    define: { 'process.env.NODE_ENV': '"test"' },
+    // Isolated browser build: no Node process or operator environment is present.
+    define: { 'process.env': '{}', 'process.env.NODE_ENV': '"test"' },
     plugins: [{ name: 'storyboard-count-fixture', setup(builder) {
       builder.onResolve({ filter: /^storyboard-count-fixture$/ }, () => ({ path: 'fixture', namespace: 'fixture' }));
       builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: entry, loader: 'tsx', resolveDir: appRoot }));
