@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceRevision": "a62683bae44ce8d2036e7352f9ea7d40d8efd0e5",
+  "sourceRevision": "1ca3d984598e7caca575ceeca4118ee418da60cf",
   "reviewedSourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
   "files": [
     {
@@ -34,24 +34,39 @@
       "sha256": "2fcc009f3454d2eb0f2fc327467994f4be434ba7fca83409896c3022b8e8f0f3"
     },
     {
-      "path": "docs/evidence/formal-map-invariants-20261023-v1/artifact-map.sha256",
-      "bytes": 84,
-      "sha256": "80bc1113ecca8de769e597beb1d4d2f3a0c3fa6205f65877eadb3e3cf12aafc8"
-    },
-    {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/boundary-counterexamples.txt",
       "bytes": 3251,
       "sha256": "34658edffd3b18a8faed0c2605ccf0ff348b113d2cef8079277caf1137d3de46"
     },
     {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-after.txt",
+      "bytes": 3164,
+      "sha256": "ef16d813127a9f239c6b526455217c0e61ff76e695f4ba1822bfa5f52c752540"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-before.txt",
+      "bytes": 1821,
+      "sha256": "5b4176b643c20fd7a94db3bde8594dcc24ef2266cc3371fe29e7979806a6ac19"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-followup.json",
+      "bytes": 3646,
+      "sha256": "a057f45dde6d805f541429d93220b651df34c87e321574ae4b018012427dc509"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-parity.txt",
+      "bytes": 428,
+      "sha256": "5e9d180726647fa910a7e1e3cc090589778499806f327f66698a633b30e367ec"
+    },
+    {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/completion-manifest.json",
-      "bytes": 4508,
-      "sha256": "83d52da4988a314885db88139db363e30f36674c19b8c16a939a8c9cd3e54ba2"
+      "bytes": 4743,
+      "sha256": "e0461afb9569ca8849cf0231cef48a8f9e08ed1da4f59a98c6e00ea3613a1134"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/delta-resolution.md",
-      "bytes": 11212,
-      "sha256": "293db98248947898fb6e2e34a7c32bb3ac2255715c8ea6d2960ed772c106a16e"
+      "bytes": 12737,
+      "sha256": "d6e7a025a73357ff008fd44ec09f4cd3eee177ee59f8b05f22573c3af178d48c"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/external-review-checkpoint.json",
@@ -229,6 +244,56 @@
       "sha256": "7549fdaea4bb23290958732ca72a3d8682ce72f871d1bbd02a8d0493fbb99d08"
     },
     {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/sdk-loss-after-tests.txt",
+      "bytes": 1703,
+      "sha256": "01fbf99cbc8ad58f6f0c1551180c3229d1897244ea2b10fbc909c1622785f7fe"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/sdk-loss-followup.json",
+      "bytes": 1697,
+      "sha256": "a02f836d75c3989df322eb447ed97ce369325e593e98eaf9e1083a9dade9db02"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-audits.json",
+      "bytes": 782,
+      "sha256": "229ba6a342936e990fcc89c3406036a33c3600ccc3d2e301f1f81ca5df9c80b2"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-backend-after.txt",
+      "bytes": 1355,
+      "sha256": "bb122b10142c32bf7465bbc7abe7ed1010f2bf6d029054bb73153b2acb3a7311"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-boundary-after.txt",
+      "bytes": 1623,
+      "sha256": "a5a9e25f215981b177920e22bcb768bae255d42dd7f632bed1ab9876cae25e23"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-boundary-before.txt",
+      "bytes": 4868,
+      "sha256": "018a33ae2d03e1036842bc825b1681985d042df2f9740125e8b85d55fa23d28f"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-browser-after.txt",
+      "bytes": 3491,
+      "sha256": "0f0074260d1d9623a50e7a7fc10957bb22d7994bc88b03923334e6339764b252"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-followup.json",
+      "bytes": 4060,
+      "sha256": "d1ceebfd3e09a4125cf281d2a050712736dcdd2f455daa451b6587d11b645441"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-parity.txt",
+      "bytes": 510,
+      "sha256": "37fb6ab3b4e890c48f4b453789414525dd0fd7adb18297f51d5e0a4b2efc7772"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/security-zod-record-readback-after.txt",
+      "bytes": 351,
+      "sha256": "51111e4c40444157a57c50387986423a2212061af93a2f5233684568648cae8c"
+    },
+    {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/source_bundle.txt",
       "bytes": 374176,
       "sha256": "c3fb6be051942230565e8e551f6f9988d6c0da2175c2a9df553a5398e6865f23"
@@ -242,78 +307,28 @@
       "path": "docs/evidence/formal-map-invariants-20261023-v1/verification.json",
       "bytes": 1262,
       "sha256": "2cdf058cf42b4745eaae400b810c5ef99bded33d1e4b4478952eaa644bd00023"
-    },
-    {
-      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-followup.json",
-      "bytes": 3646,
-      "sha256": "a057f45dde6d805f541429d93220b651df34c87e321574ae4b018012427dc509"
-    },
-    {
-      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-before.txt",
-      "bytes": 1821,
-      "sha256": "5b4176b643c20fd7a94db3bde8594dcc24ef2266cc3371fe29e7979806a6ac19"
-    },
-    {
-      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-after.txt",
-      "bytes": 3164,
-      "sha256": "ef16d813127a9f239c6b526455217c0e61ff76e695f4ba1822bfa5f52c752540"
-    },
-    {
-      "path": "docs/evidence/formal-map-invariants-20261023-v1/ci-publication-version-parity.txt",
-      "bytes": 428,
-      "sha256": "5e9d180726647fa910a7e1e3cc090589778499806f327f66698a633b30e367ec"
-    },
-    {
-      "path": "docs/evidence/formal-map-invariants-20261023-v1/sdk-loss-followup.json",
-      "bytes": 1697,
-      "sha256": "a02f836d75c3989df322eb447ed97ce369325e593e98eaf9e1083a9dade9db02"
-    },
-    {
-      "path": "docs/evidence/formal-map-invariants-20261023-v1/sdk-loss-after-tests.txt",
-      "bytes": 1703,
-      "sha256": "01fbf99cbc8ad58f6f0c1551180c3229d1897244ea2b10fbc909c1622785f7fe"
     }
   ],
   "sourceFiles": [
     {
-      "path": "apps/web/lib/marker-pool.ts",
-      "bytes": 14532,
-      "sha256": "7541c064ab4190abc0fc7500ee7d5f91ac862ca4e3429b56b8b9b59659c0db4e"
+      "path": "apps/web/bun.lock",
+      "bytes": 248263,
+      "sha256": "73e0359f0c5527258e482fa407ca31d94fd44f3a34bb1b3a956bc28873af760f"
     },
     {
-      "path": "apps/web/lib/retained-marker-accessibility.ts",
-      "bytes": 3837,
-      "sha256": "a3833232541307a61e5a914ac0ad96d6c804ded7e086cf084339e68ddab76cc4"
+      "path": "apps/web/components/map/NaverMapView.tsx",
+      "bytes": 172218,
+      "sha256": "da5dd1884a9fa027027711307477723352c25781fd696498d7915954140da5b3"
     },
     {
-      "path": "apps/web/lib/naver-map-event-cleanup.ts",
-      "bytes": 1747,
-      "sha256": "ee4c8bef6103c98b75238cc45eb2f119b1f5eab01202fb44979b05007c3957d6"
+      "path": "apps/web/constants/overseas-regions.ts",
+      "bytes": 3087,
+      "sha256": "4d986e8cb4b9166ec56ed9d12b3d8d32db2ed63b861a772888c7e8b319fde4af"
     },
     {
-      "path": "apps/web/lib/youtube-url.ts",
-      "bytes": 3682,
-      "sha256": "2dfac7f47bd227540c89250229d1c9fc29eb2cdcdc0aad50e63144b783251faa"
-    },
-    {
-      "path": "apps/web/lib/evidence-engineering/popularity-marker.ts",
-      "bytes": 2969,
-      "sha256": "65fd5cc14b916e92720dfdaf81f20545b8caf3d8b3e56d9c06a4e4a9baea49d6"
-    },
-    {
-      "path": "apps/web/lib/evidence-engineering/scoring.ts",
-      "bytes": 7062,
-      "sha256": "0e3f195bf06636d6a8718378ac7a93eccbd3f439ee5d6ab5eebedbbaa6d02276"
-    },
-    {
-      "path": "apps/web/lib/evidence-engineering/frames.ts",
-      "bytes": 9618,
-      "sha256": "c2b9c3fb2fca0f6fa229aeb0c62a222f22b11441cefc40d35248e0f6ca6f3dc8"
-    },
-    {
-      "path": "apps/web/lib/evidence-engineering/guards.ts",
-      "bytes": 7046,
-      "sha256": "5ba23587a7efd71f83867875292eb0255f5d5d34daeca98ca8418623961127a4"
+      "path": "apps/web/hooks/use-restaurants.tsx",
+      "bytes": 30154,
+      "sha256": "2313e3e7f76ad9e3137bd75aac525238809c3ffa120c36e55d856dddf396b1a7"
     },
     {
       "path": "apps/web/lib/evidence-engineering/constants.ts",
@@ -326,14 +341,19 @@
       "sha256": "02bda67b89fadf3d2f5aa27f6a146c0dc746a7de1f9a6cd91dc82cf177e901c9"
     },
     {
-      "path": "apps/web/lib/evidence-engineering/types.ts",
-      "bytes": 3726,
-      "sha256": "9d64ad2c6e57bea45af5066d89a26535b616429c9032d16fccfefcdeb78bad6b"
+      "path": "apps/web/lib/evidence-engineering/frames.ts",
+      "bytes": 9618,
+      "sha256": "c2b9c3fb2fca0f6fa229aeb0c62a222f22b11441cefc40d35248e0f6ca6f3dc8"
     },
     {
-      "path": "apps/web/lib/evidence-engineering/storage-key.mjs",
-      "bytes": 226,
-      "sha256": "4f49025a1c93baf0f732e3ab57fb8b576a3857dab4d4a9910534b21358df3148"
+      "path": "apps/web/lib/evidence-engineering/guards.ts",
+      "bytes": 7046,
+      "sha256": "5ba23587a7efd71f83867875292eb0255f5d5d34daeca98ca8418623961127a4"
+    },
+    {
+      "path": "apps/web/lib/evidence-engineering/popularity-marker.ts",
+      "bytes": 2969,
+      "sha256": "65fd5cc14b916e92720dfdaf81f20545b8caf3d8b3e56d9c06a4e4a9baea49d6"
     },
     {
       "path": "apps/web/lib/evidence-engineering/published-popularity.ts",
@@ -341,94 +361,24 @@
       "sha256": "84ee9979ace9756456178449f6d831fe796cee0d68d66e155fc127aaef4163f1"
     },
     {
-      "path": "apps/web/scripts/build-public-popularity.ts",
-      "bytes": 5900,
-      "sha256": "566113925e5c6a8598b28be3bf84ef53e7e525c4d727977475d8693082bb7eeb"
+      "path": "apps/web/lib/evidence-engineering/scoring.ts",
+      "bytes": 7062,
+      "sha256": "0e3f195bf06636d6a8718378ac7a93eccbd3f439ee5d6ab5eebedbbaa6d02276"
     },
     {
-      "path": "apps/web/hooks/use-restaurants.tsx",
-      "bytes": 30154,
-      "sha256": "2313e3e7f76ad9e3137bd75aac525238809c3ffa120c36e55d856dddf396b1a7"
+      "path": "apps/web/lib/evidence-engineering/storage-key.mjs",
+      "bytes": 226,
+      "sha256": "4f49025a1c93baf0f732e3ab57fb8b576a3857dab4d4a9910534b21358df3148"
     },
     {
-      "path": "apps/web/types/restaurant.ts",
-      "bytes": 3942,
-      "sha256": "ef43ac1b93a751cb03fed1fcabecacf21d245e0b54f47a66dd67639c34ebd94b"
+      "path": "apps/web/lib/evidence-engineering/types.ts",
+      "bytes": 3726,
+      "sha256": "9d64ad2c6e57bea45af5066d89a26535b616429c9032d16fccfefcdeb78bad6b"
     },
     {
-      "path": "apps/web/lib/overseas-region-matching.ts",
-      "bytes": 2650,
-      "sha256": "35333c22a6a6b677a7612ffe461774a54a84f9a8c6fa3e324885104a8d072c4f"
-    },
-    {
-      "path": "apps/web/constants/overseas-regions.ts",
-      "bytes": 3087,
-      "sha256": "4d986e8cb4b9166ec56ed9d12b3d8d32db2ed63b861a772888c7e8b319fde4af"
-    },
-    {
-      "path": "apps/web/tests-formal/marker-state-model.test.mjs",
-      "bytes": 14175,
-      "sha256": "160f8b703aa906a01e03008980429aea859b1b222c17003740d8658322f9cc47"
-    },
-    {
-      "path": "apps/web/scripts/verify-marker-formal.mjs",
-      "bytes": 8356,
-      "sha256": "53c6676d8f9bbc357a6e1df273892cb7723aba9dcc1a218aeef0807fc8e202a9"
-    },
-    {
-      "path": "apps/web/tests-unit/evidence-numeric-bounds.test.ts",
-      "bytes": 1575,
-      "sha256": "7bccbf8f20109bc5b87f1d77a6687167f12e988d0040523f6fe5a0c152298d02"
-    },
-    {
-      "path": "apps/web/tests-unit/popularity-input-boundary.test.ts",
-      "bytes": 5525,
-      "sha256": "9b2b12533448cbb60b92adfaf27d6e559afb78868fc2d860a34a20c536c43d78"
-    },
-    {
-      "path": "apps/web/tests-unit/evidence-cohort-shadow.test.ts",
-      "bytes": 1995,
-      "sha256": "abce3ecd887e5fbb89bbac7715a9ce71753935367a502e6ec96f464eee585dac"
-    },
-    {
-      "path": "apps/web/package.json",
-      "bytes": 7264,
-      "sha256": "a434a12086453effcdc577a0c04c5e213037b327ba04b29f48b5d1bc65a0aad5"
-    },
-    {
-      "path": "apps/web/tsconfig.json",
-      "bytes": 1368,
-      "sha256": "cdbd2b57d55c77ea1ef2b81124b7007fec7df15d55cc917c8c9eca5704234c49"
-    },
-    {
-      "path": "apps/web/components/map/NaverMapView.tsx",
-      "bytes": 172218,
-      "sha256": "da5dd1884a9fa027027711307477723352c25781fd696498d7915954140da5b3"
-    },
-    {
-      "path": "apps/web/lib/visible-marker-review-bubbles.ts",
-      "bytes": 11862,
-      "sha256": "96ab311a5582f4498d13da0347973ba94cad2575418394f78036501b99218ddb"
-    },
-    {
-      "path": "apps/web/lib/review-photo-url.ts",
-      "bytes": 14933,
-      "sha256": "811a669cada5b4938afc012a2e0f26ca82e080522306cfd424c2892cb979187e"
-    },
-    {
-      "path": "apps/web/lib/profile-avatar-url.ts",
-      "bytes": 9151,
-      "sha256": "cc3c22cea33d2e2ea89ab52e3264baac3b406956aac2dbc4b671a07fe219a039"
-    },
-    {
-      "path": "apps/web/lib/naver-map-marker-visuals.ts",
-      "bytes": 9365,
-      "sha256": "6b73821b062691fc9d1139448bca5ff7c690379e1ba9e50322f8b7c3a9ac83b8"
-    },
-    {
-      "path": "apps/web/tests-unit/visible-marker-review-bubbles.test.ts",
-      "bytes": 3456,
-      "sha256": "de9884b661b31e3b06274eb1c17fa5ea176b73d2f557a529d7e4333178b6391e"
+      "path": "apps/web/lib/marker-pool.ts",
+      "bytes": 14532,
+      "sha256": "7541c064ab4190abc0fc7500ee7d5f91ac862ca4e3429b56b8b9b59659c0db4e"
     },
     {
       "path": "apps/web/lib/naver-map-cluster-visuals.ts",
@@ -436,19 +386,99 @@
       "sha256": "e6827ce69615a202ca866aa5ced193b78d8b16c3ab9f44d3abb665e7b94f4d92"
     },
     {
-      "path": "apps/web/tests-unit/marker-pool.test.ts",
-      "bytes": 17824,
-      "sha256": "68303094ee4dae127b3a0b9483169dccf02e5b4e17642f967830911c96400fa6"
+      "path": "apps/web/lib/naver-map-event-cleanup.ts",
+      "bytes": 1747,
+      "sha256": "ee4c8bef6103c98b75238cc45eb2f119b1f5eab01202fb44979b05007c3957d6"
     },
     {
-      "path": "apps/web/tests-unit/retained-marker-accessibility.test.ts",
-      "bytes": 8292,
-      "sha256": "e0b3266209b2943eccc7672b3597db10df4faf358b304e3f1440235ea74fd1e3"
+      "path": "apps/web/lib/naver-map-marker-visuals.ts",
+      "bytes": 9365,
+      "sha256": "6b73821b062691fc9d1139448bca5ff7c690379e1ba9e50322f8b7c3a9ac83b8"
     },
     {
-      "path": "apps/web/tests-unit/naver-map-cluster-visuals.test.ts",
-      "bytes": 5142,
-      "sha256": "dee3a5c6fbeb08d7d527aec187b32ac81a115cf55e692a0fe3808363c27a82e2"
+      "path": "apps/web/lib/overseas-region-matching.ts",
+      "bytes": 2650,
+      "sha256": "35333c22a6a6b677a7612ffe461774a54a84f9a8c6fa3e324885104a8d072c4f"
+    },
+    {
+      "path": "apps/web/lib/profile-avatar-url.ts",
+      "bytes": 9151,
+      "sha256": "cc3c22cea33d2e2ea89ab52e3264baac3b406956aac2dbc4b671a07fe219a039"
+    },
+    {
+      "path": "apps/web/lib/retained-marker-accessibility.ts",
+      "bytes": 3837,
+      "sha256": "a3833232541307a61e5a914ac0ad96d6c804ded7e086cf084339e68ddab76cc4"
+    },
+    {
+      "path": "apps/web/lib/review-photo-url.ts",
+      "bytes": 14933,
+      "sha256": "811a669cada5b4938afc012a2e0f26ca82e080522306cfd424c2892cb979187e"
+    },
+    {
+      "path": "apps/web/lib/visible-marker-review-bubbles.ts",
+      "bytes": 11862,
+      "sha256": "96ab311a5582f4498d13da0347973ba94cad2575418394f78036501b99218ddb"
+    },
+    {
+      "path": "apps/web/lib/youtube-url.ts",
+      "bytes": 3682,
+      "sha256": "2dfac7f47bd227540c89250229d1c9fc29eb2cdcdc0aad50e63144b783251faa"
+    },
+    {
+      "path": "apps/web/package-lock.json",
+      "bytes": 503832,
+      "sha256": "e161fb64f78d4105f5077bce74fb63c1651672cfa4923d79c11d19b06e52ae8d"
+    },
+    {
+      "path": "apps/web/package.json",
+      "bytes": 7264,
+      "sha256": "5fe39c74cda34f0a121a3a158625b02ef3de136c3628f96fee2cd0c6accffc19"
+    },
+    {
+      "path": "apps/web/scripts/build-public-popularity.ts",
+      "bytes": 5900,
+      "sha256": "566113925e5c6a8598b28be3bf84ef53e7e525c4d727977475d8693082bb7eeb"
+    },
+    {
+      "path": "apps/web/scripts/verify-marker-formal.mjs",
+      "bytes": 8356,
+      "sha256": "53c6676d8f9bbc357a6e1df273892cb7723aba9dcc1a218aeef0807fc8e202a9"
+    },
+    {
+      "path": "apps/web/tests-formal/marker-state-model.test.mjs",
+      "bytes": 14175,
+      "sha256": "160f8b703aa906a01e03008980429aea859b1b222c17003740d8658322f9cc47"
+    },
+    {
+      "path": "apps/web/tests-unit/admin-detail-close-focus-browser.test.ts",
+      "bytes": 7881,
+      "sha256": "4874bd723e16b00dca0f3c5c86934ada90a35c4f67fb9db4270a596ec0660ca1"
+    },
+    {
+      "path": "apps/web/tests-unit/admin-record-action-failure-once-browser.test.ts",
+      "bytes": 11064,
+      "sha256": "f9feb84f45694cbb058d3d83eccb036c32bdc17abc4ea16cfbf01cbc9f0bb783"
+    },
+    {
+      "path": "apps/web/tests-unit/admin-storyboard-unknown-count-browser.test.ts",
+      "bytes": 4729,
+      "sha256": "2c87a824284f9cdfef872641fee05c6c46a75448603605a972015be6ae230a93"
+    },
+    {
+      "path": "apps/web/tests-unit/admin-storyboard-worker-visible-status-browser.test.ts",
+      "bytes": 5624,
+      "sha256": "06ccb04bb53c241a6e5c2905f4558fcfb469db0ff32359df686ef3f93ff7b237"
+    },
+    {
+      "path": "apps/web/tests-unit/evidence-cohort-shadow.test.ts",
+      "bytes": 1995,
+      "sha256": "abce3ecd887e5fbb89bbac7715a9ce71753935367a502e6ec96f464eee585dac"
+    },
+    {
+      "path": "apps/web/tests-unit/evidence-numeric-bounds.test.ts",
+      "bytes": 1575,
+      "sha256": "7bccbf8f20109bc5b87f1d77a6687167f12e988d0040523f6fe5a0c152298d02"
     },
     {
       "path": "apps/web/tests-unit/evidence-publication-runtime.test.ts",
@@ -456,14 +486,105 @@
       "sha256": "d9c475863c41902724e8309ea5893e3bfbd81109ba83470b13c44226adec4b01"
     },
     {
+      "path": "apps/web/tests-unit/local-storyboard-catalog-error-browser.test.ts",
+      "bytes": 7813,
+      "sha256": "474ef3f3afea7463743b5dcfc9d7000159b229a3f867ea2cae383de7d3c4d4cd"
+    },
+    {
+      "path": "apps/web/tests-unit/local-storyboard-control-focus-browser.test.ts",
+      "bytes": 6438,
+      "sha256": "659f0a00fd445121847756f03c768d1e0811025e84b2ff61c8915d1eede49428"
+    },
+    {
+      "path": "apps/web/tests-unit/local-storyboard-departure-browser.test.ts",
+      "bytes": 18016,
+      "sha256": "c1111a3e91f45c465ba3666ec5285384b59afde6395e318c45111b6eba317dda"
+    },
+    {
+      "path": "apps/web/tests-unit/local-storyboard-history-focus-browser.test.ts",
+      "bytes": 13440,
+      "sha256": "72843ddc04e3bd83aaa4a36ea706517ddf9175fdbb41e60f648339fe8ecd5d82"
+    },
+    {
+      "path": "apps/web/tests-unit/local-storyboard-project-refresh-focus-browser.test.ts",
+      "bytes": 8406,
+      "sha256": "b8b82b95111a7a6b28b003f448fc94e8be7e22e1f15df7c634ecf88f33ec685b"
+    },
+    {
+      "path": "apps/web/tests-unit/local-storyboard-worker-refresh-browser.test.ts",
+      "bytes": 5678,
+      "sha256": "55bd2fa6dcc2d0cf2b18576706354a9b2bdefdafd794fd7076ddcbc8423dd82b"
+    },
+    {
+      "path": "apps/web/tests-unit/marker-pool.test.ts",
+      "bytes": 17824,
+      "sha256": "68303094ee4dae127b3a0b9483169dccf02e5b4e17642f967830911c96400fa6"
+    },
+    {
+      "path": "apps/web/tests-unit/naver-map-cluster-visuals.test.ts",
+      "bytes": 5142,
+      "sha256": "dee3a5c6fbeb08d7d527aec187b32ac81a115cf55e692a0fe3808363c27a82e2"
+    },
+    {
       "path": "apps/web/tests-unit/naver-map-sdk-loss.test.ts",
       "bytes": 3271,
       "sha256": "624f75931280b2c9daa5dcbcefe41e2024a7f725f37cb9adb257781f0c27d474"
+    },
+    {
+      "path": "apps/web/tests-unit/popularity-input-boundary.test.ts",
+      "bytes": 5525,
+      "sha256": "9b2b12533448cbb60b92adfaf27d6e559afb78868fc2d860a34a20c536c43d78"
+    },
+    {
+      "path": "apps/web/tests-unit/retained-marker-accessibility.test.ts",
+      "bytes": 8292,
+      "sha256": "e0b3266209b2943eccc7672b3597db10df4faf358b304e3f1440235ea74fd1e3"
+    },
+    {
+      "path": "apps/web/tests-unit/storyboard-project-library-browser.test.ts",
+      "bytes": 14700,
+      "sha256": "f3d073f6502f460fdbbad3e8aba703c3656696d29c9187d3773314c0ecc89676"
+    },
+    {
+      "path": "apps/web/tests-unit/visible-marker-review-bubbles.test.ts",
+      "bytes": 3456,
+      "sha256": "de9884b661b31e3b06274eb1c17fa5ea176b73d2f557a529d7e4333178b6391e"
+    },
+    {
+      "path": "apps/web/tests-unit/zod-collection-size-boundary.test.ts",
+      "bytes": 1864,
+      "sha256": "a54bcff00f2a4efd7e28504035ec5c70738a6cbbbce71a09b9095c6cd85285c2"
+    },
+    {
+      "path": "apps/web/tsconfig.json",
+      "bytes": 1368,
+      "sha256": "cdbd2b57d55c77ea1ef2b81124b7007fec7df15d55cc917c8c9eca5704234c49"
+    },
+    {
+      "path": "apps/web/types/restaurant.ts",
+      "bytes": 3942,
+      "sha256": "ef43ac1b93a751cb03fed1fcabecacf21d245e0b54f47a66dd67639c34ebd94b"
+    },
+    {
+      "path": "backend/bin/tests/node-dependency-compatibility.test.mjs",
+      "bytes": 9538,
+      "sha256": "d7932a181e050488286285b65f2e8875af9000db617b4caede0ae3c8d3c75080"
+    },
+    {
+      "path": "backend/package-lock.json",
+      "bytes": 89955,
+      "sha256": "b7838f95e50d29dfa929ddf6d6ee7eca3beaf710cdf0159b1c3d32b23bb8e14c"
+    },
+    {
+      "path": "backend/package.json",
+      "bytes": 591,
+      "sha256": "de686dcad2bd1fbeaf4cee88cef598d5c1e03980a98fbd88072635b74397dc7f"
     }
   ],
   "scope": "Supplied-scope ordinary delta and native fixes complete at a1dd; routine CI expectation fix at ciTestRevision. New exact-head CI, hosted SDK/UI, protected release and Nightly remain separate.",
   "selfReference": "artifact-map.json and its detached digest are intentionally excluded to avoid a circular or stale digest claim",
   "ciTestRevision": "1c0461bb114e9f6085d33c85a0eb911d0a98cab9",
   "formalRuntimeRevision": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
-  "priorDeliveryMapSha256": "d89227abc214f5aa132d7b2d061eee85b5eb2cef39338b4a3c3475a5c71914eb"
+  "priorDeliveryMapSha256": "143b2173c4598d7e7433950cc71e98635ad9c1d6dcafef4375313e4ead3a4714",
+  "securityRevision": "1ca3d984598e7caca575ceeca4118ee418da60cf"
 }
