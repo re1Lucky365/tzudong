@@ -43,7 +43,8 @@ createRoot(document.getElementById('root')).render(<LocalStoryboardWorkspace />)
 `;
   const bundle = await Bun.build({
     entrypoints: ['storyboard-catalog-fixture'], target: 'browser', format: 'iife', write: false,
-    define: { 'process.env.NODE_ENV': '"test"' },
+    // Isolated browser build: no Node process or operator environment is present.
+    define: { 'process.env': '{}', 'process.env.NODE_ENV': '"test"' },
     plugins: [{ name: 'offline-storyboard', setup(builder) {
       builder.onResolve({ filter: /^storyboard-catalog-fixture$/ }, () => ({ path: 'fixture.tsx', namespace: 'fixture' }));
       builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: fixture, loader: 'tsx', resolveDir: join(import.meta.dir, '..') }));

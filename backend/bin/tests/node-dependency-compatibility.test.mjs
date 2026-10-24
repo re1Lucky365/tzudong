@@ -11,7 +11,9 @@ const backendRoot = fileURLToPath(new URL('../../', import.meta.url));
 // Stage the actual callers with their local imports. Never load an operator's
 // .env, start a browser, or contact a provider/database during these checks.
 function stage(t, entry) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'node-dependency-compatibility-'));
+  // macOS /var is a symlink. Match Node's canonical import.meta.url path so
+  // the copied callers' direct-entry guards actually execute their main.
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'node-dependency-compatibility-')));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const copied = new Set();
   function copy(relativePath) {

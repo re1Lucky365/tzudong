@@ -93,7 +93,7 @@ export function RestaurantEvidenceCarousel({ frames }: { frames: readonly Restau
       {visible.some((frame) => !isLevel1SourceObserved(frame)) && (
         <p className="mb-2 text-xs text-muted-foreground">현장 장면은 영상의 맥락을 보여주며, 매장 신원을 확인하는 간판·매장 안내와 구분해요.</p>
       )}
-      <div className="flex gap-3 overflow-x-auto pb-2" tabIndex={0} aria-label="영상 장면 가로 스크롤">
+      <div className="flex gap-3 overflow-x-auto pb-2" tabIndex={0} role="region" aria-roledescription="carousel" aria-label="영상 장면 가로 스크롤">
         {visible.map((frame) => {
           const presentation = publicFramePresentation(frame);
           return (
