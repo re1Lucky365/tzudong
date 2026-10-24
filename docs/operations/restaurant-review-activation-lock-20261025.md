@@ -4,6 +4,8 @@
 
 운영 소스 `6ccd33d5ccc09e607e8053a883087a9d0f3eab77` / 배포 `dpl_4ppHwfZBk4yaiVCEAoG2Y1aaZqoU`에서 기존 한도 50/50의 후보 미리보기는 성공했지만 자동 승인 시작 요청 1회는 고정 오류로 끝났다. 같은 요청을 재전송하지 않았다. 2026-10-24T15:40:36.531Z의 인증된 브라우저 GET 재조회는 `enabled=false`, `version=1`, 회당 50·하루 50, 정책 이벤트 0, 대기/실행/실패 큐 각각 0이었다. 실제 HTTP 오류 상태는 확보하지 못했다. 이 관측은 비활성 상태의 증거이며 불확실한 요청의 범용 rollback 증명은 아니다.
 
+PostgreSQL 17에서 행 잠금 절은 SELECT에 더해 UPDATE 권한을 요구한다. FOR SHARE로 바꿔도 이 권한 조건은 남는다. [공식 SELECT 문서](https://www.postgresql.org/docs/17/sql-select.html)
+
 서비스 역할은 revision 테이블의 SELECT만 허용받고 UPDATE는 거부된다. 기존 `SECURITY INVOKER` configure는 이 역할로 revision 행에 `FOR UPDATE`를 실행한다. 기존 수동 검수는 이미 설치된 무인자·고정 행 잠금 helper를 호출한다. helper는 postgres 소유 SECURITY DEFINER, 빈 search_path, 잠금 timeout 2초이며 PUBLIC/anon/authenticated에는 실행 권한이 없다.
 
 실제 운영 catalog와 PG17.6 재현의 configure·helper·bump 본문 SHA가 일치했다. bump는 `ed162268…`이며 별도의 safeupdate forward는 이 작업에서 실행하지 않았다. 운영 사용자 행은 복사하지 않았다.
@@ -59,3 +61,13 @@ stateDiagram-v2
 새 [disabled 설치 manifest](../../.github/review-activation-lock-installation.v1.json)는 운영 RR/RO catalog 관측의 16개 필드에 결속한다. clone과 function/assertion metadata는 모두 같았고, ledger 상태 외에는 `rolesDigest`·`defaultAclDigest`가 달랐다. 새 manifest는 실제 운영 digest를 보존하며 clone에 맞추는 DDL을 하지 않는다. 미래 prior91 digest는 앞선 read-only 계산에 결속한다. 실제 운영91 관측과 새 실행 admission은 여전히 필요하다. Root는 해당 manifest와 정확한 candidate에서 공식 parser/compiler를 별도 inspect해 4문장·vector·91→92 계약을 확인했다(DB 호출 0).
 
 현재 기본 migration/thumbnail/budget caller는 새 manifest를 허용하지 않는다. 과거 caller에 override를 넣거나 manifest를 true로 바꾸는 방법으로 적용하지 않는다. 별도 source-bound 단일 attempt 실행과 독립 reconciliation을 준비한 뒤 보호 브랜치·선행91·fresh 운영 검사를 거쳐 적용한다. 적용되지 않은 source 후보와 로컬 검증 결과를 운영 완료로 표시하지 않는다.
+
+## 고정 운영 caller 구현
+
+새 [caller](../../apps/web/scripts/review-activation-production-successor.mjs), [collector](../../apps/web/scripts/review-activation-operating-collector.mjs), [별도 release admission](../../.github/review-activation-production-successor.v1.json)을 구현했다. 원본 disabled manifest와 frozen caller는 보존한다. 새 release도 protected main·현재 인증 owner·정확한 source/target/vector·15분 admission·60초 privileged-writer fence가 없으면 실행하지 않는다.
+
+prepare만 원래 budget attempt의 ledger91 committed reconciliation을 호출하고 원래 admission·전체 journal·첫 journal 항목의 SHA를 새 선행 영수증에 결속한다. activation의 ledger92 reconciliation은 보존한 영수증을 읽으며 budget caller를 다시 부르지 않는다. native OS HOME의 고정 custody를 exclusive private 파일·부모 fsync로 발행하고, durable 시작 journal 이후 단일 전송만 허용한다. ACK 유실·불완전 publication·부분 journal append는 삭제·덮어쓰기·재전송 사유가 되지 않는다. CLI path/SQL/transport override와 자동 writer resume는 없다.
+
+영향 suite **23 tests / 272 assertions / 0 failures**가 통과했다. 실제 parser/compiler·파일·fsync·admission 검증을 사용했고 owner/source/transport는 테스트 DI다. 새 코드 3파일 lint와 Node24의 두 script syntax 검사도 통과했다. Root는 실제 loader/release inspect를 독립 확인했다(DB 호출 0). 이 검증은 운영 전송과 운영 caller의 실제 admission/readback 증거가 아니다.
+
+재현 명령: `apps/web`에서 `bun test tests-unit/review-activation-production-successor.test.ts`. 기존 passing PG 검증은 새 caller 검증 때 반복하지 않았다. 별도의 guarded 운영 전송·독립 reconciliation·UI 활성화 결과는 실행 후 추가한다.
