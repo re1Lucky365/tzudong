@@ -149,3 +149,22 @@ Root는 migration delta가 prior/terminal의 raw ACL 세 cell씩뿐임을 독립
 CI의 GitGuardian 탐지 `38946321`은 CLI 입력 비노출 테스트의 모의 표식 하나를 가리켰다. 실행 자격증명은 없으며 표식을 자격증명 형태가 없는 canary로 바꿨다. 변경 후 해당 테스트 **1개 / 9 assertions**가 통과했다. 이는 기존 22개에 포함되며 합산하지 않는다. 기존 탐지를 예외 처리하거나 보안 검사를 변경하지 않았다.
 
 사용자가 현재 채팅에서 탐지 `#38946321` 한 건만 허용한 뒤, GitGuardian에서 `This is a test credential` 사유를 적용했다. 동일 incident를 새로고침해 `Ignored`·`Test credential`·`Reopen` 상태를 독립 확인했다. 다른 탐지나 보안 설정은 바꾸지 않았고 workflow를 재실행하지 않았다. 이 저장 영수증과 기존 head의 CI 체크 결과는 구분한다.
+
+## 2026-10-25 운영 적용 — 원장 90→91 확정
+
+위의 미적용·준비 상태와 로컬 검증은 각 단계의 이력으로 보존한다. 이후 정상 보호 브랜치 승격은 [PR #3519](https://github.com/twoimo/tzudong/pull/3519)의 develop `c336aadc4011750c5151274cfd041f78d4a6894d`, [PR #3520](https://github.com/twoimo/tzudong/pull/3520)의 data `9af12489c0c2392ab737d8cc7fe12d9b9c4455a2`, [PR #3521](https://github.com/twoimo/tzudong/pull/3521)의 main `7b287e2d4f74f5ab81ea811e2499aecda146b790` 순서로 완료됐다. 실제 GitHub 조회에서 main의 source tree는 `81afa98720043e3c45c8da710760d3bd24a03ad4`였고 세 PR의 필수 Release·Promotion Path 체크는 성공했다. 재사용한 보호 승격 조회 영수증 SHA-256은 `f160f5245c687302dd1f0dac6b5459f6e43fbc3338558edae07aa7601eb2387a`다. 선택 CI 일부는 그 조회 시점에도 진행 중이었으므로 전체 CI 완료로 확대하지 않는다.
+
+같은 main 소스에서 고정 operating manifest `fdc67b1d2a8b1a69bae70b75c659eb3726a423c13c00dbbe1f7c1ee50b44dfd9`에 결속한 native caller를 실행했다. 원래 attempt는 `3bfe3ef2-c133-4b7a-b341-8c61f1174642`다. 2026-10-25 **01:35:17–01:35:33 KST**의 apply가 `status=committed`, `code=PROVIDER_BUDGET_COMMITTED`로 끝났고, **01:36:26–01:36:28 KST**의 별도 read-only reconcile은 같은 attempt에 대해 `status=reconciliation`, `disposition=committed`를 반환했다. 두 실행 모두 exit 0, `replayAllowed=false`다. 이는 해당 manifest의 정확한 **원장 90→91 terminal**에 결속된 운영 적용·독립 확인이며, 앞선 clone 시험의 횟수와 합산하지 않는다.
+
+| 운영 영수증 | SHA-256 |
+| --- | --- |
+| 원래 attempt의 native apply | `1283d1827cf009ca937ac5af0c7fc25f1d8b1f875c141f7fd653726ee16e4b83` |
+| 같은 attempt의 독립 read-only reconcile | `dff7a86d49b991dc1587735d39552d26df06d72246cc04816a42fa657bfaad61` |
+
+원본 영수증의 바이트 해시·attempt·결과를 직접 대조했다. 각 영수증은 provider 호출 0과 raw diagnostics 미보존을 기록한다. 원본 private 경로와 자격증명은 공개 문서에 옮기지 않는다. immutable draft/operating manifest의 비활성 표시는 그대로 두며 실제 적용 상태는 별도 release와 이 운영 영수증으로 구분한다.
+
+이후 [activation lock forward](restaurant-review-activation-lock-20261025.md#2026-10-25-운영-적용--원장-9192-확정)가 원장을 **92**로 진행했다. 원장 90·91을 exact terminal로 요구하는 이전 thumbnail/budget reconcile을 현재 원장에 다시 호출하지 않는다. 원래 admission·journal·committed 영수증을 보존하며 새 attempt로 재전송하거나 과거 결과를 덮지 않는다. 이 문서 갱신에서는 운영 명령을 다시 실행하지 않았다.
+
+운영 SQL 적용과 웹·UI 완료는 별개다. 이 절 작성 시 전달된 main `7b287e2d…` 웹 배포 상태는 아직 `BUILDING`이며, 마지막 UI 상태는 `enabled=false`, `version=1`, 회당 50·하루 50이다. 웹 배포 완료·해당 소스의 실제 응답·새 미리보기 후 UI 활성화와 독립 상태 조회는 후속 작업으로 남긴다. 공급자 성공이나 실제 동선 추천 복구도 이 SQL 영수증만으로 확정하지 않는다. 외부 Pro→Gemini→Pro 검토는 기존 예약을 보존한 채 미완료이며, 정량 개선이나 95% 신뢰구간은 주장하지 않는다.
+
+이후 2026-10-25 01:55:57 KST에 main `7b287e2d…`의 배포 READY·운영 도메인·실제 health 응답을 확인했고 새 미리보기 후 자동 승인을 활성화했다. 별도 정책 조회는 true/version2/50·50/이벤트1이었다. [상세 결과](restaurant-review-activation-lock-20261025.md#웹-배포와-실제-활성화-확인)와 [최소 운영 영수증](../evidence/provider-review-operating-20261025/operating-readback.json)을 참조한다. 이 결과를 실제 provider 호출·검수 처리·동선 추천 성공으로 확대하지 않는다.
