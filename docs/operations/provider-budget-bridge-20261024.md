@@ -147,3 +147,5 @@ custody evidence는 `privilegedCatalogWriters=controlled`, `basis=authenticated-
 Root는 migration delta가 prior/terminal의 raw ACL 세 cell씩뿐임을 독립 비교했고, 실제 loader/parser/compiler와 고정 v2 release를 inspect 모드에서 확인했다. 최종 영향 suite는 **22 tests / 253 assertions / 0 failures**이며 앞선 20개와 합산하지 않는다. PG17.6의 90→91·rollback·권한 120개 비교는 로컬 clone 증거다. 독립 검토와 fresh prior가 운영 적용 완료를 뜻하지 않는다.
 
 CI의 GitGuardian 탐지 `38946321`은 CLI 입력 비노출 테스트의 모의 표식 하나를 가리켰다. 실행 자격증명은 없으며 표식을 자격증명 형태가 없는 canary로 바꿨다. 변경 후 해당 테스트 **1개 / 9 assertions**가 통과했다. 이는 기존 22개에 포함되며 합산하지 않는다. 기존 탐지를 예외 처리하거나 보안 검사를 변경하지 않았다.
+
+사용자가 현재 채팅에서 탐지 `#38946321` 한 건만 허용한 뒤, GitGuardian에서 `This is a test credential` 사유를 적용했다. 동일 incident를 새로고침해 `Ignored`·`Test credential`·`Reopen` 상태를 독립 확인했다. 다른 탐지나 보안 설정은 바꾸지 않았고 workflow를 재실행하지 않았다. 이 저장 영수증과 기존 head의 CI 체크 결과는 구분한다.
