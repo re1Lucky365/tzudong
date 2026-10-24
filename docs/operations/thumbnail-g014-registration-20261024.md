@@ -119,3 +119,40 @@ native 독립 검토는 실제 Pro → Gemini → Pro 외부 검토가 아니다
 추가 메타데이터 비교에는 명시적 한계가 있다. 같은 caller/deparser 문맥에서 attribute **2,497행 중 2,496행이 일치**했고, 비보호 index 한 건의 과거 표시 열 이름 `admin_id`가 현재 table 열 이름 `created_by`로 복원됐다. 원본과 index DDL은 같고 해당 index는 보호 relation에 포함되지 않는다. 이 차이를 registry 투영이나 원본 catalog 수정으로 숨기지 않았으며 **물리 catalog 전체의 동일성은 주장하지 않는다**. 보호 manifest 1,963행의 무수정 전체 검사는 별도로 통과했다.
 
 소유 컨테이너는 검사 후 정지하고 volume과 실패 입력을 보존했다. 기본 Docker context와 기존 Colima 설정은 보존했으며 다른 소유자의 컨테이너를 직접 시작·중지하지 않았다. source 복원기의 mode 순서·endpoint 고정·GUC 표현·legacy version·psql meta-command 줄바꿈 오류와 dump 표현 차이는 제품 결함·운영 변경과 구분한다. 실제 네트워크 ACK 유실, Storage HTTP/서명 URL, provider 생성·worker provisioning·hosted 적용은 이 리허설의 증거가 아니다. 결정적 상태 검사에 95% 모집단 구간이나 속도·비용 절감률을 부여하지 않는다.
+
+## 후속: thumbnail 전용 고정 caller — 운영 held
+
+[새 caller](../../apps/web/scripts/thumbnail-production-successor.mjs)와 [20개 검사](../../apps/web/tests-unit/thumbnail-production-successor.test.ts)를 추가했다. 기존 frozen release loader·manifest·applied migration은 수정하지 않았다. 기존 statement parser·transaction compiler·target verifier·psql runner를 재사용하며 draft의 SQL 43문장·원래 vector·6개 구성요소와 직접 사용 helper의 byte hash를 확인한다. 기존 draft는 여전히 `executionEnabled=false`다.
+
+별도 고정 release 계약은 `.github/thumbnail-production-successor.v1.json`, canonical bytes SHA `2e4b3db3390d55a36f7e30c3d303ae7f32f2a973dafb5c737bd25eb43353c4c8`이다. **그 파일과 실제 owner workflow/collector는 아직 만들지 않았다.** 현재 실제 CLI `--mode inspect`는 hash/vector를 검사하고 `held`를 반환한다. 테스트에서 별도 release의 정확한 byte 검증을 통과시킨 실행 분기를 검사한 것이 운영 실행 허용을 뜻하지 않는다.
+
+후속 release 경로는 protected main과 clean detached checkout·현재 원격 main 일치, 정확한 owner workflow, 15분 admission, 60초 이내 thumbnail/Storage/G014 범위 fence를 요구한다. 예전 review-media serializer와 **동일 advisory key**를 같은 적용 transaction에서 획득하고 원래 compiler의 ledger lock 아래 사전 상태를 다시 검사한다. 이 협력 lock은 외부 writer가 실제 중지됐다는 증거가 아니다.
+
+전송 전 private journal을 `O_EXCL`로 만들고 파일과 부모 directory를 fsync한다. 그 이후 오류·ACK 유실·append 실패는 시도를 소모한 상태로 남겨 재시작이나 새 attempt ID로도 두 번째 mutation 전송을 하지 않는다. 정확한 committed readback을 얻어도 transport ACK가 없으면 자동 성공으로 바꾸지 않는다. 새 process는 admission·SQL·최초 journal binding을 검증하고 읽기 reconciliation만 수행한다. 다른 ledger 행이 추가되면 전체 종료 상태 불일치를 conflict로 취급한다.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Held
+    Held --> Admitted: 고정 release·source·owner·현재 fence 검증
+    Admitted --> Published: journal 배타 생성 + file/parent fsync
+    Admitted --> Rejected: 사전 상태·현재 근거 불일치
+    Published --> Sent: source/fence 재검증 후 한 번 전송
+    Published --> Unconfirmed: 재검증·journal 실패
+    Sent --> Committed: ACK + 독립 exact committed readback
+    Sent --> NotApplied: 독립 exact prior readback
+    Sent --> Conflict: 원장·종료 상태 불일치
+    Sent --> Unconfirmed: ACK 유실·조회 불명·append 실패
+    Published --> ReadOnlyReconcile: 재시작·기존 journal
+    Unconfirmed --> ReadOnlyReconcile: 원래 attempt 결속 확인
+    NotApplied --> ReadOnlyReconcile: 재전송 금지
+    Conflict --> ReadOnlyReconcile: 재전송 금지
+    Committed --> ReadOnlyReconcile: 상태 확인만
+```
+
+그림은 실제 `runThumbnailSuccessor`·`journalStart`·`thumbnailApplySql`·`readReconciliation` 경계를 보여 주며 형식 증명이나 liveness 보장이 아니다. 파일 발행과 DB commit은 서로 다른 원자적 경계다. “같은 영속 custody에서 journal 발행 후 mutation 전송 최대 1회”라는 안전 성질을 아래 한정된 실제 코드 검사로 확인했다. 신뢰된 운영자가 custody를 삭제하거나 다른 host로 옮기지 않는다는 전제가 있으며, 모든 host의 전역 exactly-once나 eventual completion을 주장하지 않는다.
+
+[새 영수증](../evidence/thumbnail-g014-registration-20261024/successor-caller-local.json): root 독립 재실행 **20 pass·0 fail·157 assertions**, Node24.22.0 syntax/inspect, 대상 ESLint 오류·경고 0, 앱 parity **3,427입력·진단0**. 새 caller/test source hash가 전후 일치한다. 실제 parser/compiler·release/admission/owner 검증과 파일 fsync는 실행했지만 DB transport·owner/fence metadata는 합성이다. 실제 PG17.6 전체 설치 증거와 이를 합산하거나 네트워크 ACK 유실·현재 fence 관측으로 확대하지 않는다.
+
+검사는 정상 도달 분기와 ACK 유실, 원장 prior drift·추가 종료 행, expiry·source/vector/fence 변경, file/parent fsync·terminal append 실패, 부분 append·hardlink·넓어진 권한·큰 journal·다른 attempt를 포함한다. CLI에 readiness·manifest·transport override는 노출하지 않는다. 전체 transitive import와 Node/psql 환경을 hermetic하게 pin한 실행기는 아니므로 보호 소스와 신뢰된 실행 환경이 전제다.
+
+현재 남은 구현은 실제 owner workflow/collector, 현재 quiescence와 각 writer의 중지 근거, 같은 영속 운영 host의 custody, 별도 고정 release 파일과 보호 승격이다. receipt의 `basis/state/hash` 라벨 자체는 machine 관측이 아니다. 외부 Pro → Gemini → Pro도 기존 예약을 유지한 채 미완료다. hosted 실행·worker token/key provisioning·Storage HTTP·실제 생성은 수행하지 않았다. 기존 `65394277` CI **24 SUCCESS·1 SKIPPED·실패/대기0**은 이 새 caller 이전 source의 결과이며 새 commit으로 옮겨 주장하지 않는다.

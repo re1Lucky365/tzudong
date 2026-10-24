@@ -40,4 +40,6 @@ PR [#3515](https://github.com/twoimo/tzudong/pull/3515)의 `ee1a518d6017fc613749
 
 기존 로컬 catalog 실행기의 Docker endpoint 검사는 현재 `desktop-linux` 경로를 `catalog_local_docker_endpoint_denied`로 거부했다. context·socket·backend를 바꾸지 않았으며 이 경로의 PG17.6/full catalog 실행은 미완료다. 기존 17.11 소유 fixture의 성공을 대체 증거로 쓰지 않는다.
 
+위 문단은 해당 이전 실행기의 관측이다. 후속에서는 프로젝트의 canonical catalog endpoint resolver가 허용한 기존 `colima-tzudong-catalog-20261007`과 소유 자원을 사용해 [실제 PG17.6 전체 설치·롤백](thumbnail-g014-registration-20261024.md#pg176-전체-설치-리허설--244f886c-운영-미적용)을 마쳤다. 기본 Docker context와 다른 소유자의 자원은 보존했다. 이어 썸네일 설치 이후의 [예산 브리지 전체 G014·실제 auth/RPC 검사](provider-budget-bridge-20261024.md#후속-썸네일-설치-이후-실제-pg176-검증)도 통과했다. 이전 adapter가 통과한 것으로 바꾸거나, 이 격리 결과를 새 운영 admission·writer fence·hosted 적용·provider 생성 증거로 해석하지 않는다.
+
 독립 검토 재개용 source bundle은 소스 head와 editor caller/queue/worker/budget/G014 preimage에 결속해 로컬에 준비했다. 최신 준비본은 33 entries·628,721 bytes·SHA-256 `90471b4f6d1d38191ab029de6a76e2c6feb563e4596f80ad9086cc3ffe967711`이다. 기존 7개 원본 예약을 바꾸지 않았으며 새 예약·업로드·전송 0회다. 이 준비는 검토 완료가 아니다.
