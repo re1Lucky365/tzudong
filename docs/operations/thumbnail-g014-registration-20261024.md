@@ -54,4 +54,46 @@ grant-option guard를 제거한 메모리 변형은 금지된 재위임 권한�
 
 ## 남은 운영 설치
 
-전체 G014 pre를 큐 생성 **전·lease 없는 상태**에 실행하고, 큐·이 companion·private bucket을 설치한 뒤 **자기 lease 회수 → membership readback → 전체 G014 post → ledger 기록·readback**을 한 새로 검증한 설치 transaction에 결속해야 한다. 큐 후보의 내부 BEGIN/COMMIT은 기존 `migrationEnvelope`로 검증해 제거해야 하며 단순 연결하지 않는다. 현재 코드는 그 외부 설치 명세를 제공하지 않는다. 현재 PG17.6/catalog 실행 경로·writer fence·credential/worker provisioning, 실제 독립 Pro → Gemini → Pro 검토, 보호 승격 및 배포 후 인증 업무 readback은 계속 미완료다. 기존 7개 외부 예약과 미적용 후보를 유지하며, 이 companion의 로컬 통과로 그 단계를 완료 처리하지 않는다.
+전체 G014 pre를 큐 생성 **전·lease 없는 상태**에 실행하고, 큐·이 companion·private bucket을 설치한 뒤 **자기 lease 회수 → membership readback → 전체 G014 post → ledger 기록·readback**을 한 새로 검증한 설치 transaction에 결속해야 한다. 큐 후보의 내부 BEGIN/COMMIT은 기존 `migrationEnvelope`로 검증해 제거해야 하며 단순 연결하지 않는다. 아래 새 forward와 실행 비활성 draft가 이 순서를 구현하지만 실제 적용기의 새 admission은 아직 아니다. 현재 PG17.6/catalog 실행 경로·writer fence·credential/worker provisioning, 실제 독립 Pro → Gemini → Pro 검토, 보호 승격 및 배포 후 인증 업무 readback은 계속 미완료다. 기존 7개 외부 예약과 미적용 후보를 유지하며, 이 companion의 로컬 통과로 그 단계를 완료 처리하지 않는다.
+
+## 하나의 새 forward와 Storage 경계 — 운영 미적용
+
+[전체 후보](../../backend/supabase/candidates/20261024071000_thumbnail_production_install.sql)는 **64,927 bytes·43 statements**, SHA-256 `8019c4e7788cf6706094937a5d4111958201793192d918817e824791db471ac2`다. 기존 큐에서 compiler가 검증해 제거한 envelope 외 **30,384 bytes**, companion **16,406 bytes**를 그대로 담는다. applied migration, 기존 고정 manifest 및 역할·managed Storage 권한은 수정하지 않았다.
+
+[draft 명세](../../.github/thumbnail-production-installation.draft.v1.json)는 `executionEnabled=false`다. 실제 caller는 아직 이 draft를 허용하지 않는다. 기존 단일 migration compiler에 전체 source를 그대로 전달하고, ledger의 exclusive lock·정확한 사전 상태·원래 문장 벡터 기록·종료 검사를 사용하는 후보다. 현재 관측한 **89행 prefix**의 digest와 최종 version을 보존하고 신규 한 행만 추가하는 **90행** 종료 상태를 지정한다. 기존 86/97/101 등의 실행 명세를 고치거나 이전 SQL을 재적용하지 않는다. SHA와 관측은 당시 snapshot이며 미래 실행 승인이 아니다.
+
+Storage는 기존 `supabase_storage_admin` 소유와 ACL/RLS·정책 10개를 보존한다. INSERT/SELECT와 별개로 두 lock mode에 필요한 기존 유효 권한을 검사한다. `anon`/`authenticated`의 SUPERUSER·BYPASSRLS·Storage owner USAGE/SET을 거부하며 server 역할은 기존 BYPASSRLS·객체 INSERT/SELECT를 요구한다. 허용 MIME 4개, 최대 **12 MiB**, `public=false`인 `youtube-thumbnail-jobs` bucket 한 개만 만들고 정확히 읽어 확인한다. 기존 정책이 허용하는 bucket은 다른 세 ID뿐이므로 새 bucket의 browser 행은 기본 거부된다. Storage HTTP·서명 URL 동작까지 증명하는 것은 아니다.
+
+실제 발견한 결함은 **동일한 정책이 `search_path`에 따라 다르게 deparse되어 해시 검사가 실패하는 문제**다. source는 `pg_catalog, public`으로 deparser 문맥만 고정한 뒤 원래 local 경로를 복원한다. 읽기 전용 명세는 `is_user_admin`과 `public.is_user_admin`이 들어간 두 **완전한 기존 표현**만 허용한다. 임의 regex 치환이나 느슨한 정책 비교는 사용하지 않는다.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Prior: source·23개 사전 상태·ledger lock
+    Prior --> Pre: lease 없이 전체 G014
+    Pre --> Queue: 기존 큐 bytes
+    Queue --> Registered: SET lease·exact 등록
+    Registered --> Restored: 자기 lease 회수·membership 일치
+    Restored --> Bucket: managed Storage 경계·private bucket
+    Bucket --> Post: lease 없이 전체 G014·임시 객체 제거
+    Post --> Recorded: 원래 vector 한 행·ledger readback
+    Recorded --> Committed: 종료 상태 일치·outer COMMIT
+    Committed --> Reconcile: 응답 유실
+    Reconcile --> Confirmed: exact ledger·종료 상태
+    Reconcile --> Held: 불일치·미확정, 자동 재전송 없음
+    Prior --> RolledBack: 오류
+    Queue --> RolledBack: 오류
+    Registered --> RolledBack: 오류
+    Bucket --> RolledBack: 오류
+    Post --> RolledBack: 오류
+    Recorded --> RolledBack: 오류
+```
+
+이는 검증할 상태 전이 명세다. **동일한 PostgreSQL outer transaction으로 정확한 source가 실행된다**는 전제에서 commit은 사전 상태·full pre/post·원래 registry 보존·신규 3행·private bucket·lease 회수·exact ledger/종료 검사를 모두 통과한 경우만 허용하도록 설계했다. commit 전 오류의 durable 변경은 rollback되어야 한다. 임의 transport의 source 재조합, 비협력 privileged DDL, 실제 전체 설치 실행의 성공을 이 그림으로 증명하지 않는다. XID local marker는 psql 문장별 autocommit 사고를 두 번째 DO에서 차단하는 보조 장치다.
+
+실제 PG17.11에서 [새 검사](../../backend/supabase/tests/test_thumbnail_install_boundary_pg17.py) **12 methods pass·0 fail·0 error**다. 전체 source의 자동 커밋 오실행 차단, bucket commit 후 별도 연결 readback, 서버 INSERT/SELECT와 browser 두 역할의 SELECT/UPDATE/DELETE 0행·INSERT 42501, 기존 정책/버킷/권한/역할 drift 거부, 늦은 오류의 bucket rollback을 확인했다. 수정 전 deparser 문맥의 메모리 변형은 정상 정책을 잘못 거부했고 현재 source는 입력 경로 4종에서 통과·복원했다. 같은 4종 문맥에서 draft의 실제 SELECT를 실행해 정확한 큐·등록·정책 component 종료 값을 확인했다. 시험 ledger는 **0행**이며 운영 89행 전체 또는 전체 G014를 로컬에서 실행했다고 하지 않는다.
+
+기존 compiler·응답 유실 판정의 Bun 검사는 **21 pass·0 fail·145 assertions**다. draft source·component 6개의 byte hash, 원래 43개 문장 vector, source→ledger→종료 검사 순서와 `committed`/`not_applied`/`partial_conflict` 분리를 확인한다. 현 parent `818b615a` CI는 **24 SUCCESS·1 SKIPPED·실패/대기 0**이며 새 후보의 CI와 별개다.
+
+운영 PG17.6에서 draft의 사전 SELECT 한 번을 실행해 **23개 항목 전부 일치**를 확인했다. 함수 호출·DB 쓰기는 0회다. 로컬 시험의 초기 transaction fixture가 권한 변경을 commit하던 문제와 readback fixture의 읽기 권한 누락, ACK 판정을 예외로 오인한 검사 실패는 수정했고 실패 영수증도 보존했다. 이는 제품에서 재현한 deparser 문제와 구별한다. PID/socket/TCP 종료 및 source 전후 hash가 같은 [최종 영수증](../evidence/thumbnail-g014-registration-20261024/forward-boundary-final-12-pass.json)을 남겼다. 결정적 검사·단일 snapshot에는 모집단 95% 구간이나 성능·금액 절감률을 만들지 않는다.
+
+native 독립 검토에서 추가 확정 버그는 없었지만 이는 실제 Pro → Gemini → Pro 외부 검토가 아니다. 그 3단계, 전체 current PG17.6/catalog 설치·89행 ledger commit/late-failure, 새 고정 admission·현재 writer fence·worker provisioning·보호 승격·배포 후 실제 업무는 계속 남아 있다. 스킬의 “Missing independent review leaves that stage incomplete; independent authorized implementation/checks may continue.”에 따라 구현·로컬 검증은 진행하고 외부 검토 완료는 보류한다.
