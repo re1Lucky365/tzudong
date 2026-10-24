@@ -9,6 +9,23 @@
 
 상태 표기: **I 구현 / L 로컬 검증 / O 운영 반영 / R 실제 동작 확인**. `?`는 미확인이다. 검증 완료를 기록할 때 소스 SHA, 실제 실행 시각, 환경, 검증 결과와 증빙 경로를 함께 남긴다. 운영 대상이 없는 규칙·문서 항목은 이유를 적고 해당 칸을 적용 제외로 바꿀 수 있다. 과거 보고서는 탐색 근거이며 현재 운영 사실을 대신하지 않는다.
 
+## 2026-10-24 운영 대조와 복구 델타
+
+전체 범위와 기존 T/A·체크박스를 유지한다. 이번 단계는 `progress`이며 전체 완료 또는 운영 적용 완료로 표시하지 않는다.
+
+| 대상 | 현재 확인 | 남은 전달 |
+| --- | --- | --- |
+| PR #3215·Swift | PR은 2026-10-19에 develop으로 병합됐고 당시 최종 Swift는 SUCCESS다. 이미 끝난 검사·병합을 반복하지 않는다 | 새 후보의 CI·보호 승격은 별도 |
+| 현재 production | Vercel tzudong의 READY `dpl_FiHvmpQdmnDLNYXL9dquSFTFMpoB`, main `1b5230ac93021c72499f4950bff6cda24e2515e5`, www/apex alias 확인 | 새 SQL/썸네일 후보가 포함된 배포는 아님. 다음 적용 직전 재확인 |
+| 관리자 메뉴·사이드바 | 이전 production `4fa0edb9`의 인증된 메뉴 15개에서 화면 이동·공통 visible H1·1280×720 문서 가로 넘침0, 접기/복원 확인 | 읽기 렌더 검증이며 저장·삭제·승인·생성 기능 전체 또는 최신 배포의 pixel 검증 아님 |
+| 동선 예산 장애 | 운영에서 local fallback. 공개 definer의 private schema 접근 부재와 Directions 정책 부재, 원본 counter의 잘못된 GREATEST 구문을 격리 DB에서 재현 | [복구 후보·16개 실제 DB 검사](provider-budget-bridge-20261024.md). 전체 G014/PG17.6/새 admission/현재 writer fence 후 적용·UI readback |
+| 썸네일 큐 권한 | `174c6526`에서 신규 객체에 남는 service_role default ALL/GRANT OPTION을 제거. PG17.11 31개 통과·불필요한 쓰기9개 모두42501·기존 객체/default ACL 보존 | 운영에는 thumbnail schema/RPC/private bucket 부재. 새 forward 설치와 G014 수렴 필요 |
+| 소스 통합 | 작업 중 develop에 별도 보안·지도/근거 수정40건이 추가돼 현재 후보는 42 commits behind | 후보를 보존하고 새 develop과 정상 통합한 뒤 영향 검증. 오래된 후보로 운영을 덮지 않음 |
+| 외부 검토·협업 | 기존 원본 예약7건 보존. 두 native subagent는 429로 중단, quota·모델·계정 변경 없이 root가 로컬 검증을 이어감 | 현재 소스의 실제 독립 검토와 정확한 release bundle 결속이 미완료 |
+| 결제·전체 파이프라인 | 새 결제·카드 변경·키 등록·유료 호출0. 카드 삭제 보류와 기존 한도 보존 | 기존 전체 Todo, crawler→자동 판단/승인→marker, OCR/KG/생성 기능의 실제 운영 검증은 계속 열려 있음 |
+
+운영 catalog와 메뉴의 비개인 metadata는 `/Users/twoimo/.codex/visualizations/2026/10/18/01a14e99-c202-7fa1-90c1-2e9cb7da815f/thumbnail-forward-20261024/`에 보존했다. 16/31개 검사는 서로 다른 변경의 로컬 근거이며 전체 목표의 완료율이나 운영 성공률의 분자가 아니다. 결정적 fixture·단일 UI 관측에는 추정 95% 구간을 만들지 않는다.
+
 ## 2026-10-15 현재 실행 델타
 
 전체 목표는 `active`다. 원문 범위와333개 완료 체크·T/A ID를 유지한다. 과거 관측과 실패는 Git `62c678af` 및 아래 날짜별 기록에 보존하며 최신 소스의 성공으로 재해석하지 않는다.
