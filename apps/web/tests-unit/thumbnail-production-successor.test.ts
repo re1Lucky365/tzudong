@@ -10,7 +10,7 @@ import { afterEach, expect, test } from 'bun:test';
 import {
   FENCE_COVERAGE, MANIFEST_PATH, MANIFEST_SHA256, PROJECT_REF, RELEASE_ADMISSION_PATH,
   RELEASE_ADMISSION_SHA256, REPOSITORY_ROOT, REQUIRED_FENCES, SERIALIZER_KEY,
-  loadThumbnailRecord, main, runThumbnailSuccessor, thumbnailApplySql,
+  loadThumbnailRecord, loadThumbnailRelease, main, runThumbnailSuccessor, thumbnailApplySql,
   thumbnailReleaseContract, validateThumbnailRelease,
 } from '../scripts/thumbnail-production-successor.mjs';
 
@@ -124,13 +124,24 @@ test('inspect validates the real pinned draft/source/vector without source, rele
   expect(record.manifest.executionEnabled).toBe(false);
 });
 
-test('production apply has no override for the absent, separately reviewed release admission', () => {
-  expect(existsSync(join(REPOSITORY_ROOT, RELEASE_ADMISSION_PATH))).toBe(false);
-  expectCode(() => runThumbnailSuccessor({ mode: 'apply', environment: {} }), 'THUMBNAIL_RELEASE_ADMISSION_REQUIRED');
+test('committed operating release is byte pinned and has no CLI override', () => {
+  expect(existsSync(join(REPOSITORY_ROOT, RELEASE_ADMISSION_PATH))).toBe(true);
+  expect(loadThumbnailRelease().sha256).toBe(RELEASE_ADMISSION_SHA256);
   for (const argv of [
     ['--mode', 'apply', '--ready'], ['--mode', 'apply', '--manifest', MANIFEST_PATH],
     ['--mode', 'apply', '--dependencies', '{}'], ['--mode', 'bad'],
   ]) expectCode(() => main(argv), 'THUMBNAIL_ARGUMENT_INVALID');
+});
+
+test('missing release still rejects apply before source, custody or external observations', () => {
+  let observations = 0;
+  const unreachable = () => { observations++; throw new Error('external observation is forbidden'); };
+  expectCode(() => runThumbnailSuccessor({ mode: 'apply', environment: {} }, {
+    loadReleaseImpl: () => { throw Object.assign(new Error('missing release'), { code: 'THUMBNAIL_RELEASE_ADMISSION_REQUIRED' }); },
+    sourceImpl: unreachable, protectedRevisionImpl: unreachable, attestationImpl: unreachable,
+    runPsqlImpl: unreachable,
+  }), 'THUMBNAIL_RELEASE_ADMISSION_REQUIRED');
+  expect(observations).toBe(0);
 });
 
 test('separate release contract is byte pinned; changed scope, target, false flag or noncanonical bytes fail', () => {

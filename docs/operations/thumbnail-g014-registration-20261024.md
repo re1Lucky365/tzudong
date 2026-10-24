@@ -217,3 +217,11 @@ v2 release는 `.github/thumbnail-production-successor.v2.json`, canonical SHA `3
 
 
 후속 CodeQL에서 `369713cb`의 workflow checkout에 전달한 `inputs.source_sha`가 오염 입력으로 추적돼 cache-poisoning high2건이 표시됐다. 기존 owner/protected-main과 `github.sha == inputs.source_sha` guard는 유지하고 checkout 자체는 GitHub의 `github.sha`를 직접 사용하도록 바꿨다. [후속 증거](../evidence/thumbnail-g014-registration-20261024/trusted-inspection-checkout.json)는 YAML·bash4개 block과 나머지 runtime/test source6개의 무변경을 확인한다. 보안 검사 예외·규칙·권한·캐시 설정은 바꾸지 않았다. 새 head의 원격 CodeQL 결과가 확인되기 전에는 해소됐다고 표시하지 않는다. Rust/Swift configuration 미완료 안내와 실제 high2건은 별도로 구분한다.
+
+## 운영 반영 승인에 따른 v2 release 준비
+
+사용자의 운영 반영 지시에 따라 [별도 v2 release](../../.github/thumbnail-production-successor.v2.json)를 canonical bytes로 추가했다. SHA는 `381465961c5820d7074e8a318db6b5129a3ae81aa868da9254af26748d67d849`이며 위의 파일 부재 기록은 추가 전의 관측이다. frozen draft·SQL43문장·실행 caller·collector·owner 검증과 기존 한도는 변경하지 않았다. 이 파일의 추가나 PR 접수는 DB 적용 증거가 아니다.
+
+[집중 검사](../evidence/thumbnail-g014-registration-20261024/release-admission-local.json)는 실제 committed release loader, 누락 시 외부 관측 전 거부, CLI override 거부와 기존 경합·복구·권한 경계를 함께 확인한 **52 pass·0 fail·689 assertions**, 변경한 test의 lint 오류·경고0이다. DB/identity unit transport 대체와 이전 실제 PostgreSQL·gh 관측의 범위는 유지한다. inspect는 의도적으로 frozen draft 검증만 수행하며 `held`를 반환한다. 실제 apply는 별도 release 외에도 protected main의 clean detached source, 새 owner 관측·15분 admission·60초 fence, 현재 DB identity/prior23, durable journal을 모두 요구한다.
+
+운영 전 롤백 기준을 실제 Vercel `tzudong` 프로젝트와 `www.tzudong.app`에서 읽었다. 2026-10-24 12:20Z 기준 production은 `dpl_FiHvmpQdmnDLNYXL9dquSFTFMpoB`, main `1b5230ac93021c72499f4950bff6cda24e2515e5`, READY였다. 보호 승격·현재 DB 재검사·적용 후 독립 readback·worker provisioning·실제 생성/Storage/UI는 후속 실행으로 구분하며 아직 완료로 표시하지 않는다. 외부 Pro → Gemini → Pro 예약과 미완료 상태는 보존한다.
