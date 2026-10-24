@@ -236,7 +236,7 @@ v2 release는 `.github/thumbnail-production-successor.v2.json`, canonical SHA `3
 
 `7cb6be5c`의 원격 검사는 25 SUCCESS·1 SKIPPED(동명 Promotion Path 실행 포함)로 끝났지만 미해결 리뷰3건 때문에 병합은 계속 보류됐다. 첫 채팅의 `lastCanvasActionLabel=null` 거부, 이미지 요청의 민감 문자열 저장, status GET 오류 후 polling 중단을 실제로 재현했다. 같은 polling 결함이 채팅 복구에도 있어 함께 수정했다. 변경한 source의 CI는 이전 결과와 구분한다.
 
-이미지 enqueue는 prepared prompt와 typed editor 텍스트를 첫 DB/Storage 접근 전에 검사한다. 기존 최대65,536-byte prompt를 유지하려고 shared privacy module에 전체 typed text용64KiB assertion을 추가했으며 generic object의4,096자 상한은 유지했다. 중앙 탐지 패턴과 내용 없는 오류를 재사용하고 geometry는 텍스트로 오인하지 않는다. email 탐지는 같은 local-part run의 모든 suffix를 다시 시도하지 않도록 시작 경계를 지정했다. 이전 탐지기의 punctuation·복수`@` 사례와 match count를 대조했으며 이를 모든 정규식 입력에 대한 자동 형식 증명으로 표시하지 않는다.
+이미지 enqueue는 prepared prompt와 typed editor 텍스트를 첫 DB/Storage 접근 전에 검사한다. 기존 최대65,536-byte prompt를 유지하려고 shared privacy module에 전체 typed text용64KiB assertion을 추가했으며 generic object의4,096자 상한은 유지했다. 중앙 탐지 패턴과 내용 없는 오류를 재사용하고 geometry는 텍스트로 오인하지 않는다. email 정규식은 원래 전역 패턴을 유지한다. 반드시 필요한 `@`가 없을 때만 matcher를 생략하므로 인접한 주소의 개수를 유지한다. 초기에 시도한 시작 경계는 독립 검토에서 인접 주소2건을1건으로 세는 반례가 나와 제거했다. frozen 원본·중간본·최종본의 실제 모듈에서 반례2개를 각각2→1→2로 재현했으며 [후속 증거](../evidence/thumbnail-g014-registration-20261024/review-email-count-followup.json)에 보존했다.
 
 null action은 선택 필드에서 허용하며 기존 문자열 제한·strict schema는 유지한다. 이미지·채팅 hook은 상태 변화 여부와 무관하게 GET 종료 후 다음 조회를 예약한다. 동일 owner·pending request·visible mounted tab에서만 계속하며 hidden·종료·owner 전환·unmount 후 새 polling을 멈춘다. active chat submit은 기존 조회 소유권을 유지한다. 실패한 조회는 generation POST를 재전송하지 않는다.
 
@@ -260,4 +260,4 @@ stateDiagram-v2
 
 이 도식은 조회 복구 명세다. `Unconfirmed`·`ReadFailed`에서 Submit으로 돌아가는 자동 경로는 없다. 진행성은 status read가 종료되고 event loop가 진행한다는 전제를 가지며, hidden 중에는 타이머를 예약하지 않는다. 명세·검사로 전역 exactly-once나 네트워크 생존성을 증명했다고 주장하지 않는다.
 
-[통합 증거](../evidence/thumbnail-g014-registration-20261024/review-followup-local.json)는 **6파일124 pass·0 fail·895 assertions**, 변경한12파일 lint 오류·경고0, parity **3,427입력·진단0**이다. 보관한 browser 증거는 이미지 hook4사례·채팅 hook5사례와 전체 편집기 통과, 복구 generation POST0이다. Auth/API는 loopback 모의값이고 가상 스케줄·실제 fetch 거부를 사용했으므로 실제20초 network timeout·hosted 업무 성공 증거와 구분한다. DB 쓰기·provider 호출은0이며 기존 budget4파일은 별도 비활성 후보로 보존했다.
+[최종 통합 증거](../evidence/thumbnail-g014-registration-20261024/review-email-count-followup.json)는 **6파일124 pass·0 fail·897 assertions**, 변경한2파일 lint 오류·경고0와 동일한 나머지10파일 검사 재사용, 새 parity **3,427입력·진단0**이다. 이전895-assertion 증거는 원래 source hash와 함께 보존했다. 보관한 browser 증거는 이미지 hook4사례·채팅 hook5사례와 전체 편집기 통과, 복구 generation POST0이다. Auth/API는 loopback 모의값이고 가상 스케줄·실제 fetch 거부를 사용했으므로 실제20초 network timeout·hosted 업무 성공 증거와 구분한다. DB 쓰기·provider 호출은0이며 기존 budget4파일은 별도 비활성 후보로 보존했다.

@@ -32,11 +32,12 @@ describe('privacy sanitizer', () => {
       }
     }
   });
-  test('email run boundary preserves the previous detector counts across punctuation and multiple at signs', () => {
+  test('email presence shortcut preserves global counts including adjacent and multiple-at addresses', () => {
     const previous = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
     for (const text of ['plain text', 'one@example.com', '+tag.one@example.com two@other.test',
       'prefix@invalid@actual.example', '한글person@example.com', 'one@example.com@@two@other.test',
-      '.-_%+part@example.com', 'one@example.c', 'one@domain..com', 'one@example.com/two@other.test']) {
+      '.-_%+part@example.com', 'one@example.c', 'one@domain..com', 'one@example.com/two@other.test',
+      'one@example.com+two@other.test', 'one@example.com1@other.test']) {
       const expected = [...text.matchAll(previous)].length;
       const actual = sanitizePrivacyValue(text).findings.filter((finding) => finding.kind === 'email')
         .reduce((sum, finding) => sum + finding.count, 0);
