@@ -46,9 +46,8 @@ function fixture() {
       kind: 'thumbnail-writer-observation-v1', fence: name, state,
       projectRef: PROJECT_REF, sourceRevision: revision, manifestSha256: MANIFEST_SHA256,
       runId: '123456', runAttempt: '1', observedAt,
-      scope: 'stopped-until-application-result', coverage: [...FENCE_COVERAGE],
-      basis: ['adminRecordMutationsHold', 'g037WriteFreeze', 'automaticReviewer', 'thumbnailWorkers'].includes(name)
-        ? 'current-machine-readback' : 'authenticated-owner-custody',
+      scope: 'privileged-custody-until-reconciled', coverage: [...FENCE_COVERAGE],
+      basis: 'authenticated-owner-custody',
     };
     evidenceSha256[name] = sha(bytes(evidence[name]));
     writePrivate(join(root, 'writer-fence-' + name + '.json'), evidence[name]);
@@ -380,7 +379,7 @@ test('expired admission, future or stale fence, missing coverage and source/hash
     [f => { f.fence.observedAt = '2026-10-24T10:00:06.000Z'; f.save(); }, 'THUMBNAIL_FENCE_STALE'],
     [f => { f.dependencies.now = () => new Date('2026-10-24T10:01:02.000Z'); }, 'THUMBNAIL_FENCE_STALE'],
     [f => { f.fence.coverage.pop(); f.save(); }, 'THUMBNAIL_FENCE_INVALID'],
-    [f => { f.fence.fences.thumbnailWorkers = 'running'; f.save(); }, 'THUMBNAIL_FENCE_INVALID'],
+    [f => { f.fence.fences.workerProvisioning = 'active'; f.save(); }, 'THUMBNAIL_FENCE_INVALID'],
     [f => { f.admission.sourceSha256 = '0'.repeat(64); f.save(); }, 'THUMBNAIL_ADMISSION_INVALID'],
     [f => { f.admission.vectorSha256 = '0'.repeat(64); f.save(); }, 'THUMBNAIL_ADMISSION_INVALID'],
     [f => { f.admission.releaseAdmissionSha256 = '0'.repeat(64); f.save(); }, 'THUMBNAIL_ADMISSION_INVALID'],
@@ -401,7 +400,7 @@ test('expired admission, future or stale fence, missing coverage and source/hash
 test('a hash alone is insufficient: actual evidence bytes, current observation scope and custody are checked', () => {
   for (const mutation of ['bytes', 'scope', 'mode']) {
     const f = fixture();
-    const name = 'thumbnailWorkers';
+    const name = 'workerProvisioning';
     const path = join(f.root, 'writer-fence-' + name + '.json');
     if (mutation === 'mode') chmodSync(path, 0o644);
     else {
@@ -420,7 +419,7 @@ test('changed fence after prior readback is rejected before mutation', () => {
   const transport = f.dependencies.runPsqlImpl;
   f.dependencies.runPsqlImpl = (...args: any[]) => {
     const output = transport(...args);
-    f.fence.fences.storageWrites = 'running'; f.save();
+    f.fence.fences.privilegedCatalogWriters = 'uncontrolled'; f.save();
     return output;
   };
   expectCode(() => f.run(), 'THUMBNAIL_FENCE_EVIDENCE_DRIFT');

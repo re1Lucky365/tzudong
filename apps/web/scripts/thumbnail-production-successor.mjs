@@ -26,10 +26,7 @@ export const PROJECT_REF = 'aqlcofblfxdrjhhdmarw';
 export const SERIALIZER_KEY = 'tzudong:review-media-sql-successor:workflow:v1';
 export const CUSTODY_DIRECTORY = join(homedir(), '.codex/runtime-cache/thumbnail-production-successor', PROJECT_REF, MANIFEST_SHA256);
 export const REQUIRED_FENCES = Object.freeze({
-  adminRecordMutationsHold: 'active', g037WriteFreeze: 'active',
-  automaticReviewer: 'stopped', browserRpc: 'stopped', dashboard: 'stopped',
-  directSql: 'stopped', providerIngress: 'stopped',
-  thumbnailWorkers: 'stopped', storageWrites: 'stopped',
+  privilegedCatalogWriters: 'controlled', workerProvisioning: 'withheld',
 });
 export const FENCE_COVERAGE = Object.freeze([
   'supabase_migrations.schema_migrations',
@@ -73,6 +70,8 @@ export function thumbnailReleaseContract() {
     repository: 'twoimo/tzudong', protectedRef: 'refs/heads/main',
     workflowPath: '.github/workflows/thumbnail-production-successor.yml',
     serializerKey: SERIALIZER_KEY, requiredFences: { ...REQUIRED_FENCES }, coverage: [...FENCE_COVERAGE],
+    custodyScope: 'privileged-custody-until-reconciled', normalBusinessDmlMayContinue: true,
+    custodyRunnerName: 'tzudong-sql-operator-twoimo-mac',
     admissionLifetimeMs: 900_000, fenceAgeMs: 60_000, replayPolicy: 'reconcile-only-after-journal',
   };
 }
@@ -192,9 +191,10 @@ export function validateThumbnailAdmission(admission, fence, fenceBytes, record,
   }
 }
 
-// These are collector receipts, not hashes standing in for observed content.
-// The authenticated owner dispatch is the trust boundary for producing them;
-// this caller does not claim to independently stop or inspect external writers.
+// The SQL's actual prior/locks/G014/readback enforce the machine boundary.
+// These separate receipts attest only to the trusted owner's control of
+// privileged contract changes and withholding worker provisioning. They do not
+// claim that ordinary DML, uploads or processes were observed to be stopped.
 function readFenceEvidence(directory, admission, fence, now, { reconciliation = false } = {}) {
   for (const [name, state] of Object.entries(REQUIRED_FENCES)) {
     const { value, raw } = privateJson(join(directory, 'writer-fence-' + name + '.json'));
@@ -203,12 +203,11 @@ function readFenceEvidence(directory, admission, fence, now, { reconciliation = 
       'kind', 'fence', 'state', 'projectRef', 'sourceRevision', 'manifestSha256',
       'runId', 'runAttempt', 'observedAt', 'scope', 'coverage', 'basis',
     ]);
-    const machine = ['adminRecordMutationsHold', 'g037WriteFreeze', 'automaticReviewer', 'thumbnailWorkers'].includes(name);
     if (value.kind !== 'thumbnail-writer-observation-v1' || value.fence !== name || value.state !== state
       || value.projectRef !== PROJECT_REF || value.sourceRevision !== admission.sourceRevision
       || value.manifestSha256 !== MANIFEST_SHA256 || value.runId !== fence.runId || value.runAttempt !== fence.runAttempt
-      || value.scope !== 'stopped-until-application-result' || !equal(value.coverage, FENCE_COVERAGE)
-      || value.basis !== (machine ? 'current-machine-readback' : 'authenticated-owner-custody')) fail('THUMBNAIL_FENCE_EVIDENCE_INVALID');
+      || value.scope !== 'privileged-custody-until-reconciled' || !equal(value.coverage, FENCE_COVERAGE)
+      || value.basis !== 'authenticated-owner-custody') fail('THUMBNAIL_FENCE_EVIDENCE_INVALID');
     const observed = date(value.observedAt);
     if (observed < date(admission.createdAt) || observed > date(fence.observedAt)
       || (!reconciliation && (observed > now.getTime() || now.getTime() - observed > 60_000))) {
@@ -236,7 +235,7 @@ export function currentThumbnailProtectedRevision() {
   if (!match) fail('THUMBNAIL_SOURCE_UNVERIFIED');
   return match[1];
 }
-function validateLiveSource(admission, source, protectedRevision) {
+export function validateThumbnailLiveSource(admission, source, protectedRevision) {
   if (source.revision !== admission.sourceRevision || !source.clean || !source.detached
     || source.origin !== 'https://github.com/twoimo/tzudong.git'
     || protectedRevision !== admission.sourceRevision) fail('THUMBNAIL_SOURCE_DRIFT');
@@ -259,6 +258,13 @@ function parseResult(output) {
   const value = JSON.parse(lines[0]);
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('THUMBNAIL_READBACK_INVALID');
   return value;
+}
+export function readThumbnailPrior(transport, databaseUrl, record) {
+  const observed = parseResult(transport(databaseUrl,
+    'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;\n' + IDENTITY_GUARD + '\n'
+    + record.migration.expectedPriorState.query, true));
+  if (!equal(observed, record.migration.expectedPriorState.expected)) fail('THUMBNAIL_PRIOR_STATE_DRIFT');
+  return observed;
 }
 function readReconciliation(transport, databaseUrl, record) {
   const query = reconciliationSql(record.envelope, record.migration);
@@ -345,7 +351,7 @@ export function runThumbnailSuccessor({ mode = 'inspect', environment = process.
     if (current.manifestSha256 !== record.manifestSha256
       || current.migration.sha256 !== record.migration.sha256
       || current.envelope.vectorSha256 !== record.envelope.vectorSha256) fail('THUMBNAIL_SOURCE_DRIFT');
-    validateLiveSource(admission, sourceImpl(), protectedRevisionImpl());
+    validateThumbnailLiveSource(admission, sourceImpl(), protectedRevisionImpl());
     validateThumbnailAdmission(admission, fence, fenceBytes, record, now());
     readFenceEvidence(custodyDirectory, admission, fence, now());
   };
@@ -360,7 +366,7 @@ export function runThumbnailSuccessor({ mode = 'inspect', environment = process.
     const first = privateBytes(paths.journal, { journal: true }).toString('utf8').split('\n')[0];
     if (!equal(JSON.parse(first), binding)) fail('THUMBNAIL_JOURNAL_BINDING_INVALID');
   } else {
-    validateLiveSource(admission, sourceImpl(), protectedRevisionImpl());
+    validateThumbnailLiveSource(admission, sourceImpl(), protectedRevisionImpl());
     const attestation = attestationImpl({ environment, sourceRevision: admission.sourceRevision, clock: now });
     if (attestation.runId !== fence.runId || attestation.runAttempt !== fence.runAttempt
       || attestation.authority !== fence.authority
@@ -373,10 +379,7 @@ export function runThumbnailSuccessor({ mode = 'inspect', environment = process.
     status: 'reconciliation', disposition: readReconciliation(transport, databaseUrl, record),
     attemptId: admission.attemptId, replayAllowed: false,
   };
-  const observed = parseResult(transport(databaseUrl,
-    'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;\n' + IDENTITY_GUARD + '\n'
-    + record.migration.expectedPriorState.query, true));
-  if (!equal(observed, record.migration.expectedPriorState.expected)) fail('THUMBNAIL_PRIOR_STATE_DRIFT');
+  readThumbnailPrior(transport, databaseUrl, record);
   revalidate();
   const fd = journalStart(paths.journal, binding, fsyncImpl);
   let acknowledged = false, outcome = 'unknown', code;

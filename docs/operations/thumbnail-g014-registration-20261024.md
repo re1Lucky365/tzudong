@@ -122,9 +122,11 @@ native 독립 검토는 실제 Pro → Gemini → Pro 외부 검토가 아니다
 
 ## 후속: thumbnail 전용 고정 caller — 운영 held
 
+이 절의 9개 fence·release hash·20개 검사는 `eb42cec0` 시점의 기록이다. 현재 계약과 후속 구현은 아래 두 절에서 구분한다.
+
 [새 caller](../../apps/web/scripts/thumbnail-production-successor.mjs)와 [20개 검사](../../apps/web/tests-unit/thumbnail-production-successor.test.ts)를 추가했다. 기존 frozen release loader·manifest·applied migration은 수정하지 않았다. 기존 statement parser·transaction compiler·target verifier·psql runner를 재사용하며 draft의 SQL 43문장·원래 vector·6개 구성요소와 직접 사용 helper의 byte hash를 확인한다. 기존 draft는 여전히 `executionEnabled=false`다.
 
-별도 고정 release 계약은 `.github/thumbnail-production-successor.v1.json`, canonical bytes SHA `2e4b3db3390d55a36f7e30c3d303ae7f32f2a973dafb5c737bd25eb43353c4c8`이다. **그 파일과 실제 owner workflow/collector는 아직 만들지 않았다.** 현재 실제 CLI `--mode inspect`는 hash/vector를 검사하고 `held`를 반환한다. 테스트에서 별도 release의 정확한 byte 검증을 통과시킨 실행 분기를 검사한 것이 운영 실행 허용을 뜻하지 않는다.
+당시 별도 고정 release 계약은 `.github/thumbnail-production-successor.v1.json`, canonical bytes SHA `2e4b3db3390d55a36f7e30c3d303ae7f32f2a973dafb5c737bd25eb43353c4c8`이다. 그 시점에는 release 파일과 실제 owner workflow/collector가 없었다. 실제 CLI `--mode inspect`는 hash/vector를 검사하고 `held`를 반환했다. 테스트에서 별도 release의 정확한 byte 검증을 통과시킨 실행 분기를 검사한 것이 운영 실행 허용을 뜻하지 않는다.
 
 후속 release 경로는 protected main과 clean detached checkout·현재 원격 main 일치, 정확한 owner workflow, 15분 admission, 60초 이내 thumbnail/Storage/G014 범위 fence를 요구한다. 예전 review-media serializer와 **동일 advisory key**를 같은 적용 transaction에서 획득하고 원래 compiler의 ledger lock 아래 사전 상태를 다시 검사한다. 이 협력 lock은 외부 writer가 실제 중지됐다는 증거가 아니다.
 
@@ -154,7 +156,7 @@ stateDiagram-v2
 
 검사는 정상 도달 분기와 ACK 유실, 원장 prior drift·추가 종료 행, expiry·source/vector/fence 변경, file/parent fsync·terminal append 실패, 부분 append·hardlink·넓어진 권한·큰 journal·다른 attempt를 포함한다. CLI에 readiness·manifest·transport override는 노출하지 않는다. 전체 transitive import와 Node/psql 환경을 hermetic하게 pin한 실행기는 아니므로 보호 소스와 신뢰된 실행 환경이 전제다.
 
-현재 남은 구현은 실제 owner workflow/collector, 현재 quiescence와 각 writer의 중지 근거, 같은 영속 운영 host의 custody, 별도 고정 release 파일과 보호 승격이다. receipt의 `basis/state/hash` 라벨 자체는 machine 관측이 아니다. 외부 Pro → Gemini → Pro도 기존 예약을 유지한 채 미완료다. hosted 실행·worker token/key provisioning·Storage HTTP·실제 생성은 수행하지 않았다. 기존 `65394277` CI **24 SUCCESS·1 SKIPPED·실패/대기0**은 이 새 caller 이전 source의 결과이며 새 commit으로 옮겨 주장하지 않는다.
+이 시점의 잔여 항목은 실제 owner workflow/collector, 현재 quiescence와 각 writer의 중지 근거, 같은 영속 운영 host의 custody, 별도 고정 release 파일과 보호 승격이었다. receipt의 `basis/state/hash` 라벨 자체는 machine 관측이 아니다. 외부 Pro → Gemini → Pro는 기존 예약을 유지한 채 미완료다. hosted 실행·worker token/key provisioning·Storage HTTP·실제 생성은 수행하지 않았다. 기존 `65394277` CI **24 SUCCESS·1 SKIPPED·실패/대기0**은 이 새 caller 이전 source의 결과이며 새 commit으로 옮겨 주장하지 않는다.
 
 ## 후속: 이전 상태 관측과 적용 종료를 분리
 
@@ -167,3 +169,27 @@ caller는 generic compiler의 `not_applied` 관측을 `prior_observed`로 해석
 같은 증거에는 CodeQL alert 98이 지적한 browser fixture의 동적 코드 생성 수정도 포함한다. 합성 owner 값을 JavaScript 문자열에 넣던 방식을 정적 module과 Playwright의 구조화된 인자 전달로 바꿨다. 실제 Chrome 156에서 1440·768·390 폭의 기존 편집기 흐름과 source 13개 전후 일치, enqueue 5회·chat 5회·외부 요청 0회를 확인했다. 합성 인증/API이며 운영 관리자·공급자 생성 검증은 아니다. 탐지를 예외 처리하지 않았으며 원격 CodeQL의 새 소스 재분석 결과는 별도로 확인한다.
 
 설치 필요조건의 추가 읽기 검토에서는 위 caller의 9개 fence 요구가 이전 review-media 적용기의 더 넓은 변경 범위를 복제한 부분임을 확인했다. 현재 SQL은 기존 Storage object를 수정하지 않고 새 private bucket 한 행을 만들며 transaction table lock을 유지한다. 따라서 모든 일반 업로더·DML producer 중지는 데이터 보존의 필수조건으로 아직 도출되지 않는다. 관련 privileged catalog/ACL/policy/ledger writer 통제, 같은 대상 생성 경쟁, worker provisioning과 구조적 worker 인증 경계는 유지해야 한다. HTTP 지연·재시도 무영향 또는 commit 후 admin enqueue 금지는 입증하지 않았다. 이 구분을 별도 계약 변경으로 구현·검증하기 전에는 현재 9개 fence를 합성 영수증으로 충족시키지 않는다.
+
+## 후속: 설치 범위에 맞춘 운영 실행 경로
+
+후속 caller 계약은 이전 9개 fence를 **관련 privileged catalog writer 통제**와 **worker provisioning 보류** 두 가지 owner custody로 바꾼다. 기존 frozen draft·SQL·43문장 vector·compiler는 바꾸지 않는다. 별도 release 파일은 계속 부재하며 `executionEnabled=false`인 원래 draft를 실행 가능으로 바꾸지 않는다. 위 9개 조건·release hash와 20/21개 검사 기록은 각각 해당 이전 소스의 관측으로 남긴다.
+
+일반 업로드·리뷰·자동 검수의 정상 DML은 중지 증거를 요구하지 않는다. 실제 SQL은 ledger lock 아래 정확한 prior를 재검사하고, Storage 두 table lock을 잡은 뒤 동일 bucket ID/name과 해당 object의 부재를 다시 확인한다. 기존 writer가 먼저 lock을 보유하면 대기하거나 timeout으로 전체 rollback하며, 설치가 먼저 lock을 잡으면 뒤의 writer가 대기한다. 이 구조를 HTTP timeout·재시도에 영향이 없다는 주장으로 확대하지 않는다.
+
+privileged writer custody는 별도로 필요하다. 예를 들어 다른 관리 세션이 full G014 post 뒤에 `privacy_retention.g014_catalog_contract_manifest.manifest_value`를 바꾸면 일반 SELECT lock은 UPDATE를 막지 않으며 terminal23도 그 내용을 다시 비교하지 않는다. 그러므로 순간적인 `pg_stat_activity` 조회나 advisory lock만으로 모든 관리 경로가 통제됐다고 하지 않는다. owner는 관련 manifest·allowlist·assertion·role·ACL·policy·owner·ledger 및 대상 bucket 설정을 변경하는 다른 관리 작업을 결과 확인까지 겹쳐 실행하지 않아야 한다. 이 custody는 인증된 owner의 전제이며 machine이 모든 외부 writer 중지를 관측했다는 영수증으로 표현하지 않는다.
+
+worker 비활성은 설치 전 신규 schema/table/RPC 부재, 빈 table 생성, seed INSERT 없음, service_role의 worker INSERT 부재, 모든 worker RPC의 등록 token 조회로 연결된다. 별도 privileged provisioning을 하지 않는 동안 유효 worker 인증이 불가능하다. commit 후 admin enqueue는 별개이며 이 설치 계약은 새 input/job까지 금지한다고 주장하지 않는다.
+
+새 [owner workflow](../../.github/workflows/thumbnail-production-successor.yml)는 수동 dispatch·현재 protected main·저장소 owner·정확한 source SHA만 받는다. inspect는 일반 GitHub runner에서 실행할 수 있고, apply/reconcile은 이름이 고정된 `tzudong-sql-operator-twoimo-mac`의 같은 owner HOME을 사용한다. 이름과 label은 하드웨어 신원에 대한 암호학적 증거가 아니다. 신뢰된 owner가 runner를 다른 host로 교체하거나 custody를 복제·삭제하지 않는 전제는 남는다. 현재 저장소의 등록 runner는 0개로 관측됐으며 등록·workflow dispatch·운영 적용은 수행하지 않았다.
+
+운영 입력 수집은 실제 pinned prior query와 PostgreSQL identity를 읽고 정확한 결과만 private custody에 보존한다. owner custody는 별도의 범위 결속으로 남긴다. 입력·journal은 배타 생성하며 부분 발행·기존 경로를 자동 덮기·삭제·재발급하지 않는다. 복구 모드는 입력 수집을 건너뛰고 기존 journal을 사용한 read-only reconciliation만 수행한다. 기존 review-media의 바깥 serializer 세션으로 이 caller를 감싸지 않는다. 같은 key를 실제 적용 transaction 안에서 획득하므로 바깥 세션이 보유하면 자기 대기가 된다.
+
+workflow는 Node24와 저장소 npm11.6.2 권위를 확인한다. Node24.21.0에 [포함된 npm은11.19.0](https://raw.githubusercontent.com/nodejs/node/v24.21.0/deps/npm/package.json)이므로 bundled npm이11.6.2라고 가정하지 않는다. 정확한 npm을 해당 job의 임시 전용 경로에 설치하고 job PATH에만 연결하며 Mac의 global npm·사용자 설정은 변경하지 않는다. private custody·DB 자격증명은 artifact로 업로드하지 않고 실패·타임아웃 뒤 writer를 자동 재개하지 않는다.
+
+이 경로의 구현·로컬 검사와 실제 GitHub runner/운영 실행은 별도의 증거다. 현재 source 방향에 대한 원래 Pro → Gemini → Pro 예약은 유지하며 외부 교차감사는 미완료다.
+
+[현재 로컬 증거](../evidence/thumbnail-g014-registration-20261024/operating-path-local.json)는 caller21개와 새 collector17개를 함께 실행한 **38 pass·0 fail·324 assertions**, 대상 ESLint 오류·경고0, Node24.22.0 구문/held inspect와 앱 parity **3,427입력·진단0**을 기록한다. 실제 parser/compiler·private file 발행과 fsync는 사용했으며 DB transport·workflow metadata는 대체했다. 검사 후 불필요한 password 모양의 테스트 URL만 제거했고 unit/lint를 다시 확인했다. runtime source와 parity 입력은 같아 기존 parity 증거를 재사용했다.
+
+workflow YAML과 bash6개 block의 구문을 검사하고, 실제 shell에 node transport만 대체한 routing6종을 확인했다. inspect/apply/reconcile의 인자 연결, 잘못된 runner·확인 문자열·mode 거부를 포함한다. root가 발견한 reconcile의 빈 `--confirmation` 전달 오류는 apply에만 해당 인자를 전달하도록 고쳤다. 이는 실제 GitHub Actions·자격증명·DB 실행 증거가 아니다. 새 별도 release 계약의 canonical hash는 `67d46fe826c27b5f422ef0c32f886e6d1c43fabc40b8efbe6336401085b26480`이며 release 파일은 아직 만들지 않았다.
+
+이전 `1b10fa82`의 CI는 **25 SUCCESS·1 SKIPPED·실패/대기0**으로 끝났다. 새 운영 경로를 포함한 commit의 CI와 보호 승격은 이 결과와 별도로 확인한다. 결정적 검사 개수나 조건 수 감소를 운영 성능·비용 절감·정확도 향상으로 환산하지 않는다.
