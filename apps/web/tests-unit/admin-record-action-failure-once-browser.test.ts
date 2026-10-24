@@ -25,7 +25,7 @@ const entry = `
     if (url.pathname === '/api/admin/evaluations' && url.searchParams.get('view') === 'page') {
       return json(fixture.deleted ? { ...onePage, records: [], warnings: {}, filteredTotal: 0 } : onePage);
     }
-    if (fixture.refreshOk && url.pathname === '/api/admin/submissions') return json({ submissions: [] });
+    if (fixture.refreshOk && url.pathname === '/api/admin/submissions') return json({ submissions: [], items: [] });
     if (fixture.refreshOk && url.pathname === '/api/admin/restaurant-requests') return json({ requests: [] });
     if (fixture.refreshOk && url.pathname === '/api/admin/pending-counts') return json({ submissions: 0, reviews: 0 });
     if (url.pathname === '/api/admin/record-actions') {

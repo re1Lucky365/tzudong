@@ -39,7 +39,8 @@ async function bundle() {
   `;
   const built = await Bun.build({
     entrypoints: ['detail-focus-fixture'], target: 'browser', format: 'iife', write: false,
-    define: { 'process.env.NODE_ENV': '"test"' },
+    // Isolated browser build: no Node process or operator environment is present.
+    define: { 'process.env': '{}', 'process.env.NODE_ENV': '"test"' },
     plugins: [{ name: 'detail-focus-fixture', setup(builder) {
       builder.onResolve({ filter: /^detail-focus-fixture$/ }, () => ({ path: 'fixture', namespace: 'fixture' }));
       builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: entry, loader: 'tsx', resolveDir: appRoot }));
