@@ -25,12 +25,19 @@ PR [#3515](https://github.com/twoimo/tzudong/pull/3515)의 `ee1a518d6017fc613749
 
 이는 합성 계약·결정적 반례의 로컬 결과다. 성공률 표본, 비용 절감, 점근적 개선이나 운영 성능에 대한 95% 구간을 만들지 않는다. Linux/Windows의 합성 HTTP 검사는 OS egress 격리의 증명이 아니다. 실제 PostgREST·Storage·작업자·공급자 호출 및 운영 PG17.6의 완료 증거도 아니다.
 
-첫 canonical 전체 실행의 일반 그룹은 **4,129 pass·1 fail·4 skip·95,224 assertions**였으며 뒤의 격리 그룹은 실행되지 않았다. 실패는 지식 그래프 검색 대기 표시의 60초 timeout이다. 같은 browser 파일의 **4개 검사는 변경 없이 단독 8.13초에 통과**했다. 혼합 실행의 원인은 미확정이므로 앱 결함을 고쳤다고 주장하지 않는다. 기존 실행기의 isolated 목록에 해당 파일을 추가해 동일한 네 검사를 유지하고 전체 inventory를 재검증 중이다. 최초 전체 실행의 증거 수집기는 app-relative Git 경로를 잘못 거르면서 빈 source snapshot을 만들었으므로 source 안정성 증거로 쓰지 않는다. 재실행은 HEAD와 변경 소스 21개의 SHA를 실제 전후 기록한다.
+첫 canonical 전체 실행의 일반 그룹은 **4,129 pass·1 fail·4 skip·95,224 assertions**였으며 뒤의 격리 그룹은 실행되지 않았다. 실패는 지식 그래프 검색 대기 표시의 60초 timeout이다. 같은 browser 파일의 **4개 검사는 변경 없이 단독 8.13초에 통과**했다. 혼합 실행의 원인은 미확정이므로 앱 결함을 고쳤다고 주장하지 않는다. 기존 실행기의 isolated 목록에 해당 파일을 추가해 동일한 네 검사를 유지했다. 후속 canonical 실행은 **4,386 pass·0 fail·12 skip·97,860 assertions**, 일반 그룹과 24개 격리 그룹 모두 종료 코드 0이었다. 변경 소스 21개 SHA의 전후 일치와 실행 종료 시 HEAD `a287916afe9f13cd2bae1fd0fcd1d6d145a30b57`를 확인했다. 전체 소스/실행 영수증은 `canonical-unit-isolated-final.json`에 보존한다. 최초 전체 실행의 증거 수집기는 app-relative Git 경로를 잘못 거르면서 빈 source snapshot을 만들었으므로 source 안정성 증거로 쓰지 않는다. 재실행은 HEAD와 변경 소스 21개의 SHA를 실제 전후 기록한다.
 
 입력 비교·production proof 영수증 이후 입력 파일 두 개의 EOF 빈 줄만 제거했다. 해당 byte delta는 `eof-normalization.json`에 별도 보존하고, 최종 source hash로 실제 PG31 검사와 parity를 다시 확인했다. 종전 영수증을 새 소스 실행처럼 덮어쓰지 않았다.
 
 ## 남은 운영 전달
 
-현재 소스의 보호 CI와 실제 독립 Pro → Gemini → Pro 검토를 완료해야 한다. 기존 외부 예약 7건을 보존했고 공유 admission의 양쪽 service free slot은 0, send permission은 false였다. 다른 소유자의 진행·불확실 상태를 정리하거나 모델·계정을 바꿔 우회하지 않았다.
+코드 head `a287916afe9f13cd2bae1fd0fcd1d6d145a30b57`의 CI는 Install·Ubuntu npm·Swift를 포함해 모두 terminal이고 실패/대기 0이다. 정확한 결과는 `ci-a287916a-terminal.json`에 보존한다. 실제 독립 Pro → Gemini → Pro 검토는 여전히 미완료다. 기존 외부 예약 7건을 보존했고 공유 admission의 양쪽 service free slot은 0, send permission은 false였다. 다른 소유자의 진행·불확실 상태를 정리하거나 모델·계정을 바꿔 우회하지 않았다.
 
 새 썸네일 schema/RPC와 private bucket은 운영에 없다. 후보 SQL은 applied migration이 아니며 현재 G014·PG17.6·새 admission·검증된 migration executor/owner lease·현재 writer fence의 apply/readback이 남아 있다. [동선 예산 후보](provider-budget-bridge-20261024.md)도 운영 미적용이다. 과거 SQL 승인/중지 답변은 현재 실행 영수증으로 승계하지 않는다. 외부 검토·설치 준비 뒤 정상 `develop → data → main`, 최신 production rollback SHA 확인, 배포 SHA/alias와 인증된 실제 업무 흐름을 검증한다.
+
+
+현재 G014 두 assertion의 본문 SHA와 소유자는 읽기 전용 hosted 재조회에서도 같았다. 현재 MCP 연결자의 EXECUTE는 둘 다 false이고, PG17.6의 thumbnail schema/RPC/bucket은 여전히 없다. 실제 assertion 실행·역할 전환·권한 확대는 하지 않았다. 두 assertion의 service-only invoker 분기는 각각 25개 기존 identity를 명시하며 신규 썸네일 RPC 3개는 포함하지 않는다. 새 설치 명세는 이 정확한 3개 identity와 registry를 함께 수렴시키고 원래 25개 및 assertion metadata를 보존해야 한다. 이는 후속 검토/구현 조건이지 적용 완료된 SQL이 아니다.
+
+기존 로컬 catalog 실행기의 Docker endpoint 검사는 현재 `desktop-linux` 경로를 `catalog_local_docker_endpoint_denied`로 거부했다. context·socket·backend를 바꾸지 않았으며 이 경로의 PG17.6/full catalog 실행은 미완료다. 기존 17.11 소유 fixture의 성공을 대체 증거로 쓰지 않는다.
+
+독립 검토 재개용 source bundle은 소스 head와 editor caller/queue/worker/budget/G014 preimage에 결속해 로컬에 준비했다. 최신 준비본은 33 entries·628,721 bytes·SHA-256 `90471b4f6d1d38191ab029de6a76e2c6feb563e4596f80ad9086cc3ffe967711`이다. 기존 7개 원본 예약을 바꾸지 않았으며 새 예약·업로드·전송 0회다. 이 준비는 검토 완료가 아니다.
