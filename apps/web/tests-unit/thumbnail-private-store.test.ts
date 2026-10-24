@@ -104,6 +104,36 @@ function fixture() {
 }
 
 describe('thumbnail immutable private storage and checkpoints', () => {
+  test('image prompt and editor text reject privacy assignments before any database or storage access', async () => {
+    const base = thumbnailEditorDocument.parse({ schemaVersion: 1, topic: 'Food-only', headline: 'Original', subHeadline: '',
+      textLayers: [{ id: 'headline', content: 'Original', x: 37.5665, y: 126.978, fontFamily: 'Impact', fontSize: 90,
+        fontWeight: 900, fill: '#fff', stroke: '#000000', strokeWidth: 8, shadow: 'none', align: 'left', rotation: 0, zIndex: 1 }] });
+    for (const label of ['password', 'cookie', 'session']) {
+      const unsafe = [label, 'SINK_BLOCKED'].join('=');
+      const cases = [
+        { prompt: unsafe, editor: base },
+        ...(['topic', 'headline', 'subHeadline'] as const).map((key) => ({ prompt: content.prompt, editor: { ...base, [key]: unsafe } })),
+        { prompt: content.prompt, editor: { ...base, textLayers: [{ ...base.textLayers[0], content: unsafe }] } },
+      ];
+      for (const candidate of cases) {
+        const f = fixture();
+        await expect(f.store.enqueue(f.owner, f.requestId, { ...content, prompt: candidate.prompt }, candidate.editor))
+          .rejects.toThrow('invalid_request');
+        expect(f.calls).toHaveLength(0); expect(f.reads).toHaveLength(0);
+        expect(f.uploads).toHaveLength(0); expect(f.objects.size).toBe(0);
+      }
+    }
+  });
+  test('image privacy screening preserves the admitted prompt size and canvas geometry', async () => {
+    const f = fixture(), prompt = 'food '.repeat(13_107) + 'a';
+    expect(Buffer.byteLength(prompt)).toBe(65_536);
+    const job = await f.store.enqueue(f.owner, f.requestId, { ...content, prompt });
+    expect(job.input.prompt).toBe(prompt);
+    const guarded = fixture(), unsafe = 'food '.repeat(820) + ['session', 'SINK_BLOCKED'].join('=');
+    await expect(guarded.store.enqueue(guarded.owner, guarded.requestId, { ...content, prompt: unsafe }))
+      .rejects.toThrow('invalid_request');
+    expect(guarded.calls).toHaveLength(0); expect(guarded.uploads).toHaveLength(0);
+  });
   test('typed editor document survives storage ACK loss, is immutable, and is bound to the owned input', async () => {
     const f = fixture(); f.uploadMode = 'lost-after';
     const editor = thumbnailEditorDocument.parse({ schemaVersion: 1, topic: 'Food-only', headline: 'Original', subHeadline: '',

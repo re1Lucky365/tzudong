@@ -40,7 +40,9 @@ const DEFAULT_MAX_DEPTH = 8;
 const DEFAULT_MAX_ENTRIES = 100;
 const DEFAULT_MAX_STRING_LENGTH = 4_096;
 const RRN_LIKE_PATTERN = /\b\d{6}[-\s]?[1-8]\d{6}\b/g;
-const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+// A match can only begin at the start of a maximal local-part run. Retrying
+// every suffix of that same run cannot discover another match and is quadratic.
+const EMAIL_PATTERN = /(?<![A-Z0-9._%+-])[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const KOREAN_PHONE_PATTERN =
   /(?:^|[^\d])(?:(?:\+?82[-.\s]?)?(?:0?1[016789]|0?2|0?[3-6][1-5])|(?:\+?82[-.\s]?70|070))[-.\s]?\d{3,4}[-.\s]?\d{4}(?!\d)/gm;
 // Canonical UUIDs (trace, job and correlation identifiers) are opaque handles, not
@@ -1300,6 +1302,20 @@ export class PrivacyUnsafeValueError extends Error {
     this.findings = findings.map(({ kind, path, count }) => ({ kind, path, count }));
   }
 }
+
+/**
+ * Screen one already typed plain-text field in full, up to 64 KiB. This sink
+ * assertion retains no text and does not serialize or truncate a document.
+ * Object/diagnostic/OCR boundaries still require assertPrivacySafe instead.
+ */
+export const assertPrivacySafeText = (value: string): void => {
+  if (typeof value !== "string" || value.length > HARD_MAX_INPUT_BYTES
+    || utf8ByteLengthUpTo(value, HARD_MAX_INPUT_BYTES) > HARD_MAX_INPUT_BYTES) {
+    throw new PrivacyUnsafeValueError([{ kind: "bounded_value", path: "$", count: 1 }]);
+  }
+  const finding = sensitiveKindForString(value);
+  if (finding) throw new PrivacyUnsafeValueError([{ ...finding, path: "$" }]);
+};
 
 /**
  * Blocks risky values at a sink without exposing their content in an error.

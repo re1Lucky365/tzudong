@@ -55,6 +55,15 @@ test('chat schema rejects strings beyond the shared privacy character boundary',
   expect(thumbnailChatResponse.parse(answer(context(), { assistantMessage: '가'.repeat(4096) })).assistantMessage.length).toBe(4096);
 });
 
+test('initial null canvas action is valid without weakening action-label text validation', () => {
+  expect(thumbnailChatContext.parse({ ...context(), lastCanvasActionLabel: null }).lastCanvasActionLabel).toBeNull();
+  expect(thumbnailChatContext.parse(context()).lastCanvasActionLabel).toBeUndefined();
+  expect(thumbnailChatContext.parse({ ...context(), lastCanvasActionLabel: '문구 선택됨' }).lastCanvasActionLabel).toBe('문구 선택됨');
+  for (const label of [42, {}, 'a'.repeat(321), '\u0000', '\ud800']) {
+    expect(thumbnailChatContext.safeParse({ ...context(), lastCanvasActionLabel: label }).success).toBe(false);
+  }
+});
+
 describe('thumbnail chat contracts and credits worker', () => {
   test('preserves both conversation roles, focus, metadata and 64 actual layers in a browser-safe contract', async () => {
     const ctx = context({ currentTextLayers: Array.from({ length: 64 }, (_, index) => ({ ...layer, id: `layer-${index}` })) });

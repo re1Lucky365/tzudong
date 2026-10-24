@@ -52,6 +52,10 @@ const calls: Array<{ path: string; method: string; owner: string | null }> = [];
 let chatJob: ThumbnailChatJob | null = null, chatInput: ThumbnailChatContext | null = null;
 let chatPosts = 0, chatCancels = 0, chatAckLost = false, chatGenerate = false;
 let posts = 0, cancels = 0, referenceReads = 0, candidateReads = 0, ackLost = false;
+// Reproduce a usable editor before its initial release readback completes.
+// Otherwise that background read sets an action label and masks the null input.
+let releaseInitialReadback!: () => void;
+const initialReadback = new Promise<void>((release) => { releaseInitialReadback = release; });
 let lastSubmitted: { model: string; roles: string[]; editor?: ThumbnailEditorDocument } | undefined;
 const summary = (value: ThumbnailJob) => ({ id: value.id, requestId: value.requestId, model: value.model,
   state: value.state, cancelRequested: value.cancelRequested, createdAt: value.createdAt, updatedAt: value.updatedAt });
@@ -114,7 +118,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
     return Response.json({ job });
   }
   if (path.endsWith('/history')) return Response.json({ runs: [], pagination: { total: 0 } });
-  if (path.endsWith('/releases/current')) return Response.json({ status: 'empty' });
+  if (path.endsWith('/releases/current')) { await initialReadback; return Response.json({ status: 'empty' }); }
   if (path.endsWith('/release-candidates')) return Response.json({ status: 'empty', candidates: [] });
   return Response.json({ error: 'fixture_unhandled_route' }, { status: 400 });
 } });
@@ -182,7 +186,10 @@ try {
   await page.setViewportSize({ width: 1440, height: 960 });
   const chatComposer = page.getByPlaceholder('원하는 썸네일 내용을 입력해 주세요');
   await chatComposer.fill('메인 문구를 더 간결하게 다듬어 줘'); await page.locator('[data-thumbnail-chat-submit]').click();
-  await expect.poll(() => chatPosts).toBe(1); chatSucceed();
+  await expect.poll(() => chatPosts).toBe(1);
+  assert.equal(chatInput!.lastCanvasActionLabel, null, 'fresh editor chat preserves its initial empty canvas action');
+  releaseInitialReadback();
+  chatSucceed();
   await expect(page.locator('[data-thumbnail-chat-queue-status]')).toContainText('채팅 완료');
   await expect(page.locator('[data-thumbnail-chat-cancel]')).toHaveCount(0);
   await page.getByRole('button', { name: '메인 선택', exact: true }).click();
@@ -285,7 +292,7 @@ try {
   writeFileSync(join(out, 'receipt.json'), JSON.stringify({ browser: browser.version(), sourceHashes: before, sourceStable: true,
     widths: [1440, 768, 390], geometry, realReactEditor: true, projectCss: true, nativeCanvas: true, reducedMotion: true,
     autoReferenceDecode: true, editorPersisted: true, sameRevisionAutoApply: true, laterEditProtected: true, chatSameRevisionApply: true, chatLaterEditProtected: true,
-    chatCancelled: true, chatAckLostReloadPosts: 1, chatReloadNoAutoApply: true, chatPosts, chatFollowUpStableIdentity: true, chatFollowUpEnqueues: 1, repeatedResultNoEnqueue: true,
+    firstChatNullCanvasActionAccepted: true, chatCancelled: true, chatAckLostReloadPosts: 1, chatReloadNoAutoApply: true, chatPosts, chatFollowUpStableIdentity: true, chatFollowUpEnqueues: 1, repeatedResultNoEnqueue: true,
     reloadNotAutoApplied: true, historyDocumentRestored: true, pngExported: true, cancelReadback: true,
     ackLostReloadPosts: 1, totalEnqueuePosts: posts, externalRequests, providerCalls: 0,
     syntheticAuthAndApi: true, nextImageSeam: true, hostedAdminProof: false }, null, 2));
@@ -295,4 +302,4 @@ try {
   writeFileSync(join(out, 'failure.json'), JSON.stringify({ error: error instanceof Error ? error.message.slice(0, 2200) : 'failed',
     pageErrors: errors, posts, cancels, calls: calls.slice(-20) }, null, 2));
   throw error;
-} finally { await context.close(); await browser.close(); await server.stop(true); }
+} finally { releaseInitialReadback(); await context.close(); await browser.close(); await server.stop(true); }

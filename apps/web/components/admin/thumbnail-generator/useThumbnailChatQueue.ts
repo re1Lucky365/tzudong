@@ -38,11 +38,35 @@ export function useThumbnailChatQueue() {
     } catch (failure) { setError(thumbnailGeminiMessage(failure)); }
     return () => { live = false; queue.current = null; window.removeEventListener('storage', changed); };
   }, [owner, isAdmin, refresh]);
+  const pendingRequestId = state.phase === 'unconfirmed' || state.phase === 'tracking' ? state.handle?.requestId : undefined;
   useEffect(() => {
-    if (!state.handle || state.phase === 'idle' || state.phase === 'settled' || active.current === queue.current) return;
-    const timer = window.setTimeout(() => { if (document.visibilityState === 'visible') void refresh(); }, 5000);
-    return () => clearTimeout(timer);
-  }, [state, error, refresh]);
+    const q = queue.current;
+    if (!q || !isAdmin || !pendingRequestId) return;
+    let live = true, inFlight = false;
+    let timer: number | undefined;
+    const canObserve = () => {
+      if (!live || queue.current !== q || ownerRef.current !== owner) return false;
+      const next = q.state;
+      return next.handle?.requestId === pendingRequestId && (next.phase === 'unconfirmed' || next.phase === 'tracking');
+    };
+    const schedule = () => {
+      if (canObserve() && document.visibilityState === 'visible') timer = window.setTimeout(() => { void poll(); }, 5000);
+    };
+    const poll = async () => {
+      if (!canObserve() || document.visibilityState !== 'visible' || inFlight) return;
+      window.clearTimeout(timer); inFlight = true;
+      try { await refresh(); }
+      // Fixed errors need not change state. refresh also skips an active submit;
+      // retain the timer so observation resumes when that non-reactive ref clears.
+      finally { inFlight = false; schedule(); }
+    };
+    const visible = () => {
+      window.clearTimeout(timer);
+      if (document.visibilityState === 'visible') void poll();
+    };
+    schedule(); document.addEventListener('visibilitychange', visible);
+    return () => { live = false; window.clearTimeout(timer); document.removeEventListener('visibilitychange', visible); };
+  }, [pendingRequestId, owner, isAdmin, refresh]);
   const submit = useCallback(async (rawContext: unknown, editorRevision: number, signal: AbortSignal) => {
     if (owner !== ownerRef.current || !isAdmin) throw new ThumbnailBrowserQueueError('request_rejected');
     const q = queue.current, requestedOwner = ownerRef.current;

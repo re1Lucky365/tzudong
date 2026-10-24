@@ -35,6 +35,7 @@ declare global {
       start(): void; abort(): Promise<void>; switchOwner(owner: string): void;
       snapshot(): Snapshot; outcome(): Outcome | null;
       cancelCaptured(): Promise<void>; cancelCurrent(): Promise<void>;
+      unmount(): void;
     };
   }
 }
@@ -45,6 +46,7 @@ import { createRoot } from 'react-dom/client';
 import { FixtureAuthProvider, useAuth, switchOwner } from '@/contexts/AuthContext';
 import { useThumbnailGeminiQueue } from './components/admin/thumbnail-generator/useThumbnailGeminiQueue';
 let latest, controller, capturedCancel, settled = null, snapshot;
+const root = createRoot(document.getElementById('root'));
 function Probe() {
   const { user } = useAuth();
   const hook = useThumbnailGeminiQueue();
@@ -79,8 +81,9 @@ window.thumbnailOwnerFixture = {
   switchOwner, snapshot: () => snapshot, outcome: () => settled,
   cancelCaptured: async () => { await capturedCancel(); },
   cancelCurrent: async () => { await latest.cancel(); },
+  unmount: () => root.unmount(),
 };
-createRoot(document.getElementById('root')).render(
+root.render(
   <FixtureAuthProvider initialOwner={document.body.dataset.owner}><Probe /></FixtureAuthProvider>);
 `;
 const auth = `
@@ -109,7 +112,8 @@ assert.deepEqual(hashes(), before, 'source changed while bundling');
 type Call = { method: string; path: string; owner: string | null; status?: number };
 type Case = { mode: 'success' | 'failure'; ownerA: string; ownerB: string; authOwner: string;
   jobA: ThumbnailJob | null; jobB: ThumbnailJob; calls: Call[]; enqueued: boolean;
-  ack: Promise<void>; release(): void; unexpected: string[] };
+  ack: Promise<void>; release(): void; unexpected: string[];
+  polling?: { failure: '503' | 'timeout'; lookups: number; hold?: Promise<void> } };
 let active: Case;
 const makeJob = (ownerId: string, requestId: string) => {
   const now = new Date().toISOString();
@@ -144,6 +148,13 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
   }
   if (path === base && request.method === 'GET') {
     if (!url.searchParams.has('requestId')) return reply({ jobs: [] });
+    if (current.polling) {
+      current.polling.lookups++;
+      if (current.polling.lookups === 2 && current.polling.failure === '503') {
+        return reply({ ok: false, error: 'synthetic_status_unavailable' }, 503);
+      }
+      if (current.polling.hold) await current.polling.hold;
+    }
     const job = owner === current.ownerA ? current.jobA : current.jobB;
     return reply({ job: job?.requestId === url.searchParams.get('requestId') ? job : null });
   }
@@ -244,13 +255,102 @@ try {
       results.push(result);
     } finally { current.release(); await context.close(); }
   }
+  for (const failure of ['503', 'timeout'] as const) {
+    const ownerA = randomUUID(), ownerB = randomUUID();
+    const polling: NonNullable<Case['polling']> = { failure, lookups: 0 };
+    const current: Case = { mode: 'success', ownerA, ownerB, authOwner: ownerA,
+      jobA: makeJob(ownerA, randomUUID()), jobB: makeJob(ownerB, randomUUID()), calls: [],
+      enqueued: false, ack: Promise.resolve(), release() {}, unexpected: [], polling };
+    active = current;
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const origin = `http://127.0.0.1:${server.port}`, externalAttempts: string[] = [], pageErrors: string[] = [];
+    await context.route('**/*', (route) => {
+      const request = route.request(), url = new URL(request.url());
+      if (url.origin !== origin) { externalAttempts.push('blocked non-loopback request'); return route.abort(); }
+      if (failure === 'timeout' && url.pathname === base && url.searchParams.has('requestId') && polling.lookups === 1) {
+        polling.lookups++;
+        current.calls.push({ method: request.method(), path: url.pathname + url.search,
+          owner: request.headers()['x-thumbnail-owner'] ?? null, status: 0 });
+        // Actual browser fetch rejection, without a provider or external request.
+        return route.abort('timedout');
+      }
+      return route.continue();
+    });
+    const page = await context.newPage(); page.on('pageerror', (error) => pageErrors.push(error.message));
+    await page.clock.install();
+    await page.clock.pauseAt(new Date());
+    await page.addInitScript(({ owner, receipt }) => {
+      localStorage.setItem(`thumbnail-gemini-request:${owner}`, receipt);
+    }, { owner: ownerA, receipt: JSON.stringify({ requestId: current.jobA!.requestId, model,
+      editorSessionId: randomUUID(), editorRevision: 7, cancelRequested: false }) });
+    let releaseRead: (() => void) | undefined;
+    try {
+      await page.goto(origin);
+      await expect.poll(() => page.evaluate(() => window.thumbnailOwnerFixture?.snapshot()?.phase)).toBe('tracking');
+      assert.equal(polling.lookups, 1);
+      const initial = await page.evaluate(() => window.thumbnailOwnerFixture.snapshot());
+      await page.clock.fastForward(5000);
+      await expect.poll(() => polling.lookups).toBe(2);
+      await expect.poll(() => page.evaluate(() => Boolean(window.thumbnailOwnerFixture.snapshot().error))).toBe(true);
+      const failed = await page.evaluate(() => window.thumbnailOwnerFixture.snapshot());
+      assert.equal(failed.phase, 'tracking'); assert.equal(failed.requestId, initial.requestId);
+      await page.clock.fastForward(4999);
+      assert.equal(polling.lookups, 2, 'no immediate or tight retry after failed status GET');
+      await page.clock.fastForward(1);
+      await expect.poll(() => polling.lookups, { timeout: 1500 }).toBe(3);
+      await expect.poll(() => page.evaluate(() => window.thumbnailOwnerFixture.snapshot().error)).toBeNull();
+      assert.equal(current.calls.filter((call) => call.method === 'POST').length, 0);
+      await page.clock.fastForward(4999);
+      assert.equal(polling.lookups, 3);
+      await page.clock.fastForward(1);
+      await expect.poll(() => polling.lookups).toBe(4);
+      await expect.poll(() => current.calls.filter((call) => call.path.includes('?requestId=') && call.status === 200).length).toBe(3);
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await page.clock.fastForward(15_000);
+      assert.equal(polling.lookups, 4, 'hidden tab must not keep status polling');
+      if (failure === '503') {
+        current.jobA = thumbnailJob.parse({ ...current.jobA, state: 'cancelled', cancelRequested: true });
+      } else {
+        polling.hold = new Promise<void>((resolveRead) => { releaseRead = resolveRead; });
+      }
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await expect.poll(() => polling.lookups).toBe(5);
+      if (failure === '503') {
+        await expect.poll(() => page.evaluate(() => window.thumbnailOwnerFixture.snapshot().phase)).toBe('settled');
+      } else {
+        await page.evaluate(() => {
+          document.dispatchEvent(new Event('visibilitychange'));
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+        await page.clock.fastForward(15_000);
+        assert.equal(polling.lookups, 5, 'no overlapping status GET while one is pending');
+        await page.evaluate(() => window.thumbnailOwnerFixture.unmount());
+        releaseRead!();
+        await expect.poll(() => current.calls.filter((call) => call.path.includes('?requestId=') && call.status === 200).length).toBe(4);
+      }
+      await page.clock.fastForward(15_000);
+      assert.equal(polling.lookups, 5, 'terminal or unmounted loop must not rearm');
+      assert.equal(current.calls.filter((call) => call.method === 'POST').length, 0, 'read recovery never enqueues or cancels');
+      assert.ok(current.calls.every((call) => call.owner === ownerA));
+      assert.deepEqual(current.unexpected, []); assert.deepEqual(externalAttempts, []); assert.deepEqual(pageErrors, []);
+      results.push({ statusReadFailure: failure, passed: true, lookups: polling.lookups,
+        recoveredWithoutNewState: true, successRearms: true, hiddenPaused: true, generationPosts: 0,
+        settledStops: failure === '503', pendingUnmountStops: failure === 'timeout' });
+    } finally { releaseRead?.(); await context.close(); }
+  }
   assert.deepEqual(hashes(), before, 'source changed during verification; rerun against a stable candidate');
   console.log(JSON.stringify({ passed: true, command: 'bun tests-unit/fixtures/thumbnail-hook-owner-browser.ts',
     bun: Bun.version, chrome: browser.version(), react: JSON.parse(readFileSync(Bun.resolveSync('react/package.json', app), 'utf8')).version,
     sourceStable: true, sourceSha256: sha256(JSON.stringify(before)), sourceFiles: before, bundleSha256: sha256(script),
     results, externalPageRequests: 0, hostedRequests: 0, providerCalls: 0,
     limits: ['Auth/API are synthetic; actual UI caller is inspected/hash-bound but not mounted.',
-      'Success and HTTP 503 ACK failure are covered; not all network/process failures.',
+      'Enqueue success/503 ACK loss and status 503/browser timeout rejection are covered; no real 20-second network deadline or hosted failure is claimed.',
       'No hosted authorization, PostgreSQL, Storage, Gemini, or external cross-audit evidence.'],
   }, null, 2));
 } finally { await browser?.close(); await server.stop(true); }

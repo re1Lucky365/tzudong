@@ -41,7 +41,7 @@ export const thumbnailChatContext = z.object({
   currentTopic: canvas.shape.topic.default(''), currentHeadline: canvas.shape.headline.default(''),
   currentSubHeadline: canvas.shape.subHeadline.default(''),
   activeLayerId: layerId.nullish(), editingLayerId: layerId.nullish(),
-  lastCanvasActionLabel: text(320).optional(),
+  lastCanvasActionLabel: text(320).nullish(),
   currentTextLayers: z.array(layer).max(64).refine(uniqueIds).default([]),
   conversationMessages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: text(8000),
     id: correlationId.optional(), createdAt: z.iso.datetime({ offset: true }).optional() }).strict()).max(32).default([]),

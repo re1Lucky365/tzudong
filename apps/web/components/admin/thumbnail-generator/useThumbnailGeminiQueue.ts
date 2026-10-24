@@ -80,13 +80,36 @@ export function useThumbnailGeminiQueue() {
     return () => { current = false; queue.current = null; window.removeEventListener('storage', storageChanged); };
   }, [owner, isAdmin, refresh]);
 
+  const pendingRequestId = state.phase === 'unconfirmed' || state.phase === 'tracking' ? state.handle?.requestId : undefined;
   useEffect(() => {
-    if (!state.handle || state.phase === 'settled' || state.phase === 'idle' || state.phase === 'submitting') return;
-    const timer = window.setTimeout(() => { if (document.visibilityState === 'visible') void refresh(); }, 5000);
-    const visible = () => { if (document.visibilityState === 'visible') void refresh(); };
+    const q = queue.current;
+    if (!q || !isAdmin || !pendingRequestId) return;
+    let current = true, inFlight = false;
+    let timer: number | undefined;
+    const canObserve = () => {
+      if (!current || queue.current !== q || ownerRef.current !== owner) return false;
+      const next = q.state;
+      return next.handle?.requestId === pendingRequestId && (next.phase === 'unconfirmed' || next.phase === 'tracking');
+    };
+    const schedule = () => {
+      if (canObserve() && document.visibilityState === 'visible') timer = window.setTimeout(() => { void poll(); }, 5000);
+    };
+    const poll = async () => {
+      if (!canObserve() || document.visibilityState !== 'visible' || inFlight) return;
+      window.clearTimeout(timer); inFlight = true;
+      try { await refresh(); }
+      // A failed GET may leave queue state unchanged. Rearm independently of a
+      // React state change, after this observation completes; never enqueue here.
+      finally { inFlight = false; schedule(); }
+    };
+    const visible = () => {
+      window.clearTimeout(timer);
+      if (document.visibilityState === 'visible') void poll();
+    };
+    schedule();
     document.addEventListener('visibilitychange', visible);
-    return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', visible); };
-  }, [state, refresh]);
+    return () => { current = false; window.clearTimeout(timer); document.removeEventListener('visibilitychange', visible); };
+  }, [pendingRequestId, owner, isAdmin, refresh]);
 
   const submit = useCallback(async (draft: ThumbnailBrowserDraft, editorRevision: number, signal: AbortSignal, requestId?: string) => {
     const q = queue.current; const requestedOwner = ownerRef.current;

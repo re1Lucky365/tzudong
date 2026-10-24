@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import { z } from 'zod';
 import { createSupabaseServiceRoleClient } from '@/lib/supabase/service-role';
 import { createSupabaseStorageServerClient } from '@/lib/supabase/storage-server';
-import { assertPrivacySafe } from '@/lib/privacy/sanitize';
+import { assertPrivacySafe, assertPrivacySafeText } from '@/lib/privacy/sanitize';
 import { prepareThumbnailGeminiContent, type ThumbnailGeminiContent } from './gemini-image-input';
 import { prepareThumbnailChatContent } from './gemini-chat-input';
 import { thumbnailChatContext, thumbnailChatProvenance, validateThumbnailChatResponse, type ThumbnailChatContext } from './chat-contract';
@@ -195,6 +195,11 @@ export class ThumbnailPrivateStore {
     owner = parseThumbnail(thumbnailUuid, owner); requestId = parseThumbnail(thumbnailUuid, requestId);
     const document = editor ? parseThumbnail(thumbnailEditorDocument, editor) : undefined;
     const prepared = await prepareThumbnailGeminiContent(content);
+    try {
+      assertPrivacySafeText(prepared.prompt);
+      if (document) assertPrivacySafe([document.topic, document.headline, document.subHeadline,
+        ...document.textLayers.map((layer) => layer.content)], { maxEntries: 256 });
+    } catch { throw new ThumbnailQueueError('invalid_request'); }
     const input: ThumbnailInput = parseThumbnail(thumbnailInput, { contract: 'thumbnail-gemini-image-v1', model: prepared.model,
       prompt: prepared.prompt, references: prepared.references.map((ref, index) => ({
         path: inputPath(owner, requestId, index, ref.sha256, ref.mimeType), sha256: ref.sha256,

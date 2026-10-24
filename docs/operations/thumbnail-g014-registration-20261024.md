@@ -230,4 +230,34 @@ v2 release는 `.github/thumbnail-production-successor.v2.json`, canonical SHA `3
 
 실제 로컬 psql 경로를 read-only로 호출하자 기본 libpq trust store가 `TLS_TRUST_REJECTED`로 거부했다. 공통 helper가 inherited PG 설정을 제거하므로 외부 `PGSSLROOTCERT` 지정만으로 해결되지 않는다. 공통 frozen helper와 사용자 trust store는 유지하고 thumbnail caller/collector의 기본 transport에 고정 CA SHA 검증과 `verify-full`·고정 `PGSSLROOTCERT`를 결속했다. CLI에 인증서 경로나 TLS 약화 override는 추가하지 않았다.
 
-[후속 증거](../evidence/thumbnail-g014-registration-20261024/pinned-ca-native-readonly.json)는 **53 pass·0 fail·705 assertions**, 변경한3개 파일 lint 오류·경고0, 실제 기본 transport를 통한 클라이언트 TLS1.3·서버170006·현재 executor/database·read-only 조회를 기록한다. 기존 기본 trust 파일은 전후 동일하다. pooler 뒤 `pg_stat_ssl`의 내부 연결 통계는 클라이언트 TLS와 다르므로 `psql \\conninfo`의 클라이언트 결과와 분리했다. 이 진단의 hosted 쓰기·사용자 행 복사·provider 호출은0이다. 고정 CA가 변경되거나 target이 다르면 실패하며, 이전 full PG17.6 installer 검증과 새 head CI·운영 적용은 별도다.
+[후속 증거](../evidence/thumbnail-g014-registration-20261024/pinned-ca-native-readonly.json)는 **53 pass·0 fail·705 assertions**, 변경한3개 파일 lint 오류·경고0, 실제 기본 transport를 통한 클라이언트 TLS1.3·서버170006·현재 executor/database·read-only 조회를 기록한다. 기존 기본 trust 파일은 전후 동일하다. pooler 뒤 `pg_stat_ssl`의 내부 연결 통계는 클라이언트 TLS와 다르므로 `psql \conninfo`의 클라이언트 결과와 분리했다. 이 진단의 hosted 쓰기·사용자 행 복사·provider 호출은0이다. 고정 CA가 변경되거나 target이 다르면 실패하며, 이전 full PG17.6 installer 검증과 새 head CI·운영 적용은 별도다.
+
+## 원격 리뷰: 저장 경계와 조회 복구
+
+`7cb6be5c`의 원격 검사는 25 SUCCESS·1 SKIPPED(동명 Promotion Path 실행 포함)로 끝났지만 미해결 리뷰3건 때문에 병합은 계속 보류됐다. 첫 채팅의 `lastCanvasActionLabel=null` 거부, 이미지 요청의 민감 문자열 저장, status GET 오류 후 polling 중단을 실제로 재현했다. 같은 polling 결함이 채팅 복구에도 있어 함께 수정했다. 변경한 source의 CI는 이전 결과와 구분한다.
+
+이미지 enqueue는 prepared prompt와 typed editor 텍스트를 첫 DB/Storage 접근 전에 검사한다. 기존 최대65,536-byte prompt를 유지하려고 shared privacy module에 전체 typed text용64KiB assertion을 추가했으며 generic object의4,096자 상한은 유지했다. 중앙 탐지 패턴과 내용 없는 오류를 재사용하고 geometry는 텍스트로 오인하지 않는다. email 탐지는 같은 local-part run의 모든 suffix를 다시 시도하지 않도록 시작 경계를 지정했다. 이전 탐지기의 punctuation·복수`@` 사례와 match count를 대조했으며 이를 모든 정규식 입력에 대한 자동 형식 증명으로 표시하지 않는다.
+
+null action은 선택 필드에서 허용하며 기존 문자열 제한·strict schema는 유지한다. 이미지·채팅 hook은 상태 변화 여부와 무관하게 GET 종료 후 다음 조회를 예약한다. 동일 owner·pending request·visible mounted tab에서만 계속하며 hidden·종료·owner 전환·unmount 후 새 polling을 멈춘다. active chat submit은 기존 조회 소유권을 유지한다. 실패한 조회는 generation POST를 재전송하지 않는다.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Validate
+  Validate --> Rejected: unsafe typed text / invalid schema
+  Validate --> Submit: valid typed input
+  Submit --> Tracking: owned job confirmed
+  Submit --> Unconfirmed: acknowledgement unavailable
+  Tracking --> StatusRead: visible + same pending owner / 5s
+  Unconfirmed --> StatusRead: visible + same pending owner / 5s
+  StatusRead --> ReadFailed: timeout / 503
+  ReadFailed --> StatusRead: visible + same pending owner / 5s
+  StatusRead --> Tracking: job pending
+  StatusRead --> Unconfirmed: request not confirmed
+  StatusRead --> Settled: terminal job readback
+  Rejected --> [*]
+  Settled --> [*]
+```
+
+이 도식은 조회 복구 명세다. `Unconfirmed`·`ReadFailed`에서 Submit으로 돌아가는 자동 경로는 없다. 진행성은 status read가 종료되고 event loop가 진행한다는 전제를 가지며, hidden 중에는 타이머를 예약하지 않는다. 명세·검사로 전역 exactly-once나 네트워크 생존성을 증명했다고 주장하지 않는다.
+
+[통합 증거](../evidence/thumbnail-g014-registration-20261024/review-followup-local.json)는 **6파일124 pass·0 fail·895 assertions**, 변경한12파일 lint 오류·경고0, parity **3,427입력·진단0**이다. 보관한 browser 증거는 이미지 hook4사례·채팅 hook5사례와 전체 편집기 통과, 복구 generation POST0이다. Auth/API는 loopback 모의값이고 가상 스케줄·실제 fetch 거부를 사용했으므로 실제20초 network timeout·hosted 업무 성공 증거와 구분한다. DB 쓰기·provider 호출은0이며 기존 budget4파일은 별도 비활성 후보로 보존했다.

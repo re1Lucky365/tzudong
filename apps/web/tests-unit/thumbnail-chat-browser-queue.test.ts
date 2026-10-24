@@ -35,6 +35,13 @@ function fixture() {
     set lost(value: boolean) { lost = value; }, set absent(value: boolean) { absent = value; }, set foreign(value: boolean) { foreign = value; } };
 }
 describe('independent durable thumbnail chat browser receipt', () => {
+  test('first editor chat accepts the initial null canvas action and enqueues once', async () => {
+    const f = fixture(), q = f.queue();
+    const job = await q.enqueue({ ...f.context, lastCanvasActionLabel: null }, 0);
+    expect(job.ownerId).toBe(f.owner);
+    expect(q.state.phase).toBe('tracking');
+    expect(f.posts).toBe(1);
+  });
   test('same editor + revision + thread + turn yields exactly one stable follow-up image request identity', async () => {
     const f = fixture(), q = f.queue(); await q.enqueue(f.context, 4); f.succeed(); await q.resume();
     expect(q.consume(f.job!.id, 5, 'thread-1', 'run-1')).toBeNull();

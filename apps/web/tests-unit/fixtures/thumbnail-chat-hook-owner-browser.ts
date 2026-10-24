@@ -1,5 +1,5 @@
 /** Run from apps/web: bun tests-unit/fixtures/thumbnail-chat-hook-owner-browser.ts
- * Actual React hook, browser queue, reference preparation and schemas in isolated Chrome.
+ * Actual React hook, browser queue and schemas in isolated Chrome.
  * Only Auth and loopback API/data are synthetic. No hosted or provider execution proof.
  */
 import assert from 'node:assert/strict';
@@ -38,6 +38,7 @@ declare global {
       start(): void; abort(): Promise<void>; switchOwner(owner: string): void;
       snapshot(): Snapshot; outcome(): Outcome | null;
       cancelCaptured(): Promise<void>; cancelCurrent(): Promise<void>;
+      unmount(): void; refresh(): Promise<void>; submitAgain(): Promise<Outcome>;
     };
   }
 }
@@ -48,6 +49,7 @@ import { createRoot } from 'react-dom/client';
 import { FixtureAuthProvider, useAuth, switchOwner } from '@/contexts/AuthContext';
 import { useThumbnailChatQueue } from './components/admin/thumbnail-generator/useThumbnailChatQueue';
 let latest, controller, capturedCancel, settled = null, snapshot;
+const root = createRoot(document.getElementById('root'));
 function Probe() {
   const { user } = useAuth();
   const hook = useThumbnailChatQueue();
@@ -78,8 +80,15 @@ window.thumbnailChatOwnerFixture = {
   switchOwner, snapshot: () => snapshot, outcome: () => settled,
   cancelCaptured: async () => { await capturedCancel(); },
   cancelCurrent: async () => { await latest.cancel(); },
+  unmount: () => root.unmount(), refresh: async () => { await latest.refresh(); },
+  submitAgain: async () => {
+    try {
+      await latest.submit({ message: '중복 요청 검증', chatThreadId: 'thread-owner', chatRunId: 'run-duplicate' }, 7, new AbortController().signal);
+      return { status: 'resolved', code: null };
+    } catch (error) { return { status: 'rejected', code: error.code ?? error.name }; }
+  },
 };
-createRoot(document.getElementById('root')).render(
+root.render(
   <FixtureAuthProvider initialOwner={document.body.dataset.owner}><Probe /></FixtureAuthProvider>);
 `;
 const auth = `
@@ -115,7 +124,8 @@ assert.deepEqual(hashes(), before, 'source changed while bundling');
 type Call = { method: string; path: string; owner: string | null; status?: number };
 type Case = { mode: 'success' | 'failure'; ownerA: string; ownerB: string; authOwner: string;
   jobA: ThumbnailChatJob | null; jobB: ThumbnailChatJob; calls: Call[]; enqueued: boolean;
-  ack: Promise<void>; release(): void; unexpected: string[] };
+  ack: Promise<void>; release(): void; unexpected: string[];
+  polling?: { failure: '503' | 'timeout'; failures: number[]; lookups: number; hold?: Promise<void> } };
 let active: Case;
 const makeJob = (ownerId: string, requestId: string) => {
   const now = new Date().toISOString();
@@ -150,6 +160,13 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
   }
   if (path === base && request.method === 'GET') {
     if (!url.searchParams.has('requestId')) return reply({ jobs: [] });
+    if (current.polling) {
+      const lookup = ++current.polling.lookups;
+      if (current.polling.hold) await current.polling.hold;
+      if (current.polling.failure === '503' && current.polling.failures.includes(lookup)) {
+        return reply({ ok: false, error: 'synthetic_status_unavailable' }, 503);
+      }
+    }
     const job = owner === current.ownerA ? current.jobA : current.jobB;
     return reply({ job: job?.requestId === url.searchParams.get('requestId') ? job : null });
   }
@@ -250,13 +267,160 @@ try {
       results.push(result);
     } finally { current.release(); await context.close(); }
   }
+  for (const failure of ['503', 'timeout'] as const) {
+    const ownerA = randomUUID(), ownerB = randomUUID();
+    const polling: NonNullable<Case['polling']> = { failure, failures: [2, 3], lookups: 0 };
+    const current: Case = { mode: 'success', ownerA, ownerB, authOwner: ownerA,
+      jobA: makeJob(ownerA, randomUUID()), jobB: makeJob(ownerB, randomUUID()), calls: [],
+      enqueued: false, ack: Promise.resolve(), release() {}, unexpected: [], polling };
+    active = current;
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const origin = `http://127.0.0.1:${server.port}`, externalAttempts: string[] = [], pageErrors: string[] = [];
+    await context.route('**/*', (route) => {
+      const request = route.request(), url = new URL(request.url());
+      if (url.origin !== origin) { externalAttempts.push('blocked non-loopback request'); return route.abort(); }
+      if (failure === 'timeout' && url.pathname === base && url.searchParams.has('requestId')
+        && polling.failures.includes(polling.lookups + 1)) {
+        polling.lookups++;
+        current.calls.push({ method: request.method(), path: url.pathname + url.search,
+          owner: request.headers()['x-thumbnail-owner'] ?? null, status: 0 });
+        return route.abort('timedout');
+      }
+      return route.continue();
+    });
+    const page = await context.newPage(); page.on('pageerror', (error) => pageErrors.push(error.message));
+    await page.clock.install(); await page.clock.pauseAt(new Date());
+    await page.addInitScript(({ owner, receipt }) => {
+      localStorage.setItem(`thumbnail-gemini-chat-request:${owner}`, receipt);
+    }, { owner: ownerA, receipt: JSON.stringify({ requestId: current.jobA!.requestId, model,
+      editorSessionId: randomUUID(), editorRevision: 7, cancelRequested: false,
+      chatThreadId: 'thread-polling', chatRunId: 'run-polling', imageRequestId: randomUUID() }) });
+    let releaseRead: (() => void) | undefined;
+    try {
+      await page.goto(origin);
+      await expect.poll(() => page.evaluate(() => window.thumbnailChatOwnerFixture?.snapshot()?.phase)).toBe('tracking');
+      assert.equal(polling.lookups, 1);
+      const initial = await page.evaluate(() => window.thumbnailChatOwnerFixture.snapshot());
+      let fixedError: string | null = null;
+      for (const expected of [2, 3]) {
+        await page.clock.fastForward(4999); assert.equal(polling.lookups, expected - 1);
+        await page.clock.fastForward(1);
+        await expect.poll(() => polling.lookups).toBe(expected);
+        await expect.poll(() => current.calls.filter((call) => call.path.includes('?requestId=') && (call.status === 503 || call.status === 0)).length).toBe(expected - 1);
+        await expect.poll(() => page.evaluate(async (key) =>
+          (await navigator.locks.query()).held?.filter((lock) => lock.name === key).length ?? 0,
+        `thumbnail-gemini-chat-request:${ownerA}`)).toBe(0);
+        await expect.poll(() => page.evaluate(() => Boolean(window.thumbnailChatOwnerFixture.snapshot().error))).toBe(true);
+        const failed = await page.evaluate(() => window.thumbnailChatOwnerFixture.snapshot());
+        if (fixedError) assert.equal(failed.error, fixedError, 'second error does not change the fixed error string');
+        fixedError = failed.error; assert.equal(failed.phase, 'tracking'); assert.equal(failed.requestId, initial.requestId);
+      }
+      await page.clock.fastForward(5000);
+      await expect.poll(() => polling.lookups, { timeout: 1500 }).toBe(4);
+      await expect.poll(() => page.evaluate(() => window.thumbnailChatOwnerFixture.snapshot().error)).toBeNull();
+      await page.clock.fastForward(5000);
+      await expect.poll(() => polling.lookups).toBe(5);
+      await expect.poll(() => current.calls.filter((call) => call.path.includes('?requestId=') && call.status === 200).length).toBe(3);
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await page.clock.fastForward(15_000); assert.equal(polling.lookups, 5);
+      if (failure === '503') {
+        current.jobA = thumbnailChatJob.parse({ ...current.jobA, state: 'cancelled', cancelRequested: true });
+      } else {
+        polling.hold = new Promise<void>((resolveRead) => { releaseRead = resolveRead; });
+      }
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await expect.poll(() => polling.lookups).toBe(6);
+      if (failure === '503') {
+        await expect.poll(() => page.evaluate(() => window.thumbnailChatOwnerFixture.snapshot().phase)).toBe('settled');
+      } else {
+        await page.evaluate(() => {
+          document.dispatchEvent(new Event('visibilitychange'));
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+        await page.clock.fastForward(15_000); assert.equal(polling.lookups, 6, 'pending GET does not overlap');
+        await page.evaluate(() => window.thumbnailChatOwnerFixture.unmount()); releaseRead!();
+        await expect.poll(() => current.calls.filter((call) => call.path.includes('?requestId=') && call.status === 200).length).toBe(4);
+      }
+      await page.clock.fastForward(15_000); assert.equal(polling.lookups, 6, 'terminal/unmount stops scheduling');
+      assert.equal(current.calls.filter((call) => call.method === 'POST').length, 0);
+      assert.ok(current.calls.every((call) => call.owner === ownerA));
+      assert.deepEqual(current.unexpected, []); assert.deepEqual(externalAttempts, []); assert.deepEqual(pageErrors, []);
+      results.push({ statusReadFailure: failure, consecutiveIdenticalFailures: 2, lookups: polling.lookups,
+        passed: true, successRearms: true, hiddenPaused: true, noOverlappingGet: true, generationPosts: 0,
+        settledStops: failure === '503', pendingUnmountStops: failure === 'timeout' });
+    } finally { releaseRead?.(); await context.close(); }
+  }
+  {
+    const ownerA = randomUUID(), ownerB = randomUUID(); let release!: () => void, releaseRead!: () => void;
+    const ack = new Promise<void>((resolveAck) => { release = resolveAck; });
+    const polling: NonNullable<Case['polling']> = { failure: '503', failures: [1, 2], lookups: 0,
+      hold: new Promise<void>((resolveRead) => { releaseRead = resolveRead; }) };
+    const current: Case = { mode: 'success', ownerA, ownerB, authOwner: ownerA, jobA: null,
+      jobB: makeJob(ownerB, randomUUID()), calls: [], enqueued: false, ack, release, unexpected: [], polling };
+    active = current;
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const origin = `http://127.0.0.1:${server.port}`, externalAttempts: string[] = [], pageErrors: string[] = [];
+    await context.route('**/*', (route) => {
+      if (new URL(route.request().url()).origin === origin) return route.continue();
+      externalAttempts.push('blocked non-loopback request'); return route.abort();
+    });
+    const page = await context.newPage(); page.on('pageerror', (error) => pageErrors.push(error.message));
+    await page.clock.install(); await page.clock.pauseAt(new Date());
+    try {
+      await page.goto(origin);
+      await expect.poll(() => page.evaluate(() => window.thumbnailChatOwnerFixture?.snapshot()?.available)).toBe(true);
+      await page.evaluate(() => window.thumbnailChatOwnerFixture.start());
+      await expect.poll(() => current.enqueued).toBe(true);
+      assert.deepEqual(await page.evaluate(() => window.thumbnailChatOwnerFixture.submitAgain()), { status: 'rejected', code: 'receipt_unavailable' });
+      await page.clock.fastForward(10_000);
+      await page.evaluate(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+        await window.thumbnailChatOwnerFixture.refresh();
+      });
+      assert.equal(polling.lookups, 0, 'active enqueue must not start background GET');
+      release();
+      await expect.poll(() => page.evaluate(() => window.thumbnailChatOwnerFixture.snapshot().phase)).toBe('tracking');
+      await page.clock.fastForward(2000);
+      await expect.poll(() => polling.lookups).toBe(1);
+      await page.evaluate(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+        await window.thumbnailChatOwnerFixture.refresh();
+      });
+      await page.clock.fastForward(15_000);
+      assert.equal(polling.lookups, 1, 'active submit owns its pending GET; background timer cannot duplicate it');
+      releaseRead();
+      await expect.poll(() => page.evaluate(() => window.thumbnailChatOwnerFixture.outcome())).toEqual({ status: 'rejected', code: 'unconfirmed' });
+      await page.clock.fastForward(5000);
+      await expect.poll(() => polling.lookups).toBe(2);
+      await expect.poll(() => current.calls.filter((call) => call.status === 503).length).toBe(2);
+      await expect.poll(() => page.evaluate(async (key) =>
+        (await navigator.locks.query()).held?.filter((lock) => lock.name === key).length ?? 0,
+      `thumbnail-gemini-chat-request:${ownerA}`)).toBe(0);
+      current.jobA = thumbnailChatJob.parse({ ...current.jobA, state: 'cancelled', cancelRequested: true });
+      await page.clock.fastForward(5000);
+      await expect.poll(() => polling.lookups).toBe(3);
+      await expect.poll(() => page.evaluate(() => window.thumbnailChatOwnerFixture.snapshot().phase)).toBe('settled');
+      await page.clock.fastForward(15_000); assert.equal(polling.lookups, 3);
+      assert.equal(current.calls.filter((call) => call.method === 'POST' && call.path === base).length, 1);
+      assert.equal(current.calls.filter((call) => call.method === 'POST' && call.path !== base).length, 0);
+      assert.deepEqual(current.unexpected, []); assert.deepEqual(externalAttempts, []); assert.deepEqual(pageErrors, []);
+      results.push({ activeSubmit: true, passed: true, duplicateSubmitRejected: true, enqueuePosts: 1,
+        noCompetingBackgroundGet: true, recoveryAfterActiveEnds: true, consecutiveIdenticalFailures: 2, lookups: 3 });
+    } finally { release(); releaseRead(); await context.close(); }
+  }
   assert.deepEqual(hashes(), before, 'source changed during verification; rerun against a stable candidate');
   console.log(JSON.stringify({ passed: true, command: 'bun tests-unit/fixtures/thumbnail-chat-hook-owner-browser.ts',
     bun: Bun.version, chrome: browser.version(), react: JSON.parse(readFileSync(Bun.resolveSync('react/package.json', app), 'utf8')).version,
     sourceStable: true, sourceSha256: sha256(JSON.stringify(before)), sourceFiles: before, bundleSha256: sha256(script),
     results, externalPageRequests: 0, hostedRequests: 0, providerCalls: 0,
     limits: ['Auth/API are synthetic; actual UI caller is inspected/hash-bound but not mounted.',
-      'Success and HTTP 503 ACK failure are covered; not all network/process failures.',
+      'Two identical status 503/timeout failures use virtual scheduling and real browser fetch rejection; no actual elapsed 20-second deadline is claimed.',
       'No hosted authorization, PostgreSQL, Storage, Gemini, or external cross-audit evidence.'],
   }, null, 2));
 } finally { await browser?.close(); await server.stop(true); }
