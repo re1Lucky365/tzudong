@@ -172,6 +172,8 @@ caller는 generic compiler의 `not_applied` 관측을 `prior_observed`로 해석
 
 ## 후속: 설치 범위에 맞춘 운영 실행 경로
 
+이 절의 Mac runner prototype과 38개 검사는 `fb557c76`의 기록이다. 아래 local-owner v2 절이 현재 실행 계약이며 prototype을 활성화하지 않는다.
+
 후속 caller 계약은 이전 9개 fence를 **관련 privileged catalog writer 통제**와 **worker provisioning 보류** 두 가지 owner custody로 바꾼다. 기존 frozen draft·SQL·43문장 vector·compiler는 바꾸지 않는다. 별도 release 파일은 계속 부재하며 `executionEnabled=false`인 원래 draft를 실행 가능으로 바꾸지 않는다. 위 9개 조건·release hash와 20/21개 검사 기록은 각각 해당 이전 소스의 관측으로 남긴다.
 
 일반 업로드·리뷰·자동 검수의 정상 DML은 중지 증거를 요구하지 않는다. 실제 SQL은 ledger lock 아래 정확한 prior를 재검사하고, Storage 두 table lock을 잡은 뒤 동일 bucket ID/name과 해당 object의 부재를 다시 확인한다. 기존 writer가 먼저 lock을 보유하면 대기하거나 timeout으로 전체 rollback하며, 설치가 먼저 lock을 잡으면 뒤의 writer가 대기한다. 이 구조를 HTTP timeout·재시도에 영향이 없다는 주장으로 확대하지 않는다.
@@ -181,6 +183,8 @@ privileged writer custody는 별도로 필요하다. 예를 들어 다른 관리
 worker 비활성은 설치 전 신규 schema/table/RPC 부재, 빈 table 생성, seed INSERT 없음, service_role의 worker INSERT 부재, 모든 worker RPC의 등록 token 조회로 연결된다. 별도 privileged provisioning을 하지 않는 동안 유효 worker 인증이 불가능하다. commit 후 admin enqueue는 별개이며 이 설치 계약은 새 input/job까지 금지한다고 주장하지 않는다.
 
 새 [owner workflow](../../.github/workflows/thumbnail-production-successor.yml)는 수동 dispatch·현재 protected main·저장소 owner·정확한 source SHA만 받는다. inspect는 일반 GitHub runner에서 실행할 수 있고, apply/reconcile은 이름이 고정된 `tzudong-sql-operator-twoimo-mac`의 같은 owner HOME을 사용한다. 이름과 label은 하드웨어 신원에 대한 암호학적 증거가 아니다. 신뢰된 owner가 runner를 다른 host로 교체하거나 custody를 복제·삭제하지 않는 전제는 남는다. 현재 저장소의 등록 runner는 0개로 관측됐으며 등록·workflow dispatch·운영 적용은 수행하지 않았다.
+
+후속 운영 환경 조회에서 저장소의 `PUBLIC` 상태를 확인했다. [GitHub의 runner 접근 문서](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/manage-access)는 공개 fork의 PR 코드가 self-hosted runner에서 실행될 수 있는 위험을 설명한다. 그러므로 현재의 비활성 Mac runner prototype을 실제 운영 경로로 채택하거나 개인 Mac에 범용 runner를 등록하지 않는다. 새 release 파일도 만들지 않았다. GitHub에서는 credential 없는 inspect만 유지하고, SQL 실행·복구는 기존 로컬 gh의 실제 owner identity·현재 보호 source·동일 영속 journal을 검증하는 별도 local-owner 경로로 분리하는 후속안을 검토 중이다. `GITHUB_ACTIONS` 환경을 합성해 workflow 실행처럼 표현하지 않으며, 이 대안은 아직 구현·운영 검증 완료가 아니다.
 
 운영 입력 수집은 실제 pinned prior query와 PostgreSQL identity를 읽고 정확한 결과만 private custody에 보존한다. owner custody는 별도의 범위 결속으로 남긴다. 입력·journal은 배타 생성하며 부분 발행·기존 경로를 자동 덮기·삭제·재발급하지 않는다. 복구 모드는 입력 수집을 건너뛰고 기존 journal을 사용한 read-only reconciliation만 수행한다. 기존 review-media의 바깥 serializer 세션으로 이 caller를 감싸지 않는다. 같은 key를 실제 적용 transaction 안에서 획득하므로 바깥 세션이 보유하면 자기 대기가 된다.
 
@@ -193,3 +197,20 @@ workflow는 Node24와 저장소 npm11.6.2 권위를 확인한다. Node24.21.0에
 workflow YAML과 bash6개 block의 구문을 검사하고, 실제 shell에 node transport만 대체한 routing6종을 확인했다. inspect/apply/reconcile의 인자 연결, 잘못된 runner·확인 문자열·mode 거부를 포함한다. root가 발견한 reconcile의 빈 `--confirmation` 전달 오류는 apply에만 해당 인자를 전달하도록 고쳤다. 이는 실제 GitHub Actions·자격증명·DB 실행 증거가 아니다. 새 별도 release 계약의 canonical hash는 `67d46fe826c27b5f422ef0c32f886e6d1c43fabc40b8efbe6336401085b26480`이며 release 파일은 아직 만들지 않았다.
 
 이전 `1b10fa82`의 CI는 **25 SUCCESS·1 SKIPPED·실패/대기0**으로 끝났다. 새 운영 경로를 포함한 commit의 CI와 보호 승격은 이 결과와 별도로 확인한다. 결정적 검사 개수나 조건 수 감소를 운영 성능·비용 절감·정확도 향상으로 환산하지 않는다.
+
+
+## 후속: local-owner v2 — 실제 로컬 신원과 원래 복구 기록
+
+공개 저장소에 개인 Mac runner를 등록하는 경로를 제거했다. GitHub workflow에는 Ubuntu의 inspect job 하나만 남으며 DB Secret·self-hosted label·apply/reconcile 입력이 없다. YAML과 bash4개 block을 검사했다. SQL 적용과 복구는 같은 OS 계정의 로컬 CLI 경로로 분리했다. 기존 frozen draft·43문장 SQL·compiler·적용된 migration은 바꾸지 않았다.
+
+새 [신원 관측기](../../apps/web/scripts/thumbnail-local-owner.mjs)는 기존 `/opt/homebrew/bin/gh`로 `github.com`의 고정 GET3개만 수행한다. 실제 user의 login/id, repository owner의 login/id와 admin 메타, `main`의 이름·SHA·`protected=true`를 검증한다. 다른 관리자 collaborator는 owner가 아니므로 거부한다. 요청은 shell 없이 실행하고 64KiB·15초로 제한하며 raw login/id·stderr·자격증명은 저장하지 않는다. 새 로그인·권한 갱신·키 생성·runner 등록은 없다. 기존 auth/config override6개와 `GITHUB_ACTIONS=true`, OS native UID/HOME 불일치는 거부한다.
+
+기본 transport의 실제 GET3회도 읽기 전용으로 실행했다. 2026-10-24 11:54:35Z에 소유자·admin 권한·보호된 main `1b5230ac93021c72499f4950bff6cda24e2515e5`를 확인했다. 이는 준비 관측이며 현재 실행 admission으로 재사용하지 않는다. 실제 적용은 다시 현재 owner·보호 branch·정확한 detached/clean source를 관측해야 한다. 신뢰된 로컬 executor가 JavaScript 실행 전에 protected source와 npm11.6.2 dependency authority를 확인한다는 전제가 있다. 프로그램 자체의 source 확인으로 악성 bootstrap을 안전하게 만들었다고 주장하지 않는다.
+
+[현재 증거](../evidence/thumbnail-g014-registration-20261024/local-owner-operating-path.json): caller21개·collector17개·owner13개를 함께 실행한 **51 pass·0 fail·687 assertions**, 대상 lint 오류·경고0, Node24.22.0의 module3개 구문/held inspect, 앱 parity **3,427입력·진단0**, source7개 전후 일치를 확인했다. owner의 불완전/다른 계정·collaborator·보호 해제·가짜 branch·auth override·미래/오래된 관측·큰/다중 JSON·진단 노출을 거부한다. unit의 DB/identity transport 대체와 실제 gh GET 준비 관측, 이전 PG17.6 전체 설치 증거는 각각 구분한다.
+
+v2 release는 `.github/thumbnail-production-successor.v2.json`, canonical SHA `381465961c5820d7074e8a318db6b5129a3ae81aa868da9254af26748d67d849`다. 파일은 아직 없다. admission·fence·observation은 local-owner authority와 operation UUID를 사용하며 GitHub run ID나 workflow 실행을 합성하지 않는다. custody는 환경의 HOME 대신 `userInfo().homedir`에서 정한다. 이전 custody가 있으면 자동 재발급·삭제하지 않는다. 실제 운영 custody는 아직 없고, 이전 v1 계약으로 보낸 유효 journal을 새 계약으로 재작성하는 동작도 없다. 그런 기록은 원래 고정 source/계약의 읽기 복구 경로로 보존해야 한다.
+
+복구는 원래 admission·SQL·journal 바인딩을 먼저 확인한 다음 현재 owner를 별도로 인증한다. main이 전진해도 과거 sourceRevision·fence·만료 시각을 갱신하지 않으며 파일 bytes/mtime을 보존한다. prior 관측은 계속 미확인이고 재전송·writer 재개의 근거가 아니다. 관련 privileged writer 통제와 worker provisioning 보류는 기존 owner custody의 전제로 남으며 다른 host로 원래 기록을 복제하지 않는다는 전제도 유지한다. native HOME이나 API 신원 관측을 hardware 또는 전역 exactly-once 증명으로 해석하지 않는다.
+
+새 소스의 CI·보호 승격·별도 release admission·현재 운영 prior 확인·실제 적용/readback, worker provisioning과 hosted 생성/Storage/UI 검증은 남아 있다. 외부 Pro → Gemini → Pro 단계는 기존 예약을 보존한 채 미완료이며 이 로컬 결과로 대체하지 않는다. 운영 DB 쓰기·provider 호출은0회다.

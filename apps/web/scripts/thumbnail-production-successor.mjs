@@ -10,21 +10,22 @@ import {
   closeSync, constants, existsSync, fstatSync, fsyncSync, lstatSync, openSync,
   readFileSync, realpathSync, writeSync,
 } from 'node:fs';
-import { homedir } from 'node:os';
+import { userInfo } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readOriginalStatementVector, selectDirectDatabaseTransport } from './apply-supabase-migration.mjs';
 import { migrationEnvelope, atomicMigrationSql, reconciliationSql, reconciliationOutcome } from './supabase-migration-transaction.mjs';
 import { assertSuccessorDatabaseTarget, createSuccessorPsqlRunner } from './admin-record-sql-successor.mjs';
-import { authenticatedOwnerAttestation } from './review-media-operating-orchestrator.mjs';
+import { observeThumbnailLocalOwner, validateThumbnailLocalOwner } from './thumbnail-local-owner.mjs';
 
 export const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 export const MANIFEST_PATH = '.github/thumbnail-production-installation.draft.v1.json';
 export const MANIFEST_SHA256 = '51a7c5b61cc268e7a8fe23261548d1950ecfda122e12a6b0d13645e297563bbc';
-export const RELEASE_ADMISSION_PATH = '.github/thumbnail-production-successor.v1.json';
+export const RELEASE_ADMISSION_PATH = '.github/thumbnail-production-successor.v2.json';
 export const PROJECT_REF = 'aqlcofblfxdrjhhdmarw';
 export const SERIALIZER_KEY = 'tzudong:review-media-sql-successor:workflow:v1';
-export const CUSTODY_DIRECTORY = join(homedir(), '.codex/runtime-cache/thumbnail-production-successor', PROJECT_REF, MANIFEST_SHA256);
+export const CUSTODY_DIRECTORY = join(userInfo().homedir, '.codex/runtime-cache/thumbnail-production-successor', PROJECT_REF, MANIFEST_SHA256);
+export const OWNER_AUTHORITY = 'authenticated-repository-owner-local-cli';
 export const REQUIRED_FENCES = Object.freeze({
   privilegedCatalogWriters: 'controlled', workerProvisioning: 'withheld',
 });
@@ -43,7 +44,7 @@ export const FENCE_COVERAGE = Object.freeze([
 const TOOLCHAIN = Object.freeze({
   'apps/web/scripts/apply-supabase-migration.mjs': '02c404e0be3e81b7c8d4d7766ff29e750b1797f5ad49b5f496168170e21192d4',
   'apps/web/scripts/admin-record-sql-successor.mjs': 'c9b2c3335598bc21a5a721182ae45aae0d009be8684e7a1a2a0871e0cb921466',
-  'apps/web/scripts/review-media-operating-orchestrator.mjs': 'fd34ebef0f798c5e1720c72975bf043bffee2d40d56a05558b9f00cced6d369a',
+  'apps/web/scripts/thumbnail-local-owner.mjs': '1a6e45cd3af10084799f5c5b0824abc99057ecd8fa6484da5282d105bc73afca',
   'apps/web/scripts/privacy-safe-cli-log.mjs': '23acce06424335d2d3597c236d7e5d30731b04d9f75fa75cff7a93bff0cc6e97',
 });
 const HEX = /^[a-f0-9]{64}$/;
@@ -62,16 +63,17 @@ const quote = value => "'" + String(value).replaceAll("'", "''") + "'";
 // The historical draft remains immutable and executionEnabled=false.
 export function thumbnailReleaseContract() {
   return {
-    schema: 'thumbnail-production-successor-release-v1', executionEnabled: true,
+    schema: 'thumbnail-production-successor-release-v2', executionEnabled: true,
     projectRef: PROJECT_REF, databaseName: 'postgres', executorRole: 'postgres', serverVersionNum: 170006,
     manifestPath: MANIFEST_PATH, manifestSha256: MANIFEST_SHA256,
     candidateSha256: '8019c4e7788cf6706094937a5d4111958201793192d918817e824791db471ac2',
     originalVectorSha256: '270ca9e0757641543f1d992ca526d2d9cb39324b4ebeb6b195a0b9f59226294e',
     repository: 'twoimo/tzudong', protectedRef: 'refs/heads/main',
-    workflowPath: '.github/workflows/thumbnail-production-successor.yml',
+    inspectionWorkflowPath: '.github/workflows/thumbnail-production-successor.yml',
+    authority: OWNER_AUTHORITY, executionSurface: 'local-owner-cli',
     serializerKey: SERIALIZER_KEY, requiredFences: { ...REQUIRED_FENCES }, coverage: [...FENCE_COVERAGE],
     custodyScope: 'privileged-custody-until-reconciled', normalBusinessDmlMayContinue: true,
-    custodyRunnerName: 'tzudong-sql-operator-twoimo-mac',
+    custodyHomeAuthority: 'native-os-account',
     admissionLifetimeMs: 900_000, fenceAgeMs: 60_000, replayPolicy: 'reconcile-only-after-journal',
   };
 }
@@ -159,7 +161,7 @@ export function validateThumbnailAdmission(admission, fence, fenceBytes, record,
     'manifestSha256', 'releaseAdmissionSha256', 'sourceSha256', 'vectorSha256', 'sourceRevision',
     'createdAt', 'expiresAt', 'writerFenceSha256',
   ]);
-  if (admission.kind !== 'thumbnail-production-admission-v1' || !UUID.test(admission.attemptId)
+  if (admission.kind !== 'thumbnail-production-admission-v2' || !UUID.test(admission.attemptId)
     || admission.projectRef !== PROJECT_REF || admission.databaseName !== 'postgres'
     || admission.executorRole !== 'postgres' || admission.serverVersionNum !== 170006
     || admission.manifestSha256 !== record.manifestSha256
@@ -173,13 +175,13 @@ export function validateThumbnailAdmission(admission, fence, fenceBytes, record,
   if (expires <= created || expires - created > 15 * 60_000) fail('THUMBNAIL_ADMISSION_INVALID');
   exactKeys(fence, [
     'kind', 'authority', 'projectRef', 'sourceRevision', 'manifestSha256', 'observedAt',
-    'expiresAt', 'runId', 'runAttempt', 'fences', 'coverage', 'evidenceSha256',
+    'expiresAt', 'operationId', 'ownerObservation', 'fences', 'coverage', 'evidenceSha256',
   ]);
-  if (fence.kind !== 'thumbnail-writer-fence-readback-v1'
-    || fence.authority !== 'authenticated-repository-owner-workflow-dispatch'
+  if (fence.kind !== 'thumbnail-writer-fence-readback-v2'
+    || fence.authority !== OWNER_AUTHORITY
     || fence.projectRef !== PROJECT_REF || fence.sourceRevision !== admission.sourceRevision
     || fence.manifestSha256 !== record.manifestSha256 || fence.expiresAt !== admission.expiresAt
-    || !/^[1-9][0-9]*$/.test(fence.runId) || !/^[1-9][0-9]*$/.test(fence.runAttempt)
+    || fence.operationId !== admission.attemptId
     || !equal(fence.fences, REQUIRED_FENCES) || !equal(fence.coverage, FENCE_COVERAGE)
     || !equal(Object.keys(fence.evidenceSha256 ?? {}).sort(), Object.keys(REQUIRED_FENCES).sort())
     || Object.values(fence.evidenceSha256).some(value => !HEX.test(value))) fail('THUMBNAIL_FENCE_INVALID');
@@ -189,6 +191,14 @@ export function validateThumbnailAdmission(admission, fence, fenceBytes, record,
     if (!Number.isFinite(now.getTime()) || now.getTime() < created || now.getTime() >= expires) fail('THUMBNAIL_ADMISSION_EXPIRED');
     if (observed > now.getTime() || now.getTime() - observed > 60_000) fail('THUMBNAIL_FENCE_STALE');
   }
+  try {
+    validateThumbnailLocalOwner(fence.ownerObservation, {
+      sourceRevision: admission.sourceRevision, operationId: admission.attemptId,
+      now: reconciliation ? new Date(fence.ownerObservation?.observedAt) : now,
+    });
+  } catch { fail('THUMBNAIL_FENCE_INVALID'); }
+  if (date(fence.ownerObservation.observedAt) < created
+    || date(fence.ownerObservation.observedAt) > observed) fail('THUMBNAIL_FENCE_INVALID');
 }
 
 // The SQL's actual prior/locks/G014/readback enforce the machine boundary.
@@ -201,11 +211,11 @@ function readFenceEvidence(directory, admission, fence, now, { reconciliation = 
     if (sha(raw) !== fence.evidenceSha256[name]) fail('THUMBNAIL_FENCE_EVIDENCE_DRIFT');
     exactKeys(value, [
       'kind', 'fence', 'state', 'projectRef', 'sourceRevision', 'manifestSha256',
-      'runId', 'runAttempt', 'observedAt', 'scope', 'coverage', 'basis',
+      'operationId', 'observedAt', 'scope', 'coverage', 'basis',
     ]);
-    if (value.kind !== 'thumbnail-writer-observation-v1' || value.fence !== name || value.state !== state
+    if (value.kind !== 'thumbnail-writer-observation-v2' || value.fence !== name || value.state !== state
       || value.projectRef !== PROJECT_REF || value.sourceRevision !== admission.sourceRevision
-      || value.manifestSha256 !== MANIFEST_SHA256 || value.runId !== fence.runId || value.runAttempt !== fence.runAttempt
+      || value.manifestSha256 !== MANIFEST_SHA256 || value.operationId !== admission.attemptId
       || value.scope !== 'privileged-custody-until-reconciled' || !equal(value.coverage, FENCE_COVERAGE)
       || value.basis !== 'authenticated-owner-custody') fail('THUMBNAIL_FENCE_EVIDENCE_INVALID');
     const observed = date(value.observedAt);
@@ -322,7 +332,7 @@ export function runThumbnailSuccessor({ mode = 'inspect', environment = process.
     custodyDirectory = CUSTODY_DIRECTORY,
     now = () => new Date(), sourceImpl = currentThumbnailSource,
     protectedRevisionImpl = currentThumbnailProtectedRevision,
-    attestationImpl = authenticatedOwnerAttestation, runPsqlImpl,
+    attestationImpl = observeThumbnailLocalOwner, runPsqlImpl,
     fsyncImpl = fsyncSync, appendJournalImpl = appendThumbnailJournal,
   } = dependencies;
   const record = loadRecordImpl();
@@ -365,12 +375,14 @@ export function runThumbnailSuccessor({ mode = 'inspect', environment = process.
     // A partial terminal append may exist. Only the complete durable first line grants read-only reconciliation.
     const first = privateBytes(paths.journal, { journal: true }).toString('utf8').split('\n')[0];
     if (!equal(JSON.parse(first), binding)) fail('THUMBNAIL_JOURNAL_BINDING_INVALID');
+    const owner = attestationImpl({ environment, clock: now, operationId: admission.attemptId });
+    // Authenticate the current owner without rebinding the historical attempt
+    // to a main commit that may have advanced since its original admission.
+    validateThumbnailLocalOwner(owner, { sourceRevision: owner.sourceRevision, now: now(), operationId: admission.attemptId });
   } else {
     validateThumbnailLiveSource(admission, sourceImpl(), protectedRevisionImpl());
-    const attestation = attestationImpl({ environment, sourceRevision: admission.sourceRevision, clock: now });
-    if (attestation.runId !== fence.runId || attestation.runAttempt !== fence.runAttempt
-      || attestation.authority !== fence.authority
-      || attestation.workflowRef !== 'twoimo/tzudong/' + thumbnailReleaseContract().workflowPath + '@refs/heads/main') fail('THUMBNAIL_FENCE_INVALID');
+    const owner = attestationImpl({ environment, clock: now, operationId: admission.attemptId });
+    validateThumbnailLocalOwner(owner, { sourceRevision: admission.sourceRevision, now: now(), operationId: admission.attemptId });
   }
   const { databaseUrl } = selectDirectDatabaseTransport(environment);
   assertSuccessorDatabaseTarget(databaseUrl, { projectRef: PROJECT_REF, databaseName: 'postgres' });

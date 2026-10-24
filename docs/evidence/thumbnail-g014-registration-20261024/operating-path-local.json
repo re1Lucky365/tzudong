@@ -52,7 +52,9 @@
     "inspectDatabaseSecretMapped": false,
     "applyReconcileRunner": "tzudong-sql-operator-twoimo-mac",
     "registeredRepositoryRunners": 0,
-    "actualActionsExecution": false
+    "actualActionsExecution": false,
+    "repositoryVisibility": "PUBLIC",
+    "directPersonalMacRunnerAdmitted": false
   },
   "npmAuthority": {
     "staged": "11.6.2",
@@ -72,7 +74,8 @@
     "The registered runner, persistent custody across actual workflow attempts, separate release file, protected promotion and hosted execution remain unverified.",
     "Local transport and workflow metadata are substituted; actual PostgreSQL17.6 whole-installer receipts remain separately scoped to unchanged SQL.",
     "No automatic retry, custody repair/deletion, worker provisioning, writer resume or provider calls.",
-    "Original external Pro to Gemini to Pro reservations remain incomplete and unchanged."
+    "Original external Pro to Gemini to Pro reservations remain incomplete and unchanged.",
+    "The inactive self-hosted prototype is not admitted for this PUBLIC repository. Direct personal-Mac runner registration is withheld; a separate local authenticated-owner path is under source review, not implemented or operating-verified."
   ],
   "hostedWrites": 0,
   "providerCalls": 0,

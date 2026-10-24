@@ -35,6 +35,12 @@ function writePrivate(path: string, value: any) {
 }
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 
+function localOwner(operationId = attemptId, instant = createdAt) {
+  return { kind: 'thumbnail-local-owner-observation-v1', authority: 'authenticated-repository-owner-local-cli',
+    operationId, repository: 'twoimo/tzudong', principal: 'repository-owner', identityVerified: true,
+    branch: 'main', protected: true, sourceRevision: revision, observedAt: instant };
+}
+
 function fixture() {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'thumbnail-successor-test-')));
   chmodSync(root, 0o700);
@@ -43,9 +49,9 @@ function fixture() {
   const evidenceSha256: Record<string, string> = {};
   for (const [name, state] of Object.entries(REQUIRED_FENCES)) {
     evidence[name] = {
-      kind: 'thumbnail-writer-observation-v1', fence: name, state,
+      kind: 'thumbnail-writer-observation-v2', fence: name, state,
       projectRef: PROJECT_REF, sourceRevision: revision, manifestSha256: MANIFEST_SHA256,
-      runId: '123456', runAttempt: '1', observedAt,
+      operationId: attemptId, observedAt,
       scope: 'privileged-custody-until-reconciled', coverage: [...FENCE_COVERAGE],
       basis: 'authenticated-owner-custody',
     };
@@ -53,14 +59,14 @@ function fixture() {
     writePrivate(join(root, 'writer-fence-' + name + '.json'), evidence[name]);
   }
   const fence: any = {
-    kind: 'thumbnail-writer-fence-readback-v1',
-    authority: 'authenticated-repository-owner-workflow-dispatch',
+    kind: 'thumbnail-writer-fence-readback-v2',
+    authority: 'authenticated-repository-owner-local-cli',
     projectRef: PROJECT_REF, sourceRevision: revision, manifestSha256: MANIFEST_SHA256,
-    observedAt, expiresAt, runId: '123456', runAttempt: '1',
+    observedAt, expiresAt, operationId: attemptId, ownerObservation: localOwner(),
     fences: { ...REQUIRED_FENCES }, coverage: [...FENCE_COVERAGE], evidenceSha256,
   };
   const admission: any = {
-    kind: 'thumbnail-production-admission-v1', attemptId, projectRef: PROJECT_REF,
+    kind: 'thumbnail-production-admission-v2', attemptId, projectRef: PROJECT_REF,
     databaseName: 'postgres', executorRole: 'postgres', serverVersionNum: 170006,
     manifestSha256: MANIFEST_SHA256, releaseAdmissionSha256: RELEASE_ADMISSION_SHA256,
     sourceSha256: record.migration.sha256, vectorSha256: record.migration.originalVectorSha256,
@@ -83,7 +89,8 @@ function fixture() {
     custodyDirectory: root, now: () => now,
     sourceImpl: () => ({ revision, clean: true, detached: true, origin: 'https://github.com/twoimo/tzudong.git' }),
     protectedRevisionImpl: () => revision,
-    // Exercise the real owner-dispatch validator using synthetic workflow metadata.
+    // Actual local-owner observation validation; identity transport is substituted.
+    attestationImpl: ({ operationId, clock }: any) => localOwner(operationId, clock().toISOString()),
     runPsqlImpl: (_url: string, sql: string, singleTransaction: boolean) => {
       calls.push({ sql, singleTransaction });
       if (sql.includes('$thumbnail_serializer$')) return JSON.stringify(record.migration.terminalReadback.expected);
@@ -93,14 +100,6 @@ function fixture() {
   };
   const environment: any = {
     SUPABASE_DB_URL: 'postgresql://postgres@db.' + PROJECT_REF + '.supabase.co:5432/postgres?sslmode=require',
-    GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch',
-    GITHUB_REPOSITORY: 'twoimo/tzudong', GITHUB_REPOSITORY_OWNER: 'twoimo',
-    GITHUB_ACTOR: 'twoimo', GITHUB_TRIGGERING_ACTOR: 'twoimo',
-    GITHUB_ACTOR_ID: '123', GITHUB_REPOSITORY_OWNER_ID: '123',
-    OPERATOR_ACTOR: 'twoimo', OPERATOR_ACTOR_ID: '123',
-    GITHUB_REF: 'refs/heads/main', GITHUB_REF_PROTECTED: 'true', GITHUB_SHA: revision,
-    GITHUB_RUN_ID: '123456', GITHUB_RUN_ATTEMPT: '1',
-    GITHUB_WORKFLOW_REF: 'twoimo/tzudong/.github/workflows/thumbnail-production-successor.yml@refs/heads/main',
   };
   const run = (mode = 'apply') => runThumbnailSuccessor({ mode, environment }, dependencies);
   return { root, fence, admission, evidence, save, calls, dependencies, environment, committed, run };
@@ -237,7 +236,15 @@ test('reconcile is read-only after expiry, accepts a partial terminal append, an
 
 test('a foreign attempt or altered SQL journal binding cannot reconcile', () => {
   const f = fixture(); f.run(); f.calls.length = 0;
-  f.admission.attemptId = '11234567-89ab-4cde-8fab-0123456789ab'; f.save();
+  f.admission.attemptId = '11234567-89ab-4cde-8fab-0123456789ab';
+  f.fence.operationId = f.admission.attemptId;
+  f.fence.ownerObservation.operationId = f.admission.attemptId;
+  for (const name of Object.keys(f.evidence)) {
+    f.evidence[name].operationId = f.admission.attemptId;
+    writePrivate(join(f.root, 'writer-fence-' + name + '.json'), f.evidence[name]);
+    f.fence.evidenceSha256[name] = sha(bytes(f.evidence[name]));
+  }
+  f.save();
   expectCode(() => f.run('reconcile'), 'THUMBNAIL_JOURNAL_BINDING_INVALID');
   expect(f.calls).toEqual([]);
 });
@@ -387,7 +394,7 @@ test('expired admission, future or stale fence, missing coverage and source/hash
     [f => { f.dependencies.protectedRevisionImpl = () => 'b'.repeat(40); }, 'THUMBNAIL_SOURCE_DRIFT'],
     [f => { const read = f.dependencies.sourceImpl; f.dependencies.sourceImpl = () => ({ ...read(), clean: false }); }, 'THUMBNAIL_SOURCE_DRIFT'],
     [f => { const read = f.dependencies.sourceImpl; f.dependencies.sourceImpl = () => ({ ...read(), detached: false }); }, 'THUMBNAIL_SOURCE_DRIFT'],
-    [f => { f.environment.GITHUB_WORKFLOW_REF = 'twoimo/tzudong/.github/workflows/unrelated.yml@refs/heads/main'; }, 'THUMBNAIL_FENCE_INVALID'],
+    [f => { f.fence.ownerObservation.protected = false; f.save(); }, 'THUMBNAIL_FENCE_INVALID'],
   ];
   for (const [edit, code] of cases) {
     const f = fixture(); edit(f);
@@ -442,11 +449,11 @@ test('source changes during journal publication consume attempt without sending'
   expectCode(() => f.run(), 'THUMBNAIL_RECONCILE_REQUIRED');
 });
 
-test('target spoofing, credential overlap and non-owner workflow are rejected before transport', () => {
+test('target spoofing, credential overlap and an unverified local owner are rejected before transport', () => {
   for (const edit of [
     (f: ReturnType<typeof fixture>) => { f.environment.SUPABASE_DB_URL = 'postgresql://postgres@db.wrong.supabase.co:5432/postgres'; },
     (f: ReturnType<typeof fixture>) => { f.environment.SUPABASE_SERVICE_ROLE_KEY = 'fixture-only'; },
-    (f: ReturnType<typeof fixture>) => { f.environment.GITHUB_TRIGGERING_ACTOR = 'someone-else'; },
+    (f: ReturnType<typeof fixture>) => { f.dependencies.attestationImpl = () => ({ ...localOwner(), identityVerified: false }); },
   ]) {
     const f = fixture(); edit(f);
     expect(() => f.run()).toThrow();

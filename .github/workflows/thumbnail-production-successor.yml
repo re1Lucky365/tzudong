@@ -1,29 +1,13 @@
-name: Thumbnail production successor
-run-name: Thumbnail SQL · ${{ inputs.mode }} · ${{ inputs.source_sha }}
+name: Thumbnail installation inspection
+run-name: Thumbnail inspection · ${{ inputs.source_sha }}
 
 on:
   workflow_dispatch:
     inputs:
-      mode:
-        description: 'Inspect is read-only; an existing attempt can only reconcile.'
-        type: choice
-        required: true
-        default: inspect
-        options: [inspect, apply, reconcile]
       source_sha:
-        description: 'Exact current protected-main commit SHA.'
+        description: 'Exact current protected-main commit SHA; inspection never applies SQL.'
         type: string
         required: true
-      privileged_custody:
-        description: 'Owner controls related catalog/security/ledger changes and withholds worker provisioning until reconciliation. Ordinary uploads may continue.'
-        type: boolean
-        required: true
-        default: false
-      apply_confirmation:
-        description: 'Apply only: apply:<source_sha>:51a7c5b61cc268e7a8fe23261548d1950ecfda122e12a6b0d13645e297563bbc'
-        type: string
-        required: false
-        default: ''
 
 permissions:
   contents: read
@@ -31,14 +15,8 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
-concurrency:
-  # Preserve accepted attempts. The caller owns the common DB advisory lock in
-  # its applying transaction; do not wrap it with another session holding it.
-  group: thumbnail-sql-${{ github.run_id }}-${{ github.run_attempt }}
-  cancel-in-progress: false
-
 jobs:
-  operate:
+  inspect:
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.repository == 'twoimo/tzudong' &&
@@ -50,61 +28,29 @@ jobs:
       github.event.sender.login == github.actor &&
       github.ref == 'refs/heads/main' && github.ref_protected &&
       github.sha == inputs.source_sha
-    # Inspection needs no private custody. An operating attempt always returns
-    # to the same registered runner and owner HOME, never RUNNER_TEMP.
-    runs-on: ${{ inputs.mode == 'inspect' && 'ubuntu-24.04' || fromJSON('["self-hosted","macOS","ARM64","tzudong-sql-operator"]') }}
-    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - name: Verify bounded mode and custody runner
-        shell: bash
-        env:
-          EXPECTED_MODE: ${{ inputs.mode }}
-          EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
-          PRIVILEGED_CUSTODY: ${{ inputs.privileged_custody }}
-          APPLY_CONFIRMATION: ${{ inputs.apply_confirmation }}
-        run: |
-          set -euo pipefail
-          [[ "$EXPECTED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          test "$EXPECTED_SOURCE_SHA" = "$GITHUB_SHA"
-          case "$EXPECTED_MODE" in
-            inspect) test -z "$APPLY_CONFIRMATION" ;;
-            apply)
-              test "$RUNNER_NAME" = tzudong-sql-operator-twoimo-mac
-              test "$RUNNER_OS" = macOS
-              test "$RUNNER_ARCH" = ARM64
-              test "$PRIVILEGED_CUSTODY" = true
-              test "$APPLY_CONFIRMATION" = "apply:$EXPECTED_SOURCE_SHA:51a7c5b61cc268e7a8fe23261548d1950ecfda122e12a6b0d13645e297563bbc"
-              ;;
-            reconcile)
-              test "$RUNNER_NAME" = tzudong-sql-operator-twoimo-mac
-              test "$RUNNER_OS" = macOS
-              test "$RUNNER_ARCH" = ARM64
-              test -z "$APPLY_CONFIRMATION"
-              ;;
-            *) exit 2 ;;
-          esac
-
-      - name: Checkout exact source without cleaning existing working directories
+      - name: Checkout exact protected source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ inputs.source_sha }}
-          path: thumbnail-operating-${{ github.run_id }}-${{ github.run_attempt }}
           fetch-depth: 1
           persist-credentials: false
-          clean: false
 
-      - name: Set up the project Node authority
+      - name: Set up project Node authority
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '24.21.0'
 
       - name: Verify source and package authority
-        working-directory: thumbnail-operating-${{ github.run_id }}-${{ github.run_attempt }}
         shell: bash
         env:
           EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
           set -euo pipefail
+          [[ "$EXPECTED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$EXPECTED_SOURCE_SHA" = "$GITHUB_SHA"
           test "$EXPECTED_SOURCE_SHA" = "$(git rev-parse HEAD)"
           test -z "$(git symbolic-ref --quiet HEAD || true)"
           test -z "$(git status --porcelain)"
@@ -126,39 +72,15 @@ jobs:
           test "$(node "$npm_authority_dir/node_modules/npm/bin/npm-cli.js" --version)" = 11.6.2
           printf '%s\n' "$npm_authority_dir/node_modules/.bin" >> "$GITHUB_PATH"
 
-      - name: Install locked parser dependencies without package lifecycle execution
-        working-directory: thumbnail-operating-${{ github.run_id }}-${{ github.run_attempt }}/apps/web
+      - name: Install locked parser dependencies
+        working-directory: apps/web
         shell: bash
         run: |
           set -euo pipefail
           test "$(npm --version)" = 11.6.2
           npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Inspect the pinned disabled draft
-        if: inputs.mode == 'inspect'
-        working-directory: thumbnail-operating-${{ github.run_id }}-${{ github.run_attempt }}/apps/web
+      - name: Inspect pinned source without database credentials
+        working-directory: apps/web
         shell: bash
         run: node scripts/thumbnail-operating-collector.mjs --mode inspect
-
-      - name: Run the fixed operation on persistent custody
-        if: inputs.mode != 'inspect'
-        working-directory: thumbnail-operating-${{ github.run_id }}-${{ github.run_attempt }}/apps/web
-        shell: bash
-        env:
-          EXPECTED_MODE: ${{ inputs.mode }}
-          APPLY_CONFIRMATION: ${{ inputs.apply_confirmation }}
-          THUMBNAIL_PRIVILEGED_CUSTODY: ${{ inputs.privileged_custody }}
-          OPERATOR_ACTOR: ${{ github.actor }}
-          OPERATOR_ACTOR_ID: ${{ github.actor_id }}
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: |
-          set -euo pipefail
-          command -v psql >/dev/null
-          umask 077
-          if [ "$EXPECTED_MODE" = apply ]; then
-            node scripts/thumbnail-operating-collector.mjs --mode apply --confirmation "$APPLY_CONFIRMATION"
-          else
-            node scripts/thumbnail-operating-collector.mjs --mode reconcile
-          fi
-          # This command never provisions a worker, uploads private custody,
-          # deletes a journal, or resumes a writer after a timeout/failure.

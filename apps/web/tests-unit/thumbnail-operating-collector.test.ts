@@ -33,6 +33,12 @@ function expectCode(run: () => unknown, code: string) {
   try { run(); } catch (error) { caught = error; }
   expect(caught?.code).toBe(code);
 }
+function localOwner(operationId = attemptId, observedAt = instant) {
+  return { kind: 'thumbnail-local-owner-observation-v1', authority: 'authenticated-repository-owner-local-cli',
+    operationId, repository: 'twoimo/tzudong', principal: 'repository-owner', identityVerified: true,
+    branch: 'main', protected: true, sourceRevision: revision, observedAt };
+}
+
 function fixture() {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'thumbnail-collector-test-')));
   chmodSync(root, 0o700); roots.push(root);
@@ -41,19 +47,12 @@ function fixture() {
   const syncs: string[] = [];
   const environment: any = {
     SUPABASE_DB_URL: `postgresql://postgres@db.${PROJECT_REF}.supabase.co:5432/postgres?sslmode=require`,
-    GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch',
-    GITHUB_REPOSITORY: 'twoimo/tzudong', GITHUB_REPOSITORY_OWNER: 'twoimo',
-    GITHUB_ACTOR: 'twoimo', GITHUB_TRIGGERING_ACTOR: 'twoimo',
-    GITHUB_ACTOR_ID: '123', GITHUB_REPOSITORY_OWNER_ID: '123',
-    OPERATOR_ACTOR: 'twoimo', OPERATOR_ACTOR_ID: '123',
-    GITHUB_REF: 'refs/heads/main', GITHUB_REF_PROTECTED: 'true', GITHUB_SHA: revision,
-    GITHUB_RUN_ID: '123456', GITHUB_RUN_ATTEMPT: '1',
-    GITHUB_WORKFLOW_REF: 'twoimo/tzudong/.github/workflows/thumbnail-production-successor.yml@refs/heads/main',
-    THUMBNAIL_PRIVILEGED_CUSTODY: 'true', RUNNER_NAME: 'tzudong-sql-operator-twoimo-mac',
+    THUMBNAIL_PRIVILEGED_CUSTODY: 'true',
   };
   const dependencies: any = {
     loadRecordImpl: () => loadThumbnailRecord(),
     loadReleaseImpl: () => validateThumbnailRelease(bytes(thumbnailReleaseContract())),
+    attestationImpl: ({ operationId, clock }: any) => localOwner(operationId, clock().toISOString()),
     custodyDirectory: directory, now: () => new Date(instant), uuidImpl: () => attemptId,
     sourceImpl: () => ({ revision, clean: true, detached: true, origin: 'https://github.com/twoimo/tzudong.git' }),
     protectedRevisionImpl: () => revision,
@@ -195,8 +194,12 @@ test('lost ACK plus prior observation is unconfirmed, second apply cannot send, 
   expect(sends(f)).toHaveLength(1);
   const before = snapshot(f.directory), syncCount = f.syncs.length;
   committed = true;
-  // Recovery must not recollect owner/source/freshness, nor need confirmation.
-  f.dependencies.sourceImpl = f.dependencies.protectedRevisionImpl = f.dependencies.attestationImpl = () => { throw new Error('collector forbidden'); };
+  // Authenticate the current owner; do not rebind the historical source/fence
+  // or require the original apply confirmation when main has advanced.
+  f.dependencies.sourceImpl = f.dependencies.protectedRevisionImpl = () => { throw new Error('collector forbidden'); };
+  f.dependencies.attestationImpl = ({ operationId, clock }: any) => ({
+    ...localOwner(operationId, clock().toISOString()), sourceRevision: 'c'.repeat(40),
+  });
   f.dependencies.now = () => new Date('2026-10-25T00:00:00.000Z');
   delete f.environment.THUMBNAIL_PRIVILEGED_CUSTODY;
   expect(f.run('reconcile')).toEqual({ status: 'reconciliation', disposition: 'committed', attemptId, replayAllowed: false });
@@ -234,19 +237,20 @@ test('partial terminal journal append is preserved and reconcile never republish
   expect(sends(f)).toHaveLength(1);
 });
 
-test('wrong owner, workflow, runner, custody confirmation or source is rejected before any database read', () => {
-  for (const [key, value, code] of [
-    ['GITHUB_ACTOR', 'other', 'THUMBNAIL_OWNER_ATTESTATION_INVALID'],
-    ['GITHUB_TRIGGERING_ACTOR', 'other', 'THUMBNAIL_OWNER_ATTESTATION_INVALID'],
-    ['GITHUB_WORKFLOW_REF', 'twoimo/tzudong/.github/workflows/other.yml@refs/heads/main', 'THUMBNAIL_OWNER_ATTESTATION_INVALID'],
-    ['RUNNER_NAME', 'other-host', 'THUMBNAIL_CUSTODY_RUNNER_INVALID'],
-    ['THUMBNAIL_PRIVILEGED_CUSTODY', 'false', 'THUMBNAIL_PRIVILEGED_CUSTODY_REQUIRED'],
+test('wrong local owner, protection, observation, custody confirmation or source rejects before any database read', () => {
+  for (const edit of [
+    (f: ReturnType<typeof fixture>) => { f.dependencies.attestationImpl = () => ({ ...localOwner(), identityVerified: false }); },
+    (f: ReturnType<typeof fixture>) => { f.dependencies.attestationImpl = () => ({ ...localOwner(), principal: 'collaborator' }); },
+    (f: ReturnType<typeof fixture>) => { f.dependencies.attestationImpl = () => ({ ...localOwner(), protected: false }); },
+    (f: ReturnType<typeof fixture>) => { f.dependencies.attestationImpl = () => ({ ...localOwner(), observedAt: '2026-10-24T10:00:01.000Z' }); },
   ]) {
-    const f = fixture(); f.environment[key] = value;
-    expectCode(f.prepare, code);
+    const f = fixture(); edit(f);
+    expectCode(f.prepare, 'THUMBNAIL_OWNER_ATTESTATION_INVALID');
     expect(f.calls).toEqual([]); expect(existsSync(f.directory)).toBe(false);
   }
-  const f = fixture();
+  const f = fixture(); f.environment.THUMBNAIL_PRIVILEGED_CUSTODY = 'false';
+  expectCode(f.prepare, 'THUMBNAIL_PRIVILEGED_CUSTODY_REQUIRED');
+  f.environment.THUMBNAIL_PRIVILEGED_CUSTODY = 'true';
   expectCode(() => prepareThumbnailOperation({ environment: f.environment, confirmation: `apply:${'c'.repeat(40)}:${MANIFEST_SHA256}` }, f.dependencies), 'THUMBNAIL_CONFIRMATION_INVALID');
   f.dependencies.protectedRevisionImpl = () => 'c'.repeat(40);
   expectCode(f.prepare, 'THUMBNAIL_SOURCE_DRIFT');
@@ -331,14 +335,15 @@ test('existing partial directory, symlink, hardlink or writable parent is never 
   }
 });
 
-test('inspect needs no release/runner/credentials; reconcile checks fixed runner without publishing', () => {
+test('inspect needs no release/identity/credentials; recovery authenticates current owner without republishing', () => {
   const unreachable = () => { throw new Error('external observation forbidden'); };
   expect(operateThumbnailSuccessor({ mode: 'inspect', environment: {} }, {
-    loadReleaseImpl: unreachable, sourceImpl: unreachable, protectedRevisionImpl: unreachable, runPsqlImpl: unreachable,
+    loadReleaseImpl: unreachable, sourceImpl: unreachable, protectedRevisionImpl: unreachable, attestationImpl: unreachable, runPsqlImpl: unreachable,
   })).toMatchObject({ status: 'held', executionEnabled: false, statementCount: 43 });
-  const f = fixture(); f.environment.RUNNER_NAME = 'ephemeral';
-  expectCode(() => f.run('reconcile'), 'THUMBNAIL_CUSTODY_RUNNER_INVALID');
-  expect(existsSync(f.directory)).toBe(false); expect(f.calls).toEqual([]);
+  const f = fixture(); f.run(); const before = snapshot(f.directory); f.calls.length = 0;
+  f.dependencies.attestationImpl = () => ({ ...localOwner(), identityVerified: false });
+  expect(() => f.run('reconcile')).toThrow();
+  expect(snapshot(f.directory)).toEqual(before); expect(f.calls).toEqual([]);
 });
 
 test('CLI exposes only mode/confirmation and hides secret-bearing rejected inputs', () => {

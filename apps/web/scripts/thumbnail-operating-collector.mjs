@@ -13,10 +13,10 @@ import {
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { selectDirectDatabaseTransport } from './apply-supabase-migration.mjs';
 import { assertSuccessorDatabaseTarget, createSuccessorPsqlRunner } from './admin-record-sql-successor.mjs';
-import { authenticatedOwnerAttestation } from './review-media-operating-orchestrator.mjs';
+import { observeThumbnailLocalOwner, validateThumbnailLocalOwner } from './thumbnail-local-owner.mjs';
 import {
   CUSTODY_DIRECTORY, FENCE_COVERAGE, MANIFEST_SHA256, PROJECT_REF,
-  RELEASE_ADMISSION_SHA256, REPOSITORY_ROOT, REQUIRED_FENCES,
+  RELEASE_ADMISSION_SHA256, REPOSITORY_ROOT, REQUIRED_FENCES, OWNER_AUTHORITY,
   currentThumbnailProtectedRevision, currentThumbnailSource, loadThumbnailRecord,
   loadThumbnailRelease, readThumbnailPrior, runThumbnailSuccessor,
   thumbnailReleaseContract, validateThumbnailAdmission, validateThumbnailLiveSource,
@@ -29,10 +29,6 @@ const canonical = value => Array.isArray(value) ? value.map(canonical)
     ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 const bytes = value => Buffer.from(JSON.stringify(canonical(value)) + '\n');
 
-function assertRunner(environment) {
-  // A routing/custody requirement, not hardware identity or proof of quiescence.
-  if (environment.RUNNER_NAME !== thumbnailReleaseContract().custodyRunnerName) fail('THUMBNAIL_CUSTODY_RUNNER_INVALID');
-}
 function statIfPresent(path) {
   try { return lstatSync(path); }
   catch (error) { if (error.code === 'ENOENT') return undefined; throw error; }
@@ -119,12 +115,11 @@ export function prepareThumbnailOperation({ environment = process.env, confirmat
     loadReleaseImpl = loadThumbnailRelease, loadRecordImpl = loadThumbnailRecord,
     custodyDirectory = CUSTODY_DIRECTORY, now = () => new Date(), uuidImpl = randomUUID,
     sourceImpl = currentThumbnailSource, protectedRevisionImpl = currentThumbnailProtectedRevision,
-    attestationImpl = authenticatedOwnerAttestation, runPsqlImpl, fsyncImpl = fsyncSync,
+    attestationImpl = observeThumbnailLocalOwner, runPsqlImpl, fsyncImpl = fsyncSync,
   } = dependencies;
   // Intentionally first: an absent fixed release does not inspect source,
   // credentials, custody or the database, and cannot publish anything.
   if (loadReleaseImpl().sha256 !== RELEASE_ADMISSION_SHA256) fail('THUMBNAIL_RELEASE_ADMISSION_INVALID');
-  assertRunner(environment);
   const record = loadRecordImpl(), source = sourceImpl();
   const sourceRevision = source.revision;
   validateThumbnailLiveSource({ sourceRevision }, source, protectedRevisionImpl());
@@ -133,13 +128,14 @@ export function prepareThumbnailOperation({ environment = process.env, confirmat
   if (confirmation !== `apply:${sourceRevision}:${MANIFEST_SHA256}`) fail('THUMBNAIL_CONFIRMATION_INVALID');
   const created = now();
   if (!Number.isFinite(created.getTime())) fail('THUMBNAIL_ADMISSION_INVALID');
+  const operationId = uuidImpl();
   let owner;
-  try { owner = attestationImpl({ environment, sourceRevision, clock: now }); }
+  try {
+    owner = attestationImpl({ environment, clock: now, operationId });
+    validateThumbnailLocalOwner(owner, { sourceRevision, now: now(), operationId });
+  }
   catch { fail('THUMBNAIL_OWNER_ATTESTATION_INVALID'); }
   const contract = thumbnailReleaseContract();
-  if (owner.authority !== 'authenticated-repository-owner-workflow-dispatch'
-    || owner.workflowRef !== `twoimo/tzudong/${contract.workflowPath}@refs/heads/main`)
-    fail('THUMBNAIL_OWNER_ATTESTATION_INVALID');
   const directory = publicationPath(custodyDirectory);
   let databaseUrl;
   try {
@@ -161,24 +157,24 @@ export function prepareThumbnailOperation({ environment = process.env, confirmat
   const observedAt = observed.toISOString(), createdAt = created.toISOString(), expiresAt = expires.toISOString();
   const evidence = Object.entries(REQUIRED_FENCES).map(([fence, state]) => {
     const raw = bytes({
-      kind: 'thumbnail-writer-observation-v1', fence, state,
+      kind: 'thumbnail-writer-observation-v2', fence, state,
       projectRef: PROJECT_REF, sourceRevision, manifestSha256: MANIFEST_SHA256,
-      runId: owner.runId, runAttempt: owner.runAttempt, observedAt,
+      operationId, observedAt,
       scope: 'privileged-custody-until-reconciled', coverage: [...FENCE_COVERAGE],
       basis: 'authenticated-owner-custody',
     });
     return { name: fence, raw };
   });
   const fence = {
-    kind: 'thumbnail-writer-fence-readback-v1', authority: owner.authority,
+    kind: 'thumbnail-writer-fence-readback-v2', authority: OWNER_AUTHORITY,
     projectRef: PROJECT_REF, sourceRevision, manifestSha256: MANIFEST_SHA256,
-    observedAt, expiresAt, runId: owner.runId, runAttempt: owner.runAttempt,
+    observedAt, expiresAt, operationId, ownerObservation: owner,
     fences: { ...REQUIRED_FENCES }, coverage: [...FENCE_COVERAGE],
     evidenceSha256: Object.fromEntries(evidence.map(item => [item.name, sha(item.raw)])),
   };
   const fenceBytes = bytes(fence);
   const admission = {
-    kind: 'thumbnail-production-admission-v1', attemptId: uuidImpl(), projectRef: PROJECT_REF,
+    kind: 'thumbnail-production-admission-v2', attemptId: operationId, projectRef: PROJECT_REF,
     databaseName: 'postgres', executorRole: 'postgres', serverVersionNum: 170006,
     manifestSha256: MANIFEST_SHA256, releaseAdmissionSha256: RELEASE_ADMISSION_SHA256,
     sourceSha256: record.migration.sha256, vectorSha256: record.migration.originalVectorSha256,
@@ -206,7 +202,6 @@ export function operateThumbnailSuccessor({ mode = 'inspect', environment = proc
   if (!['inspect', 'apply', 'reconcile'].includes(mode)
     || (mode !== 'apply' && confirmation !== undefined)) fail('THUMBNAIL_ARGUMENT_INVALID');
   if (mode === 'apply') prepareThumbnailOperation({ environment, confirmation }, dependencies);
-  if (mode === 'reconcile') assertRunner(environment);
   // Reconciliation must remain read-only and must not republish, refresh or
   // delete historical custody. No mode resumes privileged writers.
   return runThumbnailSuccessor({ mode, environment }, dependencies);
