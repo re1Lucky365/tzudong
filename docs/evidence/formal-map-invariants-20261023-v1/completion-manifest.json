@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "status": "SCOPED_EXTERNAL_DELTA_AND_VALID_LOCAL_FINDINGS_CLOSED_CI_HOST_RELEASE_PENDING",
   "overallComplete": false,
-  "sourceRevision": "1ca3d984598e7caca575ceeca4118ee418da60cf",
+  "sourceRevision": "6c81d79485af9c4c571ecf74ed1de428af10c0da",
   "baseRevision": "56427320a44fdd65a86dc49e7e63d80dd9935c2e",
   "findingIds": [
     "FORMAL-01",
@@ -128,5 +128,11 @@
     "sourceRevision": "1ca3d984598e7caca575ceeca4118ee418da60cf",
     "receipt": "security-zod-followup.json",
     "status": "LOCAL_PATCH_VERIFIED_NEW_CI_PREVIEW_RELEASE_PENDING"
+  },
+  "sceneNavigationFollowup": {
+    "finding": "UI-F-02",
+    "sourceRevision": "6c81d79485af9c4c571ecf74ed1de428af10c0da",
+    "receipt": "scene-navigation-followup.json",
+    "status": "LOCAL_NATIVE_INPUT_FIXED_NEW_HOST_AND_CI_PENDING"
   }
 }

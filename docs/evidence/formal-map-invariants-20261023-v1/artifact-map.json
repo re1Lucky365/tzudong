@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceRevision": "1ca3d984598e7caca575ceeca4118ee418da60cf",
+  "sourceRevision": "6c81d79485af9c4c571ecf74ed1de428af10c0da",
   "reviewedSourceRevision": "fe4b73dac510d4670517c7d3eca4f0c2470d4297",
   "files": [
     {
@@ -60,13 +60,13 @@
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/completion-manifest.json",
-      "bytes": 4743,
-      "sha256": "e0461afb9569ca8849cf0231cef48a8f9e08ed1da4f59a98c6e00ea3613a1134"
+      "bytes": 4985,
+      "sha256": "dbf3898a2f3ffd1033deabe342adae88024863a3292ed3141d8136609514192b"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/delta-resolution.md",
-      "bytes": 12737,
-      "sha256": "d6e7a025a73357ff008fd44ec09f4cd3eee177ee59f8b05f22573c3af178d48c"
+      "bytes": 13832,
+      "sha256": "98013e1c52924d315d6f4c7af4cfb31b41b1a1b9e1f769d92d5d81389086e9e9"
     },
     {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/external-review-checkpoint.json",
@@ -244,6 +244,31 @@
       "sha256": "7549fdaea4bb23290958732ca72a3d8682ce72f871d1bbd02a8d0493fbb99d08"
     },
     {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/scene-navigation-after.txt",
+      "bytes": 6426,
+      "sha256": "d4a21066f9be9819aa82b486be40039d42fe58fb7acf3b564cce29690a5fee66"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/scene-navigation-before.txt",
+      "bytes": 2313,
+      "sha256": "eaabbd45722a383b4e9779131455c60e808e8f02042388e6b57a7d6f6af0910f"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/scene-navigation-followup.json",
+      "bytes": 3017,
+      "sha256": "fd9a748630577c968614a6bef370f7628569a0284f49884772c7dda78c33aefa"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/scene-navigation-lint.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/formal-map-invariants-20261023-v1/scene-navigation-parity.txt",
+      "bytes": 510,
+      "sha256": "44476130b7876580f7395aba77cd43c63a22add832a4df4806e7308c4aad1b6d"
+    },
+    {
       "path": "docs/evidence/formal-map-invariants-20261023-v1/sdk-loss-after-tests.txt",
       "bytes": 1703,
       "sha256": "01fbf99cbc8ad58f6f0c1551180c3229d1897244ea2b10fbc909c1622785f7fe"
@@ -321,6 +346,11 @@
       "sha256": "da5dd1884a9fa027027711307477723352c25781fd696498d7915954140da5b3"
     },
     {
+      "path": "apps/web/components/restaurant/RestaurantEvidenceCarousel.tsx",
+      "bytes": 5742,
+      "sha256": "c58ecf950b911ee600063b291329a406654c4d7846ea8da9502c98869779399e"
+    },
+    {
       "path": "apps/web/constants/overseas-regions.ts",
       "bytes": 3087,
       "sha256": "4d986e8cb4b9166ec56ed9d12b3d8d32db2ed63b861a772888c7e8b319fde4af"
@@ -374,6 +404,11 @@
       "path": "apps/web/lib/evidence-engineering/types.ts",
       "bytes": 3726,
       "sha256": "9d64ad2c6e57bea45af5066d89a26535b616429c9032d16fccfefcdeb78bad6b"
+    },
+    {
+      "path": "apps/web/lib/home-map-keyboard-navigation.ts",
+      "bytes": 4019,
+      "sha256": "b1f9d240f88138920fcc87ed6487459c634b00982494ed0d1346c6f12d21cd8c"
     },
     {
       "path": "apps/web/lib/marker-pool.ts",
@@ -469,6 +504,11 @@
       "path": "apps/web/tests-unit/admin-storyboard-worker-visible-status-browser.test.ts",
       "bytes": 5624,
       "sha256": "06ccb04bb53c241a6e5c2905f4558fcfb469db0ff32359df686ef3f93ff7b237"
+    },
+    {
+      "path": "apps/web/tests-unit/evidence-carousel-navigation-browser.test.ts",
+      "bytes": 7470,
+      "sha256": "e28e8aee88cad1bc15cb3e19b5601e45bb41f32b6e2171dec116e12502a5546b"
     },
     {
       "path": "apps/web/tests-unit/evidence-cohort-shadow.test.ts",
@@ -585,6 +625,7 @@
   "selfReference": "artifact-map.json and its detached digest are intentionally excluded to avoid a circular or stale digest claim",
   "ciTestRevision": "1c0461bb114e9f6085d33c85a0eb911d0a98cab9",
   "formalRuntimeRevision": "a1dd40016ff7cf23055073c8637d5b3ee00d6781",
-  "priorDeliveryMapSha256": "143b2173c4598d7e7433950cc71e98635ad9c1d6dcafef4375313e4ead3a4714",
-  "securityRevision": "1ca3d984598e7caca575ceeca4118ee418da60cf"
+  "priorDeliveryMapSha256": "b676fcd90f069892502e9b2c29579b33aa6f3a17717a897e20e85f1cd707ea23",
+  "securityRevision": "1ca3d984598e7caca575ceeca4118ee418da60cf",
+  "sceneNavigationRevision": "6c81d79485af9c4c571ecf74ed1de428af10c0da"
 }
