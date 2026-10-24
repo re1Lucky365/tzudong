@@ -71,3 +71,30 @@ prepare만 원래 budget attempt의 ledger91 committed reconciliation을 호출�
 영향 suite **23 tests / 272 assertions / 0 failures**가 통과했다. 실제 parser/compiler·파일·fsync·admission 검증을 사용했고 owner/source/transport는 테스트 DI다. 새 코드 3파일 lint와 Node24의 두 script syntax 검사도 통과했다. Root는 실제 loader/release inspect를 독립 확인했다(DB 호출 0). 이 검증은 운영 전송과 운영 caller의 실제 admission/readback 증거가 아니다.
 
 재현 명령: `apps/web`에서 `bun test tests-unit/review-activation-production-successor.test.ts`. 기존 passing PG 검증은 새 caller 검증 때 반복하지 않았다. 별도의 guarded 운영 전송·독립 reconciliation·UI 활성화 결과는 실행 후 추가한다.
+
+## 2026-10-25 운영 적용 — 원장 91→92 확정
+
+앞선 미적용·준비 상태와 재현 결과는 당시의 이력으로 보존한다. 이후 [PR #3519](https://github.com/twoimo/tzudong/pull/3519) → [#3520](https://github.com/twoimo/tzudong/pull/3520) → [#3521](https://github.com/twoimo/tzudong/pull/3521)의 정상 승격으로 develop `c336aadc4011750c5151274cfd041f78d4a6894d`, data `9af12489c0c2392ab737d8cc7fe12d9b9c4455a2`, main `7b287e2d4f74f5ab81ea811e2499aecda146b790`이 결속됐다. 실제 GitHub 조회에서 main source tree `81afa98720043e3c45c8da710760d3bd24a03ad4`와 세 PR의 필수 Release·Promotion Path 성공을 확인했다. 보호 승격 조회 영수증 SHA-256은 `f160f5245c687302dd1f0dac6b5459f6e43fbc3338558edae07aa7601eb2387a`다. 선택 체크 일부의 당시 진행 상태를 전체 CI 완료로 바꾸어 해석하지 않는다.
+
+선행 budget attempt `3bfe3ef2-c133-4b7a-b341-8c61f1174642`는 **90→91 committed** 뒤 같은 attempt의 독립 read-only reconciliation으로 확정됐다. 그 보존 영수증에 결속한 activation의 원래 attempt는 `10dcd54e-c25b-46e9-8144-d3391f584df8`다. 같은 main에서 설치 manifest `02d6af9397da4900ee9cd11047ea2481d64c47ead931597dd8c336b89dc24815`와 별도 고정 release를 사용했다. 2026-10-25 **01:37:33–01:37:47 KST**의 native apply는 `status=committed`, `code=REVIEW_ACTIVATION_COMMITTED`였고, **01:38:30–01:38:33 KST**의 독립 read-only reconcile은 같은 attempt의 `status=reconciliation`, `disposition=committed`를 반환했다. 두 실행 모두 exit 0, `replayAllowed=false`다. 정확한 manifest의 **원장 91→92 terminal**에 결속한 운영 증거이며 로컬 PG 검증과 구분한다.
+
+| 운영 영수증 | SHA-256 |
+| --- | --- |
+| 원래 attempt의 native apply | `2bc56be5ddb54a5fca116d53e4823888a552c327851379002eeaefed359a21f8` |
+| 같은 attempt의 독립 read-only reconcile | `775eda5d4de8d63a69af507c4e4e2f3fb135e0ad2fa41e1f59390abea11f609f` |
+
+원본 영수증의 바이트 해시·attempt·결과를 직접 확인했다. 각 실행의 provider 호출은 0이며 raw diagnostics는 보존하지 않았다. 원본 private 경로와 민감값은 공개하지 않는다. disabled 설치 manifest와 과거 frozen 파일은 수정하지 않았다. 이 적용은 configure의 기존 잠금 helper 호출 복구이며 정책을 활성화하거나 한도를 바꾸는 작업이 아니다.
+
+현재 원장은 **92**다. activation reconcile은 원래 선행 budget 영수증을 사용하며 budget caller를 다시 호출하지 않는다. 기존 thumbnail/budget의 exact terminal 90·91을 현재 원장에 재적용하지 않고 양쪽의 원래 admission·journal·committed 영수증을 유지한다. 문서 갱신을 위해 운영 명령을 다시 실행하거나 새 attempt를 만들지 않았다.
+
+웹 배포와 실제 UI 활성화는 아직 별도 완료 증거가 필요하다. 이 절 작성 시 main `7b287e2d…`의 웹 배포는 `BUILDING`으로 전달됐으며, 마지막 UI 조회는 `enabled=false`, `version=1`, 회당 50·하루 50이었다. 해당 배포의 완료·실제 소스 응답, 새 preview 후 활성화와 정책·이벤트의 독립 readback은 후속 작업으로 남긴다. 원장 92나 SQL committed 결과를 UI 활성화·자동 승인 처리 성공으로 표시하지 않는다. 외부 Pro→Gemini→Pro 검토는 기존 예약을 보존한 채 미완료이며, 운영 개선율·95% 신뢰구간·처리량이나 비용 절감은 주장하지 않는다.
+
+## 웹 배포와 실제 활성화 확인
+
+2026-10-25 01:55:57 KST에 배포 `dpl_GqkcM5Cv9Smf81c1KM2PoQTxARGV`의 READY와 운영 도메인 연결을 독립 확인했다. 인증된 Chrome에서 `www.tzudong.app/api/health`도 같은 배포 ID·main `7b287e2d4f74f5ab81ea811e2499aecda146b790`·정확한 프로젝트를 반환했다. 기존 운영 배포 `dpl_4ppHwfZBk4yaiVCEAoG2Y1aaZqoU` / `6ccd33d5…`를 rollback 대상으로 보존했다. 기존 승인 SHA 항목만 갱신했고 모델·자격증명·한도·보호 브랜치 설정은 바꾸지 않았다.
+
+운영 관리자 화면에서 새 preview의 후보 0·재검수 0·보류 0·보호 0, 회당 50·하루 50을 확인했다. **01:56:53 KST**에 시작을 한 번 실행한 뒤 **01:57:02 KST**에 별도 GET으로 `enabled=true`, `version=2`, 정책 이벤트 1을 확인했다. 이전 값은 false/1/0이었다. Gemini 3.8 Flash·필수 판단·claim당 최대 1회 계약과 50/50 한도는 유지됐다. 이것은 활성화 저장의 증거이며 실제 판단·승인 처리나 지도 마커 게시 성공은 아니다. 해당 재조회에서 실행·처리 항목은 각각 0이었다.
+
+민감값을 제외한 [운영 적용·웹·정책 영수증](../evidence/provider-review-operating-20261025/operating-readback.json)의 SHA-256은 `f80f4e3701478aa0d65c8dfeb2de9afb1ba2f20991a3f42468f17993785d720e`다. 운영 SQL을 재전송하지 않았으며 이전 caller의 exact-terminal 재조회도 다시 실행하지 않았다. 기존 예약의 외부 교차 검토와 실제 다음 크롤러 배치 결과는 별도 미완료 상태다.
+
+같은 배포의 인증된 데스크톱(1920×929)에서 사이드바 15개 메뉴를 모두 눌러 데이터를 기다린 뒤 조회했다. 최종 15/15 화면에 H1·18px/650/24px 제목이 있었고 가로 넘침·비어 있지 않은 오류 알림·캡처된 console error는 각각 0이었다. 사이드바 접기/펼치기의 `aria-expanded=false→true`와 메뉴 15개 복원도 확인했다. 실제 테이블 행은 맛집 1,659·제보 3·리뷰 6·사용자 22·배너 4·오류 5·감사 로그 14였다. 이는 화면·조회 범위이며 모든 수정/삭제·유료 생성·모바일·marker 게시의 통과 증거가 아니다. [메뉴별 최소 영수증](../evidence/provider-review-operating-20261025/admin-browser-readback.json), SHA-256 `8daa2abe40d0307b106d75dc99048e6b285b78c1d6e72c21dc7b634ad4a6629b`에 범위와 남은 hold를 명시했다.
