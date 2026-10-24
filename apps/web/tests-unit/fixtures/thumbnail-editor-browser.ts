@@ -20,7 +20,8 @@ const sourcePaths = ['components/admin/thumbnail-generator/AdminYoutubeThumbnail
   'components/admin/thumbnail-generator/useThumbnailGeminiQueue.ts', 'lib/admin/youtube-thumbnail-generator/browser-queue.ts',
   'lib/admin/youtube-thumbnail-generator/browser-references.ts', 'lib/admin/youtube-thumbnail-generator/queue-contract.ts',
   'components/admin/thumbnail-generator/useThumbnailChatQueue.ts', 'lib/admin/youtube-thumbnail-generator/chat-browser-queue.ts',
-  'lib/admin/youtube-thumbnail-generator/chat-contract.ts', 'lib/admin/youtube-thumbnail-generator/execution-contract.ts', 'app/globals.css', 'app/app-globals.css', 'styles/admin-ui.css'];
+  'lib/admin/youtube-thumbnail-generator/chat-contract.ts', 'lib/admin/youtube-thumbnail-generator/execution-contract.ts', 'app/globals.css', 'app/app-globals.css', 'styles/admin-ui.css',
+  'tests-unit/fixtures/thumbnail-editor-browser.ts'];
 const hashes = () => Object.fromEntries(sourcePaths.map((path) => [path, createHash('sha256').update(readFileSync(join(app, path))).digest('hex')]));
 const before = hashes();
 const entry = `import React from 'react'; import {createRoot} from 'react-dom/client';
@@ -33,7 +34,7 @@ const built = await Bun.build({ entrypoints: ['thumbnail-editor-fixture'], targe
     builder.onResolve({ filter: /^@\/contexts\/AuthContext$/ }, () => ({ path: 'auth', namespace: 'seam' }));
     builder.onResolve({ filter: /^next\/image$/ }, () => ({ path: 'image', namespace: 'seam' }));
     builder.onLoad({ filter: /.*/, namespace: 'seam' }, (args) => ({ loader: 'tsx', contents: args.path === 'auth'
-      ? `export const useAuth=()=>({user:{id:${JSON.stringify(owner)}},isAdmin:true});`
+      ? 'export const useAuth=()=>({user:{id:globalThis.__THUMBNAIL_FIXTURE_OWNER__},isAdmin:true});'
       : "import React from 'react'; export default function Image({fill,unoptimized,priority,...props}) {return <img {...props}/>;}" }));
     builder.onResolve({ filter: /^@\// }, (args) => ({ path: Bun.resolveSync(`./${args.path.slice(2)}`, app) }));
   } }] });
@@ -144,7 +145,11 @@ const browser = await chromium.launch({ executablePath: '/Applications/Google Ch
 const origin = `http://127.0.0.1:${server.port}`;
 const errors: string[] = [], geometry: unknown[] = []; let externalRequests = 0;
 const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, reducedMotion: 'reduce' });
-await context.addInitScript(() => { (globalThis as unknown as { process: unknown }).process = { env: { NODE_ENV: 'test' } }; });
+await context.addInitScript((fixtureOwner: string) => {
+  const fixtureGlobal = globalThis as unknown as { process: unknown; __THUMBNAIL_FIXTURE_OWNER__: string };
+  fixtureGlobal.process = { env: { NODE_ENV: 'test' } };
+  fixtureGlobal.__THUMBNAIL_FIXTURE_OWNER__ = fixtureOwner;
+}, owner);
 await context.route('**/*', (route) => { if (new URL(route.request().url()).origin === origin) return route.continue(); externalRequests++; return route.abort(); });
 const page = await context.newPage(); page.setDefaultTimeout(12_000); page.on('pageerror', (error) => errors.push(error.message.slice(0, 200)));
 async function generate() {
@@ -155,6 +160,7 @@ async function generate() {
 }
 try {
   await page.goto(`${origin}/admin`);
+  assert.equal(await page.evaluate(() => (globalThis as unknown as { __THUMBNAIL_FIXTURE_OWNER__: string }).__THUMBNAIL_FIXTURE_OWNER__), owner);
   await expect(page.locator('[data-thumbnail-chat-status-badge]')).toHaveText('접수 가능');
   if (process.env.THUMBNAIL_RUN_TASTE_INSPECTOR === '1') {
     const inspection = Bun.spawn(['/opt/homebrew/Cellar/node@24/24.22.0/bin/node',

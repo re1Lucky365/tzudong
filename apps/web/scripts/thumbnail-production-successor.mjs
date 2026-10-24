@@ -264,7 +264,14 @@ function readReconciliation(transport, databaseUrl, record) {
   const query = reconciliationSql(record.envelope, record.migration);
   const sql = 'SET TRANSACTION READ ONLY;\n' + IDENTITY_GUARD + '\n'
     + query.replace('SET TRANSACTION READ ONLY;', '');
-  try { return reconciliationOutcome(parseResult(transport(databaseUrl, sql, true)), record.migration); }
+  try {
+    const outcome = reconciliationOutcome(parseResult(transport(databaseUrl, sql, true)), record.migration);
+    // An independent MVCC snapshot can still see the prior state while the
+    // original backend is running or its COMMIT has not become visible. This
+    // observation does not prove rollback, terminality, or permission to resume
+    // writers. Keep the generic compiler's historical enum local to its API.
+    return outcome === 'not_applied' ? 'prior_observed' : outcome;
+  }
   catch { return 'unknown'; }
 }
 function writeAll(fd, raw, writeImpl = writeSync) {
@@ -383,7 +390,7 @@ export function runThumbnailSuccessor({ mode = 'inspect', environment = process.
     outcome = readReconciliation(transport, databaseUrl, record);
     code = acknowledged && outcome === 'committed' ? 'THUMBNAIL_COMMITTED'
       : outcome === 'partial_conflict' ? 'THUMBNAIL_RECONCILIATION_CONFLICT'
-        : outcome === 'not_applied' ? 'THUMBNAIL_NOT_APPLIED' : 'THUMBNAIL_OUTCOME_UNCONFIRMED';
+        : 'THUMBNAIL_OUTCOME_UNCONFIRMED';
   } catch { code = 'THUMBNAIL_OUTCOME_UNCONFIRMED'; }
   try { appendJournalImpl(fd, { event: 'terminal', code, disposition: outcome, attemptId: admission.attemptId }, { fsyncImpl }); }
   catch { fail('THUMBNAIL_JOURNAL_UNCONFIRMED'); }

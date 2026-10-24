@@ -307,7 +307,7 @@ test('drift after pre-read still meets the compiler prior guard under ledger loc
   expectCode(() => f.run(), 'THUMBNAIL_RECONCILE_REQUIRED');
 });
 
-test('a confirmed rollback is reported not applied but is still spent and reconcile-only', () => {
+test('an exact prior readback is still unconfirmed without proof that the original operation is terminal', () => {
   const f = fixture();
   const transport = f.dependencies.runPsqlImpl;
   f.dependencies.runPsqlImpl = (...args: any[]) => {
@@ -318,9 +318,34 @@ test('a confirmed rollback is reported not applied but is still spent and reconc
       prior: record.migration.expectedPriorState.expected,
     }) : output;
   };
-  expectCode(() => f.run(), 'THUMBNAIL_NOT_APPLIED');
+  expectCode(() => f.run(), 'THUMBNAIL_OUTCOME_UNCONFIRMED');
   expect(sends(f).length).toBe(1);
   expectCode(() => f.run(), 'THUMBNAIL_RECONCILE_REQUIRED');
+});
+
+test('a pending original operation may commit after a prior snapshot; recovery observes it without resending', () => {
+  const f = fixture();
+  const transport = f.dependencies.runPsqlImpl;
+  let originalCommitted = false;
+  f.dependencies.runPsqlImpl = (...args: any[]) => {
+    const output = transport(...args);
+    if (args[1].includes('$thumbnail_serializer$')) throw new Error('response lost while backend remains live');
+    if (args[1].includes('\\gset')) return JSON.stringify(originalCommitted ? f.committed() : {
+      ledger_exists: false, ledger_equal: false, terminal: null,
+      prior: record.migration.expectedPriorState.expected,
+    });
+    return output;
+  };
+  expectCode(() => f.run(), 'THUMBNAIL_OUTCOME_UNCONFIRMED');
+  const journal = readFileSync(join(f.root, 'apply-journal.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  expect(journal[1].code).toBe('THUMBNAIL_OUTCOME_UNCONFIRMED');
+  expect(journal[1].disposition).toBe('prior_observed');
+  expect(f.run('reconcile').disposition).toBe('prior_observed');
+  expectCode(() => f.run(), 'THUMBNAIL_RECONCILE_REQUIRED');
+  originalCommitted = true;
+  expect(f.run('reconcile').disposition).toBe('committed');
+  expect(sends(f).length).toBe(1);
+  expect(readFileSync(join(f.root, 'apply-journal.jsonl'), 'utf8').trim().split('\n').length).toBe(2);
 });
 
 test('journal file and parent fsync failures consume custody but make zero mutation sends', () => {

@@ -139,12 +139,11 @@ stateDiagram-v2
     Published --> Sent: source/fence 재검증 후 한 번 전송
     Published --> Unconfirmed: 재검증·journal 실패
     Sent --> Committed: ACK + 독립 exact committed readback
-    Sent --> NotApplied: 독립 exact prior readback
+    Sent --> Unconfirmed: 독립 exact prior 관측만 얻음
     Sent --> Conflict: 원장·종료 상태 불일치
     Sent --> Unconfirmed: ACK 유실·조회 불명·append 실패
     Published --> ReadOnlyReconcile: 재시작·기존 journal
     Unconfirmed --> ReadOnlyReconcile: 원래 attempt 결속 확인
-    NotApplied --> ReadOnlyReconcile: 재전송 금지
     Conflict --> ReadOnlyReconcile: 재전송 금지
     Committed --> ReadOnlyReconcile: 상태 확인만
 ```
@@ -156,3 +155,15 @@ stateDiagram-v2
 검사는 정상 도달 분기와 ACK 유실, 원장 prior drift·추가 종료 행, expiry·source/vector/fence 변경, file/parent fsync·terminal append 실패, 부분 append·hardlink·넓어진 권한·큰 journal·다른 attempt를 포함한다. CLI에 readiness·manifest·transport override는 노출하지 않는다. 전체 transitive import와 Node/psql 환경을 hermetic하게 pin한 실행기는 아니므로 보호 소스와 신뢰된 실행 환경이 전제다.
 
 현재 남은 구현은 실제 owner workflow/collector, 현재 quiescence와 각 writer의 중지 근거, 같은 영속 운영 host의 custody, 별도 고정 release 파일과 보호 승격이다. receipt의 `basis/state/hash` 라벨 자체는 machine 관측이 아니다. 외부 Pro → Gemini → Pro도 기존 예약을 유지한 채 미완료다. hosted 실행·worker token/key provisioning·Storage HTTP·실제 생성은 수행하지 않았다. 기존 `65394277` CI **24 SUCCESS·1 SKIPPED·실패/대기0**은 이 새 caller 이전 source의 결과이며 새 commit으로 옮겨 주장하지 않는다.
+
+## 후속: 이전 상태 관측과 적용 종료를 분리
+
+새 연결에서 exact prior가 보인다는 사실은 원래 적용 transaction의 rollback이나 종료를 증명하지 않는다. [PostgreSQL의 snapshot 가시성](https://www.postgresql.org/docs/17/transaction-iso.html)과 [transaction 종료 시 실행되는 deferred trigger](https://www.postgresql.org/docs/17/sql-createtrigger.html)를 사용해 실제 PG17.6에서 반례를 만들었다. 소유 fixture의 COMMIT 안에서만 시험용 trigger가 대기하도록 한 뒤 정확히 확인한 psql client 하나를 종료했다. client 비정상 종료 후 원래 backend는 실행 중이었고, 독립 read-only 조회는 0행을 보았지만 뒤의 조회에서는 durable commit 1행이 확인됐다. 원래 source DB의 종료 23항목은 그대로였다. 전체 43문장 설치나 실제 WAN 장애를 실행한 증거는 아니다.
+
+caller는 generic compiler의 `not_applied` 관측을 `prior_observed`로 해석하고 **`THUMBNAIL_OUTCOME_UNCONFIRMED`**를 반환한다. 이 관측으로 writer 재개·적용 재전송을 허용하지 않는다. 같은 journal을 사용하는 후속 process는 읽기 reconciliation만 수행하며 나중의 committed 상태를 확인할 수 있다. 위 상태전이도에서 prior 관측을 종료된 `NotApplied` 상태로 표현하던 논리 비약도 제거했다. 앞의 통제된 후반 오류 rollback 리허설은 원래 sender의 오류 종료까지 관측한 별도 증거다.
+
+[새 증거](../evidence/thumbnail-g014-registration-20261024/prior-observation-reconciliation.json): 실제 caller 검사 **21 pass·0 fail·165 assertions**, Node24.22.0 syntax/held inspect, 대상 ESLint 오류·경고 0, parity **3,427입력·진단0**. 잘못된 미적용 분류를 되돌린 실제-code mutant에서는 **19 pass·의도한 실패 2개**로 회귀를 검출했다. 기존 20개 검사 영수증은 이전 소스의 관측으로 보존한다. 검사 수·결정적 반례에 모집단 95% 구간이나 운영 개선율을 부여하지 않는다.
+
+같은 증거에는 CodeQL alert 98이 지적한 browser fixture의 동적 코드 생성 수정도 포함한다. 합성 owner 값을 JavaScript 문자열에 넣던 방식을 정적 module과 Playwright의 구조화된 인자 전달로 바꿨다. 실제 Chrome 156에서 1440·768·390 폭의 기존 편집기 흐름과 source 13개 전후 일치, enqueue 5회·chat 5회·외부 요청 0회를 확인했다. 합성 인증/API이며 운영 관리자·공급자 생성 검증은 아니다. 탐지를 예외 처리하지 않았으며 원격 CodeQL의 새 소스 재분석 결과는 별도로 확인한다.
+
+설치 필요조건의 추가 읽기 검토에서는 위 caller의 9개 fence 요구가 이전 review-media 적용기의 더 넓은 변경 범위를 복제한 부분임을 확인했다. 현재 SQL은 기존 Storage object를 수정하지 않고 새 private bucket 한 행을 만들며 transaction table lock을 유지한다. 따라서 모든 일반 업로더·DML producer 중지는 데이터 보존의 필수조건으로 아직 도출되지 않는다. 관련 privileged catalog/ACL/policy/ledger writer 통제, 같은 대상 생성 경쟁, worker provisioning과 구조적 worker 인증 경계는 유지해야 한다. HTTP 지연·재시도 무영향 또는 commit 후 admin enqueue 금지는 입증하지 않았다. 이 구분을 별도 계약 변경으로 구현·검증하기 전에는 현재 9개 fence를 합성 영수증으로 충족시키지 않는다.
