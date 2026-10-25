@@ -31,6 +31,29 @@ MERGE_RESULTS="$SCRIPT_DIR/merge_chunk_results.py"
 RUNTIME_DATA_DIR="$PROJECT_ROOT/restaurant-crawling/data"
 export VIDEO_CACHE_DIR="${VIDEO_CACHE_DIR:-$RUNTIME_DATA_DIR/video_cache}"
 
+resolve_crawl_fallback_mode() {
+    # Recipe resolution needs no cookie read, browser probe or provider setup.
+    # Runtime session admission remains in main before any new execution.
+    if [ "${FORCE_WEB_FALLBACK:-0}" = "1" ] || {
+        [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${GEMINI_API_KEY_BYEON:-}" ];
+    }; then
+        printf '1'
+    else
+        printf '0'
+    fi
+}
+
+crawl_cache_args() {
+    local base="$1" video="$2"
+    CRAWL_CACHE_ARGS=(--receipt "$base/crawling/.receipts/$video.json"
+        --pipeline-stage crawl --crawling-path "$base" --evaluation-path "$base" --video-id "$video"
+        --channel-config "${CONFIG_NAME:-channels.yaml}"
+        --setting "$PRIMARY_MODEL" --setting "$FALLBACK_MODEL"
+        --setting "${WEB_GEMINI_MODEL:-gemini-3.8-flash}" --setting "$(resolve_crawl_fallback_mode)"
+        --setting "$GEMINI_CHUNK_THINKING_LEVEL" --setting "$GEMINI_FINAL_MERGE_THINKING_LEVEL"
+        --output "$base/crawling/$video.jsonl")
+}
+
 echo "[$(date '+%H:%M:%S')] [INFO] SCRIPT_DIR: $SCRIPT_DIR"
 echo "[$(date '+%H:%M:%S')] [INFO] PROJECT_ROOT: $PROJECT_ROOT"
 
@@ -55,6 +78,18 @@ export GEMINI_THINKING_LEVEL="${GEMINI_THINKING_LEVEL:-LOW}"
 export GEMINI_CHUNK_THINKING_LEVEL="${GEMINI_CHUNK_THINKING_LEVEL:-$GEMINI_THINKING_LEVEL}"
 export GEMINI_FINAL_MERGE_THINKING_LEVEL="${GEMINI_FINAL_MERGE_THINKING_LEVEL:-MEDIUM}"
 export TZ="Asia/Seoul"
+# This exits before runtime setup, temporary files, downloads or provider work.
+if [ "${1:-}" = "--cache-check" ]; then
+    [ "$#" -eq 3 ] || exit 2
+    crawl_cache_args "$2" "$3"
+    exec "${PYTHON_CMD:-python3}" "$PROJECT_ROOT/bin/stage_cache.py" check "${CRAWL_CACHE_ARGS[@]}"
+fi
+if [ "${1:-}" = "--cache-check-many" ]; then
+    [ "$#" -eq 2 ] || exit 2
+    crawl_cache_args "$2" '{id}'
+    exec "${PYTHON_CMD:-python3}" "$PROJECT_ROOT/bin/stage_cache.py" check-many "${CRAWL_CACHE_ARGS[@]}"
+fi
+
 # 로그 모드: normal(기본) | debug
 LOG_VERBOSITY="${CRAWL_LOG_VERBOSITY:-normal}"
 # [Cross-Platform] Deno 런타임 PATH 자동 탐색 (yt-dlp n challenge 해결용)
@@ -1034,24 +1069,8 @@ process_channel() {
         fi
 
         local receipt_file="$crawling_dir/.receipts/${video_id}.json"
-        local cache_args=(--receipt "$receipt_file" --input "$transcript_file"
-            --metadata "$meta_file" --asset "$PROMPT_FILE" --asset "$CHUNK_PLANNER"
-            --asset "$MERGE_RESULTS" --asset "$PARSER_SCRIPT" --asset "$GEMINI_CHUNK_API"
-            --asset "$SCRIPT_DIR/08-chunk-multimodal-crawling.sh"
-            --asset "$SCRIPT_DIR/split_video_chunks.mjs" --asset "$SCRIPT_DIR/../prompts/final_merge_prompt.txt"
-            --asset "$SCRIPT_DIR/final_merge_chunk.mjs" --asset "$PROJECT_ROOT/utils/gemini-client.mjs"
-            --asset "$PROJECT_ROOT/utils/gemini-model.mjs" --asset "$PROJECT_ROOT/utils/gemini-model.sh"
-            --asset "$PROJECT_ROOT/utils/provider-budget.mjs" --asset "$PROJECT_ROOT/utils/provider_budget.py"
-            --setting "$PRIMARY_MODEL" --setting "$FALLBACK_MODEL"
-            --setting "${WEB_GEMINI_MODEL:-gemini-3.8-flash}" --setting "${FORCE_WEB_FALLBACK:-0}"
-            --setting "$GEMINI_CHUNK_THINKING_LEVEL" --setting "$GEMINI_FINAL_MERGE_THINKING_LEVEL"
-            --output "$crawling_file")
-        local visual_receipt_input="$full_data_path/visual-location/${video_id}.jsonl"
-        if [ -f "$visual_receipt_input" ]; then
-            cache_args+=(--asset "$visual_receipt_input" --setting "visual-location:present")
-        else
-            cache_args+=(--setting "visual-location:absent")
-        fi
+        crawl_cache_args "$full_data_path" "$video_id"
+        local cache_args=("${CRAWL_CACHE_ARGS[@]}")
         local force_args=()
         [ "$FORCE_MODE" = true ] && force_args+=(--force)
 
@@ -1169,7 +1188,7 @@ main() {
     # 헬스 체크 (임시 파일은 $TEMP_BASE 경로 통일)
     local hc_response="$TEMP_BASE/hc_response.json"
     local hc_stderr="$TEMP_BASE/hc_stderr.log"
-    if [ "${FORCE_WEB_FALLBACK:-0}" = "1" ] || [ $use_api_key -eq 0 ]; then
+    if [ "$(resolve_crawl_fallback_mode)" = "1" ]; then
         export FORCE_WEB_FALLBACK=1
         log_info "Health Check 생략: Web fallback 강제 모드"
     else
