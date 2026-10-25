@@ -76,11 +76,11 @@ printf 'evaluation\\n' >> "$TEST_HEALTH_LOG"
     self.assertEqual(laaj.run_jobs(['one'],args)['failures'],0)
     self.assertEqual(log.read_text().splitlines().count('health'),3)
  def test_shell_receipt_changes_for_web_route_and_optional_visual_bytes(self):
-  source=(ROOT/'backend/restaurant-crawling/scripts/08-chunk-multimodal-crawling.sh').read_text();snippet='crawl_cache_args() {'+source.split('crawl_cache_args() {',1)[1].split('\n}\n',1)[0]+'\n}\n'
+  source=(ROOT/'backend/restaurant-crawling/scripts/08-chunk-multimodal-crawling.sh').read_text();snippet=''.join(name+'() {'+source.split(name+'() {',1)[1].split('\n}\n',1)[0]+'\n}\n' for name in ['resolve_crawl_fallback_mode','crawl_cache_args'])
   with tempfile.TemporaryDirectory() as d:
    root=Path(d);helper_dir=root/'backend/utils';helper_dir.mkdir(parents=True)
    for helper in ['gemini-model.mjs','gemini-model.sh']:shutil.copy2(ROOT/'backend/utils'/helper,helper_dir/helper)
-   variables={'receipt_file':str(root/'receipt'),'transcript_file':str(root/'transcript.jsonl'),'meta_file':str(root/'meta.jsonl'),'crawling_file':str(root/'out.jsonl'),'SCRIPT_DIR':str(root/'scripts'),'PROJECT_ROOT':str(root/'backend'),'full_data_path':str(root/'data'),'video_id':'ABCDEFGHIJK','PRIMARY_MODEL':'gemini-3.7-flash','FALLBACK_MODEL':'gemini-3.7-flash','GEMINI_CHUNK_THINKING_LEVEL':'LOW','GEMINI_FINAL_MERGE_THINKING_LEVEL':'LOW'}
+   variables={'receipt_file':str(root/'receipt'),'transcript_file':str(root/'transcript.jsonl'),'meta_file':str(root/'meta.jsonl'),'crawling_file':str(root/'out.jsonl'),'SCRIPT_DIR':str(root/'scripts'),'PROJECT_ROOT':str(root/'backend'),'full_data_path':str(root/'data'),'video_id':'ABCDEFGHIJK','PRIMARY_MODEL':'gemini-3.7-flash','FALLBACK_MODEL':'gemini-3.7-flash','GEMINI_API_KEY':'fixture-unusable','GEMINI_API_KEY_BYEON':'','GEMINI_CHUNK_THINKING_LEVEL':'LOW','GEMINI_FINAL_MERGE_THINKING_LEVEL':'LOW'}
    for key in ['PROMPT_FILE','CHUNK_PLANNER','MERGE_RESULTS','PARSER_SCRIPT','GEMINI_CHUNK_API']:variables[key]=str(root/key)
    def recipe(model='gemini-3.7-flash',route='0'):
     v={**variables,'WEB_GEMINI_MODEL':model,'FORCE_WEB_FALLBACK':route};pre='\n'.join(k+'='+shlex.quote(x) for k,x in v.items());code=pre+'\nsource "$PROJECT_ROOT/utils/gemini-model.sh"\nmigrate_deprecated_gemini_model_vars PRIMARY_MODEL FALLBACK_MODEL WEB_GEMINI_MODEL TZUDONG_STAGE_CURRENT_MODEL\n'+snippet+'\ncapture(){\ncrawl_cache_args \"$full_data_path\" \"$video_id\"\nprintf "%s\\0" "${CRAWL_CACHE_ARGS[@]}";\n}\ncapture'

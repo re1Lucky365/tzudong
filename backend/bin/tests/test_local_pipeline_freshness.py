@@ -47,7 +47,8 @@ class LocalFreshnessTests(unittest.TestCase):
         self.selection = load('fresh_selection', self.root / 'backend/restaurant-evaluation/scripts/09-target-selection.py')
         self.transform = load('fresh_transform', self.root / 'backend/restaurant-evaluation/scripts/12-transform.py')
         self.env = {'PATH': '/usr/bin:/bin', 'HOME': str(self.root / 'home'),
-                    'PYTHON_CMD': sys.executable, 'TZUDONG_PIPELINE_ISOLATED': '1'}
+                    'PYTHON_CMD': sys.executable, 'TZUDONG_PIPELINE_ISOLATED': '1',
+                    'GEMINI_API_KEY': 'fixture-unusable'}
         self.settings = {
             'crawl': ['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.8-flash', '0', 'LOW', 'MEDIUM'],
             'selection': 'tzuyang',
@@ -214,6 +215,26 @@ class LocalFreshnessTests(unittest.TestCase):
         env_path.unlink()
         write(self.crawl / 'visual-location' / (VIDEO + '.jsonl'), {'origin_name': 'new visual'})
         self.assert_miss()
+
+    def test_automatic_web_fallback_matches_the_producer_without_initializing_a_provider(self):
+        self.env.pop('GEMINI_API_KEY')
+        self.settings['crawl'][3] = '1'
+        write(self.root/'backend/restaurant-crawling/data/gemini_cookies.local.json', {})
+        self.terminal('no_restaurants')
+        before = {p.relative_to(self.root):p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        for explicit in (None, '0', '1'):
+            with self.subTest(explicit=explicit):
+                if explicit is None:
+                    self.env.pop('FORCE_WEB_FALLBACK', None)
+                else:
+                    self.env['FORCE_WEB_FALLBACK'] = explicit
+                _, output, _ = self.run_main()
+                self.assertIn('localEvaluatedIds=1', output)
+        self.env.pop('FORCE_WEB_FALLBACK')
+        self.env['GEMINI_API_KEY_BYEON'] = 'fixture-unusable'
+        self.assert_miss()
+        after = {p.relative_to(self.root):p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        self.assertEqual(before, after)
 
     def test_mutation_after_last_successful_probe_is_not_a_stable_hit(self):
         self.terminal()

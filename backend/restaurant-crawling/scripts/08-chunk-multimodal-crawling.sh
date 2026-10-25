@@ -31,13 +31,25 @@ MERGE_RESULTS="$SCRIPT_DIR/merge_chunk_results.py"
 RUNTIME_DATA_DIR="$PROJECT_ROOT/restaurant-crawling/data"
 export VIDEO_CACHE_DIR="${VIDEO_CACHE_DIR:-$RUNTIME_DATA_DIR/video_cache}"
 
+resolve_crawl_fallback_mode() {
+    # Recipe resolution needs no cookie read, browser probe or provider setup.
+    # Runtime session admission remains in main before any new execution.
+    if [ "${FORCE_WEB_FALLBACK:-0}" = "1" ] || {
+        [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${GEMINI_API_KEY_BYEON:-}" ];
+    }; then
+        printf '1'
+    else
+        printf '0'
+    fi
+}
+
 crawl_cache_args() {
     local base="$1" video="$2"
     CRAWL_CACHE_ARGS=(--receipt "$base/crawling/.receipts/$video.json"
         --pipeline-stage crawl --crawling-path "$base" --evaluation-path "$base" --video-id "$video"
         --channel-config "${CONFIG_NAME:-channels.yaml}"
         --setting "$PRIMARY_MODEL" --setting "$FALLBACK_MODEL"
-        --setting "${WEB_GEMINI_MODEL:-gemini-3.8-flash}" --setting "${FORCE_WEB_FALLBACK:-0}"
+        --setting "${WEB_GEMINI_MODEL:-gemini-3.8-flash}" --setting "$(resolve_crawl_fallback_mode)"
         --setting "$GEMINI_CHUNK_THINKING_LEVEL" --setting "$GEMINI_FINAL_MERGE_THINKING_LEVEL"
         --output "$base/crawling/$video.jsonl")
 }
@@ -1176,7 +1188,7 @@ main() {
     # 헬스 체크 (임시 파일은 $TEMP_BASE 경로 통일)
     local hc_response="$TEMP_BASE/hc_response.json"
     local hc_stderr="$TEMP_BASE/hc_stderr.log"
-    if [ "${FORCE_WEB_FALLBACK:-0}" = "1" ] || [ $use_api_key -eq 0 ]; then
+    if [ "$(resolve_crawl_fallback_mode)" = "1" ]; then
         export FORCE_WEB_FALLBACK=1
         log_info "Health Check 생략: Web fallback 강제 모드"
     else
