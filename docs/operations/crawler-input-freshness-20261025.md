@@ -41,9 +41,11 @@ after the admission window is outside that observation. The whole-transform rece
 is deliberately conservative: changing a different video's metadata can invalidate
 otherwise unchanged warm videos. No per-video proof is invented to hide that miss.
 
-Validation: 118 focused offline tests passed using the installed crawler Python runtime,
+Validation: 119 focused offline tests passed using the installed crawler Python runtime,
 including changed/corrupt sources, configuration changes, negative terminal states,
-concurrent mutations and real shell coordination. The clean-source orchestration
+concurrent mutations and real shell coordination. Empty-string unknown names match
+the selection producer, and automatic Web fallback resolves the same recipe mode
+without probing a browser or initializing a provider. The clean-source orchestration
 readiness check passed 217 tests using the project test environment; these suites
 overlap and must not be added as a unique test count. Two initial shell fixture failures
 were caused by interpreter paths containing spaces and were corrected using the
