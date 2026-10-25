@@ -17,6 +17,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend" / "supabase" / "scripts"))
+sys.path.insert(0, str(REPO_ROOT))
 
 from hosted_data_plane import (  # noqa: E402
     HostedDataPlaneError,
@@ -72,10 +73,12 @@ def _is_short_video(crawling: Path, video_id: str) -> bool:
         meta = json.loads(last)
     except (OSError, IndexError, json.JSONDecodeError):
         return False
+    if not isinstance(meta, dict):
+        return False
     if meta.get("is_shorts") is True:
         return True
     duration = meta.get("duration")
-    return isinstance(duration, (int, float)) and duration <= 180
+    return type(duration) in (int, float) and 0 <= duration <= 180
 
 
 def _mark_crawl_not_selected(evaluation: Path, video_id: str, reason: str) -> None:
@@ -201,6 +204,135 @@ def _locally_evaluated_ids(evaluation: Path) -> set[str]:
     return ids
 
 
+def _cache_probe(command: list[str], env: dict[str, str]) -> bool:
+    # Probe modes exit before credentials repair, provider calls or publication.
+    # Do not echo child stdout/stderr (env loaders can contain private paths).
+    try:
+        result = subprocess.run(command, env={**env, 'PYTHONDONTWRITEBYTECODE': '1'},
+                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, timeout=15, check=False)
+        return result.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _cache_probe_many(command: list[str], videos: list[str], env: dict[str, str]) -> set[str]:
+    if not videos:
+        return set()
+    try:
+        result = subprocess.run(command, env={**env, 'PYTHONDONTWRITEBYTECODE': '1'},
+                                input=json.dumps(videos), text=True, stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL, timeout=15, check=False)
+        if result.returncode or len(result.stdout) > 256_000:
+            return set()
+        # Trusted env loaders may print diagnostics; never publish their output.
+        value = json.loads(result.stdout.strip().splitlines()[-1])
+        hits = value.get('cacheHits') if isinstance(value, dict) and set(value) == {'cacheHits'} else None
+        if (not isinstance(hits, list) or any(not isinstance(v, str) for v in hits)
+                or len(set(hits)) != len(hits) or not set(hits).issubset(videos)):
+            return set()
+        return set(hits)
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return set()
+
+
+def _cache_snapshot(crawling: Path, evaluation: Path, videos, env: dict[str, str] | None = None) -> dict:
+    from backend.utils.pipeline_cache_contracts import stage_inputs, transform_groups
+    paths = set()
+    for video in ([videos] if isinstance(videos, str) else videos):
+        for stage in ('crawl', 'selection', 'rule', 'laaj'):
+            # 08 captures CONFIG_NAME from its inherited environment before
+            # loading .env; watch that same file across all stage probes.
+            plan = stage_inputs(stage, REPO_ROOT / 'backend', crawling, evaluation, video, [],
+                                channel_config=(env or {}).get('CHANNELS_CONFIG') or 'channels.yaml')
+            for field in ('inputs', 'assets', 'metadata'):
+                paths.update(plan[field])
+        for directory in ('selection', 'notSelection', 'rule_results', 'laaj_results'):
+            paths.add(evaluation / 'evaluation' / directory / (video + '.jsonl'))
+            paths.add(evaluation / 'evaluation' / directory / '.receipts' / (video + '.json'))
+        paths.add(crawling / 'crawling' / (video + '.jsonl'))
+        paths.add(crawling / 'crawling/.receipts' / (video + '.json'))
+    paths.update((evaluation / 'evaluation/transforms.jsonl',
+                  evaluation / 'evaluation/.receipts/transform.json'))
+    for _, item, inputs in transform_groups(crawling, evaluation):
+        paths.update(inputs)
+        paths.add(crawling / 'meta' / (item + '.jsonl'))
+    paths.update((REPO_ROOT / 'backend/.env', REPO_ROOT / '.env', REPO_ROOT.parent / '.env',
+                  REPO_ROOT / 'backend/.env.local',
+                  REPO_ROOT / 'backend/restaurant-evaluation/scripts/12-transform.py',
+                  REPO_ROOT / 'backend/restaurant-evaluation/scripts/evaluation_results_boundary.py'))
+    result = {}
+    for path in paths:
+        try:
+            stat = path.stat()
+            result[path] = (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+        except FileNotFoundError:
+            result[path] = None
+    return result
+
+
+def _fresh_locally_evaluated_ids(evaluation: Path, crawling: Path, channel: str,
+                                 env: dict[str, str]) -> set[str]:
+    """One current content-validated batch, bounded by whole-batch stat snapshots."""
+    videos = sorted(_locally_evaluated_ids(evaluation))
+    if not videos:
+        return set()
+    python = env.get('PYTHON_CMD', sys.executable)
+    try:
+        before = _cache_snapshot(crawling, evaluation, videos, env)
+        markers = {video: _latest_object(evaluation / 'evaluation/notSelection' / (video + '.jsonl'))
+                   for video in videos}
+        shorts = {video for video, marker in markers.items()
+                  if marker and marker.get('notSelected_reason') == 'shorts:is_shorts_le_180'}
+        fresh = {video for video in shorts if _is_short_video(crawling, video)}
+        pending = sorted(set(videos) - shorts)
+        crawl_hits = _cache_probe_many(
+            ['bash', str(SCRIPTS['chunk']), '--cache-check-many', str(crawling)], pending, env)
+        selection_hits = _cache_probe_many(
+            [python, str(SCRIPTS['target']), '--cache-check-many', '--channel', channel,
+             '--crawling-path', str(crawling), '--evaluation-path', str(evaluation)],
+            sorted(crawl_hits), env)
+        selected, transform_needed = set(), set()
+        for video in sorted(selection_hits):
+            marker = markers[video]
+            selection = _latest_object(evaluation / 'evaluation/selection' / (video + '.jsonl')) or marker
+            targets = selection.get('evaluation_target') if selection else None
+            if not isinstance(targets, dict):
+                continue
+            if any(value is True for value in targets.values()):
+                selected.add(video)
+            elif marker and marker.get('notSelected_reason') in ('no_restaurants', 'all_names_null'):
+                crawl = _latest_object(crawling / 'crawling' / (video + '.jsonl'))
+                restaurants = crawl.get('restaurants') if crawl else None
+                if marker['notSelected_reason'] == 'no_restaurants':
+                    reason = crawl.get('no_restaurant_reason') if crawl else None
+                    if restaurants == [] and isinstance(reason, str) and reason.strip():
+                        fresh.add(video)
+                elif (isinstance(restaurants, list) and restaurants
+                      and all(isinstance(row, dict) and row.get('origin_name') is None for row in restaurants)):
+                    fresh.add(video)
+            else:
+                transform_needed.add(video)
+        rule_hits = _cache_probe_many(
+            [python, str(SCRIPTS['rule']), '--cache-check-many', '--channel', channel,
+             '--evaluation-path', str(evaluation)], sorted(selected), env)
+        laaj_hits = _cache_probe_many(
+            ['bash', str(SCRIPTS['laaj']), '--cache-check-many', str(crawling), str(evaluation)],
+            sorted(rule_hits), env)
+        transform_needed.update(laaj_hits)
+        if transform_needed and _cache_probe(
+            [python, str(SCRIPTS['transform']), '--cache-check', '--channel', channel,
+             '--crawling-path', str(crawling), '--evaluation-path', str(evaluation)], env):
+            fresh.update(transform_needed)
+        # Stat signatures only detect changes around real content-hash probes;
+        # they never authorize reuse by themselves or persist between calls.
+        terminal = _locally_evaluated_ids(evaluation)
+        return (fresh & terminal if before == _cache_snapshot(crawling, evaluation, videos, env)
+                else set())
+    except (OSError, ValueError, TypeError):
+        return set()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--channel", default="tzuyang")
@@ -229,7 +361,7 @@ def main(argv: list[str] | None = None) -> int:
     evaluation = REPO_ROOT / "backend/restaurant-evaluation/data" / args.channel
     urls_path = crawling / "urls.txt"
     try:
-        local_done = _locally_evaluated_ids(evaluation)
+        local_done = _fresh_locally_evaluated_ids(evaluation, crawling, args.channel, env)
     except HostedDataPlaneError:
         print("error=evaluation_output_invalid")
         return 2
@@ -363,7 +495,7 @@ def main(argv: list[str] | None = None) -> int:
             merged.append(item)
         _write_urls(urls_path, merged)
     try:
-        completed = _locally_evaluated_ids(evaluation)
+        completed = _fresh_locally_evaluated_ids(evaluation, crawling, args.channel, env)
     except HostedDataPlaneError:
         print("error=evaluation_output_invalid")
         return 2
