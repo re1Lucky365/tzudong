@@ -66,6 +66,9 @@ export TZUDONG_HOSTED_DATA_PLANE_APPROVED="1"
 export ALLOW_CUSTOM_FFMPEG="1"
 export FFMPEG_PATH=$(printf '%q' "$FFMPEG")
 export FFMPEG_TRUSTED_ROOT=$(printf '%q' "$FFMPEG_ROOT")
+if [[ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]]; then
+  export PUPPETEER_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+fi
 cd "\$TZUDONG_REPO_ROOT"
 echo "\$(date -u +%Y-%m-%dT%H:%M:%SZ) start source=mac freeze=\${G037_WRITE_FREEZE} limit=3"
 set +e
