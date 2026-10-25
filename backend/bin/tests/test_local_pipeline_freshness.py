@@ -70,7 +70,7 @@ class LocalFreshnessTests(unittest.TestCase):
         write(self.crawl / 'meta' / (video + '.jsonl'), {'id': video, 'duration': 600})
         write(self.crawl / 'transcript' / (video + '.jsonl'), {'transcript': [{'start': 0, 'text': 'fixture'}]})
         restaurants = [] if kind == 'no_restaurants' else [
-            {'origin_name': None if kind == 'all_names_null' else 'fixture', 'address': 'fixture address',
+            {'origin_name': (None if kind == 'all_names_null' else '' if kind == 'all_empty_names' else 'fixture'), 'address': 'fixture address',
              'category': '분식', 'reasoning_basis': 'fixture evidence', 'youtuber_review': 'fixture review'}]
         crawl = {'youtube_link': link, 'restaurants': restaurants,
                  'no_restaurant_reason': 'explicit fixture absence' if not restaurants else None}
@@ -143,7 +143,7 @@ class LocalFreshnessTests(unittest.TestCase):
         self.assertIn("newVideoIds=['bbbbbbbbbbb']", output)
 
     def test_no_restaurants_and_all_names_null_need_current_provenance_but_no_transform(self):
-        for kind in ('no_restaurants', 'all_names_null'):
+        for kind in ('no_restaurants', 'all_names_null', 'all_empty_names'):
             with self.subTest(kind=kind):
                 self.terminal(kind)
                 _, output, _ = self.run_main()

@@ -309,7 +309,7 @@ def _fresh_locally_evaluated_ids(evaluation: Path, crawling: Path, channel: str,
                     if restaurants == [] and isinstance(reason, str) and reason.strip():
                         fresh.add(video)
                 elif (isinstance(restaurants, list) and restaurants
-                      and all(isinstance(row, dict) and row.get('origin_name') is None for row in restaurants)):
+                      and all(isinstance(row, dict) and not row.get('origin_name') for row in restaurants)):
                     fresh.add(video)
             else:
                 transform_needed.add(video)
