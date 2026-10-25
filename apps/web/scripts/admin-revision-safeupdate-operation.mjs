@@ -17,8 +17,9 @@ const fail = code => { throw new Error(code); };
 const stateQuery = `SELECT jsonb_build_object('ledgerCount',(SELECT count(*) FROM supabase_migrations.schema_migrations),
  'sourceSha',(SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid='pipeline_control.bump_admin_evaluation_revision()'::regprocedure),
  'role',current_user,'session',session_user,'serverMajor',current_setting('server_version_num')::int/10000,
+ 'apiSafeupdate',EXISTS(SELECT 1 FROM pg_db_role_setting x JOIN pg_roles r ON r.oid=x.setrole CROSS JOIN LATERAL unnest(x.setconfig) s WHERE r.rolname='authenticator' AND s='session_preload_libraries=safeupdate'),
  'originalLedgerSha',(SELECT encode(sha256(convert_to(coalesce(jsonb_agg(jsonb_build_object('version',version,'name',name,'statements',statements) ORDER BY version),'[]'::jsonb)::text,'UTF8')),'hex') FROM supabase_migrations.schema_migrations WHERE version<>'20261011094346')) AS state`;
-const expected = (count, sourceSha) => ({ledgerCount:count,sourceSha,role:'postgres',session:'postgres',serverMajor:17,originalLedgerSha:LEDGER});
+const expected = (count, sourceSha) => ({ledgerCount:count,sourceSha,role:'postgres',session:'postgres',serverMajor:17,apiSafeupdate:true,originalLedgerSha:LEDGER});
 const jsonLine = output => {
   const lines = output.trim().split(/\r?\n/).filter(line => line.trim().startsWith('{'));
   if (lines.length !== 1) fail('ADMIN_REVISION_READBACK_INVALID');
@@ -52,14 +53,11 @@ export function runOperation(mode, {databaseUrl = process.env.SUPABASE_DB_URL, r
   if (process.env.APPLY_CONFIRMATION !== `apply:${sourceSha}:${DIGEST}`) fail('ADMIN_REVISION_CONFIRMATION_INVALID');
   const atomic = atomicMigrationSql(plan,migration);
   // Same reviewed SQL and ledger vector; the whole rehearsal always rolls back.
-  // Enable the existing guard locally and exercise the statement trigger with
-  // zero matched restaurant rows. No restaurant values are read or replaced.
+  // The real API rejection and isolated safeupdate probe cover guard behavior.
+  // Hosted postgres is not a superuser: preserve authenticator's preload and
+  // exercise the patched statement trigger without loading libraries or roles.
   const exercise = 'UPDATE public.restaurants SET review_count=review_count WHERE false;';
-  const rehearsal = `BEGIN; LOAD 'safeupdate'; SET LOCAL safeupdate.enabled=on;
-DO $probe$ BEGIN
- BEGIN ${exercise} RAISE EXCEPTION 'ADMIN_REVISION_BASELINE_DID_NOT_REJECT';
- EXCEPTION WHEN cardinality_violation THEN NULL; END;
-END $probe$;
+  const rehearsal = `BEGIN;
 ${atomic}
 ${exercise}
 ROLLBACK;`;
