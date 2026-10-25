@@ -825,7 +825,7 @@ PROMPT_EOF
         ) &
 
         # 일정 개수(max_jobs)만큼 실행 후 대기 (병렬 실행 제어) - Sliding Window 적용
-        while [ $(jobs -p | wc -l) -ge $max_jobs ]; do
+        while [ $(jobs -pr | wc -l) -ge $max_jobs ]; do
             sleep 1
         done
         
