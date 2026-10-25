@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import subprocess
 import sys
@@ -22,6 +23,7 @@ from hosted_data_plane import (  # noqa: E402
     assert_hosted_target,
     extract_youtube_video_id,
     fetch_hosted_restaurant_snapshot,
+    load_evaluation_rows,
 )
 
 
@@ -96,18 +98,106 @@ def _mark_crawl_not_selected(evaluation: Path, video_id: str, reason: str) -> No
     )
 
 
-def _locally_evaluated_ids(evaluation: Path) -> set[str]:
-    """IDs 09 already wrote (selection or notSelection).
+def _latest_object(path: Path) -> dict | None:
+    try:
+        lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        record = json.loads(lines[-1])
+    except (OSError, ValueError, IndexError):
+        return None
+    return record if isinstance(record, dict) else None
 
-    Foreign restaurants never reach hosted youtube ids, so they would
-    re-qualify as new every night and consume --limit.
-    """
+
+def _has_terminal_evaluation(record: dict) -> bool:
+    """Check completion, not approval: valid negative scores/matches still count."""
+    if record.get("is_notSelected") is not False or record.get("is_missing") is not False:
+        return False
+    results = record.get("evaluation_results")
+    if not isinstance(results, dict):
+        return False
+    # Canonical flattened Rule/LAAJ fields; ranges match pipeline/validators.py.
+    for key in ("location_match_TF", "category_validity_TF", "rb_grounding_TF", "category_TF"):
+        item = results.get(key)
+        if not isinstance(item, dict) or type(item.get("eval_value")) is not bool:
+            return False
+    if results["location_match_TF"].get("match_status") == "failed":
+        return False
+    for key, maximum in (("visit_authenticity", 2), ("rb_inference_score", 2),
+                         ("review_faithfulness_score", 1)):
+        item = results.get(key)
+        value = item.get("eval_value") if isinstance(item, dict) else None
+        if (type(value) not in (int, float) or not 0 <= value <= maximum
+                or not math.isfinite(value)):
+            return False
+    return True
+
+
+def _permanent_no_transcript_ids() -> set[str]:
+    # Same JSON array, canonical URL and any-qualifying-duplicate policy as 03.
+    ledger = REPO_ROOT / "backend/data/no_transcript_link/no_transcript_permanent.json"
+    try:
+        entries = json.loads(ledger.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    if not isinstance(entries, list):
+        return set()
     ids: set[str] = set()
-    for folder in ("selection", "notSelection"):
-        directory = evaluation / "evaluation" / folder
-        if not directory.is_dir():
+    for entry in entries:
+        if not isinstance(entry, dict):
             continue
-        ids.update(path.stem for path in directory.glob("*.jsonl"))
+        video_id = extract_youtube_video_id(entry.get("youtube_link"))
+        retry_num = entry.get("retry_num")
+        if (video_id and entry.get("youtube_link") == f"https://www.youtube.com/watch?v={video_id}"
+                and type(retry_num) is int and retry_num >= 3):
+            ids.add(video_id)
+    return ids
+
+
+def _locally_evaluated_ids(evaluation: Path) -> set[str]:
+    """Only terminal outcomes are reusable; selection alone is intermediate."""
+    ids: set[str] = set()
+    directory = evaluation / "evaluation" / "notSelection"
+    for path in directory.glob("*.jsonl"):
+        record = _latest_object(path)
+        if (
+            isinstance(record, dict)
+            and extract_youtube_video_id(record.get("youtube_link", "")) == path.stem
+            and record.get("is_notSelected") is True
+            and isinstance(record.get("notSelected_reason"), str)
+            and record["notSelected_reason"].strip()
+            and isinstance(record.get("evaluation_target", {}), dict)
+            and not any(value is True for value in record.get("evaluation_target", {}).values())
+        ):
+            ids.add(path.stem)
+    explicitly_excluded = set(ids)
+    transformed: dict[str, list[dict]] = {}
+    invalid_identity: set[str] = set()
+    for record in load_evaluation_rows(str(evaluation / "evaluation" / "transforms.jsonl")):
+        video_id = extract_youtube_video_id(record.get("youtube_link", ""))
+        if video_id and all(isinstance(record.get(key), str) and record[key].strip()
+                            for key in ("trace_id", "origin_name")):
+            ids.add(video_id)
+            transformed.setdefault(video_id, []).append(record)
+        elif video_id:
+            invalid_identity.add(video_id)
+    for video_id, rows in transformed.items():
+        selection_path = evaluation / "evaluation" / "selection" / f"{video_id}.jsonl"
+        if (video_id not in explicitly_excluded and not selection_path.is_file()
+                and (video_id in invalid_identity or not all(_has_terminal_evaluation(row) for row in rows))):
+            ids.discard(video_id)
+    for path in (evaluation / "evaluation" / "selection").glob("*.jsonl"):
+        selection = _latest_object(path)
+        targets = selection.get("evaluation_target") if selection else None
+        if (not selection or extract_youtube_video_id(selection.get("youtube_link")) != path.stem
+                or not isinstance(targets, dict)
+                or any(not isinstance(name, str) or not name.strip() or type(value) is not bool
+                       for name, value in targets.items())):
+            ids.discard(path.stem)
+            continue
+        required_names = {name for name, selected in targets.items() if selected is True}
+        completed_names = {row["origin_name"] for row in transformed.get(path.stem, [])
+                           if _has_terminal_evaluation(row)}
+        if not required_names.issubset(completed_names):
+            ids.discard(path.stem)
     return ids
 
 
@@ -138,7 +228,12 @@ def main(argv: list[str] | None = None) -> int:
     crawling = REPO_ROOT / "backend/restaurant-crawling/data" / args.channel
     evaluation = REPO_ROOT / "backend/restaurant-evaluation/data" / args.channel
     urls_path = crawling / "urls.txt"
-    local_done = _locally_evaluated_ids(evaluation)
+    try:
+        local_done = _locally_evaluated_ids(evaluation)
+    except HostedDataPlaneError:
+        print("error=evaluation_output_invalid")
+        return 2
+    permanent_no_transcript = _permanent_no_transcript_ids()
     before = _load_urls(urls_path)
     _run([python, str(SCRIPTS["collect_urls"]), "--channel", args.channel], env)
     after = _load_urls(urls_path)
@@ -151,6 +246,7 @@ def main(argv: list[str] | None = None) -> int:
             or video_id in hosted
             or video_id in seen
             or video_id in local_done
+            or video_id in permanent_no_transcript
         ):
             continue
         seen.add(video_id)
@@ -159,6 +255,7 @@ def main(argv: list[str] | None = None) -> int:
             break
     print(f"hostedYoutubeIds={len(hosted)}")
     print(f"localEvaluatedIds={len(local_done)}")
+    print(f"permanentNoTranscriptIds={len(permanent_no_transcript)}")
     print(f"newVideoCount={len(new_urls)}")
     print(f"newVideoIds={[extract_youtube_video_id(item) for item in new_urls]}")
     if args.dry_run or not new_urls:
@@ -265,6 +362,17 @@ def main(argv: list[str] | None = None) -> int:
             known.add(video_id)
             merged.append(item)
         _write_urls(urls_path, merged)
+    try:
+        completed = _locally_evaluated_ids(evaluation)
+    except HostedDataPlaneError:
+        print("error=evaluation_output_invalid")
+        return 2
+    incomplete = set(new_ids) - completed
+    print(f"completedVideoCount={len(set(new_ids) & completed)}")
+    print(f"incompleteVideoCount={len(incomplete)}")
+    if incomplete:
+        print("error=evaluation_output_incomplete")
+        return 1
     print("evaluate=ok")
     return 0
 
