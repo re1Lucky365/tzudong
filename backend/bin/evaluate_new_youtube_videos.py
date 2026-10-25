@@ -168,13 +168,22 @@ def _locally_evaluated_ids(evaluation: Path) -> set[str]:
             and not any(value is True for value in record.get("evaluation_target", {}).values())
         ):
             ids.add(path.stem)
+    explicitly_excluded = set(ids)
     transformed: dict[str, list[dict]] = {}
+    invalid_identity: set[str] = set()
     for record in load_evaluation_rows(str(evaluation / "evaluation" / "transforms.jsonl")):
         video_id = extract_youtube_video_id(record.get("youtube_link", ""))
         if video_id and all(isinstance(record.get(key), str) and record[key].strip()
                             for key in ("trace_id", "origin_name")):
             ids.add(video_id)
             transformed.setdefault(video_id, []).append(record)
+        elif video_id:
+            invalid_identity.add(video_id)
+    for video_id, rows in transformed.items():
+        selection_path = evaluation / "evaluation" / "selection" / f"{video_id}.jsonl"
+        if (video_id not in explicitly_excluded and not selection_path.is_file()
+                and (video_id in invalid_identity or not all(_has_terminal_evaluation(row) for row in rows))):
+            ids.discard(video_id)
     for path in (evaluation / "evaluation" / "selection").glob("*.jsonl"):
         selection = _latest_object(path)
         targets = selection.get("evaluation_target") if selection else None
