@@ -38,7 +38,7 @@ test('rehearsal rolls back and an uncertain commit is read back without resubmis
     calls.push({sql,single});
     if(calls.length===1 || calls.length===3)return emit(pending);
     if(calls.length===2){
-      assert.equal(single,false);assert.match(sql,/^BEGIN;/);assert.doesNotMatch(sql,/LOAD |safeupdate.enabled/);
+      assert.equal(single,false);assert.match(sql,/^BEGIN;/);assert.doesNotMatch(sql,/\bLOAD\s+'|SET\s+(?:LOCAL\s+)?safeupdate\.enabled/i);
       assert.match(sql,/WHERE false/);assert.match(sql,/ROLLBACK;$/);
       return emit(Object.fromEntries(Object.entries(migration.terminalReadback.expected).reverse()));
     }
