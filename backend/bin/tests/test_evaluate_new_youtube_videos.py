@@ -99,7 +99,7 @@ class EvaluateNewYoutubeVideosTests(unittest.TestCase):
             with patch.object(module, 'REPO_ROOT', evaluation), \
                 patch.object(module, 'assert_hosted_target'), \
                 patch.object(module, 'fetch_hosted_restaurant_snapshot', return_value=([], [])), \
-                patch.object(module, '_locally_evaluated_ids', return_value={video_id}), \
+                patch.object(module, '_fresh_locally_evaluated_ids', return_value={video_id}), \
                 patch.object(module, '_load_urls', return_value=[selection['youtube_link']]), \
                 patch.object(module, '_write_urls'), patch.object(module, '_run', return_value=0) as run:
                 self.assertEqual(module.main(['--limit', '1']), 0)
@@ -202,7 +202,8 @@ class EvaluateNewYoutubeVideosTests(unittest.TestCase):
                 patch.object(module, 'fetch_hosted_restaurant_snapshot', return_value=([], [])), \
                 patch.object(module, '_load_urls', return_value=urls), \
                 patch.object(module, '_write_urls'), patch.object(module, '_run', side_effect=run):
-                self.assertEqual(module.main(['--limit', '1']), 0)
+                # The synthetic target alone has no producer receipts: not complete.
+                self.assertEqual(module.main(['--limit', '1']), 1)
             self.assertEqual(targets, [eligible])
 
     def test_permanent_ledger_uses_valid_canonical_entries_and_any_qualifying_duplicate(self) -> None:
@@ -332,7 +333,7 @@ class EvaluateNewYoutubeVideosTests(unittest.TestCase):
             "_load_urls",
             return_value=["https://www.youtube.com/watch?v=FZoO4d0tU40"],
         ), patch.object(
-            module, "_locally_evaluated_ids", return_value={"FZoO4d0tU40"}
+            module, "_fresh_locally_evaluated_ids", return_value={"FZoO4d0tU40"}
         ), patch.object(module, "_write_urls"), patch.object(
             module, "_run", side_effect=fake_run
         ):
@@ -389,7 +390,7 @@ class EvaluateNewYoutubeVideosTests(unittest.TestCase):
                 ["https://www.youtube.com/watch?v=dNTE6DuEWGg"],
             ],
         ), patch.object(module, "_write_urls"), patch.object(
-            module, "_locally_evaluated_ids", side_effect=[set(), {'dNTE6DuEWGg'}]
+            module, "_fresh_locally_evaluated_ids", side_effect=[set(), {'dNTE6DuEWGg'}]
         ), patch.object(module, "_run", side_effect=fake_run):
             code = module.main(["--channel", "tzuyang", "--limit", "1"])
         self.assertEqual(code, 0)
@@ -426,7 +427,7 @@ class EvaluateNewYoutubeVideosTests(unittest.TestCase):
                 ],
             ],
         ), patch.object(module, "_write_urls"), patch.object(
-            module, "_locally_evaluated_ids", side_effect=[set(), {'aaaaaaaaaaa', 'bbbbbbbbbbb', 'ccccccccccc'}]
+            module, "_fresh_locally_evaluated_ids", side_effect=[set(), {'aaaaaaaaaaa', 'bbbbbbbbbbb', 'ccccccccccc'}]
         ), patch.object(
             module, "_is_short_video", side_effect=lambda _crawling, video_id: video_id == "aaaaaaaaaaa"
         ), patch.object(
