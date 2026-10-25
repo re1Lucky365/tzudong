@@ -164,6 +164,22 @@ class EvaluateNewYoutubeVideosTests(unittest.TestCase):
             path.write_text(json.dumps(selection) + '\n{')
             self.assertEqual(module._locally_evaluated_ids(evaluation), set())
 
+    def test_orphan_transform_requires_every_row_to_be_terminal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            evaluation = Path(tmp)
+            video_id = 'abcdefghijk'
+            output = evaluation / 'evaluation/transforms.jsonl'
+            good = terminal_rows(video_id, ['complete'])[0]
+            incomplete = {**good, 'origin_name': 'incomplete', 'trace_id': 'other',
+                          'is_missing': True, 'evaluation_results': None}
+            for rows in [[incomplete], [good, incomplete],
+                         [good, {'youtube_link': good['youtube_link'], 'is_missing': True}]]:
+                with self.subTest(rows=len(rows)):
+                    write_rows(output, rows)
+                    self.assertEqual(module._locally_evaluated_ids(evaluation), set())
+            write_rows(output, [good])
+            self.assertEqual(module._locally_evaluated_ids(evaluation), {video_id})
+
     def test_permanent_no_transcript_is_excluded_before_the_video_limit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -335,7 +351,7 @@ class EvaluateNewYoutubeVideosTests(unittest.TestCase):
             skipped = {'youtube_link': link('bbbbbbbbbbb'), 'is_notSelected': True, 'notSelected_reason': 'no_restaurants'}
             skipped_path = root / 'evaluation/notSelection/bbbbbbbbbbb.jsonl'
             skipped_path.write_text(json.dumps(skipped) + '\n')
-            transformed = {'youtube_link': link('ccccccccccc'), 'trace_id': 'fixture', 'origin_name': 'fixture'}
+            transformed = terminal_rows('ccccccccccc', ['fixture'])[0]
             (root / 'evaluation/transforms.jsonl').write_text(json.dumps(transformed) + '\n')
             self.assertEqual(module._locally_evaluated_ids(root), {'bbbbbbbbbbb', 'ccccccccccc'})
             for invalid in [{}, {**skipped, 'youtube_link': link('ddddddddddd')}, {**skipped, 'is_notSelected': False},
